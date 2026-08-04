@@ -65,3 +65,7 @@ Task 生命周期为 `draft → open → active`，执行中可进入 `blocked`�
 ## Attempt 状态（M1-10）
 
 Attempt 从 `active` 开始，可暂停、提交或放弃；暂停后可恢复为 `active`，也可提交或放弃。`submitted` 与 `abandoned` 是终态。Attempt 的失败或放弃不删除其 Trace/Evidence 关联。
+
+## Claim 状态（M1-11）
+
+Claim 主链为 `hypothesis → candidate → under_verification → provisionally_accepted → accepted`。主链任一阶段都可以进入 `contested`、`refuted`、`superseded`、`retracted` 或 `dependency_tainted`；这些结果态终止当前 Claim revision 的状态流转。协议不允许跳过主链升级或从结果态重新打开。

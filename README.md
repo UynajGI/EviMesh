@@ -42,3 +42,5 @@ Task lifecycle validation covers open/active execution, blocked recovery,
 verification requests, completion, and cancellation.
 Attempt lifecycle validation covers active/paused execution and submitted or
 abandoned terminal outcomes while retaining trace and evidence associations.
+Claim lifecycle validation covers staged promotion plus contested, refuted,
+superseded, retracted, and dependency-tainted outcomes.
