@@ -9,3 +9,5 @@ M1-28 新增 `project.schema.json`，约束 Project revision 的 schema、稳定
 M1-29 新增 `question.schema.json`，以 `$defs/researchContract` 强制问题、定义、背景、范围、进展标准、可接受证据、证伪条件、许可、风险等级和维护者引用。
 
 M1-30 新增 `task.schema.json`，校验 Task revision 的输入、输出、验收标准和 `frontier/full_trace/adversarial/blind` context mode。
+
+M1-31 新增 `claim.schema.json`，校验 ClaimRevision 的 statement、scope、assumptions、falsification 和 Claim 状态机枚举。
