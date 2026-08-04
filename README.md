@@ -72,3 +72,4 @@ witness, and maintainer attribution.
 ResearchEvent envelope validation covers namespaced event types, payloads, SHA-256 hashes, signatures, and UUIDv7 parent links.
 Client signature envelope validation fixes canonical signing bytes and nonce rules for Ed25519 signatures.
 Platform Receipt validation covers server time, accepted event ID, and server signature.
+Common JSON Schema now defines shared UUID/UUIDv7, Object ID, revision, hash, actor, identity, timestamp, and signature constraints.
