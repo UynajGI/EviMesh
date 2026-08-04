@@ -117,3 +117,7 @@ ContextBundle 的 `mode` 冻结为 `frontier`、`full_trace`、`adversarial`、`
 ## Contribution 角色（M1-23）
 
 Contribution 角色冻结为 `originator`、`contributor`、`reviewer`、`verifier`、`witness`、`maintainer`。角色描述贡献归因，不改变科学结论；每个角色都有明确语义，未知角色必须拒绝。
+
+## ResearchEvent Envelope（M1-24）
+
+ResearchEvent 固定 schema `srp.event.v1`，包含 namespaced `event_type`、不可变 `payload`、SHA-256 `hash`、`signature` 和 UUIDv7 `parents`。事件 ID 使用 UUIDv7，允许空 parents 表示 genesis event。

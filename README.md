@@ -69,3 +69,4 @@ ContextBundle mode validation covers frontier, full_trace, adversarial, and blin
 research contexts.
 Contribution role validation covers originator, contributor, reviewer, verifier,
 witness, and maintainer attribution.
+ResearchEvent envelope validation covers namespaced event types, payloads, SHA-256 hashes, signatures, and UUIDv7 parent links.
