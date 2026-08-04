@@ -1,0 +1,23 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "evimesh-api-edge-dev",
+  "main": "src/index.mjs",
+  "compatibility_date": "2026-08-04",
+  "vars": {
+    "EVIMESH_ENV": "development"
+  },
+  "env": {
+    "staging": {
+      "name": "evimesh-api-edge-staging",
+      "vars": {
+        "EVIMESH_ENV": "staging"
+      }
+    },
+    "production": {
+      "name": "evimesh-api-edge",
+      "vars": {
+        "EVIMESH_ENV": "production"
+      }
+    }
+  }
+}

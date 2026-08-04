@@ -128,5 +128,8 @@ Event JSON Schema now validates signed ResearchEvent envelopes and UUIDv7 parent
 Valid protocol fixtures now cover every schema from M1-28 through M1-38.
 Invalid protocol fixtures now provide at least two failure samples for every schema from M1-28 through M1-38.
 
-M1-01 through M1-40 are complete. The next milestone is M2, starting with
-hosted infrastructure and local PostgreSQL development services.
+M1-01 through M1-40 are complete. M2 now includes the local PostgreSQL,
+MinIO, and Mailpit development stack plus the minimal Cloudflare Workers API
+Edge health contract in [`apps/api-edge`](apps/api-edge/README.md). Hosted
+infrastructure and deployment remain gated on the corresponding provider
+accounts and credentials.

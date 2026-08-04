@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.3.0",
   "scripts": {
-    "lint": "node ../../scripts/check-package.mjs"
+    "lint": "node ../../scripts/check-package.mjs",
+    "test": "node --test test/index.test.mjs",
+    "dev": "wrangler dev",
+    "deploy:dev": "wrangler deploy"
   }
 }
