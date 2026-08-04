@@ -113,3 +113,7 @@ VerificationPolicy 固定 schema `srp.verification-policy.v1`，由 `policy_id`�
 ## ContextBundle 模式（M1-22）
 
 ContextBundle 的 `mode` 冻结为 `frontier`、`full_trace`、`adversarial`、`blind`：分别表示固定 Frontier 上下文、完整 trace/provenance、对抗性冲突材料、以及隐藏预期输出的盲验证上下文。未知 mode 必须拒绝。
+
+## Contribution 角色（M1-23）
+
+Contribution 角色冻结为 `originator`、`contributor`、`reviewer`、`verifier`、`witness`、`maintainer`。角色描述贡献归因，不改变科学结论；每个角色都有明确语义，未知角色必须拒绝。

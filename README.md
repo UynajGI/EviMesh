@@ -67,3 +67,5 @@ VerificationPolicy validation requires a version, non-empty requirements, and
 outcome mappings under the fixed policy schema.
 ContextBundle mode validation covers frontier, full_trace, adversarial, and blind
 research contexts.
+Contribution role validation covers originator, contributor, reviewer, verifier,
+witness, and maintainer attribution.
