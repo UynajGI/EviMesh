@@ -15,13 +15,31 @@ if (process.argv.slice(2).some((arg) => arg !== "--json")) {
 }
 
 function commandStatus(name) {
-  const result = spawnSync(name, ["--version"], { encoding: "utf8", windowsHide: true });
+  const result = spawnSync(name, ["--version"], {
+    encoding: "utf8",
+    windowsHide: true,
+    shell: process.platform === "win32",
+  });
   if (result.error?.code === "ENOENT") {
     return { name: `${name}-cli`, status: "pending", detail: "CLI not found" };
   }
   return result.status === 0
     ? { name: `${name}-cli`, status: "pass", detail: "installed" }
     : { name: `${name}-cli`, status: "pending", detail: "CLI unavailable" };
+}
+
+function workspaceCommandStatus(name, filter) {
+  const result = spawnSync("pnpm", ["--filter", filter, "exec", name, "--version"], {
+    encoding: "utf8",
+    windowsHide: true,
+    shell: process.platform === "win32",
+  });
+  if (result.error?.code === "ENOENT") {
+    return { name: `${name}-cli`, status: "pending", detail: "pnpm not found" };
+  }
+  return result.status === 0
+    ? { name: `${name}-cli`, status: "pass", detail: result.stdout.trim() || "installed" }
+    : { name: `${name}-cli`, status: "pending", detail: "workspace CLI unavailable" };
 }
 
 function envStatus(name, { secret = false } = {}) {
@@ -32,7 +50,7 @@ function envStatus(name, { secret = false } = {}) {
 
 const checks = [
   commandStatus("supabase"),
-  commandStatus("wrangler"),
+  workspaceCommandStatus("wrangler", "@evimesh/api-edge"),
   envStatus("SUPABASE_URL"),
   envStatus("SUPABASE_ACCESS_TOKEN", { secret: true }),
   envStatus("CLOUDFLARE_ACCOUNT_ID"),
