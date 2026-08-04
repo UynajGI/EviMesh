@@ -109,3 +109,7 @@ VerificationReceipt 固定 schema `srp.verification-receipt.v1`，必须锁定�
 ## VerificationPolicy（M1-21）
 
 VerificationPolicy 固定 schema `srp.verification-policy.v1`，由 `policy_id`、正整数 `revision`、非空 `requirements` 和非空 `outcomes` 组成。Policy 版本不可原地修改；新规则必须创建新的 revision，outcomes 负责把 requirements 或关键 Receipt 条件映射到 Claim 状态。
+
+## ContextBundle 模式（M1-22）
+
+ContextBundle 的 `mode` 冻结为 `frontier`、`full_trace`、`adversarial`、`blind`：分别表示固定 Frontier 上下文、完整 trace/provenance、对抗性冲突材料、以及隐藏预期输出的盲验证上下文。未知 mode 必须拒绝。
