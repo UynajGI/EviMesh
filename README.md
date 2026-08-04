@@ -16,4 +16,16 @@ EviMesh 是开放分布式科研推进网络项目。
 ```powershell
 lefthook install
 codegraph status
+pnpm install
+pnpm lint
+pnpm --filter @evimesh/protocol test
 ```
+
+## Workspace
+
+`apps/*` contains product and runtime entry points. `packages/*` contains the
+domain, protocol, schema, database, artifact, policy, SDK, CLI, and UI layers.
+
+The protocol package currently defines the M1-01 object ID format. Its IDs use
+stable type prefixes such as `claim_<canonical-uuid>`; UUIDv7 generation rules
+are reserved for M1-02.
