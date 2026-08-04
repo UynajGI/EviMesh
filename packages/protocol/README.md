@@ -49,3 +49,7 @@ Actor 类型冻结为 `human`、`agent`、`organization`、`service`、`maintain
 ## 身份强度（M1-06）
 
 身份强度冻结为 `verified`、`observed`、`self_declared` 和 `unknown`。它描述身份凭证的强度，不等同于 Actor 类型或科学结论；协议写入前必须通过 `assertIdentityStrength` 校验。
+
+## Project 状态（M1-07）
+
+Project 生命周期为 `draft → active → archived`。`draft` 可直接归档或进入研究，`active` 只能归档，`archived` 是终态，不允许重新打开。状态和迁移都通过协议包的校验函数冻结，非法状态或反向迁移必须拒绝。

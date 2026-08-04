@@ -34,3 +34,5 @@ must retry with a newly generated ID. Revision records are append-only: revision
 `current` is a projection pointer.
 The protocol also distinguishes `raw_hash` (exact submitted bytes) from
 `semantic_hash` (canonical JSON semantics).
+Project lifecycle validation is frozen as `draft → active → archived`, with
+`archived` terminal and illegal reverse transitions rejected.
