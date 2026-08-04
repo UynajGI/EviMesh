@@ -57,3 +57,5 @@ counterexample, benchmark, statistical, code-test, negative-result, and expert
 assessment types.
 Evidence links are restricted to supports, refutes, qualifies, and reproduces,
 and target a specific ClaimRevision.
+Run Receipt validation covers task/context, input/output artifacts, execution
+environment, command, seed, timing, network access, exit code, actor, and signature.

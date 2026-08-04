@@ -93,3 +93,7 @@ Evidence 类型冻结为：`formal_proof`、`numerical_result`、`experimental_r
 ## Evidence-Claim Link（M1-17）
 
 Evidence 与 ClaimRevision 的关系冻结为 `supports`、`refutes`、`qualifies`、`reproduces`。链接方向固定为 `Evidence(source) → ClaimRevision(target)`，必须锁定具体 revision；Evidence 是证据对象，不会因建立链接而直接变成 Claim。
+
+## Run Receipt（M1-18）
+
+Run Receipt 必须记录 Task、ContextBundle、输入/输出 Artifact、源码、容器、命令参数、环境、硬件、随机种子、起止时间、网络访问、exit code、Actor 和签名。Receipt 创建时校验字段完整、时间有序，并以不可变对象返回。
