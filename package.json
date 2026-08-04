@@ -8,6 +8,7 @@
     "lint": "turbo run lint",
     "infra:up": "node scripts/dev-infra.mjs",
     "infra:doctor": "node scripts/infra-doctor.mjs",
+    "infra:hosted-readiness": "node scripts/hosted-readiness.mjs",
     "validate": "turbo run lint",
     "prepare": "lefthook install"
   },

@@ -49,6 +49,9 @@ installation message.
 endpoints. `SUPABASE_URL`, `R2_ENDPOINT`, `EVIMESH_API_URL`, and
 `EVIMESH_WEB_URL` may be set to check non-default endpoints; unset hosted
 endpoints are reported as `PENDING`, not treated as configured.
+`pnpm infra:hosted-readiness` is a separate read-only check for provider CLIs,
+non-secret configuration, credentials presence, and hosted origins; it never
+prints secret values. See [`docs/hosted-readiness.md`](docs/hosted-readiness.md).
 
 Copy `.env.example` to `.env` for local configuration. Secret names and
 development/staging/production separation are documented in
