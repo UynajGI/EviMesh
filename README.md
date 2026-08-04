@@ -54,6 +54,8 @@ Copy `.env.example` to `.env` for local configuration. Secret names and
 development/staging/production separation are documented in
 [`docs/infra-secrets.md`](docs/infra-secrets.md); real secret values must stay
 outside the repository.
+Hosted origin naming and DNS acceptance criteria are documented in
+[`docs/infra-domains.md`](docs/infra-domains.md).
 
 MinIO exposes its S3-compatible API on port 9000 and its console on port 9001;
 set `EVIMESH_S3_PORT` or `EVIMESH_S3_CONSOLE_PORT` if either port is occupied.
