@@ -44,3 +44,5 @@ Attempt lifecycle validation covers active/paused execution and submitted or
 abandoned terminal outcomes while retaining trace and evidence associations.
 Claim lifecycle validation covers staged promotion plus contested, refuted,
 superseded, retracted, and dependency-tainted outcomes.
+Challenge lifecycle validation covers admissibility, investigation, and upheld,
+rejected, or resolved terminal outcomes.

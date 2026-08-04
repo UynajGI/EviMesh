@@ -69,3 +69,7 @@ Attempt 从 `active` 开始，可暂停、提交或放弃；暂停后可恢复�
 ## Claim 状态（M1-11）
 
 Claim 主链为 `hypothesis → candidate → under_verification → provisionally_accepted → accepted`。主链任一阶段都可以进入 `contested`、`refuted`、`superseded`、`retracted` 或 `dependency_tainted`；这些结果态终止当前 Claim revision 的状态流转。协议不允许跳过主链升级或从结果态重新打开。
+
+## Challenge 状态（M1-12）
+
+Challenge 生命周期为 `open → admissible → investigating`，调查后进入 `upheld`、`rejected` 或 `resolved` 之一；三个结果态都是终态。协议拒绝跳过 admissibility/investigation 或重新打开已结束的 Challenge。
