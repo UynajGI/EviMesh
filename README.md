@@ -55,3 +55,5 @@ Dependency validation rejects self-dependencies and direct or indirect
 Evidence validation freezes formal, numerical, experimental, dataset, literature,
 counterexample, benchmark, statistical, code-test, negative-result, and expert
 assessment types.
+Evidence links are restricted to supports, refutes, qualifies, and reproduces,
+and target a specific ClaimRevision.

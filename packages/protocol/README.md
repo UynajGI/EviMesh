@@ -89,3 +89,7 @@ Frontier 是追加式不可变快照链：第一个快照没有 `previous`，之
 ## Evidence 类型（M1-16）
 
 Evidence 类型冻结为：`formal_proof`、`numerical_result`、`experimental_result`、`dataset`、`literature_support`、`counterexample`、`benchmark`、`statistical_analysis`、`code_test`、`negative_result`、`expert_assessment`。未知类型必须拒绝，不自动降级为通用 Evidence。
+
+## Evidence-Claim Link（M1-17）
+
+Evidence 与 ClaimRevision 的关系冻结为 `supports`、`refutes`、`qualifies`、`reproduces`。链接方向固定为 `Evidence(source) → ClaimRevision(target)`，必须锁定具体 revision；Evidence 是证据对象，不会因建立链接而直接变成 Claim。
