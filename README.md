@@ -38,3 +38,5 @@ Project lifecycle validation is frozen as `draft → active → archived`, with
 `archived` terminal and illegal reverse transitions rejected.
 Question lifecycle validation covers proposal, review, admissibility, active,
 resolution, archival, and rejection transitions.
+Task lifecycle validation covers open/active execution, blocked recovery,
+verification requests, completion, and cancellation.

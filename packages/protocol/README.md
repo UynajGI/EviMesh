@@ -57,3 +57,7 @@ Project 生命周期为 `draft → active → archived`。`draft` 可直接归�
 ## Question 状态（M1-08）
 
 Question 生命周期为 `draft → proposed → under_review → admissible → active`。`under_review` 和 `admissible` 可拒绝；`active` 可 `resolved` 或归档，`resolved` 最终归档；`archived` 与 `rejected` 都是终态。协议包完整冻结状态表并拒绝未列出的迁移。
+
+## Task 状态（M1-09）
+
+Task 生命周期为 `draft → open → active`，执行中可进入 `blocked`、请求验证或直接完成/取消。`blocked` 可恢复为 `active`；`verification_requested` 可回到执行、完成或取消；`completed` 与 `cancelled` 是终态。所有未列出的迁移均拒绝。
