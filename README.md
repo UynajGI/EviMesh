@@ -19,7 +19,26 @@ codegraph status
 pnpm install
 pnpm lint
 pnpm --filter @evimesh/protocol test
+docker compose up -d postgres
+docker compose ps
 ```
+
+## Local PostgreSQL
+
+M2-18 provides a local PostgreSQL 16 service through `compose.yaml`. It uses
+the development-only database `evimesh_dev`, the user `evimesh`, and a named
+Docker volume. Set `EVIMESH_POSTGRES_PORT` when port 5432 is already in use.
+
+Start and stop the service with:
+
+```powershell
+docker compose up -d postgres
+docker compose ps
+docker compose down
+```
+
+The bundled credentials are for local development only and must not be reused
+in hosted environments.
 
 ## Workspace
 

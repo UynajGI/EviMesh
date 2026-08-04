@@ -1,0 +1,23 @@
+name: evimesh
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: evimesh_dev
+      POSTGRES_USER: evimesh
+      POSTGRES_PASSWORD: evimesh_local_only
+    ports:
+      - "${EVIMESH_POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - evimesh_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U evimesh -d evimesh_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  evimesh_postgres_data:
