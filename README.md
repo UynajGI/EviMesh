@@ -59,3 +59,5 @@ Evidence links are restricted to supports, refutes, qualifies, and reproduces,
 and target a specific ClaimRevision.
 Run Receipt validation covers task/context, input/output artifacts, execution
 environment, command, seed, timing, network access, exit code, actor, and signature.
+VerificationReceipt validation locks ClaimRevision and ContractRevision while
+capturing outcome, context, independence, model family, and findings.

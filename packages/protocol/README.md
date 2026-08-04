@@ -97,3 +97,7 @@ Evidence 与 ClaimRevision 的关系冻结为 `supports`、`refutes`、`qualifie
 ## Run Receipt（M1-18）
 
 Run Receipt 必须记录 Task、ContextBundle、输入/输出 Artifact、源码、容器、命令参数、环境、硬件、随机种子、起止时间、网络访问、exit code、Actor 和签名。Receipt 创建时校验字段完整、时间有序，并以不可变对象返回。
+
+## VerificationReceipt（M1-19）
+
+VerificationReceipt 固定 schema `srp.verification-receipt.v1`，必须锁定具体 ClaimRevision 与 ContractRevision，并记录 outcome、verification types、context mode、是否看到预期输出、实现/数据独立性、model family 和结构化 findings。Receipt 不接受缺失字段或无 code/severity 的 finding。
