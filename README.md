@@ -20,6 +20,7 @@ pnpm install
 pnpm lint
 pnpm --filter @evimesh/protocol test
 docker compose up -d postgres
+docker compose up -d minio
 docker compose ps
 ```
 
@@ -37,8 +38,10 @@ docker compose ps
 docker compose down
 ```
 
-The bundled credentials are for local development only and must not be reused
-in hosted environments.
+MinIO exposes its S3-compatible API on port 9000 and its console on port 9001;
+set `EVIMESH_S3_PORT` or `EVIMESH_S3_CONSOLE_PORT` if either port is occupied.
+The bundled PostgreSQL and MinIO credentials are for local development only and
+must not be reused in hosted environments.
 
 ## Workspace
 
