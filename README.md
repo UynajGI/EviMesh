@@ -26,6 +26,7 @@ pnpm --filter @evimesh/protocol test
 `apps/*` contains product and runtime entry points. `packages/*` contains the
 domain, protocol, schema, database, artifact, policy, SDK, CLI, and UI layers.
 
-The protocol package currently defines the M1-01 object ID format. Its IDs use
-stable type prefixes such as `claim_<canonical-uuid>`; UUIDv7 generation rules
-are reserved for M1-02.
+The protocol package currently defines the M1-01 object ID format and M1-02
+UUIDv7 generation. Its IDs use stable type prefixes such as
+`claim_<canonical-uuid>`; duplicate IDs are rejected by the server and clients
+must retry with a newly generated ID.
