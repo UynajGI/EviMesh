@@ -19,3 +19,5 @@ M1-33 新增 `run.schema.json`，覆盖 Run Receipt 的 Task/Context、输入输
 M1-34 新增 `verification.schema.json`，固定 ClaimRevision/ContractRevision、outcome、verification types、context mode、独立性关系和 Finding severity/code 结构。
 
 M1-35 新增 `challenge.schema.json`，校验目标 ClaimRevision、Challenge 状态机和结构化 impact（type/severity/summary）。
+
+M1-36 新增 `frontier.schema.json`，校验 append-only previous、ClaimRevision members、版本化 policy 和 SHA-256 checkpoint。

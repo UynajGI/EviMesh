@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://evimesh.org/schema/frontier.schema.json",
+  "title": "EviMesh Frontier Snapshot",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "number", "previous", "revision", "members", "policy", "checkpoint"],
+  "properties": {
+    "schema": { "const": "srp.frontier.v1" },
+    "number": { "type": "integer", "minimum": 1 },
+    "previous": { "type": ["integer", "null"], "minimum": 1 },
+    "revision": { "type": "integer", "minimum": 1 },
+    "members": { "type": "array", "items": { "$ref": "#/$defs/member" } },
+    "policy": { "$ref": "#/$defs/policy" },
+    "checkpoint": { "$ref": "#/$defs/checkpoint" }
+  },
+  "$defs": {
+    "member": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["claim_revision_id", "status"],
+      "properties": {
+        "claim_revision_id": { "type": "string", "minLength": 1 },
+        "status": { "type": "string", "enum": ["accepted", "contested", "provisionally_accepted"] }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_id", "revision"],
+      "properties": {
+        "policy_id": { "type": "string", "minLength": 1 },
+        "revision": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "checkpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "hash"],
+      "properties": {
+        "algorithm": { "const": "sha256" },
+        "hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+      }
+    }
+  }
+}

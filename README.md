@@ -81,3 +81,4 @@ Artifact JSON Schema now validates artifact hash, location, license, type, and p
 Run JSON Schema now validates the minimum reproducibility receipt fields and execution outcome.
 Verification JSON Schema now validates fixed ClaimRevision references, verification outcomes, context, independence, and Finding severity.
 Challenge JSON Schema now validates target ClaimRevision references, lifecycle state, and structured impact.
+Frontier JSON Schema now validates append-only previous snapshots, members, policy revisions, and SHA-256 checkpoints.
