@@ -73,3 +73,5 @@ ResearchEvent envelope validation covers namespaced event types, payloads, SHA-2
 Client signature envelope validation fixes canonical signing bytes and nonce rules for Ed25519 signatures.
 Platform Receipt validation covers server time, accepted event ID, and server signature.
 Common JSON Schema now defines shared UUID/UUIDv7, Object ID, revision, hash, actor, identity, timestamp, and signature constraints.
+Project JSON Schema now validates Project revision identity, lifecycle state, metadata, and creation provenance.
+Question JSON Schema now validates Question revisions and their required ResearchContract reference.
