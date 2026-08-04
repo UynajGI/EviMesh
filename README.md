@@ -63,3 +63,5 @@ VerificationReceipt validation locks ClaimRevision and ContractRevision while
 capturing outcome, context, independence, model family, and findings.
 Finding severity is restricted to critical, major, warning, and note with
 explicit blocking semantics.
+VerificationPolicy validation requires a version, non-empty requirements, and
+outcome mappings under the fixed policy schema.

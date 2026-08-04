@@ -105,3 +105,7 @@ VerificationReceipt 固定 schema `srp.verification-receipt.v1`，必须锁定�
 ## Finding 严重度（M1-20）
 
 `critical` 表示阻断接受，`major` 表示需要处理的重大问题，`warning` 表示非阻断风险或限制，`note` 表示记录性信息。VerificationReceipt 只接受这四级 severity。
+
+## VerificationPolicy（M1-21）
+
+VerificationPolicy 固定 schema `srp.verification-policy.v1`，由 `policy_id`、正整数 `revision`、非空 `requirements` 和非空 `outcomes` 组成。Policy 版本不可原地修改；新规则必须创建新的 revision，outcomes 负责把 requirements 或关键 Receipt 条件映射到 Claim 状态。
