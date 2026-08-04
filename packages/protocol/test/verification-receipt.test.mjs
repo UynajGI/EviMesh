@@ -42,6 +42,7 @@ test('rejects incomplete and malformed verification receipts', () => {
   assert.throws(() => createVerificationReceipt({ ...validReceipt, outcome: 'accepted' }), /unsupported verification outcome/);
   assert.throws(() => createVerificationReceipt({ ...validReceipt, verificationTypes: [] }), /verification types/);
   assert.throws(() => createVerificationReceipt({ ...validReceipt, sawExpectedOutputs: 'no' }), /boolean/);
-  assert.throws(() => createVerificationReceipt({ ...validReceipt, findings: [{ code: 'MISSING_SEVERITY' }] }), /finding severity/);
+  assert.throws(() => createVerificationReceipt({ ...validReceipt, findings: [{ severity: 'error', code: 'BAD_SEVERITY' }] }), /unsupported finding severity/);
+  assert.throws(() => createVerificationReceipt({ ...validReceipt, findings: [{ code: 'MISSING_SEVERITY' }] }), /unsupported finding severity/);
   assert.throws(() => createVerificationReceipt({ ...validReceipt, findings: [{ severity: 'warning' }] }), /finding code/);
 });

@@ -61,3 +61,5 @@ Run Receipt validation covers task/context, input/output artifacts, execution
 environment, command, seed, timing, network access, exit code, actor, and signature.
 VerificationReceipt validation locks ClaimRevision and ContractRevision while
 capturing outcome, context, independence, model family, and findings.
+Finding severity is restricted to critical, major, warning, and note with
+explicit blocking semantics.

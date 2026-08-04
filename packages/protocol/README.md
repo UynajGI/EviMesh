@@ -101,3 +101,7 @@ Run Receipt 必须记录 Task、ContextBundle、输入/输出 Artifact、源码�
 ## VerificationReceipt（M1-19）
 
 VerificationReceipt 固定 schema `srp.verification-receipt.v1`，必须锁定具体 ClaimRevision 与 ContractRevision，并记录 outcome、verification types、context mode、是否看到预期输出、实现/数据独立性、model family 和结构化 findings。Receipt 不接受缺失字段或无 code/severity 的 finding。
+
+## Finding 严重度（M1-20）
+
+`critical` 表示阻断接受，`major` 表示需要处理的重大问题，`warning` 表示非阻断风险或限制，`note` 表示记录性信息。VerificationReceipt 只接受这四级 severity。

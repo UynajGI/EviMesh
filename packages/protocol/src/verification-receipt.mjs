@@ -1,3 +1,5 @@
+import { assertFindingSeverity } from './finding-severity.mjs';
+
 const VERIFICATION_OUTCOMES = Object.freeze(['supports', 'refutes', 'qualifies', 'inconclusive']);
 
 function requireString(value, field) {
@@ -21,7 +23,7 @@ function frozenFindings(value) {
     if (!finding || typeof finding !== 'object' || Array.isArray(finding)) {
       throw new TypeError('each finding must be an object');
     }
-    requireString(finding.severity, 'finding severity');
+    assertFindingSeverity(finding.severity);
     requireString(finding.code, 'finding code');
     return Object.freeze({ ...finding });
   }));
