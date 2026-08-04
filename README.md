@@ -36,3 +36,5 @@ The protocol also distinguishes `raw_hash` (exact submitted bytes) from
 `semantic_hash` (canonical JSON semantics).
 Project lifecycle validation is frozen as `draft → active → archived`, with
 `archived` terminal and illegal reverse transitions rejected.
+Question lifecycle validation covers proposal, review, admissibility, active,
+resolution, archival, and rejection transitions.

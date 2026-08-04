@@ -53,3 +53,7 @@ Actor 类型冻结为 `human`、`agent`、`organization`、`service`、`maintain
 ## Project 状态（M1-07）
 
 Project 生命周期为 `draft → active → archived`。`draft` 可直接归档或进入研究，`active` 只能归档，`archived` 是终态，不允许重新打开。状态和迁移都通过协议包的校验函数冻结，非法状态或反向迁移必须拒绝。
+
+## Question 状态（M1-08）
+
+Question 生命周期为 `draft → proposed → under_review → admissible → active`。`under_review` 和 `admissible` 可拒绝；`active` 可 `resolved` 或归档，`resolved` 最终归档；`archived` 与 `rejected` 都是终态。协议包完整冻结状态表并拒绝未列出的迁移。
