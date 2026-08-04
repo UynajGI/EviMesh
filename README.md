@@ -56,6 +56,8 @@ development/staging/production separation are documented in
 outside the repository.
 Hosted origin naming and DNS acceptance criteria are documented in
 [`docs/infra-domains.md`](docs/infra-domains.md).
+R2 CORS policy generation and the account-authorized apply step are documented
+in [`docs/infra-r2-cors.md`](docs/infra-r2-cors.md).
 
 MinIO exposes its S3-compatible API on port 9000 and its console on port 9001;
 set `EVIMESH_S3_PORT` or `EVIMESH_S3_CONSOLE_PORT` if either port is occupied.
