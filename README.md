@@ -20,6 +20,7 @@ pnpm install
 pnpm lint
 pnpm --filter @evimesh/protocol test
 pnpm infra:up
+pnpm infra:doctor
 docker compose up -d postgres
 docker compose up -d minio
 docker compose up -d mailpit
@@ -43,6 +44,11 @@ docker compose down
 `pnpm infra:up` starts PostgreSQL, MinIO, and Mailpit together. It requires
 Docker Desktop; when Docker is unavailable, the script exits with a clear
 installation message.
+
+`pnpm infra:doctor` reports local service connectivity and configured hosted
+endpoints. `SUPABASE_URL`, `R2_ENDPOINT`, `EVIMESH_API_URL`, and
+`EVIMESH_WEB_URL` may be set to check non-default endpoints; unset hosted
+endpoints are reported as `PENDING`, not treated as configured.
 
 MinIO exposes its S3-compatible API on port 9000 and its console on port 9001;
 set `EVIMESH_S3_PORT` or `EVIMESH_S3_CONSOLE_PORT` if either port is occupied.
