@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://evimesh.org/schema/challenge.schema.json",
+  "title": "EviMesh Challenge",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "challenge_id", "revision", "state", "target_claim_revision_id", "reason", "impact", "created_at", "created_by"],
+  "properties": {
+    "schema": { "const": "srp.challenge.v1" },
+    "challenge_id": { "type": "string", "pattern": "^challenge_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" },
+    "revision": { "type": "integer", "minimum": 1 },
+    "state": { "type": "string", "enum": ["open", "admissible", "investigating", "upheld", "rejected", "resolved"] },
+    "target_claim_revision_id": { "type": "string", "minLength": 1 },
+    "reason": { "type": "string", "minLength": 1, "maxLength": 10000 },
+    "impact": { "$ref": "#/$defs/impact" },
+    "proposed_resolution": { "type": "string", "minLength": 1 },
+    "created_at": { "type": "string", "format": "date-time" },
+    "created_by": { "type": "string", "minLength": 1 }
+  },
+  "$defs": {
+    "impact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "severity", "summary"],
+      "properties": {
+        "type": { "type": "string", "enum": ["scope", "method", "evidence", "reproducibility", "integrity"] },
+        "severity": { "type": "string", "enum": ["critical", "major", "warning", "note"] },
+        "summary": { "type": "string", "minLength": 1, "maxLength": 4000 }
+      }
+    }
+  }
+}

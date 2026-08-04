@@ -17,3 +17,5 @@ M1-32 新增 `artifact.schema.json`，校验 Artifact 的 SHA-256 hash、URI loc
 M1-33 新增 `run.schema.json`，覆盖 Run Receipt 的 Task/Context、输入输出 Artifact、源码容器、命令、环境硬件、随机种子、时间、网络、exit code、Actor 和签名字段。
 
 M1-34 新增 `verification.schema.json`，固定 ClaimRevision/ContractRevision、outcome、verification types、context mode、独立性关系和 Finding severity/code 结构。
+
+M1-35 新增 `challenge.schema.json`，校验目标 ClaimRevision、Challenge 状态机和结构化 impact（type/severity/summary）。
