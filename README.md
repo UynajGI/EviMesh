@@ -52,3 +52,6 @@ ClaimRelation validation freezes all 14 typed edges with explicit source-to-targ
 semantics.
 Dependency validation rejects self-dependencies and direct or indirect
 `depends_on` cycles before graph writes.
+Evidence validation freezes formal, numerical, experimental, dataset, literature,
+counterexample, benchmark, statistical, code-test, negative-result, and expert
+assessment types.

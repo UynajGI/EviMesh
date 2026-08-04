@@ -85,3 +85,7 @@ Frontier 是追加式不可变快照链：第一个快照没有 `previous`，之
 ## depends_on DAG（M1-15）
 
 `depends_on` 必须形成有向无环图：不能自依赖，不能增加直接环或递归间接环。`assertDependencyGraph` 校验已有边，`assertDependencyAddition` 在添加新边前拒绝会闭合环的写入。
+
+## Evidence 类型（M1-16）
+
+Evidence 类型冻结为：`formal_proof`、`numerical_result`、`experimental_result`、`dataset`、`literature_support`、`counterexample`、`benchmark`、`statistical_analysis`、`code_test`、`negative_result`、`expert_assessment`。未知类型必须拒绝，不自动降级为通用 Evidence。
