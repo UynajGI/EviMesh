@@ -79,3 +79,4 @@ Task JSON Schema now validates task inputs, outputs, acceptance criteria, and co
 Claim JSON Schema now validates ClaimRevision statements, scope, assumptions, falsification, and lifecycle state.
 Artifact JSON Schema now validates artifact hash, location, license, type, and provenance metadata.
 Run JSON Schema now validates the minimum reproducibility receipt fields and execution outcome.
+Verification JSON Schema now validates fixed ClaimRevision references, verification outcomes, context, independence, and Finding severity.
