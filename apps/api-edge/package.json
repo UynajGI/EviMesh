@@ -8,6 +8,7 @@
     "dev": "wrangler dev",
     "dev:staging": "wrangler dev --env staging",
     "deploy:dev": "wrangler deploy",
-    "deploy:staging": "wrangler deploy --env staging"
+    "deploy:staging": "wrangler deploy --env staging",
+    "deploy:production": "wrangler deploy --env production"
   }
 }

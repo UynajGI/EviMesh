@@ -27,6 +27,16 @@ pnpm --filter @evimesh/api-edge dev:staging
 pnpm --filter @evimesh/api-edge deploy:staging
 ```
 
+Production deployment is an explicit action and requires Wrangler
+authentication in the operator environment:
+
+```powershell
+pnpm --filter @evimesh/api-edge deploy:production
+```
+
+The production block changes the Worker name and environment marker only;
+production secrets must be configured in Cloudflare's secret store.
+
 The configuration deliberately contains no account ID, API token, or runtime
 secret. Keep local secrets in `.dev.vars` or the environment-specific secret
 store; never commit them.
