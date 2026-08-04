@@ -24,7 +24,7 @@ function commandStatus(name) {
     return { name: `${name}-cli`, status: "pending", detail: "CLI not found" };
   }
   return result.status === 0
-    ? { name: `${name}-cli`, status: "pass", detail: "installed" }
+    ? { name: `${name}-cli`, status: "pass", detail: result.stdout.trim() || result.stderr.trim() || "installed" }
     : { name: `${name}-cli`, status: "pending", detail: "CLI unavailable" };
 }
 
@@ -38,7 +38,7 @@ function workspaceCommandStatus(name, filter) {
     return { name: `${name}-cli`, status: "pending", detail: "pnpm not found" };
   }
   return result.status === 0
-    ? { name: `${name}-cli`, status: "pass", detail: result.stdout.trim() || "installed" }
+    ? { name: `${name}-cli`, status: "pass", detail: result.stdout.trim() || result.stderr.trim() || "installed" }
     : { name: `${name}-cli`, status: "pending", detail: "workspace CLI unavailable" };
 }
 
