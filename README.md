@@ -40,3 +40,5 @@ Question lifecycle validation covers proposal, review, admissibility, active,
 resolution, archival, and rejection transitions.
 Task lifecycle validation covers open/active execution, blocked recovery,
 verification requests, completion, and cancellation.
+Attempt lifecycle validation covers active/paused execution and submitted or
+abandoned terminal outcomes while retaining trace and evidence associations.

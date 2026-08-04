@@ -61,3 +61,7 @@ Question 生命周期为 `draft → proposed → under_review → admissible →
 ## Task 状态（M1-09）
 
 Task 生命周期为 `draft → open → active`，执行中可进入 `blocked`、请求验证或直接完成/取消。`blocked` 可恢复为 `active`；`verification_requested` 可回到执行、完成或取消；`completed` 与 `cancelled` 是终态。所有未列出的迁移均拒绝。
+
+## Attempt 状态（M1-10）
+
+Attempt 从 `active` 开始，可暂停、提交或放弃；暂停后可恢复为 `active`，也可提交或放弃。`submitted` 与 `abandoned` 是终态。Attempt 的失败或放弃不删除其 Trace/Evidence 关联。
