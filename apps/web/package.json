@@ -4,7 +4,10 @@
   "version": "0.3.0",
   "scripts": {
     "lint": "node ../../scripts/check-package.mjs",
-    "deploy:preview": "pnpm dlx wrangler pages deploy public --project-name evimesh-web-dev",
-    "deploy:production": "pnpm dlx wrangler pages deploy public --project-name evimesh-web"
+    "deploy:preview": "wrangler pages deploy public --project-name evimesh-web-dev",
+    "deploy:production": "wrangler pages deploy public --project-name evimesh-web"
+  },
+  "devDependencies": {
+    "wrangler": "4.118.0"
   }
 }
