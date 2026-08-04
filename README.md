@@ -1,0 +1,19 @@
+# EviMesh
+
+EviMesh 是开放分布式科研推进网络项目。
+
+当前项目文档：
+
+- [Roadmap](EviMesh_Roadmap_v0.3.md)
+- [Task](EviMesh_Task_v0.3.md)
+
+## 本地环境
+
+本仓库使用 Git、Lefthook 和 CodeGraph 维护基础工程质量。具体开发语言和运行时将在实现阶段按模块补充。
+
+## 常用命令
+
+```powershell
+lefthook install
+codegraph status
+```

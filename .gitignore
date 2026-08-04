@@ -1,0 +1,29 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/settings.json
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+*.local
+
+# Dependencies and build output
+node_modules/
+dist/
+build/
+out/
+coverage/
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Tool caches and local indexes
+.codegraph/
+.cache/
+.tmp/
+*.log
