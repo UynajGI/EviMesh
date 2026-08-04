@@ -12,10 +12,9 @@ export const OBJECT_ID_PREFIXES = Object.freeze({
   Frontier: "frontier",
 });
 
-const KIND_BY_PREFIX = Object.freeze(
-  Object.fromEntries(
-    Object.entries(OBJECT_ID_PREFIXES).map(([kind, prefix]) => [prefix, kind]),
-  ),
+const PREFIX_BY_KIND = new Map(Object.entries(OBJECT_ID_PREFIXES));
+const KIND_BY_PREFIX = new Map(
+  Object.entries(OBJECT_ID_PREFIXES).map(([kind, prefix]) => [prefix, kind]),
 );
 
 function assertUuid(uuid) {
@@ -25,7 +24,7 @@ function assertUuid(uuid) {
 }
 
 export function formatObjectId(kind, uuid) {
-  const prefix = OBJECT_ID_PREFIXES[kind];
+  const prefix = PREFIX_BY_KIND.get(kind);
   if (!prefix) {
     throw new TypeError(`Unsupported object kind: ${kind}`);
   }
@@ -39,14 +38,14 @@ export function parseObjectId(value) {
     throw new TypeError("Object ID must be a string");
   }
 
-  const separator = value.indexOf("_");
+  const separator = value.lastIndexOf("_");
   if (separator <= 0 || separator === value.length - 1) {
     throw new TypeError("Object ID must be formatted as <prefix>_<uuid>");
   }
 
   const prefix = value.slice(0, separator);
   const uuid = value.slice(separator + 1);
-  const kind = KIND_BY_PREFIX[prefix];
+  const kind = KIND_BY_PREFIX.get(prefix);
   if (!kind) {
     throw new TypeError(`Unsupported object ID prefix: ${prefix}`);
   }

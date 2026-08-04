@@ -26,8 +26,8 @@ pnpm --filter @evimesh/protocol test
 `apps/*` contains product and runtime entry points. `packages/*` contains the
 domain, protocol, schema, database, artifact, policy, SDK, CLI, and UI layers.
 
-The protocol package currently defines the M1-01 object ID format and M1-02
-UUIDv7 generation. Its IDs use stable type prefixes such as
+The protocol package now covers the complete M1 protocol foundation, including
+the M1-01 object ID format and M1-02 UUIDv7 generation. Its IDs use stable type prefixes such as
 `claim_<canonical-uuid>`; duplicate IDs are rejected by the server and clients
 must retry with a newly generated ID. Revision records are append-only: revision
 1 starts a lineage, later revisions supersede the previous revision, and
@@ -86,3 +86,6 @@ Contribution JSON Schema now validates actor roles and produced/used attribution
 Event JSON Schema now validates signed ResearchEvent envelopes and UUIDv7 parent links.
 Valid protocol fixtures now cover every schema from M1-28 through M1-38.
 Invalid protocol fixtures now provide at least two failure samples for every schema from M1-28 through M1-38.
+
+M1-01 through M1-40 are complete. The next milestone is M2, starting with
+hosted infrastructure and local PostgreSQL development services.

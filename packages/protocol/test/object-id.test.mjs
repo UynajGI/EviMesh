@@ -21,6 +21,17 @@ test("formats every M1 object kind with its stable prefix", () => {
   }
 });
 
+test("normalizes UUID casing when formatting object IDs", () => {
+  assert.equal(
+    formatObjectId("Claim", UUID.toUpperCase()),
+    `${OBJECT_ID_PREFIXES.Claim}_${UUID}`,
+  );
+});
+
+test("accepts valid object IDs", () => {
+  assert.equal(isObjectId(formatObjectId("Claim", UUID)), true);
+});
+
 test("parses an object ID and normalizes UUID casing", () => {
   assert.deepEqual(parseObjectId(`claim_${UUID.toUpperCase()}`), {
     kind: "Claim",
@@ -34,6 +45,8 @@ test("rejects unsupported prefixes and malformed UUIDs", () => {
   assert.equal(isObjectId(`${UUID}`), false);
   assert.throws(() => parseObjectId("sample_550e8400-e29b-41d4-a716-446655440000"));
   assert.throws(() => formatObjectId("Unknown", UUID));
+  assert.equal(isObjectId(`toString_${UUID}`), false);
+  assert.throws(() => formatObjectId("constructor", UUID));
 });
 
 test("creates a UUIDv7 with the supplied millisecond timestamp", () => {
