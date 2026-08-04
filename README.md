@@ -50,3 +50,5 @@ Frontier snapshots are immutable and append-only, with contiguous `previous`
 references and fixed revisions.
 ClaimRelation validation freezes all 14 typed edges with explicit source-to-target
 semantics.
+Dependency validation rejects self-dependencies and direct or indirect
+`depends_on` cycles before graph writes.

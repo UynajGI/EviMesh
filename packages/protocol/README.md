@@ -81,3 +81,7 @@ Frontier 是追加式不可变快照链：第一个快照没有 `previous`，之
 ## ClaimRelation（M1-14）
 
 协议冻结 14 种关系：`depends_on`、`supports`、`refutes`、`qualifies`、`reproduces`、`extends`、`supersedes`、`contradicts`、`derived_from`、`uses_method`、`uses_dataset`、`implements`、`verifies`、`challenges`。每条边都明确记录 `source → target`，关系语义不会因查询方向改变；`depends_on` 的无环约束和 `supersedes` 的旧 revision 约束由后续 DAG 校验补充。
+
+## depends_on DAG（M1-15）
+
+`depends_on` 必须形成有向无环图：不能自依赖，不能增加直接环或递归间接环。`assertDependencyGraph` 校验已有边，`assertDependencyAddition` 在添加新边前拒绝会闭合环的写入。
