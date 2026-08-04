@@ -50,6 +50,11 @@ endpoints. `SUPABASE_URL`, `R2_ENDPOINT`, `EVIMESH_API_URL`, and
 `EVIMESH_WEB_URL` may be set to check non-default endpoints; unset hosted
 endpoints are reported as `PENDING`, not treated as configured.
 
+Copy `.env.example` to `.env` for local configuration. Secret names and
+development/staging/production separation are documented in
+[`docs/infra-secrets.md`](docs/infra-secrets.md); real secret values must stay
+outside the repository.
+
 MinIO exposes its S3-compatible API on port 9000 and its console on port 9001;
 set `EVIMESH_S3_PORT` or `EVIMESH_S3_CONSOLE_PORT` if either port is occupied.
 Mailpit captures local SMTP on port 1025 and exposes its message UI on port
