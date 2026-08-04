@@ -1,0 +1,12 @@
+{
+  "name": "evimesh",
+  "version": "0.3.0",
+  "private": true,
+  "description": "EviMesh 开放分布式科研推进网络",
+  "scripts": {
+    "prepare": "lefthook install"
+  },
+  "devDependencies": {
+    "lefthook": "^2.1.10"
+  }
+}
