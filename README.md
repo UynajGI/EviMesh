@@ -84,3 +84,4 @@ Challenge JSON Schema now validates target ClaimRevision references, lifecycle s
 Frontier JSON Schema now validates append-only previous snapshots, members, policy revisions, and SHA-256 checkpoints.
 Contribution JSON Schema now validates actor roles and produced/used attribution edges.
 Event JSON Schema now validates signed ResearchEvent envelopes and UUIDv7 parent links.
+Valid protocol fixtures now cover every schema from M1-28 through M1-38.

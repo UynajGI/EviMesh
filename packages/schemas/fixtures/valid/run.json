@@ -1,0 +1,21 @@
+{
+  "schema": "srp.run.v1",
+  "run_id": "run_018f0f4a-5c00-4000-8000-000000000001",
+  "task_id": "task_018f0f4a-5c00-4000-8000-000000000002",
+  "context_bundle_id": "context_01",
+  "input_artifact_ids": ["evidence_01"],
+  "source_code": "git:0123456789abcdef",
+  "container": "ghcr.io/evimesh/research@sha256:abc",
+  "command": "python",
+  "args": ["run.py"],
+  "environment": { "python": "3.12.4" },
+  "hardware": { "cpu": "x86_64" },
+  "random_seed": 42,
+  "started_at": "2026-08-04T06:00:00.000Z",
+  "ended_at": "2026-08-04T06:02:00.000Z",
+  "network_access": false,
+  "output_artifact_ids": ["evidence_02"],
+  "exit_code": 0,
+  "actor_id": "actor_01",
+  "signature": "signature-bytes"
+}

@@ -25,3 +25,5 @@ M1-36 新增 `frontier.schema.json`，校验 append-only previous、ClaimRevisio
 M1-37 新增 `contribution.schema.json`，校验 Actor、六类 Contribution role，以及 produced/used 对象归因；两者不能同时为空。
 
 M1-38 新增 `event.schema.json`，校验 ResearchEvent 的 namespaced event type、UUIDv7 event/parent IDs、SHA-256 hash 和 Ed25519 signature。
+
+M1-39 新增 `fixtures/valid/`，为 M1-28 至 M1-38 的每个 Schema 提供一个合法样例；统一测试检查 fixture 与对应 schema 的必填字段和 schema 标识一致。

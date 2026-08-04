@@ -1,0 +1,13 @@
+{
+  "schema": "srp.verification-receipt.v1",
+  "claim_revision_id": "claim_01@revision:2",
+  "contract_revision_id": "contract_01@revision:1",
+  "outcome": "supports",
+  "verification_types": ["numerical_reproduction"],
+  "context_mode": "blind",
+  "saw_expected_outputs": true,
+  "implementation_relation": "independent",
+  "data_relation": "same_dataset",
+  "model_family": "deterministic_reference",
+  "findings": [{ "severity": "note", "code": "MATCH" }]
+}

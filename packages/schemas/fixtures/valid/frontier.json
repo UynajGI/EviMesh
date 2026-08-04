@@ -1,0 +1,9 @@
+{
+  "schema": "srp.frontier.v1",
+  "number": 1,
+  "previous": null,
+  "revision": 1,
+  "members": [],
+  "policy": { "policy_id": "numeric-reproduction", "revision": 1 },
+  "checkpoint": { "algorithm": "sha256", "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
+}

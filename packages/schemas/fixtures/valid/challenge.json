@@ -1,0 +1,11 @@
+{
+  "schema": "srp.challenge.v1",
+  "challenge_id": "challenge_018f0f4a-5c00-4000-8000-000000000001",
+  "revision": 1,
+  "state": "open",
+  "target_claim_revision_id": "claim_01@revision:2",
+  "reason": "The result may depend on an undocumented step.",
+  "impact": { "type": "reproducibility", "severity": "major", "summary": "Independent reproduction may fail." },
+  "created_at": "2026-08-04T06:00:00.000Z",
+  "created_by": "actor_01"
+}
