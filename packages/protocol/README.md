@@ -125,3 +125,7 @@ ResearchEvent 固定 schema `srp.event.v1`，包含 namespaced `event_type`、�
 ## 客户端签名 Envelope（M1-25）
 
 客户端签名 Envelope 固定 schema `srp.client-signature-envelope.v1`。签名覆盖的字节为 `event_type`、`payload`、`nonce` 的 canonical JSON，并提供对应 SHA-256 digest；nonce 必须是 16–128 位 base64url 字符串。Ed25519 密钥生成和验签在 M4 实现。
+
+## Platform Receipt（M1-26）
+
+Platform Receipt 固定 schema `srp.platform-receipt.v1`，记录服务端 `server_time`、已接受事件的 UUIDv7 `event_id` 和不可变 `server_signature`。
