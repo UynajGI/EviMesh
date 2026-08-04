@@ -133,3 +133,8 @@ MinIO, and Mailpit development stack plus the minimal Cloudflare Workers API
 Edge health contract in [`apps/api-edge`](apps/api-edge/README.md). Hosted
 infrastructure and deployment remain gated on the corresponding provider
 accounts and credentials.
+
+The Web preview workflow in [`.github/workflows/web-preview.yml`](.github/workflows/web-preview.yml)
+deploys `apps/web/public` to the `evimesh-web-dev` Cloudflare Pages project for
+same-repository pull requests. It requires `CLOUDFLARE_API_TOKEN` and
+`CLOUDFLARE_ACCOUNT_ID` to be configured as repository secrets.
