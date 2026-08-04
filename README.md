@@ -29,4 +29,6 @@ domain, protocol, schema, database, artifact, policy, SDK, CLI, and UI layers.
 The protocol package currently defines the M1-01 object ID format and M1-02
 UUIDv7 generation. Its IDs use stable type prefixes such as
 `claim_<canonical-uuid>`; duplicate IDs are rejected by the server and clients
-must retry with a newly generated ID.
+must retry with a newly generated ID. Revision records are append-only: revision
+1 starts a lineage, later revisions supersede the previous revision, and
+`current` is a projection pointer.

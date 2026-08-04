@@ -28,3 +28,9 @@
 M1-01 只规定前缀和 UUID 的 canonical 表示。M1-02 使用 UUIDv7 的 48-bit Unix 毫秒时间戳和随机位生成 ID，但不把 ID 改写成服务端序列号。
 
 客户端和服务端都可以生成 UUIDv7。服务端以完整对象 ID 作为唯一键；若发生重复，服务端拒绝冲突写入，客户端重新生成 ID 后重试。服务端不替换客户端提交的合法 ID。
+
+## 不可变 revision（M1-03）
+
+官方对象采用追加式 revision。revision 1 开始一条 lineage，不带 `supersedes`；之后每个 revision 使用新的连续编号，并且必须只 supersede 紧邻的前一个 revision。revision 记录禁止原地覆盖；`current` 只是提交新 revision 及其关系后的指针或 projection。
+
+协议包提供 `createRevision`、`nextRevision`、`isRevision` 和 `assertRevisionSequence`，用于验证这些规则，不绑定具体数据库实现。
