@@ -1,0 +1,4 @@
+[
+  { "schema": "srp.event.v0" },
+  { "schema": "srp.event.v1", "event_id": "018f0f4a-5c00-7000-8000-000000000001" }
+]

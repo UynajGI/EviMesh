@@ -27,3 +27,5 @@ M1-37 新增 `contribution.schema.json`，校验 Actor、六类 Contribution rol
 M1-38 新增 `event.schema.json`，校验 ResearchEvent 的 namespaced event type、UUIDv7 event/parent IDs、SHA-256 hash 和 Ed25519 signature。
 
 M1-39 新增 `fixtures/valid/`，为 M1-28 至 M1-38 的每个 Schema 提供一个合法样例；统一测试检查 fixture 与对应 schema 的必填字段和 schema 标识一致。
+
+M1-40 新增 `fixtures/invalid/`，为 M1-28 至 M1-38 的每个 Schema 提供至少两个失败样例；统一测试检查错误 schema 标识或缺失必填字段。

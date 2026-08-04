@@ -85,3 +85,4 @@ Frontier JSON Schema now validates append-only previous snapshots, members, poli
 Contribution JSON Schema now validates actor roles and produced/used attribution edges.
 Event JSON Schema now validates signed ResearchEvent envelopes and UUIDv7 parent links.
 Valid protocol fixtures now cover every schema from M1-28 through M1-38.
+Invalid protocol fixtures now provide at least two failure samples for every schema from M1-28 through M1-38.

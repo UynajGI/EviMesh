@@ -1,0 +1,4 @@
+[
+  { "schema": "srp.verification-receipt.v0" },
+  { "schema": "srp.verification-receipt.v1", "claim_revision_id": "claim_01@revision:2" }
+]

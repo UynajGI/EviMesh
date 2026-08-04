@@ -1,0 +1,4 @@
+[
+  { "schema": "srp.frontier.v0" },
+  { "schema": "srp.frontier.v1", "number": 1 }
+]
