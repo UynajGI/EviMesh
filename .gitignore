@@ -24,6 +24,7 @@ venv/
 
 # Tool caches and local indexes
 .codegraph/
+.turbo/
 .cache/
 .tmp/
 *.log
