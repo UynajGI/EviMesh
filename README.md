@@ -46,3 +46,5 @@ Claim lifecycle validation covers staged promotion plus contested, refuted,
 superseded, retracted, and dependency-tainted outcomes.
 Challenge lifecycle validation covers admissibility, investigation, and upheld,
 rejected, or resolved terminal outcomes.
+Frontier snapshots are immutable and append-only, with contiguous `previous`
+references and fixed revisions.

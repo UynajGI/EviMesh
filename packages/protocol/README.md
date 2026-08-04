@@ -73,3 +73,7 @@ Claim 主链为 `hypothesis → candidate → under_verification → provisional
 ## Challenge 状态（M1-12）
 
 Challenge 生命周期为 `open → admissible → investigating`，调查后进入 `upheld`、`rejected` 或 `resolved` 之一；三个结果态都是终态。协议拒绝跳过 admissibility/investigation 或重新打开已结束的 Challenge。
+
+## Frontier 快照（M1-13）
+
+Frontier 是追加式不可变快照链：第一个快照没有 `previous`，之后每个快照引用紧邻的前一个编号并固定自己的 revision。旧快照不更新、不删除；只能通过 `nextFrontier` 生成新快照。快照链必须连续，不能跳号或覆盖。
