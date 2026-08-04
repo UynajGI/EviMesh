@@ -75,3 +75,4 @@ Platform Receipt validation covers server time, accepted event ID, and server si
 Common JSON Schema now defines shared UUID/UUIDv7, Object ID, revision, hash, actor, identity, timestamp, and signature constraints.
 Project JSON Schema now validates Project revision identity, lifecycle state, metadata, and creation provenance.
 Question JSON Schema now validates Question revisions and their required ResearchContract reference.
+Task JSON Schema now validates task inputs, outputs, acceptance criteria, and context mode.
