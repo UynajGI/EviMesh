@@ -1,0 +1,8 @@
+{
+  "name": "@evimesh/schemas",
+  "private": true,
+  "version": "0.3.0",
+  "scripts": {
+    "lint": "node ../../scripts/check-package.mjs"
+  }
+}

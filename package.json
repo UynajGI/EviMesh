@@ -3,10 +3,14 @@
   "version": "0.3.0",
   "private": true,
   "description": "EviMesh 开放分布式科研推进网络",
+  "packageManager": "pnpm@11.17.0",
   "scripts": {
+    "lint": "turbo run lint",
+    "validate": "turbo run lint",
     "prepare": "lefthook install"
   },
   "devDependencies": {
-    "lefthook": "^2.1.10"
+    "lefthook": "^2.1.10",
+    "turbo": "^2.10.8"
   }
 }
