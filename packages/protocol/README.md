@@ -121,3 +121,7 @@ Contribution 角色冻结为 `originator`、`contributor`、`reviewer`、`verifi
 ## ResearchEvent Envelope（M1-24）
 
 ResearchEvent 固定 schema `srp.event.v1`，包含 namespaced `event_type`、不可变 `payload`、SHA-256 `hash`、`signature` 和 UUIDv7 `parents`。事件 ID 使用 UUIDv7，允许空 parents 表示 genesis event。
+
+## 客户端签名 Envelope（M1-25）
+
+客户端签名 Envelope 固定 schema `srp.client-signature-envelope.v1`。签名覆盖的字节为 `event_type`、`payload`、`nonce` 的 canonical JSON，并提供对应 SHA-256 digest；nonce 必须是 16–128 位 base64url 字符串。Ed25519 密钥生成和验签在 M4 实现。
