@@ -138,3 +138,6 @@ The Web preview workflow in [`.github/workflows/web-preview.yml`](.github/workfl
 deploys `apps/web/public` to the `evimesh-web-dev` Cloudflare Pages project for
 same-repository pull requests. It requires `CLOUDFLARE_API_TOKEN` and
 `CLOUDFLARE_ACCOUNT_ID` to be configured as repository secrets.
+Changes to `apps/web` on `main` are deployed by
+[`.github/workflows/web-production.yml`](.github/workflows/web-production.yml)
+to the separate `evimesh-web` Pages project using the same repository secrets.
