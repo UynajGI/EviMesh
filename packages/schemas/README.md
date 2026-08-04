@@ -21,3 +21,5 @@ M1-34 新增 `verification.schema.json`，固定 ClaimRevision/ContractRevision�
 M1-35 新增 `challenge.schema.json`，校验目标 ClaimRevision、Challenge 状态机和结构化 impact（type/severity/summary）。
 
 M1-36 新增 `frontier.schema.json`，校验 append-only previous、ClaimRevision members、版本化 policy 和 SHA-256 checkpoint。
+
+M1-37 新增 `contribution.schema.json`，校验 Actor、六类 Contribution role，以及 produced/used 对象归因；两者不能同时为空。

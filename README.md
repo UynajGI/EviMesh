@@ -82,3 +82,4 @@ Run JSON Schema now validates the minimum reproducibility receipt fields and exe
 Verification JSON Schema now validates fixed ClaimRevision references, verification outcomes, context, independence, and Finding severity.
 Challenge JSON Schema now validates target ClaimRevision references, lifecycle state, and structured impact.
 Frontier JSON Schema now validates append-only previous snapshots, members, policy revisions, and SHA-256 checkpoints.
+Contribution JSON Schema now validates actor roles and produced/used attribution edges.
