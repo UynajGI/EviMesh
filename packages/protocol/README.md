@@ -41,3 +41,7 @@ M1-01 只规定前缀和 UUID 的 canonical 表示。M1-02 使用 UUIDv7 的 48-
 - `semantic_hash` 是 JSON 语义值的 SHA-256 摘要；对象键按字典序递归排序，数组顺序保留，再对 canonical JSON 编码后计算。
 
 两者都只返回摘要，不互相替代：`raw_hash` 用于证明收到的精确字节，`semantic_hash` 用于比较内容语义。非 JSON 值和非有限数字不能生成 `semantic_hash`。
+
+## Actor 类型（M1-05）
+
+Actor 类型冻结为 `human`、`agent`、`organization`、`service`、`maintainer` 和 `witness`。写入协议字段前必须通过 `assertActorType` 校验；未知值不会被静默降级。
