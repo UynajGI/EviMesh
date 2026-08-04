@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://evimesh.org/schema/artifact.schema.json",
+  "title": "EviMesh Artifact revision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "artifact_id", "revision", "artifact_type", "hash", "location", "license", "created_at", "created_by"],
+  "properties": {
+    "schema": { "const": "srp.artifact.v1" },
+    "artifact_id": { "type": "string", "pattern": "^evidence_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" },
+    "revision": { "type": "integer", "minimum": 1 },
+    "artifact_type": { "type": "string", "enum": ["code", "dataset", "document", "figure", "proof", "notebook", "container", "model", "report", "other"] },
+    "hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "location": { "type": "string", "pattern": "^[a-z][a-z0-9+.-]*://[^\\s]+$" },
+    "license": { "type": "string", "minLength": 1 },
+    "size_bytes": { "type": "integer", "minimum": 0 },
+    "media_type": { "type": "string", "pattern": "^[^\\s/]+/[^\\s/]+$" },
+    "description": { "type": "string", "minLength": 1, "maxLength": 4000 },
+    "created_at": { "type": "string", "format": "date-time" },
+    "created_by": { "type": "string", "minLength": 1 }
+  }
+}

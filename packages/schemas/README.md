@@ -11,3 +11,5 @@ M1-29 新增 `question.schema.json`，以 `$defs/researchContract` 强制问题�
 M1-30 新增 `task.schema.json`，校验 Task revision 的输入、输出、验收标准和 `frontier/full_trace/adversarial/blind` context mode。
 
 M1-31 新增 `claim.schema.json`，校验 ClaimRevision 的 statement、scope、assumptions、falsification 和 Claim 状态机枚举。
+
+M1-32 新增 `artifact.schema.json`，校验 Artifact 的 SHA-256 hash、URI location、license、媒体类型和大小等完整性与来源字段。
