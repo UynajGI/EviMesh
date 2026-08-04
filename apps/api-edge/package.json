@@ -6,6 +6,8 @@
     "lint": "node ../../scripts/check-package.mjs",
     "test": "node --test test/index.test.mjs",
     "dev": "wrangler dev",
-    "deploy:dev": "wrangler deploy"
+    "dev:staging": "wrangler dev --env staging",
+    "deploy:dev": "wrangler deploy",
+    "deploy:staging": "wrangler deploy --env staging"
   }
 }

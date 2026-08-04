@@ -20,6 +20,13 @@ pnpm --filter @evimesh/api-edge dev
 pnpm --filter @evimesh/api-edge deploy:dev
 ```
 
+The staging environment is explicit and isolated:
+
+```powershell
+pnpm --filter @evimesh/api-edge dev:staging
+pnpm --filter @evimesh/api-edge deploy:staging
+```
+
 The configuration deliberately contains no account ID, API token, or runtime
 secret. Keep local secrets in `.dev.vars` or the environment-specific secret
 store; never commit them.
