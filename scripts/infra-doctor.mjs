@@ -46,7 +46,7 @@ function checkTcp(name, host, port, timeoutMs = 1500) {
   });
 }
 
-async function checkHttp(name, url, { optional = false } = {}) {
+async function checkHttp(name, url, { optional = false, acceptedStatuses = [200, 299] } = {}) {
   if (!url) {
     return { name, status: "pending", detail: "not configured" };
   }
@@ -56,7 +56,7 @@ async function checkHttp(name, url, { optional = false } = {}) {
     const response = await fetch(url, { signal: controller.signal });
     return {
       name,
-      status: response.ok ? "pass" : "fail",
+      status: acceptedStatuses.includes(response.status) || response.ok ? "pass" : "fail",
       detail: `HTTP ${response.status}`,
     };
   } catch (error) {
@@ -86,7 +86,12 @@ const localChecks = await Promise.all([
 ]);
 
 const hostedChecks = await Promise.all([
-  checkHttp("supabase", process.env.SUPABASE_URL, { optional: true }),
+  checkHttp(
+    "supabase",
+    process.env.SUPABASE_URL
+      ? `${process.env.SUPABASE_URL.replace(/\/$/, "")}/auth/v1/health`
+      : undefined,
+  ),
   checkHttp("r2", process.env.R2_ENDPOINT, { optional: true }),
 ]);
 const checks = [docker, ...localChecks, ...hostedChecks];
