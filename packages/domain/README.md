@@ -23,3 +23,5 @@ its digest, prefix, scopes, and expiry metadata through the injected repository.
 event atomically. `reviseTask()` appends a new Task revision, updates only the
 current Task projection, and requires a matching `If-Match` ETag to prevent
 stale concurrent edits.
+`transitionTask()` applies the protocol Task state machine, appends the state
+change as a new revision, and records the from/to states in the research event.

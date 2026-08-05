@@ -1,4 +1,5 @@
 import { assertProjectRoleForAction } from "./project-authorization.mjs";
+import { assertTaskTransition } from "../../protocol/src/task-state.mjs";
 
 const CONTEXT_MODES = new Set(["frontier", "full_trace", "adversarial", "blind"]);
 
@@ -141,6 +142,57 @@ export async function reviseTask({
     });
     if (!event || typeof event !== "object") throw new TaskCommandError("eventFactory must return an event object");
     const projected = { taskId, questionId: next.questionId, state: next.state };
+    const persistedRevision = await transaction.insertTaskRevision(next);
+    const persistedTask = await transaction.updateTask(taskId, projected);
+    const persistedEvent = await transaction.appendResearchEvent(event);
+    return { task: persistedTask ?? projected, revision: persistedRevision ?? next, event: persistedEvent ?? event };
+  });
+}
+
+/** Append a Task revision for a validated lifecycle transition. */
+export async function transitionTask({
+  repository,
+  actorId,
+  actorRole,
+  taskId,
+  toState,
+  ifMatch,
+  currentEtag,
+  eventFactory,
+} = {}) {
+  if (!repository || typeof repository.withTransaction !== "function") throw new TaskCommandError("repository withTransaction is required");
+  for (const method of ["getCurrentTaskRevision", "insertTaskRevision", "updateTask", "appendResearchEvent"]) {
+    if (typeof repository[method] !== "function") throw new TaskCommandError(`repository ${method} is required`);
+  }
+  actorId = requiredText(actorId, "actor id");
+  taskId = requiredText(taskId, "task id");
+  if (typeof currentEtag !== "string" || currentEtag.length === 0) throw new TaskCommandError("current ETag is required");
+  if (typeof eventFactory !== "function") throw new TaskCommandError("eventFactory is required");
+  assertProjectRoleForAction({ actorRole, requiredRole: "maintainer" });
+
+  return repository.withTransaction(async (transaction) => {
+    const current = await transaction.getCurrentTaskRevision(taskId);
+    if (!current) throw new TaskCommandError("current task revision not found", "TASK_REVISION_NOT_FOUND", 404);
+    assertIfMatch(ifMatch, currentEtag);
+    try {
+      assertTaskTransition(current.state, toState);
+    } catch (error) {
+      throw new TaskCommandError(error.message, "STATE_TRANSITION_INVALID", 409);
+    }
+    const next = {
+      ...current,
+      revision: current.revision + 1,
+      supersedes: current.revision,
+      state: toState,
+      createdBy: actorId,
+    };
+    delete next.createdAt;
+    const event = await eventFactory({
+      eventType: "task.state_changed",
+      payload: { entity_type: "task", task_id: taskId, from_state: current.state, to_state: toState, revision: next.revision, actor_id: actorId },
+    });
+    if (!event || typeof event !== "object") throw new TaskCommandError("eventFactory must return an event object");
+    const projected = { taskId, questionId: next.questionId ?? null, state: next.state };
     const persistedRevision = await transaction.insertTaskRevision(next);
     const persistedTask = await transaction.updateTask(taskId, projected);
     const persistedEvent = await transaction.appendResearchEvent(event);
