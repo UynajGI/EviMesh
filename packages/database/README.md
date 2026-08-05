@@ -154,6 +154,9 @@ contiguous per-project sequence numbers and a fixed checkpoint payload.
 
 M3-46 adds immutable `frontier_members` rows that pin each member to a
 concrete Claim revision within one Frontier snapshot.
+
+M3-47 adds immutable `context_bundles` records that bind a compiled context
+to a concrete Task revision, mode, content hash, and storage URI.
 and self-dependency enforcement are subsequent database constraints.
 
 `DATABASE_URL` is read from the environment, with the local-only Compose URL
