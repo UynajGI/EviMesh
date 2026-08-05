@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { acquireTaskLease, addTaskDependency, createAttempt, createTask, expireTaskLeases, renewTaskLease, reviseTask, transitionTask } from "../src/task-command.mjs";
+import { acquireTaskLease, addTaskDependency, createAttempt, createTask, expireTaskLeases, renewTaskLease, reviseTask, transitionAttempt, transitionTask } from "../src/task-command.mjs";
 
 function repositoryFixture() {
   const calls = [];
@@ -321,6 +321,38 @@ test("rejects an Attempt with a mismatched context bundle before writing", async
   await assert.rejects(
     createAttempt({ repository, actorId: "actor-1", actorRole: "contributor", attemptId: "attempt-1", taskId: "task-1", contextBundleId: "context-1", contextMode: "frontier", eventFactory: () => ({}) }),
     (error) => error.code === "CONTEXT_BUNDLE_MISMATCH" && error.status === 409,
+  );
+  assert.deepEqual(calls, []);
+});
+
+test("transitions an Attempt and timestamps terminal states", async () => {
+  const calls = [];
+  const repository = {
+    withTransaction: (callback) => callback(repository),
+    getAttempt: async () => ({ attemptId: "attempt-1", taskId: "task-1", actorId: "actor-1", state: "active", finishedAt: null }),
+    updateAttempt: async (attemptId, value) => { calls.push([attemptId, value]); return { attemptId, ...value }; },
+    appendResearchEvent: async (value) => { calls.push(["event", value]); return value; },
+  };
+  const result = await transitionAttempt({
+    repository, actorId: "actor-1", actorRole: "contributor", attemptId: "attempt-1", toState: "submitted", now: "2026-08-06T00:01:00.000Z",
+    eventFactory: async ({ eventType, payload }) => ({ eventId: "event-14", eventType, payload }),
+  });
+  assert.equal(calls[0][1].state, "submitted");
+  assert.equal(result.attempt.finishedAt, "2026-08-06T00:01:00.000Z");
+  assert.equal(result.event.eventType, "attempt.state_changed");
+});
+
+test("rejects an Attempt transition from a different actor or invalid state", async () => {
+  const calls = [];
+  const repository = {
+    withTransaction: (callback) => callback(repository),
+    getAttempt: async () => ({ attemptId: "attempt-1", taskId: "task-1", actorId: "actor-2", state: "submitted" }),
+    updateAttempt: async () => calls.push("attempt"),
+    appendResearchEvent: async () => calls.push("event"),
+  };
+  await assert.rejects(
+    transitionAttempt({ repository, actorId: "actor-1", actorRole: "contributor", attemptId: "attempt-1", toState: "active", eventFactory: () => ({}) }),
+    (error) => error.code === "ATTEMPT_FORBIDDEN" && error.status === 403,
   );
   assert.deepEqual(calls, []);
 });

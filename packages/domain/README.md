@@ -35,3 +35,5 @@ Actor and records both the previous and new expiry timestamps.
 audit event for each cleaned-up lease.
 `createAttempt()` validates the contributor's Task context bundle binding and
 creates an active Attempt with its audit event atomically.
+`transitionAttempt()` restricts state changes to the owning Actor, applies the
+protocol Attempt state machine, and timestamps submitted or abandoned Attempts.

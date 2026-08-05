@@ -2,6 +2,7 @@ import { assertProjectRoleForAction } from "./project-authorization.mjs";
 import { assertTaskTransition } from "../../protocol/src/task-state.mjs";
 import { assertDependencyAddition } from "../../protocol/src/dependency-graph.mjs";
 import { assertContextMode } from "../../protocol/src/context-mode.mjs";
+import { assertAttemptTransition } from "../../protocol/src/attempt-state.mjs";
 
 const CONTEXT_MODES = new Set(["frontier", "full_trace", "adversarial", "blind"]);
 
@@ -441,5 +442,51 @@ export async function createAttempt({
     const persistedAttempt = await transaction.insertAttempt(attempt);
     const persistedEvent = await transaction.appendResearchEvent(event);
     return { attempt: persistedAttempt ?? attempt, contextBundle: context, event: persistedEvent ?? event };
+  });
+}
+
+/** Transition an Attempt and set its terminal timestamp when applicable. */
+export async function transitionAttempt({
+  repository,
+  actorId,
+  actorRole,
+  attemptId,
+  toState,
+  now = new Date(),
+  eventFactory,
+} = {}) {
+  if (!repository || typeof repository.withTransaction !== "function") throw new TaskCommandError("repository withTransaction is required");
+  for (const method of ["getAttempt", "updateAttempt", "appendResearchEvent"]) {
+    if (typeof repository[method] !== "function") throw new TaskCommandError(`repository ${method} is required`);
+  }
+  actorId = requiredText(actorId, "actor id");
+  attemptId = requiredText(attemptId, "attempt id");
+  const nowDate = now instanceof Date ? now : new Date(now);
+  if (Number.isNaN(nowDate.getTime())) throw new TaskCommandError("attempt time is invalid");
+  if (typeof eventFactory !== "function") throw new TaskCommandError("eventFactory is required");
+  assertProjectRoleForAction({ actorRole, requiredRole: "contributor" });
+
+  return repository.withTransaction(async (transaction) => {
+    const current = await transaction.getAttempt(attemptId);
+    if (!current) throw new TaskCommandError("attempt not found", "ATTEMPT_NOT_FOUND", 404);
+    if (current.actorId !== actorId) throw new TaskCommandError("attempt belongs to another actor", "ATTEMPT_FORBIDDEN", 403);
+    try {
+      assertAttemptTransition(current.state, toState);
+    } catch (error) {
+      throw new TaskCommandError(error.message, "STATE_TRANSITION_INVALID", 409);
+    }
+    const updated = {
+      ...current,
+      state: toState,
+      finishedAt: toState === "submitted" || toState === "abandoned" ? nowDate.toISOString() : null,
+    };
+    const event = await eventFactory({
+      eventType: "attempt.state_changed",
+      payload: { entity_type: "attempt", attempt_id: attemptId, from_state: current.state, to_state: toState, actor_id: actorId },
+    });
+    if (!event || typeof event !== "object") throw new TaskCommandError("eventFactory must return an event object");
+    const persistedAttempt = await transaction.updateAttempt(attemptId, { state: updated.state, finishedAt: updated.finishedAt });
+    const persistedEvent = await transaction.appendResearchEvent(event);
+    return { attempt: persistedAttempt ?? updated, event: persistedEvent ?? event };
   });
 }
