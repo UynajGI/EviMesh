@@ -142,6 +142,9 @@ lifecycle timestamps for challenge revisions.
 
 M3-42 adds append-only `challenge_revisions` that lock a target Claim revision
 and preserve challenge state, reason, impact, and proposed resolution.
+
+M3-43 adds `challenge_impacts` records linking an upheld challenge revision
+to each affected downstream Claim revision with typed impact metadata.
 and self-dependency enforcement are subsequent database constraints.
 
 `DATABASE_URL` is read from the environment, with the local-only Compose URL

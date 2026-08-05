@@ -37,6 +37,7 @@ import { verificationOutcome, verificationReceipts } from './verification-receip
 import { findingSeverity, verificationFindings } from './verification-findings.mjs';
 import { challenges } from './challenges.mjs';
 import { challengeRevisions, challengeState } from './challenge-revisions.mjs';
+import { challengeImpacts } from './challenge-impacts.mjs';
 
 export { actorProfiles } from './actor-profiles.mjs';
 export { apiTokens } from './api-tokens.mjs';
@@ -76,6 +77,7 @@ export { verificationOutcome, verificationReceipts } from './verification-receip
 export { findingSeverity, verificationFindings } from './verification-findings.mjs';
 export { challenges } from './challenges.mjs';
 export { challengeRevisions, challengeState } from './challenge-revisions.mjs';
+export { challengeImpacts } from './challenge-impacts.mjs';
 export { signingKeys } from './signing-keys.mjs';
 
 export const schema = {
@@ -118,6 +120,7 @@ export const schema = {
   verificationFindings,
   challenges,
   challengeRevisions,
+  challengeImpacts,
 };
 
 export default schema;
