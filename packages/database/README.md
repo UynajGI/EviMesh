@@ -65,7 +65,8 @@ M3-14 adds stable `questions` identity records scoped to a Project. M3-15 adds
 immutable `question_revisions` records containing the revision's title,
 statement, and research-contract content. M3-16 adds stable
 `research_contracts` identity records; their immutable versioned content is
-defined by M3-17.
+defined by M3-17. M3-17 stores the structured ResearchContract fields in
+append-only `research_contract_revisions` records.
 
 `DATABASE_URL` is read from the environment, with the local-only Compose URL
 used as a development fallback for Drizzle Kit commands. Production URLs must
