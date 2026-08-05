@@ -449,6 +449,13 @@
       "when": 1785941100000,
       "tag": "0063_public_read_rls_baseline",
       "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1785941400000,
+      "tag": "0064_actor_owned_rls",
+      "breakpoints": true
     }
   ]
 }

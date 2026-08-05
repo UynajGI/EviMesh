@@ -108,6 +108,10 @@ an event trigger; M3-66 onward adds the explicit read and ownership policies.
 The M3-66 baseline grants the `anon` role SELECT-only policies on the public
 research object tables; identity, credential, membership, lease, outbox, and
 notification tables remain closed until their ownership policies are defined.
+The M3-67 ownership baseline binds `authenticated` access for profiles, signing
+keys, and API tokens to the actor resolved through the `identities` table and
+the Supabase `auth.uid()` claim; local databases without Supabase roles skip
+these role-specific policy statements safely.
 Evidence validation freezes formal, numerical, experimental, dataset, literature,
 counterexample, benchmark, statistical, code-test, negative-result, and expert
 assessment types.
