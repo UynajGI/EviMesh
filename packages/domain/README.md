@@ -41,3 +41,5 @@ protocol Attempt state machine, and timestamps submitted or abandoned Attempts.
 trace envelope, and rejects ordinary trace writes after Attempt submission.
 `createClaim()` creates a hypothesis Claim, its first immutable revision, and
 the corresponding ResearchEvent atomically.
+`reviseClaim()` appends a new immutable Claim revision, updates only the current
+Claim projection, and requires a matching `If-Match` ETag to prevent stale edits.

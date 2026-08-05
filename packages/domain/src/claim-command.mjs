@@ -19,6 +19,12 @@ function requiredJson(value, field) {
   return value;
 }
 
+function assertIfMatch(ifMatch, currentEtag) {
+  if (typeof ifMatch !== "string" || ifMatch.trim().length === 0 || ifMatch.trim() !== currentEtag) {
+    throw new ClaimCommandError("If-Match does not match the current revision", "PRECONDITION_FAILED", 412);
+  }
+}
+
 /** Create a Claim and its first immutable hypothesis revision atomically. */
 export async function createClaim({
   repository,
@@ -69,5 +75,61 @@ export async function createClaim({
     const persistedRevision = await transaction.insertClaimRevision(revision);
     const persistedEvent = await transaction.appendResearchEvent(event);
     return { claim: persistedClaim ?? claim, revision: persistedRevision ?? revision, event: persistedEvent ?? event };
+  });
+}
+
+/** Append a Claim revision without mutating historical revision rows. */
+export async function reviseClaim({
+  repository,
+  actorId,
+  actorRole,
+  claimId,
+  ifMatch,
+  currentEtag,
+  questionId,
+  statement,
+  scope,
+  assumptions,
+  falsification,
+  eventFactory,
+} = {}) {
+  if (!repository || typeof repository.withTransaction !== "function") throw new ClaimCommandError("repository withTransaction is required");
+  for (const method of ["getCurrentClaimRevision", "insertClaimRevision", "updateClaim", "appendResearchEvent"]) {
+    if (typeof repository[method] !== "function") throw new ClaimCommandError(`repository ${method} is required`);
+  }
+  actorId = requiredText(actorId, "actor id");
+  claimId = requiredText(claimId, "claim id");
+  if (typeof currentEtag !== "string" || currentEtag.length === 0) throw new ClaimCommandError("current ETag is required");
+  if (typeof eventFactory !== "function") throw new ClaimCommandError("eventFactory is required");
+  assertProjectRoleForAction({ actorRole, requiredRole: "maintainer" });
+
+  return repository.withTransaction(async (transaction) => {
+    const current = await transaction.getCurrentClaimRevision(claimId);
+    if (!current) throw new ClaimCommandError("current claim revision not found", "CLAIM_REVISION_NOT_FOUND", 404);
+    assertIfMatch(ifMatch, currentEtag);
+
+    const nextQuestionId = questionId === undefined ? (current.questionId ?? null) : questionId === null ? null : requiredText(questionId, "question id");
+    const next = {
+      claimId,
+      revision: current.revision + 1,
+      supersedes: current.revision,
+      state: current.state,
+      statement: statement === undefined ? current.statement : requiredText(statement, "claim statement"),
+      scope: scope === undefined ? current.scope : requiredJson(scope, "claim scope"),
+      assumptions: assumptions === undefined ? current.assumptions : requiredJson(assumptions, "claim assumptions"),
+      falsification: falsification === undefined ? current.falsification : requiredJson(falsification, "claim falsification"),
+      questionId: nextQuestionId,
+      createdBy: actorId,
+    };
+    const event = await eventFactory({
+      eventType: "claim.revised",
+      payload: { entity_type: "claim", claim_id: claimId, revision: next.revision, actor_id: actorId },
+    });
+    if (!event || typeof event !== "object") throw new ClaimCommandError("eventFactory must return an event object");
+    const projected = { claimId, questionId: next.questionId, state: next.state };
+    const persistedRevision = await transaction.insertClaimRevision(next);
+    const persistedClaim = await transaction.updateClaim(claimId, projected);
+    const persistedEvent = await transaction.appendResearchEvent(event);
+    return { claim: persistedClaim ?? projected, revision: persistedRevision ?? next, event: persistedEvent ?? event };
   });
 }
