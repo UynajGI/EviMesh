@@ -96,6 +96,10 @@ typed content metadata, raw/semantic hash fields, and non-negative byte size.
 M3-29 adds append-only `artifact_locations` records. A stable Artifact may
 have multiple URI-backed locations, while duplicate Artifact/URI pairs are
 rejected without changing prior revisions.
+
+M3-30 adds immutable `runs` for the execution-boundary fields of a Run
+Receipt. Input and output Artifact associations are normalized in M3-31 and
+M3-32.
 and self-dependency enforcement are subsequent database constraints.
 
 `DATABASE_URL` is read from the environment, with the local-only Compose URL
