@@ -11,3 +11,6 @@ repository to enforce the authenticated `actor_id` predicate in its update.
 
 `registerActorSigningKey()` and `revokeActorSigningKey()` enforce one active
 Ed25519 key per Actor; rotation declarations are a separate domain operation.
+
+`createActorApiToken()` returns the generated plaintext once and persists only
+its digest, prefix, scopes, and expiry metadata through the injected repository.
