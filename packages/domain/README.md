@@ -14,3 +14,7 @@ Ed25519 key per Actor; rotation declarations are a separate domain operation.
 
 `createActorApiToken()` returns the generated plaintext once and persists only
 its digest, prefix, scopes, and expiry metadata through the injected repository.
+
+`assertApiTokenScopes()` enforces that all required scopes are present.
+`revokeActorApiToken()` applies the authenticated Actor predicate, and
+`markApiTokenUsed()` records successful use timestamps without exposing secrets.

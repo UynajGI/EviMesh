@@ -24,6 +24,10 @@ function normalizeScopes(scopes) {
   return [...new Set(scopes.map((scope) => scope.trim()))].sort();
 }
 
+function normalizeRequiredScopes(scopes, field) {
+  return normalizeScopes(scopes).map((scope) => requiredText(scope, field));
+}
+
 function defaultTokenFactory() {
   const bytes = new Uint8Array(TOKEN_RANDOM_BYTES);
   crypto.getRandomValues(bytes);
@@ -78,4 +82,50 @@ export async function createActorApiToken({
 
   const persisted = await repository.withTransaction(async (transaction) => transaction.insertApiToken(record));
   return { token: plaintext, record: persisted ?? record };
+}
+
+/** Reject a request unless the token contains every required scope. */
+export function assertApiTokenScopes({ grantedScopes, requiredScopes } = {}) {
+  const granted = new Set(normalizeScopes(grantedScopes));
+  const required = normalizeRequiredScopes(requiredScopes, "scope");
+  const missing = required.filter((scope) => !granted.has(scope));
+  if (missing.length > 0) {
+    throw new ApiTokenError(`missing required scope: ${missing[0]}`, "API_TOKEN_SCOPE_FORBIDDEN");
+  }
+  return true;
+}
+
+/** Revoke a token only when it belongs to the authenticated Actor. */
+export async function revokeActorApiToken({ repository, actorId, tokenId } = {}) {
+  if (!repository || typeof repository.withTransaction !== "function") {
+    throw new ApiTokenError("repository withTransaction is required");
+  }
+  if (typeof repository.revokeApiToken !== "function") {
+    throw new ApiTokenError("repository revokeApiToken is required");
+  }
+  actorId = requiredText(actorId, "actor id");
+  tokenId = requiredText(tokenId, "token id");
+  return repository.withTransaction(async (transaction) => {
+    const revoked = await transaction.revokeApiToken(actorId, tokenId);
+    if (!revoked) {
+      throw new ApiTokenError("active API token not found", "API_TOKEN_NOT_FOUND");
+    }
+    return revoked;
+  });
+}
+
+/** Record successful use without changing token ownership or scopes. */
+export async function markApiTokenUsed({ repository, tokenId, usedAt = new Date() } = {}) {
+  if (!repository || typeof repository.updateApiTokenLastUsedAt !== "function") {
+    throw new ApiTokenError("repository updateApiTokenLastUsedAt is required");
+  }
+  tokenId = requiredText(tokenId, "token id");
+  if (!(usedAt instanceof Date) || Number.isNaN(usedAt.getTime())) {
+    throw new ApiTokenError("usedAt must be a valid Date");
+  }
+  const updated = await repository.updateApiTokenLastUsedAt(tokenId, usedAt);
+  if (!updated) {
+    throw new ApiTokenError("API token not found", "API_TOKEN_NOT_FOUND");
+  }
+  return updated;
 }
