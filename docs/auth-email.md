@@ -29,6 +29,11 @@ pnpm auth:test:email
 The script uses only the public/publishable key. Never use a service-role key
 in a browser or commit any key or password.
 
+After JWT verification, the domain layer provisions a stable human Actor and
+provider Identity in one repository transaction. A repeat login for the same
+provider/subject reuses the existing Actor; see
+`packages/domain/src/actor-provisioning.mjs`.
+
 ## Hosted project setup
 
 For each Supabase environment, open the project's Auth settings:

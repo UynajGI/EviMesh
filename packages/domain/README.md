@@ -1,3 +1,7 @@
 # @evimesh/domain
 
-科研对象、状态机和领域规则。当前为骨架包。
+Scientific objects, lifecycle rules, and domain services.
+
+`ensureActorForIdentity()` provisions a human Actor and its provider Identity
+inside a repository transaction on first login. The repository is injected so
+the domain service stays independent of a specific database driver.
