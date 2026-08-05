@@ -39,3 +39,5 @@ creates an active Attempt with its audit event atomically.
 protocol Attempt state machine, and timestamps submitted or abandoned Attempts.
 `createTraceEvent()` accepts only public summary fields, validates the signed
 trace envelope, and rejects ordinary trace writes after Attempt submission.
+`createClaim()` creates a hypothesis Claim, its first immutable revision, and
+the corresponding ResearchEvent atomically.
