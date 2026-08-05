@@ -115,6 +115,10 @@ by `evidence_claim_links` in M3-34.
 M3-34 adds the four protocol link types (`supports`, `refutes`, `qualifies`,
 `reproduces`) and a composite Claim revision foreign key, preserving the
 Evidence → ClaimRevision direction.
+
+M3-35 adds stable `verification_contracts` identities with actor ownership and
+the standard lifecycle projection; versioned contract content follows in
+M3-36.
 and self-dependency enforcement are subsequent database constraints.
 
 `DATABASE_URL` is read from the environment, with the local-only Compose URL

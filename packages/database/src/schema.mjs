@@ -29,6 +29,7 @@ import { runInputs } from './run-inputs.mjs';
 import { runOutputs } from './run-outputs.mjs';
 import { evidence } from './evidence.mjs';
 import { evidenceClaimLinks } from './evidence-claim-links.mjs';
+import { verificationContracts } from './verification-contracts.mjs';
 
 export { actorProfiles } from './actor-profiles.mjs';
 export { apiTokens } from './api-tokens.mjs';
@@ -60,6 +61,7 @@ export { runInputs } from './run-inputs.mjs';
 export { runOutputs } from './run-outputs.mjs';
 export { evidence, evidenceType } from './evidence.mjs';
 export { evidenceClaimLinks, evidenceClaimRelation } from './evidence-claim-links.mjs';
+export { verificationContracts } from './verification-contracts.mjs';
 export { signingKeys } from './signing-keys.mjs';
 
 export const schema = {
@@ -94,6 +96,7 @@ export const schema = {
   runOutputs,
   evidence,
   evidenceClaimLinks,
+  verificationContracts,
 };
 
 export default schema;

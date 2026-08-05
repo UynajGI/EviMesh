@@ -30,5 +30,6 @@ export { runInputs } from './run-inputs.mjs';
 export { runOutputs } from './run-outputs.mjs';
 export { evidence, evidenceType } from './evidence.mjs';
 export { evidenceClaimLinks, evidenceClaimRelation } from './evidence-claim-links.mjs';
+export { verificationContracts } from './verification-contracts.mjs';
 export { signingKeys } from './signing-keys.mjs';
 export { schema } from './schema.mjs';

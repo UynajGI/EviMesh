@@ -239,6 +239,13 @@
       "when": 1785932846844,
       "tag": "0033_wise_electro",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1785932991672,
+      "tag": "0034_romantic_zarda",
+      "breakpoints": true
     }
   ]
 }
