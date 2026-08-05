@@ -35,6 +35,7 @@ import { verificationPolicies } from './verification-policies.mjs';
 import { verificationPolicyRevisions } from './verification-policy-revisions.mjs';
 import { verificationOutcome, verificationReceipts } from './verification-receipts.mjs';
 import { findingSeverity, verificationFindings } from './verification-findings.mjs';
+import { challenges } from './challenges.mjs';
 
 export { actorProfiles } from './actor-profiles.mjs';
 export { apiTokens } from './api-tokens.mjs';
@@ -72,6 +73,7 @@ export { verificationPolicies } from './verification-policies.mjs';
 export { verificationPolicyRevisions } from './verification-policy-revisions.mjs';
 export { verificationOutcome, verificationReceipts } from './verification-receipts.mjs';
 export { findingSeverity, verificationFindings } from './verification-findings.mjs';
+export { challenges } from './challenges.mjs';
 export { signingKeys } from './signing-keys.mjs';
 
 export const schema = {
@@ -112,6 +114,7 @@ export const schema = {
   verificationPolicyRevisions,
   verificationReceipts,
   verificationFindings,
+  challenges,
 };
 
 export default schema;

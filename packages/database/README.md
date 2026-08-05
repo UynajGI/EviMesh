@@ -136,6 +136,9 @@ verification outcome.
 
 M3-40 adds typed `verification_findings` attached to a receipt, preserving
 severity, machine-readable code, and structured finding details.
+
+M3-41 adds stable `challenges` identity rows with actor ownership and
+lifecycle timestamps for challenge revisions.
 and self-dependency enforcement are subsequent database constraints.
 
 `DATABASE_URL` is read from the environment, with the local-only Compose URL

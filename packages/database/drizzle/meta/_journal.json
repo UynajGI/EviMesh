@@ -288,6 +288,13 @@
       "when": 1785934333060,
       "tag": "0040_flat_ben_grimm",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1785934495156,
+      "tag": "0041_wandering_blonde_phantom",
+      "breakpoints": true
     }
   ]
 }
