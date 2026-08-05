@@ -71,6 +71,13 @@
       "when": 1785927601731,
       "tag": "0009_oval_kang",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1785928048443,
+      "tag": "0010_gigantic_mephistopheles",
+      "breakpoints": true
     }
   ]
 }

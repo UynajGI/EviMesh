@@ -5,6 +5,7 @@ import { identities } from './identities.mjs';
 import { organizations } from './organizations.mjs';
 import { organizationMembers } from './organization-members.mjs';
 import { projects } from './projects.mjs';
+import { projectRevisions } from './project-revisions.mjs';
 import { signingKeys } from './signing-keys.mjs';
 
 export { actorProfiles } from './actor-profiles.mjs';
@@ -14,6 +15,7 @@ export { identities } from './identities.mjs';
 export { organizations } from './organizations.mjs';
 export { organizationMembers } from './organization-members.mjs';
 export { projectState, projects } from './projects.mjs';
+export { projectRevisions } from './project-revisions.mjs';
 export { signingKeys } from './signing-keys.mjs';
 
 export const schema = {
@@ -25,6 +27,7 @@ export const schema = {
   organizations,
   organizationMembers,
   projects,
+  projectRevisions,
 };
 
 export default schema;
