@@ -48,5 +48,6 @@ export { contributionEdgeType, contributionEdges } from './contribution-edges.mj
 export { researchEvents } from './research-events.mjs';
 export { researchEventParents } from './research-event-parents.mjs';
 export { eventOutbox, eventOutboxStatus } from './event-outbox.mjs';
+export { merkleCheckpoints } from './merkle-checkpoints.mjs';
 export { signingKeys } from './signing-keys.mjs';
 export { schema } from './schema.mjs';

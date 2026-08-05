@@ -379,6 +379,13 @@
       "when": 1785937788438,
       "tag": "0053_fearless_monster_badoon",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1785938247130,
+      "tag": "0054_sour_molten_man",
+      "breakpoints": true
     }
   ]
 }

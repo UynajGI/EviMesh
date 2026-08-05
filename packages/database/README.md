@@ -172,6 +172,9 @@ non-self composite event ancestry edge with two restricted event references.
 
 M3-52 adds `event_outbox` with unique event delivery, claim scheduling,
 retry counters, processing states, and dead-letter support.
+
+M3-53 adds signed `merkle_checkpoints` that anchor a positive event range to
+a SHA-256 Merkle root.
 and self-dependency enforcement are subsequent database constraints.
 
 `DATABASE_URL` is read from the environment, with the local-only Compose URL

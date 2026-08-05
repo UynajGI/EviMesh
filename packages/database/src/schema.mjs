@@ -47,6 +47,7 @@ import { contributionEdgeType, contributionEdges } from './contribution-edges.mj
 import { researchEvents } from './research-events.mjs';
 import { researchEventParents } from './research-event-parents.mjs';
 import { eventOutbox, eventOutboxStatus } from './event-outbox.mjs';
+import { merkleCheckpoints } from './merkle-checkpoints.mjs';
 
 export { actorProfiles } from './actor-profiles.mjs';
 export { apiTokens } from './api-tokens.mjs';
@@ -96,6 +97,7 @@ export { contributionEdgeType, contributionEdges } from './contribution-edges.mj
 export { researchEvents } from './research-events.mjs';
 export { researchEventParents } from './research-event-parents.mjs';
 export { eventOutbox, eventOutboxStatus } from './event-outbox.mjs';
+export { merkleCheckpoints } from './merkle-checkpoints.mjs';
 export { signingKeys } from './signing-keys.mjs';
 
 export const schema = {
@@ -148,6 +150,7 @@ export const schema = {
   researchEvents,
   researchEventParents,
   eventOutbox,
+  merkleCheckpoints,
 };
 
 export default schema;
