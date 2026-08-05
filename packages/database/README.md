@@ -71,6 +71,8 @@ M3-18 adds stable `tasks` identity records with optional Question scope and the
 M1 Task lifecycle state.
 M3-19 adds append-only `task_revisions` with Task content, acceptance data, and
 context mode.
+M3-20 adds typed, non-self `task_dependencies` edges with a composite source/
+target key; cycle prevention remains an application/protocol invariant.
 
 `DATABASE_URL` is read from the environment, with the local-only Compose URL
 used as a development fallback for Drizzle Kit commands. Production URLs must
