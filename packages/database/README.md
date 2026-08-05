@@ -61,11 +61,11 @@ after 1, and no mutable lifecycle columns.
 M3-13 adds `project_members` with a composite project/actor key. Its role is
 an extensible text projection until M4-21 freezes the authorization enum.
 
-M3-14 adds stable `questions` identity records scoped to a Project. Question
-M3-15 adds immutable `question_revisions` records containing the revision's
-title, statement, and research-contract content. Question
-content and research-contract data remain in the following revision/contract
-tables.
+M3-14 adds stable `questions` identity records scoped to a Project. M3-15 adds
+immutable `question_revisions` records containing the revision's title,
+statement, and research-contract content. M3-16 adds stable
+`research_contracts` identity records; their immutable versioned content is
+defined by M3-17.
 
 `DATABASE_URL` is read from the environment, with the local-only Compose URL
 used as a development fallback for Drizzle Kit commands. Production URLs must

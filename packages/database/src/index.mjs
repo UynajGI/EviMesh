@@ -11,5 +11,6 @@ export { projectRevisions } from './project-revisions.mjs';
 export { projectMembers } from './project-members.mjs';
 export { questionState, questions } from './questions.mjs';
 export { questionRevisions } from './question-revisions.mjs';
+export { researchContracts } from './research-contracts.mjs';
 export { signingKeys } from './signing-keys.mjs';
 export { schema } from './schema.mjs';
