@@ -30,6 +30,8 @@ Claim list queries support project/status/tag filters with the same stable curso
 pagination contract.
 Claim detail queries return the current immutable revision and the protocol-derived
 status policy, including allowed next states.
+Claim revision queries return one immutable revision selected by its positive
+revision number.
 Attempt detail queries return the Attempt row plus a trace summary containing
 count, event types, and first/last timestamps without exposing trace payloads.
 

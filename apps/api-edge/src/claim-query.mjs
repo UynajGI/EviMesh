@@ -51,3 +51,14 @@ export async function getClaim({ repository, claimId } = {}) {
     statusPolicy: { state: claim.state, allowedTransitions: [...allowedTransitions] },
   };
 }
+
+/** Return one immutable Claim revision by its stable revision number. */
+export async function getClaimRevision({ repository, claimId, revision } = {}) {
+  if (typeof claimId !== "string" || claimId.trim().length === 0) throw new ClaimQueryError("claim id must be a non-empty string");
+  claimId = claimId.trim();
+  if (!Number.isInteger(revision) || revision < 1) throw new ClaimQueryError("claim revision must be a positive integer");
+  if (!repository || typeof repository.getClaimRevision !== "function") throw new ClaimQueryError("repository getClaimRevision is required");
+  const claimRevision = await repository.getClaimRevision(claimId, revision);
+  if (!claimRevision) throw new ClaimQueryError("claim revision not found", "CLAIM_REVISION_NOT_FOUND", 404);
+  return claimRevision;
+}

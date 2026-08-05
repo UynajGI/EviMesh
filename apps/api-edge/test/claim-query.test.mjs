@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { getClaim, listClaims } from "../src/claim-query.mjs";
+import { getClaim, getClaimRevision, listClaims } from "../src/claim-query.mjs";
 
 const claims = [
   { claimId: "claim-2", projectId: "project-1", status: "candidate", createdAt: "2026-08-02T00:00:00.000Z" },
@@ -53,5 +53,24 @@ test("returns typed errors for missing or invalid Claims", async () => {
   await assert.rejects(
     getClaim({ repository: { getClaim: async () => ({ claimId: "claim-1", state: "invalid" }), getCurrentClaimRevision: async () => ({ revision: 1 }) }, claimId: "claim-1" }),
     (error) => error.code === "CLAIM_STATE_INVALID" && error.status === 500,
+  );
+});
+
+test("returns the requested immutable Claim revision", async () => {
+  const result = await getClaimRevision({
+    repository: { getClaimRevision: async (claimId, revision) => ({ claimId, revision, statement: "Historical" }) },
+    claimId: " claim-1 ", revision: 1,
+  });
+  assert.deepEqual(result, { claimId: "claim-1", revision: 1, statement: "Historical" });
+});
+
+test("rejects invalid or missing Claim revisions", async () => {
+  await assert.rejects(
+    getClaimRevision({ repository: { getClaimRevision: async () => null }, claimId: "claim-1", revision: 0 }),
+    /claim revision must be a positive integer/,
+  );
+  await assert.rejects(
+    getClaimRevision({ repository: { getClaimRevision: async () => null }, claimId: "claim-1", revision: 4 }),
+    (error) => error.code === "CLAIM_REVISION_NOT_FOUND" && error.status === 404,
   );
 });
