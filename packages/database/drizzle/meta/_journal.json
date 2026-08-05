@@ -407,6 +407,13 @@
       "when": 1785939300000,
       "tag": "0057_revision_append_only",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1785939600000,
+      "tag": "0058_current_revision_views",
+      "breakpoints": true
     }
   ]
 }

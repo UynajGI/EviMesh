@@ -201,6 +201,9 @@ DELETE are rejected while INSERT remains available for event ingestion.
 M3-60 applies the same append-only trigger contract to every revision
 projection, including Project, Question, ResearchContract, Task, Claim,
 Artifact, Verification, and Challenge revisions.
+
+M3-61 adds read-only current-revision views for Project, Question, Task, and
+Claim. Each view selects the highest persisted revision per stable object ID.
 and self-dependency enforcement are subsequent database constraints.
 
 `DATABASE_URL` is read from the environment, with the local-only Compose URL
