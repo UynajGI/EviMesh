@@ -17,5 +17,6 @@ export { taskState, tasks } from './tasks.mjs';
 export { contextMode, taskRevisions } from './task-revisions.mjs';
 export { taskDependencies, taskDependencyType } from './task-dependencies.mjs';
 export { taskLeases } from './task-leases.mjs';
+export { attemptState, attempts } from './attempts.mjs';
 export { signingKeys } from './signing-keys.mjs';
 export { schema } from './schema.mjs';
