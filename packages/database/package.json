@@ -3,6 +3,17 @@
   "private": true,
   "version": "0.3.0",
   "scripts": {
-    "lint": "node ../../scripts/check-package.mjs"
+    "lint": "node ../../scripts/check-package.mjs",
+    "test": "node --test test/*.test.mjs",
+    "db:generate": "drizzle-kit generate --config=drizzle.config.mjs",
+    "db:migrate": "drizzle-kit migrate --config=drizzle.config.mjs",
+    "db:check": "drizzle-kit check --config=drizzle.config.mjs"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.45.2",
+    "postgres": "^3.4.9"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.31.10"
   }
 }
