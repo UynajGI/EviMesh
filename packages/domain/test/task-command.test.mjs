@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createTask } from "../src/task-command.mjs";
+import { createTask, reviseTask } from "../src/task-command.mjs";
 
 function repositoryFixture() {
   const calls = [];
@@ -54,4 +54,60 @@ test("rejects unsupported context modes before writing", async () => {
     }),
     /unsupported context mode/,
   );
+});
+
+test("appends a task revision and updates only the current projection", async () => {
+  const calls = [];
+  const current = {
+    taskId: "task-1",
+    revision: 1,
+    state: "draft",
+    title: "Old title",
+    description: "Old description",
+    inputs: [],
+    outputs: [{ type: "report" }],
+    acceptance: { checks: ["old"] },
+    contextMode: "blind",
+    questionId: "question-1",
+  };
+  const repository = {
+    withTransaction: (callback) => callback(repository),
+    getCurrentTaskRevision: async () => current,
+    insertTaskRevision: async (value) => { calls.push(["revision", value]); return value; },
+    updateTask: async (taskId, value) => { calls.push(["task", taskId, value]); return value; },
+    appendResearchEvent: async (value) => { calls.push(["event", value]); return value; },
+  };
+  const result = await reviseTask({
+    repository,
+    actorId: "actor-1",
+    actorRole: "maintainer",
+    taskId: "task-1",
+    ifMatch: 'W/"task-1:1:abc"',
+    currentEtag: 'W/"task-1:1:abc"',
+    title: "New title",
+    eventFactory: async ({ eventType, payload }) => ({ eventId: "event-7", eventType, payload }),
+  });
+  assert.deepEqual(calls.map(([kind]) => kind), ["revision", "task", "event"]);
+  assert.equal(result.revision.revision, 2);
+  assert.equal(result.revision.supersedes, 1);
+  assert.equal(result.revision.title, "New title");
+  assert.equal(result.revision.description, "Old description");
+  assert.equal(result.task.taskId, "task-1");
+  assert.equal(result.event.eventType, "task.revised");
+});
+
+test("rejects a stale task If-Match without writing", async () => {
+  const calls = [];
+  const repository = {
+    withTransaction: (callback) => callback(repository),
+    getCurrentTaskRevision: async () => ({ taskId: "task-1", revision: 2, state: "draft", title: "Title", description: "Description", inputs: [], outputs: [], acceptance: {}, contextMode: "blind" }),
+    insertTaskRevision: async () => calls.push("revision"),
+    updateTask: async () => calls.push("task"),
+    appendResearchEvent: async () => calls.push("event"),
+  };
+  await assert.rejects(
+    reviseTask({ repository, actorId: "actor-1", actorRole: "maintainer", taskId: "task-1", ifMatch: 'W/"task-1:1:old"', currentEtag: 'W/"task-1:2:new"', eventFactory: () => ({}) }),
+    (error) => error.code === "PRECONDITION_FAILED" && error.status === 412,
+  );
+  assert.deepEqual(calls, []);
 });

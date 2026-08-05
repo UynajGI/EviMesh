@@ -18,3 +18,8 @@ its digest, prefix, scopes, and expiry metadata through the injected repository.
 `assertApiTokenScopes()` enforces that all required scopes are present.
 `revokeActorApiToken()` applies the authenticated Actor predicate, and
 `markApiTokenUsed()` records successful use timestamps without exposing secrets.
+
+`createTask()` creates the initial immutable Task revision and signed research
+event atomically. `reviseTask()` appends a new Task revision, updates only the
+current Task projection, and requires a matching `If-Match` ETag to prevent
+stale concurrent edits.
