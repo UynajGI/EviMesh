@@ -233,7 +233,7 @@ Artifact     ← 交付物
 | M3-59 | database | 为 ResearchEvent 添加不可更新规则 | event trigger | append-only trigger 拒绝正式事件 UPDATE/DELETE | M3-50 | P0 | M |
 | M3-60 | database | 为 revision 表添加不可更新规则 | revision triggers | append-only trigger 拒绝所有 revision 表 UPDATE/DELETE | M3-11,M3-14,M3-17,M3-23,M3-26,M3-35,M3-40 | P0 | M |
 | M3-61 | database | 创建 current revision 视图 | SQL views | 四个 current_*_revisions 视图按稳定 ID 返回最大 revision | M3-12,M3-17,M3-23 | P0 | M |
-| M3-62 | database | 创建 Claim 上游递归查询 | SQL function | 给定 Claim 可返回全部 depends_on 上游 | M3-25 | P0 | M |
+| M3-62 | database | 创建 Claim 上游递归查询 | SQL function | claim_upstream_dependencies 按深度返回全部 depends_on 上游并阻断环 | M3-25 | P0 | M |
 | M3-63 | database | 创建 Claim 下游递归查询 | SQL function | 给定 Claim 可返回全部依赖下游 | M3-25 | P0 | M |
 | M3-64 | database | 创建 DAG 环检测函数 | SQL function | 构造环的事务被拒绝 | M3-25,M3-61 | P0 | M |
 | M3-65 | database | 创建数据库 RLS 默认启用触发器 | RLS trigger | 新建 public 表自动启用 RLS | M3-02 | P0 | M |

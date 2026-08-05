@@ -204,6 +204,10 @@ Artifact, Verification, and Challenge revisions.
 
 M3-61 adds read-only current-revision views for Project, Question, Task, and
 Claim. Each view selects the highest persisted revision per stable object ID.
+
+M3-62 adds `claim_upstream_dependencies(root_claim_id, max_depth)`, a bounded
+recursive SQL function that follows only `depends_on` edges and returns depth
+and visited-ID paths with cycle protection.
 and self-dependency enforcement are subsequent database constraints.
 
 `DATABASE_URL` is read from the environment, with the local-only Compose URL

@@ -414,6 +414,13 @@
       "when": 1785939600000,
       "tag": "0058_current_revision_views",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1785939900000,
+      "tag": "0059_claim_upstream_recursive",
+      "breakpoints": true
     }
   ]
 }
