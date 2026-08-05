@@ -26,6 +26,8 @@ Question queries add project/state filters and resolve the referenced Contract
 revision alongside the current Question revision.
 Task queries support project/status/type/tag filters and return dependencies
 plus current leases with task details.
+Claim list queries support project/status/tag filters with the same stable cursor
+pagination contract.
 Attempt detail queries return the Attempt row plus a trace summary containing
 count, event types, and first/last timestamps without exposing trace payloads.
 
