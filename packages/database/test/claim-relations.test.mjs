@@ -4,7 +4,7 @@ import { getTableColumns } from 'drizzle-orm';
 import { getTableConfig } from 'drizzle-orm/pg-core';
 import { claimRelationType, claimRelations } from '../src/claim-relations.mjs';
 
-test('claim_relations provide typed directed Claim edges', () => {
+test('M3-57 claim_relations reject duplicate typed directed Claim edges', () => {
   const columns = getTableColumns(claimRelations);
   const config = getTableConfig(claimRelations);
 

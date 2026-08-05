@@ -187,6 +187,10 @@ one object can produce multiple events.
 M3-56 verifies that every revision projection uses an object ID plus revision
 number as one composite primary key, preventing duplicate versions of the same
 object while allowing each object to advance independently.
+
+M3-57 confirms that `claim_relations` uses the source Claim, target Claim, and
+relation type as one composite primary key, so the same typed directed edge
+cannot be inserted twice.
 and self-dependency enforcement are subsequent database constraints.
 
 `DATABASE_URL` is read from the environment, with the local-only Compose URL
