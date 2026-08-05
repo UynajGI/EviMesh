@@ -27,6 +27,10 @@ explicitly request deleted/history rows.
 M3-04 adds the stable `actors` identity table. Its enum values mirror the
  frozen M1 protocol vocabulary; `actor_id` is the stable text primary key.
 
+M3-05 adds the one-to-one `actor_profiles` presentation projection. Optional
+display fields remain separate from stable actor identity, and deleting an
+actor cascades to its profile.
+
 `DATABASE_URL` is read from the environment, with the local-only Compose URL
 used as a development fallback for Drizzle Kit commands. Production URLs must
 be provided by the deployment environment.
