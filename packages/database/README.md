@@ -169,6 +169,9 @@ envelopes with namespaced types and parent event IDs.
 
 M3-51 normalizes parent links into `research_event_parents`, preserving a
 non-self composite event ancestry edge with two restricted event references.
+
+M3-52 adds `event_outbox` with unique event delivery, claim scheduling,
+retry counters, processing states, and dead-letter support.
 and self-dependency enforcement are subsequent database constraints.
 
 `DATABASE_URL` is read from the environment, with the local-only Compose URL

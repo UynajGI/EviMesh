@@ -372,6 +372,13 @@
       "when": 1785937478388,
       "tag": "0052_giant_leopardon",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1785937788438,
+      "tag": "0053_fearless_monster_badoon",
+      "breakpoints": true
     }
   ]
 }

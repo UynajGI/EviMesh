@@ -46,6 +46,7 @@ import { contributionRole, contributionStatements } from './contribution-stateme
 import { contributionEdgeType, contributionEdges } from './contribution-edges.mjs';
 import { researchEvents } from './research-events.mjs';
 import { researchEventParents } from './research-event-parents.mjs';
+import { eventOutbox, eventOutboxStatus } from './event-outbox.mjs';
 
 export { actorProfiles } from './actor-profiles.mjs';
 export { apiTokens } from './api-tokens.mjs';
@@ -94,6 +95,7 @@ export { contributionRole, contributionStatements } from './contribution-stateme
 export { contributionEdgeType, contributionEdges } from './contribution-edges.mjs';
 export { researchEvents } from './research-events.mjs';
 export { researchEventParents } from './research-event-parents.mjs';
+export { eventOutbox, eventOutboxStatus } from './event-outbox.mjs';
 export { signingKeys } from './signing-keys.mjs';
 
 export const schema = {
@@ -145,6 +147,7 @@ export const schema = {
   contributionEdges,
   researchEvents,
   researchEventParents,
+  eventOutbox,
 };
 
 export default schema;
