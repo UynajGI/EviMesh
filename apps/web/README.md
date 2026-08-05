@@ -1,3 +1,6 @@
 # @evimesh/web
 
-Web 产品入口。当前为骨架包，后续承载项目、问题、任务和前沿页面。
+The static entry point includes email/password and GitHub sign-in. Set
+`window.EVIMESH_CONFIG = { supabaseUrl, anonKey }` before `/app.js`; only the
+public Supabase key belongs in this browser configuration. Sessions are kept in
+`localStorage` and restored on page refresh.

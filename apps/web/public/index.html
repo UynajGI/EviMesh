@@ -3,12 +3,23 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>EviMesh</title>
+    <title>EviMesh · Sign in</title>
   </head>
   <body>
     <main>
       <h1>EviMesh</h1>
       <p>Open distributed scientific network.</p>
+      <section id="auth-panel">
+        <h2>Sign in</h2>
+        <form id="email-form">
+          <label>Email <input name="email" type="email" required autocomplete="email" /></label>
+          <label>Password <input name="password" type="password" required autocomplete="current-password" /></label>
+          <button type="submit">Sign in with email</button>
+        </form>
+        <button id="github-button" type="button">Continue with GitHub</button>
+        <p id="auth-status" role="status"></p>
+      </section>
     </main>
+    <script src="/app.js" defer></script>
   </body>
 </html>
