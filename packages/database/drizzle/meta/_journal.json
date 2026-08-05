@@ -43,6 +43,13 @@
       "when": 1785926465899,
       "tag": "0005_adorable_sinister_six",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1785926822968,
+      "tag": "0006_equal_cannonball",
+      "breakpoints": true
     }
   ]
 }

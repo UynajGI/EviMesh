@@ -42,6 +42,10 @@ private key material is never stored here.
 M3-08 adds `api_tokens`. Only a unique token hash, safe display prefix, scopes,
 and lifecycle timestamps are persisted; the plaintext token is never a column.
 
+M3-09 adds `organizations`, binding a stable organization identity to exactly
+one organization actor and a unique slug. Membership and role data belong to
+the following M3-10 table.
+
 `DATABASE_URL` is read from the environment, with the local-only Compose URL
 used as a development fallback for Drizzle Kit commands. Production URLs must
 be provided by the deployment environment.

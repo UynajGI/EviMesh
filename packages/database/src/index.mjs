@@ -4,5 +4,6 @@ export { apiTokens } from './api-tokens.mjs';
 export { actorProfiles } from './actor-profiles.mjs';
 export { actorType, actors, identityStrength } from './actors.mjs';
 export { identities } from './identities.mjs';
+export { organizations } from './organizations.mjs';
 export { signingKeys } from './signing-keys.mjs';
 export { schema } from './schema.mjs';
