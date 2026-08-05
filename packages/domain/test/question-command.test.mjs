@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createQuestion } from "../src/question-command.mjs";
+import { createQuestion, transitionQuestion } from "../src/question-command.mjs";
 
 function repositoryFixture() {
   const calls = [];
@@ -63,5 +63,39 @@ test("rejects a viewer write and malformed contract references before the transa
       eventFactory: () => ({}),
     }),
     /revision must be positive/,
+  );
+});
+
+test("moves a Question through valid states and records the transition event", async () => {
+  const calls = [];
+  const repository = {
+    withTransaction: (callback) => callback(repository),
+    getQuestionState: async () => ({ questionId: "question-1", state: "draft" }),
+    updateQuestion: async (questionId, value) => { calls.push(["question", questionId, value]); return { questionId, ...value }; },
+    appendResearchEvent: async (value) => { calls.push(["event", value]); return value; },
+  };
+  const result = await transitionQuestion({
+    repository,
+    actorId: "actor-1",
+    actorRole: "maintainer",
+    questionId: "question-1",
+    toState: "proposed",
+    eventFactory: async ({ eventType, payload }) => ({ eventId: "event-4", eventType, payload }),
+  });
+  assert.equal(result.question.state, "proposed");
+  assert.equal(result.event.eventType, "question.state_changed");
+  assert.deepEqual(calls.map(([kind]) => kind), ["question", "event"]);
+});
+
+test("rejects an invalid Question transition with STATE_TRANSITION_INVALID", async () => {
+  const repository = {
+    withTransaction: (callback) => callback(repository),
+    getQuestionState: async () => ({ questionId: "question-1", state: "draft" }),
+    updateQuestion: async () => { throw new Error("must not write"); },
+    appendResearchEvent: async () => { throw new Error("must not write"); },
+  };
+  await assert.rejects(
+    transitionQuestion({ repository, actorId: "actor-1", actorRole: "maintainer", questionId: "question-1", toState: "active", eventFactory: () => ({}) }),
+    (error) => error.code === "STATE_TRANSITION_INVALID" && error.status === 409,
   );
 });

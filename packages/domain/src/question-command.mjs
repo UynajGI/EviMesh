@@ -1,10 +1,12 @@
 import { assertProjectRoleForAction } from "./project-authorization.mjs";
+import { assertQuestionTransition } from "../../protocol/src/question-state.mjs";
 
 export class QuestionCommandError extends Error {
-  constructor(message, code = "QUESTION_INVALID") {
+  constructor(message, code = "QUESTION_INVALID", status = 400) {
     super(message);
     this.name = "QuestionCommandError";
     this.code = code;
+    this.status = status;
   }
 }
 
@@ -85,5 +87,45 @@ export async function createQuestion({
       revision: persistedRevision ?? revision,
       event: persistedEvent ?? event,
     };
+  });
+}
+
+/** Move a Question through the protocol state machine and append an audit event. */
+export async function transitionQuestion({
+  repository,
+  actorId,
+  actorRole,
+  questionId,
+  toState,
+  eventFactory,
+} = {}) {
+  if (!repository || typeof repository.withTransaction !== "function") {
+    throw new QuestionCommandError("repository withTransaction is required");
+  }
+  for (const method of ["getQuestionState", "updateQuestion", "appendResearchEvent"]) {
+    if (typeof repository[method] !== "function") throw new QuestionCommandError(`repository ${method} is required`);
+  }
+  actorId = requiredText(actorId, "actor id");
+  questionId = requiredText(questionId, "question id");
+  toState = requiredText(toState, "question state");
+  if (typeof eventFactory !== "function") throw new QuestionCommandError("eventFactory is required");
+  assertProjectRoleForAction({ actorRole, requiredRole: "maintainer" });
+
+  return repository.withTransaction(async (transaction) => {
+    const current = await transaction.getQuestionState(questionId);
+    if (!current) throw new QuestionCommandError("question not found", "QUESTION_NOT_FOUND", 404);
+    try {
+      assertQuestionTransition(current.state, toState);
+    } catch (error) {
+      throw new QuestionCommandError(error.message, "STATE_TRANSITION_INVALID", 409);
+    }
+    const event = await eventFactory({
+      eventType: "question.state_changed",
+      payload: { entity_type: "question", question_id: questionId, from_state: current.state, to_state: toState, actor_id: actorId },
+    });
+    if (!event || typeof event !== "object") throw new QuestionCommandError("eventFactory must return an event object");
+    const updated = await transaction.updateQuestion(questionId, { state: toState });
+    const persistedEvent = await transaction.appendResearchEvent(event);
+    return { question: updated ?? { ...current, state: toState }, event: persistedEvent ?? event };
   });
 }

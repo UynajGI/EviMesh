@@ -22,6 +22,8 @@ middleware replays the original HTTP response only when the same key is used
 with the same request payload; reuse with a different payload returns `409`.
 Project query services expose stable paginated lists and detail results that
 include the current immutable revision.
+Question queries add project/state filters and resolve the referenced Contract
+revision alongside the current Question revision.
 
 Configure `SUPABASE_JWKS_URL`, `SUPABASE_JWT_ISSUER`, and optionally
 `SUPABASE_JWT_AUDIENCE` as Worker variables. Do not commit a JWKS, API token,
