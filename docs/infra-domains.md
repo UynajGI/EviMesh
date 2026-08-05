@@ -46,7 +46,7 @@ contracts; record them in release notes rather than hard-coding them here.
 
 | Hostname | Target | Status |
 |---|---|---|
-| `dev.evimesh.com` | `evimesh-web-dev` Pages | certificate pending |
+| `dev.evimesh.com` | `evimesh-web-dev` Pages | active |
 | `evimesh.com` | `evimesh-web` Pages | active |
 | `api.evimesh.com` | `evimesh-api-edge` Worker | HTTPS `/health` verified |
 

@@ -26,7 +26,7 @@ supabase db push
 ```
 
 Do not commit access tokens, project secrets, or a hosted project reference as
-an environment-specific constant. The development and staging hosted projects
-are provisioned separately from this local configuration. Production project
-creation remains pending while the Supabase free-plan organization limit is
-reached.
+an environment-specific constant. The existing `EviMesh` hosted project is
+used for development and staging, while `EviMesh-Production` is provisioned as
+the production project. Both hosted projects are separate from this local
+configuration.
