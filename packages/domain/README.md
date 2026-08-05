@@ -45,3 +45,6 @@ the corresponding ResearchEvent atomically.
 Claim projection, and requires a matching `If-Match` ETag to prevent stale edits.
 `createClaimRelation()` validates relation types, rejects duplicate/cyclic
 `depends_on` edges, and records the relation plus its ResearchEvent atomically.
+`endClaimRelation()` timestamps an active edge and emits an ending event without
+deleting history; `replaceClaimRelation()` performs that ending and inserts the
+replacement edge in one transaction.
