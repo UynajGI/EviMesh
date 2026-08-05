@@ -4,7 +4,7 @@ import { getTableColumns } from 'drizzle-orm';
 import { getTableConfig } from 'drizzle-orm/pg-core';
 import { taskDependencies, taskDependencyType } from '../src/task-dependencies.mjs';
 
-test('task_dependencies provide typed, non-self composite edges', () => {
+test('M3-58 task_dependencies reject self-referential depends_on edges', () => {
   const columns = getTableColumns(taskDependencies);
   const config = getTableConfig(taskDependencies);
 
@@ -20,5 +20,6 @@ test('task_dependencies provide typed, non-self composite edges', () => {
   assert.equal(config.primaryKeys[0].name, 'task_dependencies_pkey');
   assert.deepEqual(config.primaryKeys[0].columns.map((column) => column.name), ['source_task_id', 'target_task_id']);
   assert.equal(config.checks.length, 1);
+  assert.equal(config.checks[0].name, 'task_dependencies_no_self_reference');
   assert.equal(config.foreignKeys.length, 3);
 });

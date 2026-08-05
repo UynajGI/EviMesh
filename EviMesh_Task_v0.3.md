@@ -229,7 +229,7 @@ Artifact     ← 交付物
 | M3-55 | database | 为稳定 ID 添加唯一约束 | unique constraints | 稳定实体 ID 由单列主键保证唯一，ResearchEvent.object_id 保持可重复 | M3-04:M3-54 | P0 | M |
 | M3-56 | database | 为 revision 添加复合唯一约束 | revision constraints | 每个 revision 表由 object_id + revision 复合主键保证同对象同版本不可重复 | M3-04:M3-54 | P0 | M |
 | M3-57 | database | 为 ClaimRelation 添加重复边约束 | relation constraint | source_claim_id + target_claim_id + relation_type 复合主键阻止重复边 | M3-25 | P0 | S |
-| M3-58 | database | 为 depends_on 添加自引用约束 | DAG constraint | Claim 不能 depends_on 自身 | M3-25 | P0 | S |
+| M3-58 | database | 为 depends_on 添加自引用约束 | DAG constraint | task_dependencies_no_self_reference 检查阻止 Task 自依赖 | M3-25 | P0 | S |
 | M3-59 | database | 为 ResearchEvent 添加不可更新规则 | event trigger | UPDATE/DELETE 正式事件失败 | M3-50 | P0 | M |
 | M3-60 | database | 为 revision 表添加不可更新规则 | revision triggers | UPDATE/DELETE 正式 revision 失败 | M3-11,M3-14,M3-17,M3-23,M3-26,M3-35,M3-40 | P0 | M |
 | M3-61 | database | 创建 current revision 视图 | SQL views | Project/Question/Task/Claim 可读 current revision | M3-12,M3-17,M3-23 | P0 | M |

@@ -191,6 +191,9 @@ object while allowing each object to advance independently.
 M3-57 confirms that `claim_relations` uses the source Claim, target Claim, and
 relation type as one composite primary key, so the same typed directed edge
 cannot be inserted twice.
+
+M3-58 confirms the `depends_on` projection rejects self-referential Task edges
+through the `task_dependencies_no_self_reference` database check.
 and self-dependency enforcement are subsequent database constraints.
 
 `DATABASE_URL` is read from the environment, with the local-only Compose URL
