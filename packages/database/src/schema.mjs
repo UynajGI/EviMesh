@@ -19,6 +19,7 @@ import { taskLeases } from './task-leases.mjs';
 import { attempts } from './attempts.mjs';
 import { traceEvents } from './trace-events.mjs';
 import { claims } from './claims.mjs';
+import { claimRevisions } from './claim-revisions.mjs';
 
 export { actorProfiles } from './actor-profiles.mjs';
 export { apiTokens } from './api-tokens.mjs';
@@ -40,6 +41,7 @@ export { taskLeases } from './task-leases.mjs';
 export { attemptState, attempts } from './attempts.mjs';
 export { traceEvents } from './trace-events.mjs';
 export { claimState, claims } from './claims.mjs';
+export { claimRevisions } from './claim-revisions.mjs';
 export { signingKeys } from './signing-keys.mjs';
 
 export const schema = {
@@ -64,6 +66,7 @@ export const schema = {
   attempts,
   traceEvents,
   claims,
+  claimRevisions,
 };
 
 export default schema;

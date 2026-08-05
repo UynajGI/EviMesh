@@ -81,6 +81,8 @@ M3-23 adds append-only `trace_events` with signed payload, hash, parent IDs,
 and event-type integrity checks.
 M3-24 adds stable `claims` identity records with optional Question scope and
 the M1 Claim lifecycle state; Claim content belongs to M3-25 revisions.
+M3-25 adds immutable `claim_revisions` with statement, epistemic boundaries,
+and contiguous revision constraints.
 
 `DATABASE_URL` is read from the environment, with the local-only Compose URL
 used as a development fallback for Drizzle Kit commands. Production URLs must
