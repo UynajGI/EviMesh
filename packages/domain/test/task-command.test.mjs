@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { acquireTaskLease, addTaskDependency, createAttempt, createTask, expireTaskLeases, renewTaskLease, reviseTask, transitionAttempt, transitionTask } from "../src/task-command.mjs";
+import { acquireTaskLease, addTaskDependency, createAttempt, createTask, createTraceEvent, expireTaskLeases, renewTaskLease, reviseTask, transitionAttempt, transitionTask } from "../src/task-command.mjs";
 
 function repositoryFixture() {
   const calls = [];
@@ -353,6 +353,45 @@ test("rejects an Attempt transition from a different actor or invalid state", as
   await assert.rejects(
     transitionAttempt({ repository, actorId: "actor-1", actorRole: "contributor", attemptId: "attempt-1", toState: "active", eventFactory: () => ({}) }),
     (error) => error.code === "ATTEMPT_FORBIDDEN" && error.status === 403,
+  );
+  assert.deepEqual(calls, []);
+});
+
+test("creates a public-summary TraceEvent for an active Attempt", async () => {
+  const calls = [];
+  const repository = {
+    withTransaction: (callback) => callback(repository),
+    getAttempt: async () => ({ attemptId: "attempt-1", actorId: "actor-1", state: "active" }),
+    insertTraceEvent: async (value) => { calls.push(["trace", value]); return value; },
+    appendResearchEvent: async (value) => { calls.push(["event", value]); return value; },
+  };
+  const result = await createTraceEvent({
+    repository, actorId: "actor-1", actorRole: "contributor", eventId: "trace-1", attemptId: "attempt-1",
+    eventType: "trace.step", payload: { summary: "completed", status: "ok", duration_ms: 12 },
+    hash: `sha256:${"a".repeat(64)}`, signature: { algorithm: "ed25519", value: "sig" },
+    eventFactory: async ({ eventType, payload }) => ({ eventId: "event-15", eventType, payload }),
+  });
+  assert.deepEqual(calls.map(([kind]) => kind), ["trace", "event"]);
+  assert.equal(result.traceEvent.eventType, "trace.step");
+  assert.equal(result.event.eventType, "trace.created");
+});
+
+test("rejects private TraceEvent payloads and traces after submission", async () => {
+  const calls = [];
+  const base = {
+    withTransaction: (callback) => callback(base),
+    getAttempt: async () => ({ attemptId: "attempt-1", actorId: "actor-1", state: "submitted" }),
+    insertTraceEvent: async () => calls.push("trace"),
+    appendResearchEvent: async () => calls.push("event"),
+  };
+  const input = { repository: base, actorId: "actor-1", actorRole: "contributor", eventId: "trace-1", attemptId: "attempt-1", eventType: "trace.step", hash: `sha256:${"a".repeat(64)}`, signature: { value: "sig" }, eventFactory: () => ({}) };
+  await assert.rejects(
+    createTraceEvent({ ...input, payload: { summary: "ok", secret: "do-not-store" } }),
+    (error) => error.code === "TRACE_PAYLOAD_PRIVATE",
+  );
+  await assert.rejects(
+    createTraceEvent({ ...input, payload: { summary: "ok" } }),
+    (error) => error.code === "TRACE_AFTER_SUBMISSION" && error.status === 409,
   );
   assert.deepEqual(calls, []);
 });

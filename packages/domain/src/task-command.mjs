@@ -490,3 +490,53 @@ export async function transitionAttempt({
     return { attempt: persistedAttempt ?? updated, event: persistedEvent ?? event };
   });
 }
+
+const PUBLIC_TRACE_FIELDS = new Set(["summary", "status", "phase", "duration_ms", "step", "metrics", "labels"]);
+
+/** Create a TraceEvent containing only explicitly public summary fields. */
+export async function createTraceEvent({
+  repository,
+  actorId,
+  actorRole,
+  eventId,
+  attemptId,
+  eventType,
+  payload,
+  hash,
+  signature,
+  parents = [],
+  eventFactory,
+} = {}) {
+  if (!repository || typeof repository.withTransaction !== "function") throw new TaskCommandError("repository withTransaction is required");
+  for (const method of ["getAttempt", "insertTraceEvent", "appendResearchEvent"]) {
+    if (typeof repository[method] !== "function") throw new TaskCommandError(`repository ${method} is required`);
+  }
+  actorId = requiredText(actorId, "actor id");
+  eventId = requiredText(eventId, "trace event id");
+  attemptId = requiredText(attemptId, "attempt id");
+  if (typeof eventType !== "string" || !/^[a-z][a-z0-9]*(?:\.[a-z][a-z0-9]*)+$/.test(eventType)) throw new TaskCommandError("trace event type must be namespaced");
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) throw new TaskCommandError("trace payload must be an object");
+  const privateFields = Object.keys(payload).filter((key) => !PUBLIC_TRACE_FIELDS.has(key));
+  if (privateFields.length > 0) throw new TaskCommandError(`trace payload contains non-public fields: ${privateFields.join(", ")}`, "TRACE_PAYLOAD_PRIVATE", 400);
+  if (typeof hash !== "string" || !/^sha256:[0-9a-f]{64}$/i.test(hash)) throw new TaskCommandError("trace hash must be a sha256 digest");
+  if (!signature || typeof signature !== "object" || Array.isArray(signature)) throw new TaskCommandError("trace signature must be an object");
+  if (!Array.isArray(parents) || parents.some((parent) => typeof parent !== "string" || parent.length === 0)) throw new TaskCommandError("trace parents must be non-empty strings");
+  if (typeof eventFactory !== "function") throw new TaskCommandError("eventFactory is required");
+  assertProjectRoleForAction({ actorRole, requiredRole: "contributor" });
+
+  return repository.withTransaction(async (transaction) => {
+    const attempt = await transaction.getAttempt(attemptId);
+    if (!attempt) throw new TaskCommandError("attempt not found", "ATTEMPT_NOT_FOUND", 404);
+    if (attempt.actorId !== actorId) throw new TaskCommandError("attempt belongs to another actor", "ATTEMPT_FORBIDDEN", 403);
+    if (attempt.state === "submitted") throw new TaskCommandError("submitted attempts cannot receive trace events", "TRACE_AFTER_SUBMISSION", 409);
+    const traceEvent = { eventId, attemptId, eventType, payload, hash, signature, parents };
+    const auditEvent = await eventFactory({
+      eventType: "trace.created",
+      payload: { entity_type: "trace_event", event_id: eventId, attempt_id: attemptId, actor_id: actorId, event_type: eventType },
+    });
+    if (!auditEvent || typeof auditEvent !== "object") throw new TaskCommandError("eventFactory must return an event object");
+    const persistedTraceEvent = await transaction.insertTraceEvent(traceEvent);
+    const persistedAuditEvent = await transaction.appendResearchEvent(auditEvent);
+    return { traceEvent: persistedTraceEvent ?? traceEvent, event: persistedAuditEvent ?? auditEvent };
+  });
+}

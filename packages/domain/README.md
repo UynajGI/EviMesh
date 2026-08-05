@@ -37,3 +37,5 @@ audit event for each cleaned-up lease.
 creates an active Attempt with its audit event atomically.
 `transitionAttempt()` restricts state changes to the owning Actor, applies the
 protocol Attempt state machine, and timestamps submitted or abandoned Attempts.
+`createTraceEvent()` accepts only public summary fields, validates the signed
+trace envelope, and rejects ordinary trace writes after Attempt submission.
