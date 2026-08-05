@@ -1,7 +1,8 @@
 # EviMesh R2 CORS Policies
 
 M2-14 and M2-15 use one explicit Web origin per environment. Wildcard origins
-are not allowed. The renderer emits the R2 policy format expected by Wrangler.
+are not allowed. The renderer emits the current Wrangler R2 policy format:
+`rules` with nested lowercase `allowed` fields.
 
 Render a policy after setting the corresponding hosted origin:
 

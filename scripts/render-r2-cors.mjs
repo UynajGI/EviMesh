@@ -29,10 +29,14 @@ if (parsed.protocol !== "https:" || parsed.pathname !== "/" || parsed.search || 
   process.exit(1);
 }
 
-console.log(JSON.stringify([{
-  AllowedOrigins: [parsed.origin],
-  AllowedMethods: ["GET", "HEAD", "PUT"],
-  AllowedHeaders: ["Content-Type"],
-  ExposeHeaders: ["ETag"],
-  MaxAgeSeconds: 3600,
-}], null, 2));
+console.log(JSON.stringify({
+  rules: [{
+    allowed: {
+      origins: [parsed.origin],
+      methods: ["GET", "HEAD", "PUT"],
+      headers: ["Content-Type"],
+    },
+    exposeHeaders: ["ETag"],
+    maxAgeSeconds: 3600,
+  }],
+}, null, 2));

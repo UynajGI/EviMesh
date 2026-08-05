@@ -41,5 +41,19 @@ The initial Cloudflare resources are provisioned as follows:
 The development Pages preview is deployed from the infrastructure branch. The
 Workers and Pages provider URLs are deployment outputs, not custom-domain
 contracts; record them in release notes rather than hard-coding them here.
-R2 bucket creation remains pending until R2 is enabled for the Cloudflare
-account.
+
+## Configured custom domains
+
+| Hostname | Target | Status |
+|---|---|---|
+| `dev.evimesh.com` | `evimesh-web-dev` Pages | certificate pending |
+| `evimesh.com` | `evimesh-web` Pages | active |
+| `api.evimesh.com` | `evimesh-api-edge` Worker | HTTPS `/health` verified |
+
+## R2 buckets
+
+| Environment | Bucket | CORS origin |
+|---|---|---|
+| development | `evimesh-dev` | `https://dev.evimesh.com` |
+| staging | `evimesh-staging` | not configured |
+| production | `evimesh-production` | `https://evimesh.com` |

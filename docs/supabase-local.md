@@ -26,5 +26,7 @@ supabase db push
 ```
 
 Do not commit access tokens, project secrets, or a hosted project reference as
-an environment-specific constant. The current machine still lacks Docker and
-Supabase authentication, so local startup and remote linking remain pending.
+an environment-specific constant. The development and staging hosted projects
+are provisioned separately from this local configuration. Production project
+creation remains pending while the Supabase free-plan organization limit is
+reached.
