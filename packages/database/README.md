@@ -83,6 +83,8 @@ M3-24 adds stable `claims` identity records with optional Question scope and
 the M1 Claim lifecycle state; Claim content belongs to M3-25 revisions.
 M3-25 adds immutable `claim_revisions` with statement, epistemic boundaries,
 and contiguous revision constraints.
+M3-26 adds directed, typed `claim_relations` with a composite edge key; DAG
+and self-dependency enforcement are subsequent database constraints.
 
 `DATABASE_URL` is read from the environment, with the local-only Compose URL
 used as a development fallback for Drizzle Kit commands. Production URLs must

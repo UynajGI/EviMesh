@@ -21,5 +21,6 @@ export { attemptState, attempts } from './attempts.mjs';
 export { traceEvents } from './trace-events.mjs';
 export { claimState, claims } from './claims.mjs';
 export { claimRevisions } from './claim-revisions.mjs';
+export { claimRelations, claimRelationType } from './claim-relations.mjs';
 export { signingKeys } from './signing-keys.mjs';
 export { schema } from './schema.mjs';
