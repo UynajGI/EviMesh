@@ -1,0 +1,11 @@
+{
+  "schema": "srp.artifact.v1",
+  "artifact_id": "evidence_018f0f4a-5c00-4000-8000-000000000001",
+  "revision": 1,
+  "artifact_type": "dataset",
+  "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "location": "https://storage.evimesh.org/artifacts/evidence-01.bin",
+  "license": "CC-BY-4.0",
+  "created_at": "2026-08-04T06:00:00.000Z",
+  "created_by": "actor_01"
+}

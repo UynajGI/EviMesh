@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://evimesh.org/schema/run.schema.json",
+  "title": "EviMesh Run Receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "run_id", "task_id", "context_bundle_id", "input_artifact_ids", "source_code", "container", "command", "args", "environment", "hardware", "random_seed", "started_at", "ended_at", "network_access", "output_artifact_ids", "exit_code", "actor_id", "signature"],
+  "properties": {
+    "schema": { "const": "srp.run.v1" },
+    "run_id": { "type": "string", "pattern": "^run_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" },
+    "task_id": { "type": "string", "pattern": "^task_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" },
+    "context_bundle_id": { "type": "string", "minLength": 1 },
+    "input_artifact_ids": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "source_code": { "type": "string", "minLength": 1 },
+    "container": { "type": "string", "minLength": 1 },
+    "command": { "type": "string", "minLength": 1 },
+    "args": { "type": "array", "items": { "type": "string" } },
+    "environment": { "type": "object", "minProperties": 1 },
+    "hardware": { "type": "object", "minProperties": 1 },
+    "random_seed": {},
+    "started_at": { "type": "string", "format": "date-time" },
+    "ended_at": { "type": "string", "format": "date-time" },
+    "network_access": { "type": "boolean" },
+    "output_artifact_ids": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "exit_code": { "type": "integer" },
+    "actor_id": { "type": "string", "minLength": 1 },
+    "signature": { "type": "string", "minLength": 1 }
+  }
+}

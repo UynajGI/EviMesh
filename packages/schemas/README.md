@@ -1,3 +1,31 @@
 # @evimesh/schemas
 
-机器可校验的 JSON Schema 与测试向量。当前为骨架包。
+机器可校验的 JSON Schema 与测试向量。
+
+当前包含 `common.schema.json`：统一定义 UUID/UUIDv7、稳定 Object ID、revision、SHA-256 hash、Actor 类型、Identity 强度、时间戳和 Ed25519 signature 的公共约束。执行 `pnpm --filter @evimesh/schemas test` 检查 schema 元数据与合法/非法测试向量。
+
+M1-28 新增 `project.schema.json`，约束 Project revision 的 schema、稳定 ID、revision、状态、名称、摘要、创建时间和创建者字段，并包含合法/非法向量。
+
+M1-29 新增 `question.schema.json`，以 `$defs/researchContract` 强制问题、定义、背景、范围、进展标准、可接受证据、证伪条件、许可、风险等级和维护者引用。
+
+M1-30 新增 `task.schema.json`，校验 Task revision 的输入、输出、验收标准和 `frontier/full_trace/adversarial/blind` context mode。
+
+M1-31 新增 `claim.schema.json`，校验 ClaimRevision 的 statement、scope、assumptions、falsification 和 Claim 状态机枚举。
+
+M1-32 新增 `artifact.schema.json`，校验 Artifact 的 SHA-256 hash、URI location、license、媒体类型和大小等完整性与来源字段。
+
+M1-33 新增 `run.schema.json`，覆盖 Run Receipt 的 Task/Context、输入输出 Artifact、源码容器、命令、环境硬件、随机种子、时间、网络、exit code、Actor 和签名字段。
+
+M1-34 新增 `verification.schema.json`，固定 ClaimRevision/ContractRevision、outcome、verification types、context mode、独立性关系和 Finding severity/code 结构。
+
+M1-35 新增 `challenge.schema.json`，校验目标 ClaimRevision、Challenge 状态机和结构化 impact（type/severity/summary）。
+
+M1-36 新增 `frontier.schema.json`，校验 append-only previous、ClaimRevision members、版本化 policy 和 SHA-256 checkpoint。
+
+M1-37 新增 `contribution.schema.json`，校验 Actor、六类 Contribution role，以及 produced/used 对象归因；两者不能同时为空。
+
+M1-38 新增 `event.schema.json`，校验 ResearchEvent 的 namespaced event type、UUIDv7 event/parent IDs、SHA-256 hash 和 Ed25519 signature。
+
+M1-39 新增 `fixtures/valid/`，为 M1-28 至 M1-38 的每个 Schema 提供一个合法样例；统一测试检查 fixture 与对应 schema 的必填字段和 schema 标识一致。
+
+M1-40 新增 `fixtures/invalid/`，为 M1-28 至 M1-38 的每个 Schema 提供至少两个失败样例；统一测试检查错误 schema 标识或缺失必填字段。

@@ -1,0 +1,12 @@
+{
+  "schema": "srp.claim.v1",
+  "claim_id": "claim_018f0f4a-5c00-4000-8000-000000000001",
+  "revision": 1,
+  "state": "candidate",
+  "statement": "The reference method reproduces the reported result within tolerance.",
+  "scope": ["the reference dataset"],
+  "assumptions": ["the input data is unchanged"],
+  "falsification": ["a verified result outside tolerance"],
+  "created_at": "2026-08-04T06:00:00.000Z",
+  "created_by": "actor_01"
+}

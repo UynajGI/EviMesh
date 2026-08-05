@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://evimesh.org/schema/contribution.schema.json",
+  "title": "EviMesh Contribution Statement",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "contribution_id", "actor_id", "role", "produced", "used", "created_at"],
+  "anyOf": [
+    { "required": ["produced"], "properties": { "produced": { "minItems": 1 } } },
+    { "required": ["used"], "properties": { "used": { "minItems": 1 } } }
+  ],
+  "properties": {
+    "schema": { "const": "srp.contribution.v1" },
+    "contribution_id": { "type": "string", "pattern": "^contribution_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" },
+    "actor_id": { "type": "string", "minLength": 1 },
+    "role": { "type": "string", "enum": ["originator", "contributor", "reviewer", "verifier", "witness", "maintainer"] },
+    "produced": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "used": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "description": { "type": "string", "minLength": 1, "maxLength": 4000 },
+    "created_at": { "type": "string", "format": "date-time" }
+  }
+}

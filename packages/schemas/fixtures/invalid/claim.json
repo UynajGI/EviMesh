@@ -1,0 +1,4 @@
+[
+  { "schema": "srp.claim.v0" },
+  { "schema": "srp.claim.v1", "claim_id": "claim_018f0f4a-5c00-4000-8000-000000000001" }
+]

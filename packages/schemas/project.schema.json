@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://evimesh.org/schema/project.schema.json",
+  "title": "EviMesh Project revision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "project_id", "revision", "state", "name", "summary", "created_at", "created_by"],
+  "properties": {
+    "schema": { "const": "srp.project.v1" },
+    "project_id": { "type": "string", "pattern": "^project_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" },
+    "revision": { "type": "integer", "minimum": 1 },
+    "state": { "type": "string", "enum": ["draft", "active", "archived"] },
+    "name": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "summary": { "type": "string", "minLength": 1, "maxLength": 4000 },
+    "created_at": { "type": "string", "format": "date-time" },
+    "created_by": { "type": "string", "minLength": 1 },
+    "maintainer_ids": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "license": { "type": "string", "minLength": 1 }
+  }
+}

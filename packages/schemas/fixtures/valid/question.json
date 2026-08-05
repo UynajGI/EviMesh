@@ -1,0 +1,22 @@
+{
+  "schema": "srp.question.v1",
+  "question_id": "question_018f0f4a-5c00-4000-8000-000000000001",
+  "revision": 1,
+  "state": "draft",
+  "title": "Can the method be reproduced?",
+  "statement": "Can independent implementations reproduce the reported result?",
+  "research_contract": {
+    "problem": "Define the reproduction target.",
+    "definitions": { "reproduction": "same result within tolerance" },
+    "background": "Prior results motivate the question.",
+    "scope": ["the reference method"],
+    "progress_criteria": ["two successful reproductions"],
+    "acceptable_evidence": ["numerical_result"],
+    "falsification": ["a verified counterexample"],
+    "license": "CC-BY-4.0",
+    "risk_level": "open",
+    "maintainer_ids": ["actor_01"]
+  },
+  "created_at": "2026-08-04T06:00:00.000Z",
+  "created_by": "actor_01"
+}

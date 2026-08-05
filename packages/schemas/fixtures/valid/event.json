@@ -1,0 +1,9 @@
+{
+  "schema": "srp.event.v1",
+  "event_id": "018f0f4a-5c00-7000-8000-000000000001",
+  "event_type": "claim.revised",
+  "payload": { "claim_revision_id": "claim_01@revision:2" },
+  "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "signature": { "algorithm": "Ed25519", "key_id": "actor-key-01", "value": "signature-bytes" },
+  "parents": []
+}
