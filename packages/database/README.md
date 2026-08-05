@@ -35,6 +35,10 @@ M3-06 adds `identities` for external login bindings. The `(provider, subject)`
 pair is unique, while provider credentials and access tokens remain outside
 this table.
 
+M3-07 adds `signing_keys` for public verification material. `key_id` matches
+the protocol signature envelope, the algorithm defaults to `Ed25519`, and
+private key material is never stored here.
+
 `DATABASE_URL` is read from the environment, with the local-only Compose URL
 used as a development fallback for Drizzle Kit commands. Production URLs must
 be provided by the deployment environment.
