@@ -183,6 +183,10 @@ M3-55 locks the stable entity ID inventory to single-column primary keys. This
 keeps stable IDs unique without adding redundant unique indexes; an event
 envelope's payload-level `object_id` remains intentionally non-unique because
 one object can produce multiple events.
+
+M3-56 verifies that every revision projection uses an object ID plus revision
+number as one composite primary key, preventing duplicate versions of the same
+object while allowing each object to advance independently.
 and self-dependency enforcement are subsequent database constraints.
 
 `DATABASE_URL` is read from the environment, with the local-only Compose URL
