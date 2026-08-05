@@ -31,6 +31,10 @@ M3-05 adds the one-to-one `actor_profiles` presentation projection. Optional
 display fields remain separate from stable actor identity, and deleting an
 actor cascades to its profile.
 
+M3-06 adds `identities` for external login bindings. The `(provider, subject)`
+pair is unique, while provider credentials and access tokens remain outside
+this table.
+
 `DATABASE_URL` is read from the environment, with the local-only Compose URL
 used as a development fallback for Drizzle Kit commands. Production URLs must
 be provided by the deployment environment.
