@@ -9,6 +9,8 @@ platform or a local ignored `.env` file; they must never be committed.
 - Use the same variable name in every environment.
 - Keep environment selection in `EVIMESH_ENV`; do not encode it in secret names.
 - Public client configuration uses `SUPABASE_URL` and `SUPABASE_ANON_KEY`.
+- API JWT verification uses `SUPABASE_JWKS_URL`, `SUPABASE_JWT_ISSUER`, and
+  `SUPABASE_JWT_AUDIENCE`.
 - Server-only credentials use `SUPABASE_SERVICE_ROLE_KEY`,
   `R2_SECRET_ACCESS_KEY`, and `CLOUDFLARE_API_TOKEN`.
 - Never place service-role, R2 secret, or Cloudflare token values in browser code.
@@ -32,6 +34,9 @@ platform or a local ignored `.env` file; they must never be committed.
 | `SUPABASE_URL` | client/server | hosted only | no |
 | `SUPABASE_ANON_KEY` | client/server | hosted only | no |
 | `SUPABASE_SERVICE_ROLE_KEY` | server | hosted only | yes |
+| `SUPABASE_JWKS_URL` | API deployment | hosted only | no |
+| `SUPABASE_JWT_ISSUER` | API deployment | hosted only | no |
+| `SUPABASE_JWT_AUDIENCE` | API deployment | hosted only | no |
 | `CLOUDFLARE_ACCOUNT_ID` | deployment | hosted only | no |
 | `CLOUDFLARE_API_TOKEN` | deployment | hosted only | yes |
 

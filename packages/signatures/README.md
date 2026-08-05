@@ -1,3 +1,17 @@
 # @evimesh/signatures
 
-客户端、服务端签名和 Envelope 规范。当前为骨架包。
+Client and server signing primitives and Envelope specifications.
+
+`generateEd25519KeyPair()` returns an Ed25519 keypair as base64url-encoded
+SPKI public-key DER and PKCS#8 private-key DER. The private key is never logged
+or persisted by this package; callers decide how to protect it.
+
+`encodeEd25519DidKey()` and `decodeEd25519DidKey()` convert that public-key
+encoding to and from an Ed25519 `did:key` using base58btc multibase.
+
+`signEd25519Payload()` signs protocol `signing_bytes` and returns a base64url
+signature; it does not canonicalize or retain the private key.
+`verifyEd25519Payload()` verifies the same bytes against a base64url SPKI public
+key and returns `false` for an invalid signature.
+`createKeyRotationDeclaration()` and `verifyKeyRotationDeclaration()` bind a
+new public key to an old key through an old-key signature.

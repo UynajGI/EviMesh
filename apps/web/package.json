@@ -4,6 +4,7 @@
   "version": "0.3.0",
   "scripts": {
     "lint": "node ../../scripts/check-package.mjs",
+    "test": "node --test",
     "dev": "wrangler pages dev public --port 3000",
     "deploy:preview": "wrangler pages deploy public --project-name evimesh-web-dev",
     "deploy:production": "wrangler pages deploy public --project-name evimesh-web"

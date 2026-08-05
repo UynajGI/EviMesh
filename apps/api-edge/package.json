@@ -4,7 +4,7 @@
   "version": "0.3.0",
   "scripts": {
     "lint": "node ../../scripts/check-package.mjs",
-    "test": "node --test test/index.test.mjs",
+    "test": "node --test test/*.test.mjs",
     "dev": "wrangler dev",
     "dev:staging": "wrangler dev --env staging",
     "deploy:dev": "wrangler deploy",
