@@ -38,6 +38,8 @@ Claim downstream graph queries use the mirrored bounded traversal and expose a
 `dependencyTainted` marker for every affected node.
 Challenge detail queries return the current revision, status policy, impact rows,
 and Evidence linked to the locked target Claim revision.
+Contribution queries return an Actor's role semantics plus separate produced and
+used attribution edges.
 Attempt detail queries return the Attempt row plus a trace summary containing
 count, event types, and first/last timestamps without exposing trace payloads.
 
