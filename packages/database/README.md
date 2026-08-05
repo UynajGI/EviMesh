@@ -46,6 +46,10 @@ M3-09 adds `organizations`, binding a stable organization identity to exactly
 one organization actor and a unique slug. Membership and role data belong to
 the following M3-10 table.
 
+M3-10 adds `organization_members` with a composite organization/actor key.
+Its role is intentionally an extensible text field until the later
+authorization milestone freezes role semantics.
+
 `DATABASE_URL` is read from the environment, with the local-only Compose URL
 used as a development fallback for Drizzle Kit commands. Production URLs must
 be provided by the deployment environment.

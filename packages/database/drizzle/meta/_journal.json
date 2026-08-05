@@ -50,6 +50,20 @@
       "when": 1785926822968,
       "tag": "0006_equal_cannonball",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1785927090667,
+      "tag": "0007_faithful_sphinx",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1785927241036,
+      "tag": "0008_odd_sleepwalker",
+      "breakpoints": true
     }
   ]
 }
