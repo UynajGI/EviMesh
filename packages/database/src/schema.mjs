@@ -42,6 +42,7 @@ import { mergeProposals } from './merge-proposals.mjs';
 import { frontierSnapshots } from './frontier-snapshots.mjs';
 import { frontierMembers } from './frontier-members.mjs';
 import { contextBundles } from './context-bundles.mjs';
+import { contributionRole, contributionStatements } from './contribution-statements.mjs';
 
 export { actorProfiles } from './actor-profiles.mjs';
 export { apiTokens } from './api-tokens.mjs';
@@ -86,6 +87,7 @@ export { mergeProposals } from './merge-proposals.mjs';
 export { frontierSnapshots } from './frontier-snapshots.mjs';
 export { frontierMembers } from './frontier-members.mjs';
 export { contextBundles } from './context-bundles.mjs';
+export { contributionRole, contributionStatements } from './contribution-statements.mjs';
 export { signingKeys } from './signing-keys.mjs';
 
 export const schema = {
@@ -133,6 +135,7 @@ export const schema = {
   frontierSnapshots,
   frontierMembers,
   contextBundles,
+  contributionStatements,
 };
 
 export default schema;

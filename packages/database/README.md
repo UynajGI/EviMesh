@@ -157,6 +157,9 @@ concrete Claim revision within one Frontier snapshot.
 
 M3-47 adds immutable `context_bundles` records that bind a compiled context
 to a concrete Task revision, mode, content hash, and storage URI.
+
+M3-48 adds typed, append-only `contribution_statements` that attribute a
+contribution role and description to an Actor.
 and self-dependency enforcement are subsequent database constraints.
 
 `DATABASE_URL` is read from the environment, with the local-only Compose URL
