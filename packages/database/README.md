@@ -89,6 +89,9 @@ self-dependency and cycle enforcement remain protocol/application constraints.
 M3-27 adds the stable-identity `artifacts` table. Artifact content and
 locations belong to later revision/location tables; this table only owns the
 stable ID, creator, and lifecycle projection.
+
+M3-28 adds append-only `artifact_revisions` with contiguous revision links,
+typed content metadata, raw/semantic hash fields, and non-negative byte size.
 and self-dependency enforcement are subsequent database constraints.
 
 `DATABASE_URL` is read from the environment, with the local-only Compose URL

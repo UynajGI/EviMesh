@@ -22,6 +22,7 @@ import { claims } from './claims.mjs';
 import { claimRevisions } from './claim-revisions.mjs';
 import { claimRelations } from './claim-relations.mjs';
 import { artifacts } from './artifacts.mjs';
+import { artifactRevisions } from './artifact-revisions.mjs';
 
 export { actorProfiles } from './actor-profiles.mjs';
 export { apiTokens } from './api-tokens.mjs';
@@ -46,6 +47,7 @@ export { claimState, claims } from './claims.mjs';
 export { claimRevisions } from './claim-revisions.mjs';
 export { claimRelations, claimRelationType } from './claim-relations.mjs';
 export { artifacts } from './artifacts.mjs';
+export { artifactRevisions, artifactType } from './artifact-revisions.mjs';
 export { signingKeys } from './signing-keys.mjs';
 
 export const schema = {
@@ -73,6 +75,7 @@ export const schema = {
   claimRevisions,
   claimRelations,
   artifacts,
+  artifactRevisions,
 };
 
 export default schema;
