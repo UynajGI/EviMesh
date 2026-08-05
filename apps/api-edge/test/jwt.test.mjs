@@ -52,13 +52,19 @@ test("accepts a valid Supabase JWT at the authenticated route", async () => {
 
 test("rejects missing, tampered, and expired JWTs", async () => {
   const fixture = await createFixture();
-  const tampered = `${fixture.token.slice(0, -1)}${fixture.token.endsWith("a") ? "b" : "a"}`;
+  const [header, payload, signaturePart] = fixture.token.split(".");
+  const signature = Buffer.from(signaturePart, "base64url");
+  signature[0] ^= 1;
+  const tampered = `${header}.${payload}.${signature.toString("base64url")}`;
   const expired = await createFixture({ exp: Math.floor(Date.now() / 1000) - 1 });
 
   for (const token of [undefined, tampered, expired.token]) {
     const headers = token ? { authorization: `Bearer ${token}` } : {};
     const response = await worker.fetch(new Request("https://api.example.test/auth/me", { headers }), fixture.env);
     assert.equal(response.status, 401);
-    assert.deepEqual(await response.json(), { error: "unauthorized" });
+    const payload = await response.json();
+    assert.equal(payload.code, "unauthorized");
+    assert.equal(payload.message, "authentication required");
+    assert.match(response.headers.get("x-request-id"), /^[0-9a-f-]{36}$/);
   }
 });
