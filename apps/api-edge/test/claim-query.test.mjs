@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { getClaim, getClaimRevision, getClaimUpstreamGraph, listClaims } from "../src/claim-query.mjs";
+import { getClaim, getClaimDownstreamGraph, getClaimRevision, getClaimUpstreamGraph, listClaims } from "../src/claim-query.mjs";
 
 const claims = [
   { claimId: "claim-2", projectId: "project-1", status: "candidate", createdAt: "2026-08-02T00:00:00.000Z" },
@@ -91,4 +91,16 @@ test("rejects unbounded upstream graph depths", async () => {
     getClaimUpstreamGraph({ repository: { getClaimUpstreamGraph: async () => [] }, claimId: "claim-1", maxDepth: 33 }),
     /graph depth must be an integer between 1 and 32/,
   );
+});
+
+test("returns downstream nodes with dependency taint markers", async () => {
+  const result = await getClaimDownstreamGraph({
+    repository: { getClaimDownstreamGraph: async () => [
+      { claimId: "claim-2", depth: 1, state: "dependency_tainted" },
+      { claimId: "claim-3", depth: 2, state: "candidate", dependencyTainted: true },
+    ] },
+    claimId: "claim-1", maxDepth: 2,
+  });
+  assert.equal(result.nodes[0].dependencyTainted, true);
+  assert.equal(result.nodes[1].dependencyTainted, true);
 });

@@ -77,3 +77,20 @@ export async function getClaimUpstreamGraph({ repository, claimId, maxDepth = 3 
   const nodes = await repository.getClaimUpstreamGraph({ claimId, maxDepth });
   return { rootClaimId: claimId, maxDepth, nodes: Array.isArray(nodes) ? nodes : [] };
 }
+
+/** Return the bounded downstream dependency graph with taint markers. */
+export async function getClaimDownstreamGraph({ repository, claimId, maxDepth = 3 } = {}) {
+  if (typeof claimId !== "string" || claimId.trim().length === 0) throw new ClaimQueryError("claim id must be a non-empty string");
+  claimId = claimId.trim();
+  maxDepth = graphDepth(maxDepth);
+  if (!repository || typeof repository.getClaimDownstreamGraph !== "function") throw new ClaimQueryError("repository getClaimDownstreamGraph is required");
+  const nodes = await repository.getClaimDownstreamGraph({ claimId, maxDepth });
+  return {
+    rootClaimId: claimId,
+    maxDepth,
+    nodes: (Array.isArray(nodes) ? nodes : []).map((node) => ({
+      ...node,
+      dependencyTainted: Boolean(node.dependencyTainted ?? node.state === "dependency_tainted"),
+    })),
+  };
+}
