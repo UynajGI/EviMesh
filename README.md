@@ -19,7 +19,57 @@ codegraph status
 pnpm install
 pnpm lint
 pnpm --filter @evimesh/protocol test
+pnpm infra:up
+pnpm infra:doctor
+docker compose up -d postgres
+docker compose up -d minio
+docker compose up -d mailpit
+docker compose ps
 ```
+
+## Local PostgreSQL
+
+M2-18 provides a local PostgreSQL 16 service through `compose.yaml`. It uses
+the development-only database `evimesh_dev`, the user `evimesh`, and a named
+Docker volume. Set `EVIMESH_POSTGRES_PORT` when port 5432 is already in use.
+
+Start and stop the service with:
+
+```powershell
+docker compose up -d postgres
+docker compose ps
+docker compose down
+```
+
+`pnpm infra:up` starts PostgreSQL, MinIO, and Mailpit together. It requires
+Docker Desktop; when Docker is unavailable, the script exits with a clear
+installation message.
+
+`pnpm infra:doctor` reports local service connectivity and configured hosted
+endpoints. `SUPABASE_URL`, `R2_ENDPOINT`, `EVIMESH_API_URL`, and
+`EVIMESH_WEB_URL` may be set to check non-default endpoints; unset hosted
+endpoints are reported as `PENDING`, not treated as configured.
+`pnpm infra:hosted-readiness` is a separate read-only check for provider CLIs,
+non-secret configuration, credentials presence, and hosted origins; it never
+prints secret values. See [`docs/hosted-readiness.md`](docs/hosted-readiness.md).
+
+Copy `.env.example` to `.env` for local configuration. Secret names and
+development/staging/production separation are documented in
+[`docs/infra-secrets.md`](docs/infra-secrets.md); real secret values must stay
+outside the repository.
+Hosted origin naming and DNS acceptance criteria are documented in
+[`docs/infra-domains.md`](docs/infra-domains.md).
+R2 CORS policy generation and the account-authorized apply step are documented
+in [`docs/infra-r2-cors.md`](docs/infra-r2-cors.md).
+The local Supabase CLI project and its Docker/authentication boundary are
+documented in [`docs/supabase-local.md`](docs/supabase-local.md).
+
+MinIO exposes its S3-compatible API on port 9000 and its console on port 9001;
+set `EVIMESH_S3_PORT` or `EVIMESH_S3_CONSOLE_PORT` if either port is occupied.
+Mailpit captures local SMTP on port 1025 and exposes its message UI on port
+8025; set `EVIMESH_SMTP_PORT` or `EVIMESH_MAILPIT_PORT` when needed.
+Its permissive SMTP authentication settings are local-test-only. The bundled
+PostgreSQL and MinIO credentials must not be reused in hosted environments.
 
 ## Workspace
 
@@ -87,5 +137,16 @@ Event JSON Schema now validates signed ResearchEvent envelopes and UUIDv7 parent
 Valid protocol fixtures now cover every schema from M1-28 through M1-38.
 Invalid protocol fixtures now provide at least two failure samples for every schema from M1-28 through M1-38.
 
-M1-01 through M1-40 are complete. The next milestone is M2, starting with
-hosted infrastructure and local PostgreSQL development services.
+M1-01 through M1-40 are complete. M2 now includes the local PostgreSQL,
+MinIO, and Mailpit development stack plus the minimal Cloudflare Workers API
+Edge health contract in [`apps/api-edge`](apps/api-edge/README.md). Hosted
+infrastructure and deployment remain gated on the corresponding provider
+accounts and credentials.
+
+The Web preview workflow in [`.github/workflows/web-preview.yml`](.github/workflows/web-preview.yml)
+deploys `apps/web/public` to the `evimesh-web-dev` Cloudflare Pages project for
+same-repository pull requests. It requires `CLOUDFLARE_API_TOKEN` and
+`CLOUDFLARE_ACCOUNT_ID` to be configured as repository secrets.
+Changes to `apps/web` on `main` are deployed by
+[`.github/workflows/web-production.yml`](.github/workflows/web-production.yml)
+to the separate `evimesh-web` Pages project using the same repository secrets.

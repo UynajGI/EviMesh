@@ -28,3 +28,5 @@ venv/
 .cache/
 .tmp/
 *.log
+apps/api-edge/.wrangler/
+apps/web/.wrangler/

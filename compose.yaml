@@ -1,0 +1,58 @@
+name: evimesh
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: evimesh_dev
+      POSTGRES_USER: evimesh
+      POSTGRES_PASSWORD: evimesh_local_only
+    ports:
+      - "${EVIMESH_POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - evimesh_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U evimesh -d evimesh_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: evimesh_minio
+      MINIO_ROOT_PASSWORD: evimesh_minio_local_only
+    command: server /data --console-address ":9001"
+    ports:
+      - "${EVIMESH_S3_PORT:-9000}:9000"
+      - "${EVIMESH_S3_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - evimesh_minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    environment:
+      MP_MAX_MESSAGES: "5000"
+      MP_DATABASE: /data/mailpit.db
+      MP_SMTP_AUTH_ACCEPT_ANY: "1"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "1"
+    ports:
+      - "${EVIMESH_SMTP_PORT:-1025}:1025"
+      - "${EVIMESH_MAILPIT_PORT:-8025}:8025"
+    volumes:
+      - evimesh_mailpit_data:/data
+
+volumes:
+  evimesh_postgres_data:
+  evimesh_minio_data:
+  evimesh_mailpit_data:
