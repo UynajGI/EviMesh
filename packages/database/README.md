@@ -125,7 +125,10 @@ revision links and machine-readable requirements, verification types, and
 context modes.
 
 M3-37 adds stable `verification_policies` identity rows with actor ownership
- and lifecycle timestamps for policy revisions.
+and lifecycle timestamps for policy revisions.
+
+M3-38 adds append-only `verification_policy_revisions` with contiguous
+revision links and machine-readable requirements and outcomes.
 and self-dependency enforcement are subsequent database constraints.
 
 `DATABASE_URL` is read from the environment, with the local-only Compose URL
