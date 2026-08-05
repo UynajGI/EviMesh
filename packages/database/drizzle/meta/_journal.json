@@ -85,6 +85,13 @@
       "when": 1785928320296,
       "tag": "0011_complete_swordsman",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1785928605274,
+      "tag": "0012_brave_garia",
+      "breakpoints": true
     }
   ]
 }
