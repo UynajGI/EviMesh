@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { listClaims } from "../src/claim-query.mjs";
+import { getClaim, listClaims } from "../src/claim-query.mjs";
 
 const claims = [
   { claimId: "claim-2", projectId: "project-1", status: "candidate", createdAt: "2026-08-02T00:00:00.000Z" },
@@ -30,4 +30,28 @@ test("rejects an empty Claim filter before querying", async () => {
     /claim tag must be a non-empty string or null/,
   );
   assert.equal(called, false);
+});
+
+test("returns the current Claim revision and protocol status policy", async () => {
+  const result = await getClaim({
+    repository: {
+      getClaim: async (claimId) => ({ claimId, state: "candidate" }),
+      getCurrentClaimRevision: async (claimId) => ({ claimId, revision: 2, statement: "Current" }),
+    },
+    claimId: " claim-1 ",
+  });
+  assert.equal(result.claim.claimId, "claim-1");
+  assert.equal(result.currentRevision.revision, 2);
+  assert.deepEqual(result.statusPolicy, { state: "candidate", allowedTransitions: ["under_verification", "contested", "refuted", "superseded", "retracted", "dependency_tainted"] });
+});
+
+test("returns typed errors for missing or invalid Claims", async () => {
+  await assert.rejects(
+    getClaim({ repository: { getClaim: async () => null, getCurrentClaimRevision: async () => null }, claimId: "missing" }),
+    (error) => error.code === "CLAIM_NOT_FOUND" && error.status === 404,
+  );
+  await assert.rejects(
+    getClaim({ repository: { getClaim: async () => ({ claimId: "claim-1", state: "invalid" }), getCurrentClaimRevision: async () => ({ revision: 1 }) }, claimId: "claim-1" }),
+    (error) => error.code === "CLAIM_STATE_INVALID" && error.status === 500,
+  );
 });
