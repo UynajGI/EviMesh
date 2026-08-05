@@ -298,3 +298,50 @@ export async function acquireTaskLease({
     return { lease: persistedLease ?? lease, event: persistedEvent ?? event };
   });
 }
+
+/** Extend an active Task lease only when held by the authenticated Actor. */
+export async function renewTaskLease({
+  repository,
+  actorId,
+  actorRole,
+  taskId,
+  extensionMs = 15 * 60 * 1000,
+  now = new Date(),
+  eventFactory,
+} = {}) {
+  if (!repository || typeof repository.withTransaction !== "function") throw new TaskCommandError("repository withTransaction is required");
+  for (const method of ["listCurrentTaskLeases", "updateTaskLease", "appendResearchEvent"]) {
+    if (typeof repository[method] !== "function") throw new TaskCommandError(`repository ${method} is required`);
+  }
+  actorId = requiredText(actorId, "actor id");
+  taskId = requiredText(taskId, "task id");
+  if (!Number.isInteger(extensionMs) || extensionMs <= 0) throw new TaskCommandError("lease extension must be a positive integer");
+  const nowDate = now instanceof Date ? now : new Date(now);
+  if (Number.isNaN(nowDate.getTime())) throw new TaskCommandError("lease time is invalid");
+  if (typeof eventFactory !== "function") throw new TaskCommandError("eventFactory is required");
+  assertProjectRoleForAction({ actorRole, requiredRole: "maintainer" });
+
+  return repository.withTransaction(async (transaction) => {
+    const lease = (await transaction.listCurrentTaskLeases(taskId) ?? []).find((candidate) => candidate.holderActorId === actorId);
+    if (!lease) throw new TaskCommandError("task lease not found for actor", "LEASE_NOT_FOUND", 404);
+    const previousExpiryMs = new Date(lease.expiresAt).getTime();
+    if (!Number.isFinite(previousExpiryMs) || previousExpiryMs <= nowDate.getTime()) {
+      throw new TaskCommandError("task lease has expired", "LEASE_EXPIRED", 409);
+    }
+    const updated = {
+      ...lease,
+      taskId,
+      holderActorId: actorId,
+      expiresAt: new Date(previousExpiryMs + extensionMs).toISOString(),
+      lastRenewedAt: nowDate.toISOString(),
+    };
+    const event = await eventFactory({
+      eventType: "task.lease_renewed",
+      payload: { entity_type: "task_lease", task_id: taskId, holder_actor_id: actorId, previous_expires_at: lease.expiresAt, expires_at: updated.expiresAt, actor_id: actorId },
+    });
+    if (!event || typeof event !== "object") throw new TaskCommandError("eventFactory must return an event object");
+    const persistedLease = await transaction.updateTaskLease(taskId, actorId, { expiresAt: updated.expiresAt, lastRenewedAt: updated.lastRenewedAt });
+    const persistedEvent = await transaction.appendResearchEvent(event);
+    return { lease: persistedLease ?? updated, event: persistedEvent ?? event };
+  });
+}

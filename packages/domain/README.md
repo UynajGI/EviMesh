@@ -29,3 +29,5 @@ change as a new revision, and records the from/to states in the research event.
 before persisting the dependency and its research event.
 `acquireTaskLease()` grants one exclusive time-bounded lease per Task,
 rejecting active conflicts and recording the lease expiry in the event.
+`renewTaskLease()` extends only an unexpired lease held by the authenticated
+Actor and records both the previous and new expiry timestamps.
