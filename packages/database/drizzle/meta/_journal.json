@@ -393,6 +393,13 @@
       "when": 1785938624563,
       "tag": "0055_jittery_dreaming_celestial",
       "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1785939000000,
+      "tag": "0056_research_events_append_only",
+      "breakpoints": true
     }
   ]
 }

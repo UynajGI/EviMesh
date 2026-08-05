@@ -194,6 +194,9 @@ cannot be inserted twice.
 
 M3-58 confirms the `depends_on` projection rejects self-referential Task edges
 through the `task_dependencies_no_self_reference` database check.
+
+M3-59 adds an append-only PostgreSQL trigger for `research_events`; UPDATE and
+DELETE are rejected while INSERT remains available for event ingestion.
 and self-dependency enforcement are subsequent database constraints.
 
 `DATABASE_URL` is read from the environment, with the local-only Compose URL
