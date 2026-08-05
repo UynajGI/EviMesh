@@ -208,6 +208,9 @@ Claim. Each view selects the highest persisted revision per stable object ID.
 M3-62 adds `claim_upstream_dependencies(root_claim_id, max_depth)`, a bounded
 recursive SQL function that follows only `depends_on` edges and returns depth
 and visited-ID paths with cycle protection.
+
+M3-63 adds the mirrored `claim_downstream_dependents(root_claim_id,
+max_depth)` function for traversing Claims that depend on the given Claim.
 and self-dependency enforcement are subsequent database constraints.
 
 `DATABASE_URL` is read from the environment, with the local-only Compose URL
