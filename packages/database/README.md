@@ -139,6 +139,9 @@ severity, machine-readable code, and structured finding details.
 
 M3-41 adds stable `challenges` identity rows with actor ownership and
 lifecycle timestamps for challenge revisions.
+
+M3-42 adds append-only `challenge_revisions` that lock a target Claim revision
+and preserve challenge state, reason, impact, and proposed resolution.
 and self-dependency enforcement are subsequent database constraints.
 
 `DATABASE_URL` is read from the environment, with the local-only Compose URL

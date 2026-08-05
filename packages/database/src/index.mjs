@@ -37,5 +37,6 @@ export { verificationPolicyRevisions } from './verification-policy-revisions.mjs
 export { verificationOutcome, verificationReceipts } from './verification-receipts.mjs';
 export { findingSeverity, verificationFindings } from './verification-findings.mjs';
 export { challenges } from './challenges.mjs';
+export { challengeRevisions, challengeState } from './challenge-revisions.mjs';
 export { signingKeys } from './signing-keys.mjs';
 export { schema } from './schema.mjs';
