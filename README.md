@@ -102,6 +102,25 @@ ClaimRelation validation freezes all 14 typed edges with explicit source-to-targ
 semantics.
 Dependency validation rejects self-dependencies and direct or indirect
 `depends_on` cycles before graph writes.
+Database migrations now enable PostgreSQL row-level security on existing public
+tables and automatically enable it for every newly created public table through
+an event trigger; M3-66 onward adds the explicit read and ownership policies.
+The M3-66 baseline grants the `anon` role SELECT-only policies on the public
+research object tables; identity, credential, membership, lease, outbox, and
+notification tables remain closed until their ownership policies are defined.
+The M3-67 ownership baseline binds `authenticated` access for profiles, signing
+keys, and API tokens to the actor resolved through the `identities` table and
+the Supabase `auth.uid()` claim; local databases without Supabase roles skip
+these role-specific policy statements safely.
+Project membership rows are additionally readable only by the authenticated
+actor represented by that row; anonymous users and non-members have no read
+policy on `project_members`.
+Migration integrity tests keep the journal and SQL file chain aligned so an
+empty-database upgrade cannot silently omit a migration.
+RLS public reads now exclude tombstoned lifecycle rows, and Claim dependency
+traversals and cycle checks ignore deleted edges.
+The repository validation workflow now installs the pinned toolchain and runs
+`@evimesh/database db:check`, making uncommitted schema drift a CI failure.
 Evidence validation freezes formal, numerical, experimental, dataset, literature,
 counterexample, benchmark, statistical, code-test, negative-result, and expert
 assessment types.

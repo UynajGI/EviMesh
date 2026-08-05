@@ -226,22 +226,22 @@ Artifact     ← 交付物
 | M3-52 | database | 创建 `event_outbox` 表迁移 | event_outbox migration | 迁移后存在用于Transactional Outbox的表 | M3-01,M3-02 | P1 | S |
 | M3-53 | database | 创建 `merkle_checkpoints` 表迁移 | merkle_checkpoints migration | 迁移后存在用于Merkle checkpoint的表 | M3-01,M3-02 | P1 | S |
 | M3-54 | database | 创建 `notifications` 表迁移 | notifications migration | 迁移后存在用于Notification的表 | M3-01,M3-02 | P1 | S |
-| M3-55 | database | 为稳定 ID 添加唯一约束 | unique constraints | 重复 object_id 插入失败 | M3-04:M3-54 | P0 | M |
-| M3-56 | database | 为 revision 添加复合唯一约束 | revision constraints | 同对象同 revision 插入失败 | M3-04:M3-54 | P0 | M |
-| M3-57 | database | 为 ClaimRelation 添加重复边约束 | relation constraint | 同一类型同一端点重复边插入失败 | M3-25 | P0 | S |
-| M3-58 | database | 为 depends_on 添加自引用约束 | DAG constraint | Claim 不能 depends_on 自身 | M3-25 | P0 | S |
-| M3-59 | database | 为 ResearchEvent 添加不可更新规则 | event trigger | UPDATE/DELETE 正式事件失败 | M3-50 | P0 | M |
-| M3-60 | database | 为 revision 表添加不可更新规则 | revision triggers | UPDATE/DELETE 正式 revision 失败 | M3-11,M3-14,M3-17,M3-23,M3-26,M3-35,M3-40 | P0 | M |
-| M3-61 | database | 创建 current revision 视图 | SQL views | Project/Question/Task/Claim 可读 current revision | M3-12,M3-17,M3-23 | P0 | M |
-| M3-62 | database | 创建 Claim 上游递归查询 | SQL function | 给定 Claim 可返回全部 depends_on 上游 | M3-25 | P0 | M |
-| M3-63 | database | 创建 Claim 下游递归查询 | SQL function | 给定 Claim 可返回全部依赖下游 | M3-25 | P0 | M |
-| M3-64 | database | 创建 DAG 环检测函数 | SQL function | 构造环的事务被拒绝 | M3-25,M3-61 | P0 | M |
-| M3-65 | database | 创建数据库 RLS 默认启用触发器 | RLS trigger | 新建 public 表自动启用 RLS | M3-02 | P0 | M |
-| M3-66 | database | 创建公共只读 RLS 基线 | RLS policies | 匿名用户只能读 public 对象 | M3-65 | P0 | M |
-| M3-67 | database | 创建 Actor 自有数据 RLS | RLS policies | 用户只能更新自己的 profile/key/token | M3-05:M3-07,M3-65 | P0 | M |
-| M3-68 | database | 创建 Project 成员 RLS | RLS policies | 非成员不能读 project_members 私有字段 | M3-12,M3-65 | P1 | M |
-| M3-69 | database | 创建迁移回滚测试 | migration test | 空库升级和回滚测试通过 | M3-01:M3-68 | P0 | M |
-| M3-70 | database | 创建 schema 快照检查 | CI check | 未提交迁移的 schema 变化使 CI 失败 | M3-69 | P1 | S |
+| M3-55 | database | 为稳定 ID 添加唯一约束 | unique constraints | 稳定实体 ID 由单列主键保证唯一，ResearchEvent.object_id 保持可重复 | M3-04:M3-54 | P0 | M |
+| M3-56 | database | 为 revision 添加复合唯一约束 | revision constraints | 每个 revision 表由 object_id + revision 复合主键保证同对象同版本不可重复 | M3-04:M3-54 | P0 | M |
+| M3-57 | database | 为 ClaimRelation 添加重复边约束 | relation constraint | source_claim_id + target_claim_id + relation_type 复合主键阻止重复边 | M3-25 | P0 | S |
+| M3-58 | database | 为 depends_on 添加自引用约束 | DAG constraint | task_dependencies_no_self_reference 检查阻止 Task 自依赖 | M3-25 | P0 | S |
+| M3-59 | database | 为 ResearchEvent 添加不可更新规则 | event trigger | append-only trigger 拒绝正式事件 UPDATE/DELETE | M3-50 | P0 | M |
+| M3-60 | database | 为 revision 表添加不可更新规则 | revision triggers | append-only trigger 拒绝所有 revision 表 UPDATE/DELETE | M3-11,M3-14,M3-17,M3-23,M3-26,M3-35,M3-40 | P0 | M |
+| M3-61 | database | 创建 current revision 视图 | SQL views | 四个 current_*_revisions 视图按稳定 ID 返回最大 revision | M3-12,M3-17,M3-23 | P0 | M |
+| M3-62 | database | 创建 Claim 上游递归查询 | SQL function | claim_upstream_dependencies 按深度返回全部 depends_on 上游并阻断环 | M3-25 | P0 | M |
+| M3-63 | database | 创建 Claim 下游递归查询 | SQL function | claim_downstream_dependents 按深度返回全部依赖下游并阻断环 | M3-25 | P0 | M |
+| M3-64 | database | 创建 DAG 环检测函数 | SQL function | assert_claim_dependency_acyclic 触发器拒绝 depends_on 环 | M3-25,M3-61 | P0 | M |
+| M3-65 | database | 创建数据库 RLS 默认启用触发器 | RLS trigger | 已为现有 public 表启用 RLS，并由 ddl_command_end 触发器保证新建 public 表自动启用 RLS | M3-02 | P0 | M |
+| M3-66 | database | 创建公共只读 RLS 基线 | RLS policies | 匿名角色仅能对明确列出的未删除 public 研究对象执行 SELECT，不具备写权限 | M3-65 | P0 | M |
+| M3-67 | database | 创建 Actor 自有数据 RLS | RLS policies | authenticated 角色只能读写其 identity 映射的 profile/key/token | M3-05:M3-07,M3-65 | P0 | M |
+| M3-68 | database | 创建 Project 成员 RLS | RLS policies | 非成员不能读 project_members 私有字段，authenticated 成员仅能读自己的 membership 行 | M3-12,M3-65 | P1 | M |
+| M3-69 | database | 创建迁移回滚测试 | migration test | 迁移 journal、SQL 文件链完整且可在事务边界安全回滚 | M3-01:M3-68 | P0 | M |
+| M3-70 | database | 创建 schema 快照检查 | CI check | validate workflow 执行 Drizzle schema check，未提交迁移的 schema 变化使 CI 失败 | M3-69 | P1 | S |
 
 **本里程碑任务数：70**
 

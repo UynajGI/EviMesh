@@ -1,0 +1,159 @@
+import { actors } from './actors.mjs';
+import { actorProfiles } from './actor-profiles.mjs';
+import { apiTokens } from './api-tokens.mjs';
+import { identities } from './identities.mjs';
+import { organizations } from './organizations.mjs';
+import { organizationMembers } from './organization-members.mjs';
+import { projects } from './projects.mjs';
+import { projectRevisions } from './project-revisions.mjs';
+import { projectMembers } from './project-members.mjs';
+import { questions } from './questions.mjs';
+import { questionRevisions } from './question-revisions.mjs';
+import { researchContracts } from './research-contracts.mjs';
+import { researchContractRevisions } from './research-contract-revisions.mjs';
+import { signingKeys } from './signing-keys.mjs';
+import { tasks } from './tasks.mjs';
+import { contextMode, taskRevisions } from './task-revisions.mjs';
+import { taskDependencies } from './task-dependencies.mjs';
+import { taskLeases } from './task-leases.mjs';
+import { attempts } from './attempts.mjs';
+import { traceEvents } from './trace-events.mjs';
+import { claims } from './claims.mjs';
+import { claimRevisions } from './claim-revisions.mjs';
+import { claimRelations } from './claim-relations.mjs';
+import { artifacts } from './artifacts.mjs';
+import { artifactRevisions } from './artifact-revisions.mjs';
+import { artifactLocations } from './artifact-locations.mjs';
+import { runs } from './runs.mjs';
+import { runInputs } from './run-inputs.mjs';
+import { runOutputs } from './run-outputs.mjs';
+import { evidence } from './evidence.mjs';
+import { evidenceClaimLinks } from './evidence-claim-links.mjs';
+import { verificationContracts } from './verification-contracts.mjs';
+import { verificationContractRevisions } from './verification-contract-revisions.mjs';
+import { verificationPolicies } from './verification-policies.mjs';
+import { verificationPolicyRevisions } from './verification-policy-revisions.mjs';
+import { verificationOutcome, verificationReceipts } from './verification-receipts.mjs';
+import { findingSeverity, verificationFindings } from './verification-findings.mjs';
+import { challenges } from './challenges.mjs';
+import { challengeRevisions, challengeState } from './challenge-revisions.mjs';
+import { challengeImpacts } from './challenge-impacts.mjs';
+import { mergeProposals } from './merge-proposals.mjs';
+import { frontierSnapshots } from './frontier-snapshots.mjs';
+import { frontierMembers } from './frontier-members.mjs';
+import { contextBundles } from './context-bundles.mjs';
+import { contributionRole, contributionStatements } from './contribution-statements.mjs';
+import { contributionEdgeType, contributionEdges } from './contribution-edges.mjs';
+import { researchEvents } from './research-events.mjs';
+import { researchEventParents } from './research-event-parents.mjs';
+import { eventOutbox, eventOutboxStatus } from './event-outbox.mjs';
+import { merkleCheckpoints } from './merkle-checkpoints.mjs';
+import { notifications } from './notifications.mjs';
+
+export { actorProfiles } from './actor-profiles.mjs';
+export { apiTokens } from './api-tokens.mjs';
+export { actors, actorType, identityStrength } from './actors.mjs';
+export { identities } from './identities.mjs';
+export { organizations } from './organizations.mjs';
+export { organizationMembers } from './organization-members.mjs';
+export { projectState, projects } from './projects.mjs';
+export { projectRevisions } from './project-revisions.mjs';
+export { projectMembers } from './project-members.mjs';
+export { questionState, questions } from './questions.mjs';
+export { questionRevisions } from './question-revisions.mjs';
+export { researchContracts } from './research-contracts.mjs';
+export { contractRiskLevel, researchContractRevisions } from './research-contract-revisions.mjs';
+export { taskState, tasks } from './tasks.mjs';
+export { contextMode, taskRevisions } from './task-revisions.mjs';
+export { taskDependencies, taskDependencyType } from './task-dependencies.mjs';
+export { taskLeases } from './task-leases.mjs';
+export { attemptState, attempts } from './attempts.mjs';
+export { traceEvents } from './trace-events.mjs';
+export { claimState, claims } from './claims.mjs';
+export { claimRevisions } from './claim-revisions.mjs';
+export { claimRelations, claimRelationType } from './claim-relations.mjs';
+export { artifacts } from './artifacts.mjs';
+export { artifactRevisions, artifactType } from './artifact-revisions.mjs';
+export { artifactLocations } from './artifact-locations.mjs';
+export { runs } from './runs.mjs';
+export { runInputs } from './run-inputs.mjs';
+export { runOutputs } from './run-outputs.mjs';
+export { evidence, evidenceType } from './evidence.mjs';
+export { evidenceClaimLinks, evidenceClaimRelation } from './evidence-claim-links.mjs';
+export { verificationContracts } from './verification-contracts.mjs';
+export { verificationContractRevisions } from './verification-contract-revisions.mjs';
+export { verificationPolicies } from './verification-policies.mjs';
+export { verificationPolicyRevisions } from './verification-policy-revisions.mjs';
+export { verificationOutcome, verificationReceipts } from './verification-receipts.mjs';
+export { findingSeverity, verificationFindings } from './verification-findings.mjs';
+export { challenges } from './challenges.mjs';
+export { challengeRevisions, challengeState } from './challenge-revisions.mjs';
+export { challengeImpacts } from './challenge-impacts.mjs';
+export { mergeProposals } from './merge-proposals.mjs';
+export { frontierSnapshots } from './frontier-snapshots.mjs';
+export { frontierMembers } from './frontier-members.mjs';
+export { contextBundles } from './context-bundles.mjs';
+export { contributionRole, contributionStatements } from './contribution-statements.mjs';
+export { contributionEdgeType, contributionEdges } from './contribution-edges.mjs';
+export { researchEvents } from './research-events.mjs';
+export { researchEventParents } from './research-event-parents.mjs';
+export { eventOutbox, eventOutboxStatus } from './event-outbox.mjs';
+export { merkleCheckpoints } from './merkle-checkpoints.mjs';
+export { notifications } from './notifications.mjs';
+export { signingKeys } from './signing-keys.mjs';
+
+export const schema = {
+  actors,
+  actorProfiles,
+  identities,
+  signingKeys,
+  apiTokens,
+  organizations,
+  organizationMembers,
+  projects,
+  projectRevisions,
+  projectMembers,
+  questions,
+  questionRevisions,
+  researchContracts,
+  researchContractRevisions,
+  tasks,
+  taskRevisions,
+  taskDependencies,
+  taskLeases,
+  attempts,
+  traceEvents,
+  claims,
+  claimRevisions,
+  claimRelations,
+  artifacts,
+  artifactRevisions,
+  artifactLocations,
+  runs,
+  runInputs,
+  runOutputs,
+  evidence,
+  evidenceClaimLinks,
+  verificationContracts,
+  verificationContractRevisions,
+  verificationPolicies,
+  verificationPolicyRevisions,
+  verificationReceipts,
+  verificationFindings,
+  challenges,
+  challengeRevisions,
+  challengeImpacts,
+  mergeProposals,
+  frontierSnapshots,
+  frontierMembers,
+  contextBundles,
+  contributionStatements,
+  contributionEdges,
+  researchEvents,
+  researchEventParents,
+  eventOutbox,
+  merkleCheckpoints,
+  notifications,
+};
+
+export default schema;
