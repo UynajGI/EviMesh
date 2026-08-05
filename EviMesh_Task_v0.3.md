@@ -237,7 +237,7 @@ Artifact     ← 交付物
 | M3-63 | database | 创建 Claim 下游递归查询 | SQL function | claim_downstream_dependents 按深度返回全部依赖下游并阻断环 | M3-25 | P0 | M |
 | M3-64 | database | 创建 DAG 环检测函数 | SQL function | assert_claim_dependency_acyclic 触发器拒绝 depends_on 环 | M3-25,M3-61 | P0 | M |
 | M3-65 | database | 创建数据库 RLS 默认启用触发器 | RLS trigger | 已为现有 public 表启用 RLS，并由 ddl_command_end 触发器保证新建 public 表自动启用 RLS | M3-02 | P0 | M |
-| M3-66 | database | 创建公共只读 RLS 基线 | RLS policies | 匿名用户只能读 public 对象 | M3-65 | P0 | M |
+| M3-66 | database | 创建公共只读 RLS 基线 | RLS policies | 匿名角色仅能对明确列出的 public 研究对象执行 SELECT，不具备写权限 | M3-65 | P0 | M |
 | M3-67 | database | 创建 Actor 自有数据 RLS | RLS policies | 用户只能更新自己的 profile/key/token | M3-05:M3-07,M3-65 | P0 | M |
 | M3-68 | database | 创建 Project 成员 RLS | RLS policies | 非成员不能读 project_members 私有字段 | M3-12,M3-65 | P1 | M |
 | M3-69 | database | 创建迁移回滚测试 | migration test | 空库升级和回滚测试通过 | M3-01:M3-68 | P0 | M |

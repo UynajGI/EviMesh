@@ -105,6 +105,9 @@ Dependency validation rejects self-dependencies and direct or indirect
 Database migrations now enable PostgreSQL row-level security on existing public
 tables and automatically enable it for every newly created public table through
 an event trigger; M3-66 onward adds the explicit read and ownership policies.
+The M3-66 baseline grants the `anon` role SELECT-only policies on the public
+research object tables; identity, credential, membership, lease, outbox, and
+notification tables remain closed until their ownership policies are defined.
 Evidence validation freezes formal, numerical, experimental, dataset, literature,
 counterexample, benchmark, statistical, code-test, negative-result, and expert
 assessment types.
