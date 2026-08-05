@@ -218,6 +218,13 @@
       "when": 1785932383830,
       "tag": "0030_empty_lady_ursula",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1785932505035,
+      "tag": "0031_illegal_blacklash",
+      "breakpoints": true
     }
   ]
 }

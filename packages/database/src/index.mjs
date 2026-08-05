@@ -27,5 +27,6 @@ export { artifactRevisions, artifactType } from './artifact-revisions.mjs';
 export { artifactLocations } from './artifact-locations.mjs';
 export { runs } from './runs.mjs';
 export { runInputs } from './run-inputs.mjs';
+export { runOutputs } from './run-outputs.mjs';
 export { signingKeys } from './signing-keys.mjs';
 export { schema } from './schema.mjs';

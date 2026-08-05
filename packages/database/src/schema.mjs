@@ -26,6 +26,7 @@ import { artifactRevisions } from './artifact-revisions.mjs';
 import { artifactLocations } from './artifact-locations.mjs';
 import { runs } from './runs.mjs';
 import { runInputs } from './run-inputs.mjs';
+import { runOutputs } from './run-outputs.mjs';
 
 export { actorProfiles } from './actor-profiles.mjs';
 export { apiTokens } from './api-tokens.mjs';
@@ -54,6 +55,7 @@ export { artifactRevisions, artifactType } from './artifact-revisions.mjs';
 export { artifactLocations } from './artifact-locations.mjs';
 export { runs } from './runs.mjs';
 export { runInputs } from './run-inputs.mjs';
+export { runOutputs } from './run-outputs.mjs';
 export { signingKeys } from './signing-keys.mjs';
 
 export const schema = {
@@ -85,6 +87,7 @@ export const schema = {
   artifactLocations,
   runs,
   runInputs,
+  runOutputs,
 };
 
 export default schema;

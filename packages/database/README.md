@@ -104,6 +104,9 @@ M3-32.
 M3-31 adds `run_inputs` with a composite Run/Artifact/revision key and a
 composite foreign key to `artifact_revisions`, so a recorded input cannot
 silently drift to another revision.
+
+M3-32 adds the symmetric `run_outputs` table with the same concrete revision
+lock and restrictive foreign-key behavior.
 and self-dependency enforcement are subsequent database constraints.
 
 `DATABASE_URL` is read from the environment, with the local-only Compose URL
