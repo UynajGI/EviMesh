@@ -117,6 +117,8 @@ actor represented by that row; anonymous users and non-members have no read
 policy on `project_members`.
 Migration integrity tests keep the journal and SQL file chain aligned so an
 empty-database upgrade cannot silently omit a migration.
+RLS public reads now exclude tombstoned lifecycle rows, and Claim dependency
+traversals and cycle checks ignore deleted edges.
 The repository validation workflow now installs the pinned toolchain and runs
 `@evimesh/database db:check`, making uncommitted schema drift a CI failure.
 Evidence validation freezes formal, numerical, experimental, dataset, literature,
