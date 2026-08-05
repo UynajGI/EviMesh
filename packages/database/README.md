@@ -178,6 +178,11 @@ a SHA-256 Merkle root.
 
 M3-54 adds idempotent `notifications` inbox rows keyed by recipient, event,
 and namespaced notification type, with read tracking and query indexing.
+
+M3-55 locks the stable entity ID inventory to single-column primary keys. This
+keeps stable IDs unique without adding redundant unique indexes; an event
+envelope's payload-level `object_id` remains intentionally non-unique because
+one object can produce multiple events.
 and self-dependency enforcement are subsequent database constraints.
 
 `DATABASE_URL` is read from the environment, with the local-only Compose URL

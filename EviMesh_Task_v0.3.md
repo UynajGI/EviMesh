@@ -226,7 +226,7 @@ Artifact     ← 交付物
 | M3-52 | database | 创建 `event_outbox` 表迁移 | event_outbox migration | 迁移后存在用于Transactional Outbox的表 | M3-01,M3-02 | P1 | S |
 | M3-53 | database | 创建 `merkle_checkpoints` 表迁移 | merkle_checkpoints migration | 迁移后存在用于Merkle checkpoint的表 | M3-01,M3-02 | P1 | S |
 | M3-54 | database | 创建 `notifications` 表迁移 | notifications migration | 迁移后存在用于Notification的表 | M3-01,M3-02 | P1 | S |
-| M3-55 | database | 为稳定 ID 添加唯一约束 | unique constraints | 重复 object_id 插入失败 | M3-04:M3-54 | P0 | M |
+| M3-55 | database | 为稳定 ID 添加唯一约束 | unique constraints | 稳定实体 ID 由单列主键保证唯一，ResearchEvent.object_id 保持可重复 | M3-04:M3-54 | P0 | M |
 | M3-56 | database | 为 revision 添加复合唯一约束 | revision constraints | 同对象同 revision 插入失败 | M3-04:M3-54 | P0 | M |
 | M3-57 | database | 为 ClaimRelation 添加重复边约束 | relation constraint | 同一类型同一端点重复边插入失败 | M3-25 | P0 | S |
 | M3-58 | database | 为 depends_on 添加自引用约束 | DAG constraint | Claim 不能 depends_on 自身 | M3-25 | P0 | S |
