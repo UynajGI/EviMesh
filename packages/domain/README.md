@@ -25,3 +25,5 @@ current Task projection, and requires a matching `If-Match` ETag to prevent
 stale concurrent edits.
 `transitionTask()` applies the protocol Task state machine, appends the state
 change as a new revision, and records the from/to states in the research event.
+`addTaskDependency()` rejects self, duplicate, and cyclic `depends_on` edges
+before persisting the dependency and its research event.

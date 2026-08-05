@@ -1,5 +1,6 @@
 import { assertProjectRoleForAction } from "./project-authorization.mjs";
 import { assertTaskTransition } from "../../protocol/src/task-state.mjs";
+import { assertDependencyAddition } from "../../protocol/src/dependency-graph.mjs";
 
 const CONTEXT_MODES = new Set(["frontier", "full_trace", "adversarial", "blind"]);
 
@@ -197,5 +198,53 @@ export async function transitionTask({
     const persistedTask = await transaction.updateTask(taskId, projected);
     const persistedEvent = await transaction.appendResearchEvent(event);
     return { task: persistedTask ?? projected, revision: persistedRevision ?? next, event: persistedEvent ?? event };
+  });
+}
+
+/** Add an acyclic Task dependency and its audit event atomically. */
+export async function addTaskDependency({
+  repository,
+  actorId,
+  actorRole,
+  sourceTaskId,
+  targetTaskId,
+  dependencyType = "depends_on",
+  eventFactory,
+} = {}) {
+  if (!repository || typeof repository.withTransaction !== "function") throw new TaskCommandError("repository withTransaction is required");
+  for (const method of ["listTaskDependencies", "insertTaskDependency", "appendResearchEvent"]) {
+    if (typeof repository[method] !== "function") throw new TaskCommandError(`repository ${method} is required`);
+  }
+  actorId = requiredText(actorId, "actor id");
+  sourceTaskId = requiredText(sourceTaskId, "source task id");
+  targetTaskId = requiredText(targetTaskId, "target task id");
+  if (dependencyType !== "depends_on") throw new TaskCommandError(`unsupported task dependency type: ${String(dependencyType)}`);
+  if (typeof eventFactory !== "function") throw new TaskCommandError("eventFactory is required");
+  assertProjectRoleForAction({ actorRole, requiredRole: "maintainer" });
+
+  return repository.withTransaction(async (transaction) => {
+    const existing = await transaction.listTaskDependencies();
+    const edges = (existing ?? []).map((dependency) => ({
+      type: dependency.dependencyType ?? dependency.type ?? "depends_on",
+      source: dependency.sourceTaskId ?? dependency.source,
+      target: dependency.targetTaskId ?? dependency.target,
+    }));
+    if (edges.some((edge) => edge.source === sourceTaskId && edge.target === targetTaskId && edge.type === dependencyType)) {
+      throw new TaskCommandError("task dependency already exists", "DEPENDENCY_EXISTS", 409);
+    }
+    try {
+      assertDependencyAddition(edges, sourceTaskId, targetTaskId);
+    } catch (error) {
+      throw new TaskCommandError(error.message, "DEPENDENCY_CYCLE", 409);
+    }
+    const dependency = { sourceTaskId, targetTaskId, dependencyType, createdBy: actorId };
+    const event = await eventFactory({
+      eventType: "task.dependency_created",
+      payload: { entity_type: "task_dependency", source_task_id: sourceTaskId, target_task_id: targetTaskId, dependency_type: dependencyType, actor_id: actorId },
+    });
+    if (!event || typeof event !== "object") throw new TaskCommandError("eventFactory must return an event object");
+    const persistedDependency = await transaction.insertTaskDependency(dependency);
+    const persistedEvent = await transaction.appendResearchEvent(event);
+    return { dependency: persistedDependency ?? dependency, event: persistedEvent ?? event };
   });
 }

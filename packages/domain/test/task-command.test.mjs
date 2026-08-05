@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createTask, reviseTask, transitionTask } from "../src/task-command.mjs";
+import { addTaskDependency, createTask, reviseTask, transitionTask } from "../src/task-command.mjs";
 
 function repositoryFixture() {
   const calls = [];
@@ -149,6 +149,55 @@ test("rejects an invalid task transition before writing", async () => {
   await assert.rejects(
     transitionTask({ repository, actorId: "actor-1", actorRole: "maintainer", taskId: "task-1", toState: "completed", ifMatch: 'W/"task-1:1:abc"', currentEtag: 'W/"task-1:1:abc"', eventFactory: () => ({}) }),
     (error) => error.code === "STATE_TRANSITION_INVALID" && error.status === 409,
+  );
+  assert.deepEqual(calls, []);
+});
+
+test("adds an acyclic task dependency and records an event", async () => {
+  const calls = [];
+  const repository = {
+    withTransaction: (callback) => callback(repository),
+    listTaskDependencies: async () => [{ sourceTaskId: "task-1", targetTaskId: "task-2", dependencyType: "depends_on" }],
+    insertTaskDependency: async (value) => { calls.push(["dependency", value]); return value; },
+    appendResearchEvent: async (value) => { calls.push(["event", value]); return value; },
+  };
+  const result = await addTaskDependency({
+    repository, actorId: "actor-1", actorRole: "maintainer", sourceTaskId: "task-2", targetTaskId: "task-3",
+    eventFactory: async ({ eventType, payload }) => ({ eventId: "event-9", eventType, payload }),
+  });
+  assert.deepEqual(calls.map(([kind]) => kind), ["dependency", "event"]);
+  assert.deepEqual(result.dependency, { sourceTaskId: "task-2", targetTaskId: "task-3", dependencyType: "depends_on", createdBy: "actor-1" });
+  assert.equal(result.event.eventType, "task.dependency_created");
+});
+
+test("rejects self and cyclic task dependencies before writing", async () => {
+  const calls = [];
+  const repository = {
+    withTransaction: (callback) => callback(repository),
+    listTaskDependencies: async () => [{ sourceTaskId: "task-1", targetTaskId: "task-2" }, { sourceTaskId: "task-2", targetTaskId: "task-3" }],
+    insertTaskDependency: async () => calls.push("dependency"),
+    appendResearchEvent: async () => calls.push("event"),
+  };
+  for (const [sourceTaskId, targetTaskId] of [["task-1", "task-1"], ["task-3", "task-1"]]) {
+    await assert.rejects(
+      addTaskDependency({ repository, actorId: "actor-1", actorRole: "maintainer", sourceTaskId, targetTaskId, eventFactory: () => ({}) }),
+      (error) => error.code === "DEPENDENCY_CYCLE" && error.status === 409,
+    );
+  }
+  assert.deepEqual(calls, []);
+});
+
+test("rejects duplicate task dependencies before writing", async () => {
+  const calls = [];
+  const repository = {
+    withTransaction: (callback) => callback(repository),
+    listTaskDependencies: async () => [{ sourceTaskId: "task-1", targetTaskId: "task-2", dependencyType: "depends_on" }],
+    insertTaskDependency: async () => calls.push("dependency"),
+    appendResearchEvent: async () => calls.push("event"),
+  };
+  await assert.rejects(
+    addTaskDependency({ repository, actorId: "actor-1", actorRole: "maintainer", sourceTaskId: "task-1", targetTaskId: "task-2", eventFactory: () => ({}) }),
+    (error) => error.code === "DEPENDENCY_EXISTS" && error.status === 409,
   );
   assert.deepEqual(calls, []);
 });
