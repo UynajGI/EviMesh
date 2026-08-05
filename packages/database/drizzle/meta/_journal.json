@@ -435,6 +435,13 @@
       "when": 1785940500000,
       "tag": "0061_claim_dependency_acyclic",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1785940800000,
+      "tag": "0062_public_table_rls_default",
+      "breakpoints": true
     }
   ]
 }
