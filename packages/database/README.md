@@ -123,6 +123,9 @@ M3-36.
 M3-36 adds append-only `verification_contract_revisions` with contiguous
 revision links and machine-readable requirements, verification types, and
 context modes.
+
+M3-37 adds stable `verification_policies` identity rows with actor ownership
+ and lifecycle timestamps for policy revisions.
 and self-dependency enforcement are subsequent database constraints.
 
 `DATABASE_URL` is read from the environment, with the local-only Compose URL

@@ -32,5 +32,6 @@ export { evidence, evidenceType } from './evidence.mjs';
 export { evidenceClaimLinks, evidenceClaimRelation } from './evidence-claim-links.mjs';
 export { verificationContracts } from './verification-contracts.mjs';
 export { verificationContractRevisions } from './verification-contract-revisions.mjs';
+export { verificationPolicies } from './verification-policies.mjs';
 export { signingKeys } from './signing-keys.mjs';
 export { schema } from './schema.mjs';
