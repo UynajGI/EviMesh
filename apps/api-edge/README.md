@@ -37,6 +37,11 @@ pnpm --filter @evimesh/api-edge deploy:production
 The production block changes the Worker name and environment marker only;
 production secrets must be configured in Cloudflare's secret store.
 
+`GET /auth/me` is the first authenticated route. It validates an ES256
+Supabase JWT against the configured JWKS and returns only the subject and email
+claim. Configure `SUPABASE_JWKS_URL`, `SUPABASE_JWT_ISSUER`, and optionally
+`SUPABASE_JWT_AUDIENCE` as Worker variables; do not commit a JWKS or token.
+
 The configuration deliberately contains no account ID, API token, or runtime
 secret. Keep local secrets in `.dev.vars` or the environment-specific secret
 store; never commit them.

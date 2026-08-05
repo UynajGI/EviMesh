@@ -65,6 +65,9 @@ The local Supabase CLI project and its Docker/authentication boundary are
 documented in [`docs/supabase-local.md`](docs/supabase-local.md).
 Supabase email/password provider setup and its verification command are
 documented in [`docs/auth-email.md`](docs/auth-email.md).
+The first protected API route and JWT/JWKS runtime variables are documented in
+[`apps/api-edge/README.md`](apps/api-edge/README.md) and
+[`docs/infra-secrets.md`](docs/infra-secrets.md).
 
 MinIO exposes its S3-compatible API on port 9000 and its console on port 9001;
 set `EVIMESH_S3_PORT` or `EVIMESH_S3_CONSOLE_PORT` if either port is occupied.
