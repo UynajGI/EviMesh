@@ -78,12 +78,17 @@ export async function verifySupabaseJwt(token, { jwks, issuer, audience = "authe
     throw new JwtVerificationError("JWT signing key is invalid");
   }
 
-  const valid = await crypto.subtle.verify(
-    { name: "ECDSA", hash: "SHA-256" },
-    cryptoKey,
-    decodeBase64Url(parts[2]),
-    textEncoder.encode(`${parts[0]}.${parts[1]}`),
-  );
+  let valid;
+  try {
+    valid = await crypto.subtle.verify(
+      { name: "ECDSA", hash: "SHA-256" },
+      cryptoKey,
+      decodeBase64Url(parts[2]),
+      textEncoder.encode(`${parts[0]}.${parts[1]}`),
+    );
+  } catch {
+    throw new JwtVerificationError("JWT signature is invalid");
+  }
   if (!valid) {
     throw new JwtVerificationError("JWT signature is invalid");
   }
