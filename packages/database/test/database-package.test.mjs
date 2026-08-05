@@ -3,8 +3,9 @@ import test from 'node:test';
 import drizzleConfig from '../drizzle.config.mjs';
 import { createDatabaseClient, schema } from '../src/index.mjs';
 
-test('exports an empty schema entry point for M3-01', () => {
-  assert.deepEqual(schema, {});
+test('exports the Drizzle schema entry point for M3-01', () => {
+  assert.equal(typeof schema, 'object');
+  assert.equal(typeof schema.actors, 'object');
 });
 
 test('creates a postgres-js Drizzle client from an explicit URL', async () => {

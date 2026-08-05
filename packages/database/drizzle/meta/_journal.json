@@ -8,6 +8,13 @@
       "when": 1785923635121,
       "tag": "0000_enable-postgresql-extensions",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1785925292088,
+      "tag": "0001_futuristic_carnage",
+      "breakpoints": true
     }
   ]
 }

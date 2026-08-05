@@ -1,5 +1,7 @@
-// M3-01 establishes the Drizzle schema entry point.
-// Extensions and domain tables are introduced by later M3 tasks.
-export const schema = {};
+import { actors } from './actors.mjs';
+
+export { actors, actorType, identityStrength } from './actors.mjs';
+
+export const schema = { actors };
 
 export default schema;

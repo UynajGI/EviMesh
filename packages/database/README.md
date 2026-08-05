@@ -24,6 +24,9 @@ columns with database-side current-time defaults, plus nullable `deleted_at`
 for soft deletion. Queries should exclude non-null `deleted_at` unless they
 explicitly request deleted/history rows.
 
+M3-04 adds the stable `actors` identity table. Its enum values mirror the
+ frozen M1 protocol vocabulary; `actor_id` is the stable text primary key.
+
 `DATABASE_URL` is read from the environment, with the local-only Compose URL
 used as a development fallback for Drizzle Kit commands. Production URLs must
 be provided by the deployment environment.
