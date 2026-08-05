@@ -79,6 +79,8 @@ M3-22 adds independent `attempts` records linking a Task to an Actor with the
 M1 Attempt state lifecycle.
 M3-23 adds append-only `trace_events` with signed payload, hash, parent IDs,
 and event-type integrity checks.
+M3-24 adds stable `claims` identity records with optional Question scope and
+the M1 Claim lifecycle state; Claim content belongs to M3-25 revisions.
 
 `DATABASE_URL` is read from the environment, with the local-only Compose URL
 used as a development fallback for Drizzle Kit commands. Production URLs must

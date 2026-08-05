@@ -19,5 +19,6 @@ export { taskDependencies, taskDependencyType } from './task-dependencies.mjs';
 export { taskLeases } from './task-leases.mjs';
 export { attemptState, attempts } from './attempts.mjs';
 export { traceEvents } from './trace-events.mjs';
+export { claimState, claims } from './claims.mjs';
 export { signingKeys } from './signing-keys.mjs';
 export { schema } from './schema.mjs';

@@ -18,6 +18,7 @@ import { taskDependencies } from './task-dependencies.mjs';
 import { taskLeases } from './task-leases.mjs';
 import { attempts } from './attempts.mjs';
 import { traceEvents } from './trace-events.mjs';
+import { claims } from './claims.mjs';
 
 export { actorProfiles } from './actor-profiles.mjs';
 export { apiTokens } from './api-tokens.mjs';
@@ -38,6 +39,7 @@ export { taskDependencies, taskDependencyType } from './task-dependencies.mjs';
 export { taskLeases } from './task-leases.mjs';
 export { attemptState, attempts } from './attempts.mjs';
 export { traceEvents } from './trace-events.mjs';
+export { claimState, claims } from './claims.mjs';
 export { signingKeys } from './signing-keys.mjs';
 
 export const schema = {
@@ -61,6 +63,7 @@ export const schema = {
   taskLeases,
   attempts,
   traceEvents,
+  claims,
 };
 
 export default schema;
