@@ -145,6 +145,9 @@ and preserve challenge state, reason, impact, and proposed resolution.
 
 M3-43 adds `challenge_impacts` records linking an upheld challenge revision
 to each affected downstream Claim revision with typed impact metadata.
+
+M3-44 adds `merge_proposals` that pin a candidate Claim revision to the exact
+Policy revision used for evaluation, preserving proposal status and results.
 and self-dependency enforcement are subsequent database constraints.
 
 `DATABASE_URL` is read from the environment, with the local-only Compose URL
