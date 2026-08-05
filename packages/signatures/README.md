@@ -8,3 +8,6 @@ or persisted by this package; callers decide how to protect it.
 
 `encodeEd25519DidKey()` and `decodeEd25519DidKey()` convert that public-key
 encoding to and from an Ed25519 `did:key` using base58btc multibase.
+
+`signEd25519Payload()` signs protocol `signing_bytes` and returns a base64url
+signature; it does not canonicalize or retain the private key.
