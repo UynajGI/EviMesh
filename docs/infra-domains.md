@@ -27,3 +27,19 @@ local machine.
    report.
 
 Do not commit zone IDs, tokens, or provider-generated secrets.
+
+## Current Cloudflare resources
+
+The initial Cloudflare resources are provisioned as follows:
+
+| Environment | Worker | Pages project |
+|---|---|---|
+| development | `evimesh-api-edge-dev` | `evimesh-web-dev` |
+| staging | `evimesh-api-edge-staging` | — |
+| production | `evimesh-api-edge` | `evimesh-web` |
+
+The development Pages preview is deployed from the infrastructure branch. The
+Workers and Pages provider URLs are deployment outputs, not custom-domain
+contracts; record them in release notes rather than hard-coding them here.
+R2 bucket creation remains pending until R2 is enabled for the Cloudflare
+account.
