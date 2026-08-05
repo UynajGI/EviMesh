@@ -112,6 +112,9 @@ The M3-67 ownership baseline binds `authenticated` access for profiles, signing
 keys, and API tokens to the actor resolved through the `identities` table and
 the Supabase `auth.uid()` claim; local databases without Supabase roles skip
 these role-specific policy statements safely.
+Project membership rows are additionally readable only by the authenticated
+actor represented by that row; anonymous users and non-members have no read
+policy on `project_members`.
 Evidence validation freezes formal, numerical, experimental, dataset, literature,
 counterexample, benchmark, statistical, code-test, negative-result, and expert
 assessment types.
