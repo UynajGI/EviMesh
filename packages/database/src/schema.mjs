@@ -12,6 +12,7 @@ import { questionRevisions } from './question-revisions.mjs';
 import { researchContracts } from './research-contracts.mjs';
 import { researchContractRevisions } from './research-contract-revisions.mjs';
 import { signingKeys } from './signing-keys.mjs';
+import { tasks } from './tasks.mjs';
 
 export { actorProfiles } from './actor-profiles.mjs';
 export { apiTokens } from './api-tokens.mjs';
@@ -26,6 +27,7 @@ export { questionState, questions } from './questions.mjs';
 export { questionRevisions } from './question-revisions.mjs';
 export { researchContracts } from './research-contracts.mjs';
 export { contractRiskLevel, researchContractRevisions } from './research-contract-revisions.mjs';
+export { taskState, tasks } from './tasks.mjs';
 export { signingKeys } from './signing-keys.mjs';
 
 export const schema = {
@@ -43,6 +45,7 @@ export const schema = {
   questionRevisions,
   researchContracts,
   researchContractRevisions,
+  tasks,
 };
 
 export default schema;

@@ -120,6 +120,13 @@
       "when": 1785929645554,
       "tag": "0016_oval_odin",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1785929918757,
+      "tag": "0017_nice_ghost_rider",
+      "breakpoints": true
     }
   ]
 }

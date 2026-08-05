@@ -67,6 +67,8 @@ statement, and research-contract content. M3-16 adds stable
 `research_contracts` identity records; their immutable versioned content is
 defined by M3-17. M3-17 stores the structured ResearchContract fields in
 append-only `research_contract_revisions` records.
+M3-18 adds stable `tasks` identity records with optional Question scope and the
+M1 Task lifecycle state.
 
 `DATABASE_URL` is read from the environment, with the local-only Compose URL
 used as a development fallback for Drizzle Kit commands. Production URLs must

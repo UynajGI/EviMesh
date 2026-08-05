@@ -13,5 +13,6 @@ export { questionState, questions } from './questions.mjs';
 export { questionRevisions } from './question-revisions.mjs';
 export { researchContracts } from './research-contracts.mjs';
 export { contractRiskLevel, researchContractRevisions } from './research-contract-revisions.mjs';
+export { taskState, tasks } from './tasks.mjs';
 export { signingKeys } from './signing-keys.mjs';
 export { schema } from './schema.mjs';
