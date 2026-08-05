@@ -1,13 +1,15 @@
 import { actors } from './actors.mjs';
 import { actorProfiles } from './actor-profiles.mjs';
+import { apiTokens } from './api-tokens.mjs';
 import { identities } from './identities.mjs';
 import { signingKeys } from './signing-keys.mjs';
 
 export { actorProfiles } from './actor-profiles.mjs';
+export { apiTokens } from './api-tokens.mjs';
 export { actors, actorType, identityStrength } from './actors.mjs';
 export { identities } from './identities.mjs';
 export { signingKeys } from './signing-keys.mjs';
 
-export const schema = { actors, actorProfiles, identities, signingKeys };
+export const schema = { actors, actorProfiles, identities, signingKeys, apiTokens };
 
 export default schema;

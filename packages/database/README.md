@@ -39,6 +39,9 @@ M3-07 adds `signing_keys` for public verification material. `key_id` matches
 the protocol signature envelope, the algorithm defaults to `Ed25519`, and
 private key material is never stored here.
 
+M3-08 adds `api_tokens`. Only a unique token hash, safe display prefix, scopes,
+and lifecycle timestamps are persisted; the plaintext token is never a column.
+
 `DATABASE_URL` is read from the environment, with the local-only Compose URL
 used as a development fallback for Drizzle Kit commands. Production URLs must
 be provided by the deployment environment.
