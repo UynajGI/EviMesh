@@ -18,6 +18,12 @@ The first migration is the M3-02 PostgreSQL extension baseline. It enables
 `pgcrypto` and `uuid-ossp` with idempotent `CREATE EXTENSION IF NOT EXISTS`
 statements.
 
+M3-03 lifecycle conventions are exposed through `createLifecycleColumns()`.
+Mutable projections use timezone-aware, non-null `created_at` and `updated_at`
+columns with database-side current-time defaults, plus nullable `deleted_at`
+for soft deletion. Queries should exclude non-null `deleted_at` unless they
+explicitly request deleted/history rows.
+
 `DATABASE_URL` is read from the environment, with the local-only Compose URL
 used as a development fallback for Drizzle Kit commands. Production URLs must
 be provided by the deployment environment.
