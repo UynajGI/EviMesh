@@ -50,3 +50,5 @@ deleting history; `replaceClaimRelation()` performs that ending and inserts the
 replacement edge in one transaction.
 `transitionClaim()` applies the protocol Claim state machine as a new revision,
 updates the current Claim projection, and records the from/to states in an event.
+`createChallenge()` verifies and locks an immutable target Claim revision before
+atomically creating the initial open Challenge revision and ResearchEvent.
