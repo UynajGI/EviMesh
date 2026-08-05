@@ -151,6 +151,9 @@ Policy revision used for evaluation, preserving proposal status and results.
 
 M3-45 adds immutable `frontier_snapshots` anchored to a Project revision with
 contiguous per-project sequence numbers and a fixed checkpoint payload.
+
+M3-46 adds immutable `frontier_members` rows that pin each member to a
+concrete Claim revision within one Frontier snapshot.
 and self-dependency enforcement are subsequent database constraints.
 
 `DATABASE_URL` is read from the environment, with the local-only Compose URL
