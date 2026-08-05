@@ -235,7 +235,7 @@ Artifact     ← 交付物
 | M3-61 | database | 创建 current revision 视图 | SQL views | 四个 current_*_revisions 视图按稳定 ID 返回最大 revision | M3-12,M3-17,M3-23 | P0 | M |
 | M3-62 | database | 创建 Claim 上游递归查询 | SQL function | claim_upstream_dependencies 按深度返回全部 depends_on 上游并阻断环 | M3-25 | P0 | M |
 | M3-63 | database | 创建 Claim 下游递归查询 | SQL function | claim_downstream_dependents 按深度返回全部依赖下游并阻断环 | M3-25 | P0 | M |
-| M3-64 | database | 创建 DAG 环检测函数 | SQL function | 构造环的事务被拒绝 | M3-25,M3-61 | P0 | M |
+| M3-64 | database | 创建 DAG 环检测函数 | SQL function | assert_claim_dependency_acyclic 触发器拒绝 depends_on 环 | M3-25,M3-61 | P0 | M |
 | M3-65 | database | 创建数据库 RLS 默认启用触发器 | RLS trigger | 新建 public 表自动启用 RLS | M3-02 | P0 | M |
 | M3-66 | database | 创建公共只读 RLS 基线 | RLS policies | 匿名用户只能读 public 对象 | M3-65 | P0 | M |
 | M3-67 | database | 创建 Actor 自有数据 RLS | RLS policies | 用户只能更新自己的 profile/key/token | M3-05:M3-07,M3-65 | P0 | M |

@@ -83,8 +83,9 @@ M3-24 adds stable `claims` identity records with optional Question scope and
 the M1 Claim lifecycle state; Claim content belongs to M3-25 revisions.
 M3-25 adds immutable `claim_revisions` with statement, epistemic boundaries,
 and contiguous revision constraints.
-M3-26 adds directed, typed `claim_relations` with a composite edge key; DAG
-self-dependency and cycle enforcement remain protocol/application constraints.
+M3-26 adds directed, typed `claim_relations` with a composite edge key;
+self-dependency is enforced by the table check and DAG cycles are rejected by
+the M3-64 database trigger.
 
 M3-27 adds the stable-identity `artifacts` table. Artifact content and
 locations belong to later revision/location tables; this table only owns the
@@ -211,6 +212,9 @@ and visited-ID paths with cycle protection.
 
 M3-63 adds the mirrored `claim_downstream_dependents(root_claim_id,
 max_depth)` function for traversing Claims that depend on the given Claim.
+
+M3-64 adds `assert_claim_dependency_acyclic()`, a database trigger that rejects
+any `depends_on` edge which would make the Claim dependency graph cyclic.
 and self-dependency enforcement are subsequent database constraints.
 
 `DATABASE_URL` is read from the environment, with the local-only Compose URL
