@@ -163,6 +163,9 @@ contribution role and description to an Actor.
 
 M3-49 adds composite-key `contribution_edges` for `produced` and `used`
 relationships to concrete object revisions.
+
+M3-50 adds immutable `research_events` for signed, hash-addressed event
+envelopes with namespaced types and parent event IDs.
 and self-dependency enforcement are subsequent database constraints.
 
 `DATABASE_URL` is read from the environment, with the local-only Compose URL

@@ -44,6 +44,7 @@ import { frontierMembers } from './frontier-members.mjs';
 import { contextBundles } from './context-bundles.mjs';
 import { contributionRole, contributionStatements } from './contribution-statements.mjs';
 import { contributionEdgeType, contributionEdges } from './contribution-edges.mjs';
+import { researchEvents } from './research-events.mjs';
 
 export { actorProfiles } from './actor-profiles.mjs';
 export { apiTokens } from './api-tokens.mjs';
@@ -90,6 +91,7 @@ export { frontierMembers } from './frontier-members.mjs';
 export { contextBundles } from './context-bundles.mjs';
 export { contributionRole, contributionStatements } from './contribution-statements.mjs';
 export { contributionEdgeType, contributionEdges } from './contribution-edges.mjs';
+export { researchEvents } from './research-events.mjs';
 export { signingKeys } from './signing-keys.mjs';
 
 export const schema = {
@@ -139,6 +141,7 @@ export const schema = {
   contextBundles,
   contributionStatements,
   contributionEdges,
+  researchEvents,
 };
 
 export default schema;

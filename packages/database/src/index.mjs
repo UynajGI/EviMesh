@@ -45,5 +45,6 @@ export { frontierMembers } from './frontier-members.mjs';
 export { contextBundles } from './context-bundles.mjs';
 export { contributionRole, contributionStatements } from './contribution-statements.mjs';
 export { contributionEdgeType, contributionEdges } from './contribution-edges.mjs';
+export { researchEvents } from './research-events.mjs';
 export { signingKeys } from './signing-keys.mjs';
 export { schema } from './schema.mjs';
