@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { getClaim, getClaimRevision, listClaims } from "../src/claim-query.mjs";
+import { getClaim, getClaimRevision, getClaimUpstreamGraph, listClaims } from "../src/claim-query.mjs";
 
 const claims = [
   { claimId: "claim-2", projectId: "project-1", status: "candidate", createdAt: "2026-08-02T00:00:00.000Z" },
@@ -72,5 +72,23 @@ test("rejects invalid or missing Claim revisions", async () => {
   await assert.rejects(
     getClaimRevision({ repository: { getClaimRevision: async () => null }, claimId: "claim-1", revision: 4 }),
     (error) => error.code === "CLAIM_REVISION_NOT_FOUND" && error.status === 404,
+  );
+});
+
+test("returns a bounded upstream Claim graph", async () => {
+  let received;
+  const result = await getClaimUpstreamGraph({
+    repository: { getClaimUpstreamGraph: async (query) => { received = query; return [{ claimId: "claim-0", depth: 1, path: ["claim-1", "claim-0"] }]; } },
+    claimId: " claim-1 ", maxDepth: 4,
+  });
+  assert.deepEqual(received, { claimId: "claim-1", maxDepth: 4 });
+  assert.equal(result.rootClaimId, "claim-1");
+  assert.equal(result.nodes[0].depth, 1);
+});
+
+test("rejects unbounded upstream graph depths", async () => {
+  await assert.rejects(
+    getClaimUpstreamGraph({ repository: { getClaimUpstreamGraph: async () => [] }, claimId: "claim-1", maxDepth: 33 }),
+    /graph depth must be an integer between 1 and 32/,
   );
 });

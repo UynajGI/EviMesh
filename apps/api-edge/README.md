@@ -32,6 +32,8 @@ Claim detail queries return the current immutable revision and the protocol-deri
 status policy, including allowed next states.
 Claim revision queries return one immutable revision selected by its positive
 revision number.
+Claim upstream graph queries use the database recursive traversal with an API
+depth bound of 1–32 and return root ID, depth, and visited paths.
 Attempt detail queries return the Attempt row plus a trace summary containing
 count, event types, and first/last timestamps without exposing trace payloads.
 

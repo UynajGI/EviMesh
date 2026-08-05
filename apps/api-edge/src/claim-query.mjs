@@ -16,6 +16,11 @@ function optionalFilter(value, field) {
   return value.trim();
 }
 
+function graphDepth(value) {
+  if (!Number.isInteger(value) || value < 1 || value > 32) throw new ClaimQueryError("graph depth must be an integer between 1 and 32");
+  return value;
+}
+
 /** List Claim identity rows with stable, opaque cursor pagination. */
 export async function listClaims({ repository, projectId = null, status = null, tag = null, limit = 20, cursor = null } = {}) {
   if (!repository || typeof repository.listClaims !== "function") throw new ClaimQueryError("repository listClaims is required");
@@ -61,4 +66,14 @@ export async function getClaimRevision({ repository, claimId, revision } = {}) {
   const claimRevision = await repository.getClaimRevision(claimId, revision);
   if (!claimRevision) throw new ClaimQueryError("claim revision not found", "CLAIM_REVISION_NOT_FOUND", 404);
   return claimRevision;
+}
+
+/** Return the bounded upstream dependency graph for a Claim. */
+export async function getClaimUpstreamGraph({ repository, claimId, maxDepth = 3 } = {}) {
+  if (typeof claimId !== "string" || claimId.trim().length === 0) throw new ClaimQueryError("claim id must be a non-empty string");
+  claimId = claimId.trim();
+  maxDepth = graphDepth(maxDepth);
+  if (!repository || typeof repository.getClaimUpstreamGraph !== "function") throw new ClaimQueryError("repository getClaimUpstreamGraph is required");
+  const nodes = await repository.getClaimUpstreamGraph({ claimId, maxDepth });
+  return { rootClaimId: claimId, maxDepth, nodes: Array.isArray(nodes) ? nodes : [] };
 }
