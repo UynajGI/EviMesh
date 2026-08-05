@@ -15,6 +15,7 @@ import { signingKeys } from './signing-keys.mjs';
 import { tasks } from './tasks.mjs';
 import { contextMode, taskRevisions } from './task-revisions.mjs';
 import { taskDependencies } from './task-dependencies.mjs';
+import { taskLeases } from './task-leases.mjs';
 
 export { actorProfiles } from './actor-profiles.mjs';
 export { apiTokens } from './api-tokens.mjs';
@@ -32,6 +33,7 @@ export { contractRiskLevel, researchContractRevisions } from './research-contrac
 export { taskState, tasks } from './tasks.mjs';
 export { contextMode, taskRevisions } from './task-revisions.mjs';
 export { taskDependencies, taskDependencyType } from './task-dependencies.mjs';
+export { taskLeases } from './task-leases.mjs';
 export { signingKeys } from './signing-keys.mjs';
 
 export const schema = {
@@ -52,6 +54,7 @@ export const schema = {
   tasks,
   taskRevisions,
   taskDependencies,
+  taskLeases,
 };
 
 export default schema;

@@ -73,6 +73,8 @@ M3-19 adds append-only `task_revisions` with Task content, acceptance data, and
 context mode.
 M3-20 adds typed, non-self `task_dependencies` edges with a composite source/
 target key; cycle prevention remains an application/protocol invariant.
+M3-21 adds non-exclusive, expiring `task_leases` markers keyed by Task and
+holder Actor; leases never block parallel Attempts.
 
 `DATABASE_URL` is read from the environment, with the local-only Compose URL
 used as a development fallback for Drizzle Kit commands. Production URLs must
