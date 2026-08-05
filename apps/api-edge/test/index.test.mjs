@@ -16,6 +16,23 @@ test("returns a healthy JSON response", async () => {
   });
 });
 
+test("writes structured request logs without authorization data", async () => {
+  const originalLog = console.log;
+  const lines = [];
+  console.log = (line) => lines.push(line);
+  try {
+    await worker.fetch(new Request("https://api.example.test/health", {
+      headers: { authorization: "Bearer secret-token" },
+    }), { EVIMESH_ENV: "test" });
+  } finally {
+    console.log = originalLog;
+  }
+  const entry = JSON.parse(lines.at(-1));
+  assert.deepEqual(Object.keys(entry).sort(), ["duration_ms", "event", "method", "path", "request_id", "status"]);
+  assert.equal(entry.event, "api.request");
+  assert.equal(lines.join("\n").includes("secret-token"), false);
+});
+
 test("preserves a valid request ID", async () => {
   const response = await worker.fetch(new Request("https://api.example.test/health", {
     headers: { "x-request-id": "test-request-1" },

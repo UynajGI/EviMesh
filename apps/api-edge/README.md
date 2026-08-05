@@ -11,6 +11,11 @@ Every response receives an `X-Request-ID`. A valid incoming ID is preserved;
 otherwise the Worker generates a UUID. API errors use the stable shape
 `{ code, message, request_id }`.
 
+Requests emit one structured JSON log containing method, path, status, request
+ID, and duration. Authorization headers and request bodies are never logged.
+JSON body validation uses the `safeParse` adapter in `src/validation.mjs` and
+returns field paths in `issues` on `400 VALIDATION_ERROR` responses.
+
 Configure `SUPABASE_JWKS_URL`, `SUPABASE_JWT_ISSUER`, and optionally
 `SUPABASE_JWT_AUDIENCE` as Worker variables. Do not commit a JWKS, API token,
 or runtime secret; keep local secrets in `.dev.vars` or Cloudflare's secret

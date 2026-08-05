@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { authenticateSupabaseRequest, JwtVerificationError } from "./jwt.mjs";
+import { RequestValidationError } from "./validation.mjs";
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
 
@@ -18,6 +19,22 @@ app.use("*", async (context, next) => {
   context.set("requestId", requestId);
   context.header("x-request-id", requestId);
   await next();
+});
+
+app.use("*", async (context, next) => {
+  const startedAt = Date.now();
+  try {
+    await next();
+  } finally {
+    console.log(JSON.stringify({
+      event: "api.request",
+      method: context.req.method,
+      path: new URL(context.req.url).pathname,
+      status: context.res.status,
+      request_id: context.get("requestId"),
+      duration_ms: Date.now() - startedAt,
+    }));
+  }
 });
 
 app.get("/health", (context) => context.json({
@@ -41,6 +58,12 @@ app.get("/auth/me", async (context) => {
 app.notFound((context) => context.json(errorBody("not_found", "route not found", context.get("requestId")), 404));
 
 app.onError((error, context) => {
+  if (error instanceof RequestValidationError) {
+    return context.json({
+      ...errorBody(error.code, error.message, context.get("requestId")),
+      issues: error.issues,
+    }, 400);
+  }
   console.error("api request failed", error);
   return context.json(errorBody("internal_error", "internal server error", context.get("requestId")), 500);
 });
