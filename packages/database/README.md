@@ -175,6 +175,9 @@ retry counters, processing states, and dead-letter support.
 
 M3-53 adds signed `merkle_checkpoints` that anchor a positive event range to
 a SHA-256 Merkle root.
+
+M3-54 adds idempotent `notifications` inbox rows keyed by recipient, event,
+and namespaced notification type, with read tracking and query indexing.
 and self-dependency enforcement are subsequent database constraints.
 
 `DATABASE_URL` is read from the environment, with the local-only Compose URL
