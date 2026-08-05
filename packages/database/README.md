@@ -84,6 +84,11 @@ the M1 Claim lifecycle state; Claim content belongs to M3-25 revisions.
 M3-25 adds immutable `claim_revisions` with statement, epistemic boundaries,
 and contiguous revision constraints.
 M3-26 adds directed, typed `claim_relations` with a composite edge key; DAG
+self-dependency and cycle enforcement remain protocol/application constraints.
+
+M3-27 adds the stable-identity `artifacts` table. Artifact content and
+locations belong to later revision/location tables; this table only owns the
+stable ID, creator, and lifecycle projection.
 and self-dependency enforcement are subsequent database constraints.
 
 `DATABASE_URL` is read from the environment, with the local-only Compose URL
