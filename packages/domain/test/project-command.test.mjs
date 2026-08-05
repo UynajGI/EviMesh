@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createProject } from "../src/project-command.mjs";
+import { createProject, reviseProject } from "../src/project-command.mjs";
 
 function repositoryFixture() {
   const calls = [];
@@ -59,4 +59,65 @@ test("rejects invalid project input before opening a transaction", async () => {
     /project name must be a non-empty string/,
   );
   assert.equal(called, false);
+});
+
+test("appends a project revision and updates only the current projection", async () => {
+  const calls = [];
+  const current = {
+    projectId: "project-1",
+    revision: 1,
+    state: "draft",
+    name: "Old name",
+    summary: "Old summary",
+    license: "CC0-1.0",
+    maintainerIds: ["actor-1"],
+  };
+  const repository = {
+    withTransaction: (callback) => callback(repository),
+    getCurrentProjectRevision: async () => current,
+    insertProjectRevision: async (value) => { calls.push(["revision", value]); return value; },
+    updateProject: async (projectId, value) => { calls.push(["project", projectId, value]); return value; },
+    appendResearchEvent: async (value) => { calls.push(["event", value]); return value; },
+  };
+  const result = await reviseProject({
+    repository,
+    actorId: "actor-1",
+    projectId: "project-1",
+    ifMatch: 'W/"project-1:1:abc"',
+    currentEtag: 'W/"project-1:1:abc"',
+    name: "New name",
+    eventFactory: async ({ eventType, payload }) => ({ eventId: "event-2", eventType, payload }),
+  });
+
+  assert.deepEqual(calls.map(([kind]) => kind), ["revision", "project", "event"]);
+  assert.equal(result.revision.revision, 2);
+  assert.equal(result.revision.supersedes, 1);
+  assert.equal(result.revision.name, "New name");
+  assert.equal(result.revision.summary, "Old summary");
+  assert.equal(result.project.name, "New name");
+  assert.equal(result.event.eventType, "project.revised");
+});
+
+test("rejects a stale If-Match without writing a new revision", async () => {
+  const calls = [];
+  const repository = {
+    withTransaction: (callback) => callback(repository),
+    getCurrentProjectRevision: async () => ({ revision: 2, state: "draft", name: "Name", summary: "Summary", license: "CC0-1.0", maintainerIds: ["actor-1"] }),
+    insertProjectRevision: async () => calls.push("revision"),
+    updateProject: async () => calls.push("project"),
+    appendResearchEvent: async () => calls.push("event"),
+  };
+
+  await assert.rejects(
+    reviseProject({
+      repository,
+      actorId: "actor-1",
+      projectId: "project-1",
+      ifMatch: 'W/"project-1:1:old"',
+      currentEtag: 'W/"project-1:2:new"',
+      eventFactory: () => ({}),
+    }),
+    (error) => error.code === "PRECONDITION_FAILED" && error.status === 412,
+  );
+  assert.deepEqual(calls, []);
 });
