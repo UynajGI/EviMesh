@@ -119,6 +119,10 @@ Evidence → ClaimRevision direction.
 M3-35 adds stable `verification_contracts` identities with actor ownership and
 the standard lifecycle projection; versioned contract content follows in
 M3-36.
+
+M3-36 adds append-only `verification_contract_revisions` with contiguous
+revision links and machine-readable requirements, verification types, and
+context modes.
 and self-dependency enforcement are subsequent database constraints.
 
 `DATABASE_URL` is read from the environment, with the local-only Compose URL

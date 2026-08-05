@@ -246,6 +246,20 @@
       "when": 1785932991672,
       "tag": "0034_romantic_zarda",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1785933194268,
+      "tag": "0035_far_maximus",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1785933239258,
+      "tag": "0036_strange_molten_man",
+      "breakpoints": true
     }
   ]
 }
