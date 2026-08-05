@@ -225,6 +225,13 @@
       "when": 1785932505035,
       "tag": "0031_illegal_blacklash",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1785932687234,
+      "tag": "0032_chubby_wolfsbane",
+      "breakpoints": true
     }
   ]
 }

@@ -107,6 +107,10 @@ silently drift to another revision.
 
 M3-32 adds the symmetric `run_outputs` table with the same concrete revision
 lock and restrictive foreign-key behavior.
+
+M3-33 adds typed, Artifact-revision-backed `evidence` records with an
+optional originating Run. Evidence-to-Claim semantics are modeled separately
+by `evidence_claim_links` in M3-34.
 and self-dependency enforcement are subsequent database constraints.
 
 `DATABASE_URL` is read from the environment, with the local-only Compose URL
