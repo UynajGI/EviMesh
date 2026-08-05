@@ -63,6 +63,8 @@ R2 CORS policy generation and the account-authorized apply step are documented
 in [`docs/infra-r2-cors.md`](docs/infra-r2-cors.md).
 The local Supabase CLI project and its Docker/authentication boundary are
 documented in [`docs/supabase-local.md`](docs/supabase-local.md).
+Supabase email/password provider setup and its verification command are
+documented in [`docs/auth-email.md`](docs/auth-email.md).
 
 MinIO exposes its S3-compatible API on port 9000 and its console on port 9001;
 set `EVIMESH_S3_PORT` or `EVIMESH_S3_CONSOLE_PORT` if either port is occupied.

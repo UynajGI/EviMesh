@@ -9,6 +9,7 @@
     "infra:up": "node scripts/dev-infra.mjs",
     "infra:doctor": "node scripts/infra-doctor.mjs",
     "infra:hosted-readiness": "node scripts/hosted-readiness.mjs",
+    "auth:test:email": "node scripts/test-supabase-email-auth.mjs",
     "validate": "turbo run lint",
     "prepare": "lefthook install"
   },
