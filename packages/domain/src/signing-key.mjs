@@ -44,3 +44,23 @@ export async function registerActorSigningKey({
     return signingKey;
   });
 }
+
+/** Revoke an active signing key owned by the authenticated Actor. */
+export async function revokeActorSigningKey({ repository, actorId, keyId } = {}) {
+  if (!repository || typeof repository.withTransaction !== "function") {
+    throw new SigningKeyError("repository withTransaction is required");
+  }
+  if (typeof repository.revokeSigningKey !== "function") {
+    throw new SigningKeyError("repository revokeSigningKey is required");
+  }
+  actorId = requiredText(actorId, "actor id");
+  keyId = requiredText(keyId, "key id");
+
+  return repository.withTransaction(async (transaction) => {
+    const revoked = await transaction.revokeSigningKey(actorId, keyId);
+    if (!revoked) {
+      throw new SigningKeyError("active signing key not found", "SIGNING_KEY_NOT_FOUND");
+    }
+    return revoked;
+  });
+}
