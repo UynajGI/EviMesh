@@ -11,3 +11,5 @@ encoding to and from an Ed25519 `did:key` using base58btc multibase.
 
 `signEd25519Payload()` signs protocol `signing_bytes` and returns a base64url
 signature; it does not canonicalize or retain the private key.
+`verifyEd25519Payload()` verifies the same bytes against a base64url SPKI public
+key and returns `false` for an invalid signature.
