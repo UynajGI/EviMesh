@@ -48,3 +48,5 @@ Claim projection, and requires a matching `If-Match` ETag to prevent stale edits
 `endClaimRelation()` timestamps an active edge and emits an ending event without
 deleting history; `replaceClaimRelation()` performs that ending and inserts the
 replacement edge in one transaction.
+`transitionClaim()` applies the protocol Claim state machine as a new revision,
+updates the current Claim projection, and records the from/to states in an event.
