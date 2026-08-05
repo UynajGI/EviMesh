@@ -52,3 +52,6 @@ replacement edge in one transaction.
 updates the current Claim projection, and records the from/to states in an event.
 `createChallenge()` verifies and locks an immutable target Claim revision before
 atomically creating the initial open Challenge revision and ResearchEvent.
+`transitionChallenge()` appends a validated Challenge state revision and emits
+`challenge.upheld` when the transition reaches the upheld outcome, preserving
+the locked target Claim revision in the event payload.
