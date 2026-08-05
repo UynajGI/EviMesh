@@ -281,6 +281,13 @@
       "when": 1785934104024,
       "tag": "0039_burly_bucky",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1785934333060,
+      "tag": "0040_flat_ben_grimm",
+      "breakpoints": true
     }
   ]
 }

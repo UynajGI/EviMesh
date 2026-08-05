@@ -133,6 +133,9 @@ revision links and machine-readable requirements and outcomes.
 M3-39 adds immutable `verification_receipts` anchored to concrete claim and
 verification-contract revisions, with independence metadata and an explicit
 verification outcome.
+
+M3-40 adds typed `verification_findings` attached to a receipt, preserving
+severity, machine-readable code, and structured finding details.
 and self-dependency enforcement are subsequent database constraints.
 
 `DATABASE_URL` is read from the environment, with the local-only Compose URL
