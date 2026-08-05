@@ -31,3 +31,5 @@ before persisting the dependency and its research event.
 rejecting active conflicts and recording the lease expiry in the event.
 `renewTaskLease()` extends only an unexpired lease held by the authenticated
 Actor and records both the previous and new expiry timestamps.
+`expireTaskLeases()` soft-deletes leases whose expiry has passed and emits an
+audit event for each cleaned-up lease.

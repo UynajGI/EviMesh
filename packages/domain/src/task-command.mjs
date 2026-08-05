@@ -345,3 +345,45 @@ export async function renewTaskLease({
     return { lease: persistedLease ?? updated, event: persistedEvent ?? event };
   });
 }
+
+/** Soft-delete expired Task leases and record cleanup events atomically. */
+export async function expireTaskLeases({
+  repository,
+  actorId,
+  actorRole,
+  taskId = null,
+  now = new Date(),
+  eventFactory,
+} = {}) {
+  if (!repository || typeof repository.withTransaction !== "function") throw new TaskCommandError("repository withTransaction is required");
+  for (const method of ["listCurrentTaskLeases", "updateTaskLease", "appendResearchEvent"]) {
+    if (typeof repository[method] !== "function") throw new TaskCommandError(`repository ${method} is required`);
+  }
+  actorId = requiredText(actorId, "actor id");
+  if (taskId !== null) taskId = requiredText(taskId, "task id");
+  const nowDate = now instanceof Date ? now : new Date(now);
+  if (Number.isNaN(nowDate.getTime())) throw new TaskCommandError("lease time is invalid");
+  if (typeof eventFactory !== "function") throw new TaskCommandError("eventFactory is required");
+  assertProjectRoleForAction({ actorRole, requiredRole: "maintainer" });
+
+  return repository.withTransaction(async (transaction) => {
+    const leases = await transaction.listCurrentTaskLeases(taskId);
+    const expired = (leases ?? []).filter((lease) => {
+      const expiresAt = new Date(lease.expiresAt).getTime();
+      return Number.isFinite(expiresAt) && expiresAt <= nowDate.getTime();
+    });
+    const results = [];
+    for (const lease of expired) {
+      const deletedAt = nowDate.toISOString();
+      const updated = await transaction.updateTaskLease(lease.taskId, lease.holderActorId, { deletedAt });
+      const event = await eventFactory({
+        eventType: "task.lease_expired",
+        payload: { entity_type: "task_lease", task_id: lease.taskId, holder_actor_id: lease.holderActorId, expires_at: lease.expiresAt, expired_at: deletedAt, actor_id: actorId },
+      });
+      if (!event || typeof event !== "object") throw new TaskCommandError("eventFactory must return an event object");
+      const persistedEvent = await transaction.appendResearchEvent(event);
+      results.push({ lease: updated ?? { ...lease, deletedAt }, event: persistedEvent ?? event });
+    }
+    return results;
+  });
+}

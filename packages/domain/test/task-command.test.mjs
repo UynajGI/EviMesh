@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { acquireTaskLease, addTaskDependency, createTask, renewTaskLease, reviseTask, transitionTask } from "../src/task-command.mjs";
+import { acquireTaskLease, addTaskDependency, createTask, expireTaskLeases, renewTaskLease, reviseTask, transitionTask } from "../src/task-command.mjs";
 
 function repositoryFixture() {
   const calls = [];
@@ -267,4 +267,25 @@ test("rejects renewing an expired lease before writing", async () => {
     (error) => error.code === "LEASE_EXPIRED" && error.status === 409,
   );
   assert.deepEqual(calls, []);
+});
+
+test("expires due task leases and records cleanup events", async () => {
+  const calls = [];
+  const repository = {
+    withTransaction: (callback) => callback(repository),
+    listCurrentTaskLeases: async () => [
+      { taskId: "task-1", holderActorId: "actor-1", expiresAt: "2026-08-06T00:00:30.000Z" },
+      { taskId: "task-2", holderActorId: "actor-2", expiresAt: "2026-08-06T00:02:00.000Z" },
+    ],
+    updateTaskLease: async (taskId, holderActorId, value) => { calls.push(["lease", taskId, holderActorId, value]); return { taskId, holderActorId, ...value }; },
+    appendResearchEvent: async (value) => { calls.push(["event", value]); return value; },
+  };
+  const result = await expireTaskLeases({
+    repository, actorId: "actor-system", actorRole: "maintainer", now: "2026-08-06T00:01:00.000Z",
+    eventFactory: async ({ eventType, payload }) => ({ eventId: "event-12", eventType, payload }),
+  });
+  assert.equal(result.length, 1);
+  assert.deepEqual(calls.map(([kind]) => kind), ["lease", "event"]);
+  assert.equal(result[0].lease.deletedAt, "2026-08-06T00:01:00.000Z");
+  assert.equal(result[0].event.eventType, "task.lease_expired");
 });
