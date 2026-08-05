@@ -148,6 +148,9 @@ to each affected downstream Claim revision with typed impact metadata.
 
 M3-44 adds `merge_proposals` that pin a candidate Claim revision to the exact
 Policy revision used for evaluation, preserving proposal status and results.
+
+M3-45 adds immutable `frontier_snapshots` anchored to a Project revision with
+contiguous per-project sequence numbers and a fixed checkpoint payload.
 and self-dependency enforcement are subsequent database constraints.
 
 `DATABASE_URL` is read from the environment, with the local-only Compose URL

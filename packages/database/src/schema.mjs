@@ -39,6 +39,7 @@ import { challenges } from './challenges.mjs';
 import { challengeRevisions, challengeState } from './challenge-revisions.mjs';
 import { challengeImpacts } from './challenge-impacts.mjs';
 import { mergeProposals } from './merge-proposals.mjs';
+import { frontierSnapshots } from './frontier-snapshots.mjs';
 
 export { actorProfiles } from './actor-profiles.mjs';
 export { apiTokens } from './api-tokens.mjs';
@@ -80,6 +81,7 @@ export { challenges } from './challenges.mjs';
 export { challengeRevisions, challengeState } from './challenge-revisions.mjs';
 export { challengeImpacts } from './challenge-impacts.mjs';
 export { mergeProposals } from './merge-proposals.mjs';
+export { frontierSnapshots } from './frontier-snapshots.mjs';
 export { signingKeys } from './signing-keys.mjs';
 
 export const schema = {
@@ -124,6 +126,7 @@ export const schema = {
   challengeRevisions,
   challengeImpacts,
   mergeProposals,
+  frontierSnapshots,
 };
 
 export default schema;
