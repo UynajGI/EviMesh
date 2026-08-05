@@ -115,6 +115,10 @@ these role-specific policy statements safely.
 Project membership rows are additionally readable only by the authenticated
 actor represented by that row; anonymous users and non-members have no read
 policy on `project_members`.
+Migration integrity tests keep the journal and SQL file chain aligned so an
+empty-database upgrade cannot silently omit a migration.
+The repository validation workflow now installs the pinned toolchain and runs
+`@evimesh/database db:check`, making uncommitted schema drift a CI failure.
 Evidence validation freezes formal, numerical, experimental, dataset, literature,
 counterexample, benchmark, statistical, code-test, negative-result, and expert
 assessment types.

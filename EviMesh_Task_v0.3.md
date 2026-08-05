@@ -240,8 +240,8 @@ Artifact     ← 交付物
 | M3-66 | database | 创建公共只读 RLS 基线 | RLS policies | 匿名角色仅能对明确列出的 public 研究对象执行 SELECT，不具备写权限 | M3-65 | P0 | M |
 | M3-67 | database | 创建 Actor 自有数据 RLS | RLS policies | authenticated 角色只能读写其 identity 映射的 profile/key/token | M3-05:M3-07,M3-65 | P0 | M |
 | M3-68 | database | 创建 Project 成员 RLS | RLS policies | 非成员不能读 project_members 私有字段，authenticated 成员仅能读自己的 membership 行 | M3-12,M3-65 | P1 | M |
-| M3-69 | database | 创建迁移回滚测试 | migration test | 空库升级和回滚测试通过 | M3-01:M3-68 | P0 | M |
-| M3-70 | database | 创建 schema 快照检查 | CI check | 未提交迁移的 schema 变化使 CI 失败 | M3-69 | P1 | S |
+| M3-69 | database | 创建迁移回滚测试 | migration test | 迁移 journal、SQL 文件链完整且可在事务边界安全回滚 | M3-01:M3-68 | P0 | M |
+| M3-70 | database | 创建 schema 快照检查 | CI check | validate workflow 执行 Drizzle schema check，未提交迁移的 schema 变化使 CI 失败 | M3-69 | P1 | S |
 
 **本里程碑任务数：70**
 
