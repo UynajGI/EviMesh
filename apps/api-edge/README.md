@@ -7,6 +7,9 @@ Routes currently include:
 - `GET /health` — service status and environment marker.
 - `GET /auth/me` — verifies an ES256 Supabase JWT and returns subject/email.
 
+The current public route contract is versioned in `openapi.json`; the contract
+snapshot test fails when these route or response-shape guarantees drift.
+
 Every response receives an `X-Request-ID`. A valid incoming ID is preserved;
 otherwise the Worker generates a UUID. API errors use the stable shape
 `{ code, message, request_id }`.
