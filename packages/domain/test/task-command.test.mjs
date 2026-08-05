@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { acquireTaskLease, addTaskDependency, createTask, expireTaskLeases, renewTaskLease, reviseTask, transitionTask } from "../src/task-command.mjs";
+import { acquireTaskLease, addTaskDependency, createAttempt, createTask, expireTaskLeases, renewTaskLease, reviseTask, transitionTask } from "../src/task-command.mjs";
 
 function repositoryFixture() {
   const calls = [];
@@ -288,4 +288,39 @@ test("expires due task leases and records cleanup events", async () => {
   assert.deepEqual(calls.map(([kind]) => kind), ["lease", "event"]);
   assert.equal(result[0].lease.deletedAt, "2026-08-06T00:01:00.000Z");
   assert.equal(result[0].event.eventType, "task.lease_expired");
+});
+
+test("creates an active Attempt bound to the task context bundle", async () => {
+  const calls = [];
+  const repository = {
+    withTransaction: (callback) => callback(repository),
+    getContextBundle: async () => ({ contextBundleId: "context-1", taskId: "task-1", mode: "frontier" }),
+    insertAttempt: async (value) => { calls.push(["attempt", value]); return value; },
+    appendResearchEvent: async (value) => { calls.push(["event", value]); return value; },
+  };
+  const result = await createAttempt({
+    repository, actorId: "actor-1", actorRole: "contributor", attemptId: "attempt-1", taskId: "task-1",
+    contextBundleId: "context-1", contextMode: "frontier", now: "2026-08-06T00:00:00.000Z",
+    eventFactory: async ({ eventType, payload }) => ({ eventId: "event-13", eventType, payload }),
+  });
+  assert.deepEqual(calls.map(([kind]) => kind), ["attempt", "event"]);
+  assert.equal(result.attempt.state, "active");
+  assert.equal(result.attempt.startedAt, "2026-08-06T00:00:00.000Z");
+  assert.equal(result.contextBundle.contextBundleId, "context-1");
+  assert.equal(result.event.eventType, "attempt.created");
+});
+
+test("rejects an Attempt with a mismatched context bundle before writing", async () => {
+  const calls = [];
+  const repository = {
+    withTransaction: (callback) => callback(repository),
+    getContextBundle: async () => ({ contextBundleId: "context-1", taskId: "task-2", mode: "frontier" }),
+    insertAttempt: async () => calls.push("attempt"),
+    appendResearchEvent: async () => calls.push("event"),
+  };
+  await assert.rejects(
+    createAttempt({ repository, actorId: "actor-1", actorRole: "contributor", attemptId: "attempt-1", taskId: "task-1", contextBundleId: "context-1", contextMode: "frontier", eventFactory: () => ({}) }),
+    (error) => error.code === "CONTEXT_BUNDLE_MISMATCH" && error.status === 409,
+  );
+  assert.deepEqual(calls, []);
 });

@@ -1,6 +1,7 @@
 import { assertProjectRoleForAction } from "./project-authorization.mjs";
 import { assertTaskTransition } from "../../protocol/src/task-state.mjs";
 import { assertDependencyAddition } from "../../protocol/src/dependency-graph.mjs";
+import { assertContextMode } from "../../protocol/src/context-mode.mjs";
 
 const CONTEXT_MODES = new Set(["frontier", "full_trace", "adversarial", "blind"]);
 
@@ -385,5 +386,60 @@ export async function expireTaskLeases({
       results.push({ lease: updated ?? { ...lease, deletedAt }, event: persistedEvent ?? event });
     }
     return results;
+  });
+}
+
+/** Create an active Attempt after binding it to the Task's context bundle. */
+export async function createAttempt({
+  repository,
+  actorId,
+  actorRole,
+  attemptId,
+  taskId,
+  contextBundleId,
+  contextMode,
+  now = new Date(),
+  eventFactory,
+} = {}) {
+  if (!repository || typeof repository.withTransaction !== "function") throw new TaskCommandError("repository withTransaction is required");
+  for (const method of ["getContextBundle", "insertAttempt", "appendResearchEvent"]) {
+    if (typeof repository[method] !== "function") throw new TaskCommandError(`repository ${method} is required`);
+  }
+  actorId = requiredText(actorId, "actor id");
+  attemptId = requiredText(attemptId, "attempt id");
+  taskId = requiredText(taskId, "task id");
+  contextBundleId = requiredText(contextBundleId, "context bundle id");
+  try {
+    assertContextMode(contextMode);
+  } catch (error) {
+    throw new TaskCommandError(error.message, "CONTEXT_MODE_INVALID", 400);
+  }
+  const nowDate = now instanceof Date ? now : new Date(now);
+  if (Number.isNaN(nowDate.getTime())) throw new TaskCommandError("attempt time is invalid");
+  if (typeof eventFactory !== "function") throw new TaskCommandError("eventFactory is required");
+  assertProjectRoleForAction({ actorRole, requiredRole: "contributor" });
+
+  return repository.withTransaction(async (transaction) => {
+    const context = await transaction.getContextBundle(contextBundleId);
+    if (!context) throw new TaskCommandError("context bundle not found", "CONTEXT_BUNDLE_NOT_FOUND", 404);
+    if (context.taskId !== taskId || context.mode !== contextMode) {
+      throw new TaskCommandError("context bundle does not match task or mode", "CONTEXT_BUNDLE_MISMATCH", 409);
+    }
+    const attempt = {
+      attemptId,
+      taskId,
+      actorId,
+      state: "active",
+      startedAt: nowDate.toISOString(),
+      finishedAt: null,
+    };
+    const event = await eventFactory({
+      eventType: "attempt.created",
+      payload: { entity_type: "attempt", attempt_id: attemptId, task_id: taskId, actor_id: actorId, context_bundle_id: contextBundleId, context_mode: contextMode },
+    });
+    if (!event || typeof event !== "object") throw new TaskCommandError("eventFactory must return an event object");
+    const persistedAttempt = await transaction.insertAttempt(attempt);
+    const persistedEvent = await transaction.appendResearchEvent(event);
+    return { attempt: persistedAttempt ?? attempt, contextBundle: context, event: persistedEvent ?? event };
   });
 }
