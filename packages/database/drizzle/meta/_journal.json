@@ -400,6 +400,13 @@
       "when": 1785939000000,
       "tag": "0056_research_events_append_only",
       "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "7",
+      "when": 1785939300000,
+      "tag": "0057_revision_append_only",
+      "breakpoints": true
     }
   ]
 }

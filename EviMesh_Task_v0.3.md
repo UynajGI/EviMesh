@@ -231,7 +231,7 @@ Artifact     ← 交付物
 | M3-57 | database | 为 ClaimRelation 添加重复边约束 | relation constraint | source_claim_id + target_claim_id + relation_type 复合主键阻止重复边 | M3-25 | P0 | S |
 | M3-58 | database | 为 depends_on 添加自引用约束 | DAG constraint | task_dependencies_no_self_reference 检查阻止 Task 自依赖 | M3-25 | P0 | S |
 | M3-59 | database | 为 ResearchEvent 添加不可更新规则 | event trigger | append-only trigger 拒绝正式事件 UPDATE/DELETE | M3-50 | P0 | M |
-| M3-60 | database | 为 revision 表添加不可更新规则 | revision triggers | UPDATE/DELETE 正式 revision 失败 | M3-11,M3-14,M3-17,M3-23,M3-26,M3-35,M3-40 | P0 | M |
+| M3-60 | database | 为 revision 表添加不可更新规则 | revision triggers | append-only trigger 拒绝所有 revision 表 UPDATE/DELETE | M3-11,M3-14,M3-17,M3-23,M3-26,M3-35,M3-40 | P0 | M |
 | M3-61 | database | 创建 current revision 视图 | SQL views | Project/Question/Task/Claim 可读 current revision | M3-12,M3-17,M3-23 | P0 | M |
 | M3-62 | database | 创建 Claim 上游递归查询 | SQL function | 给定 Claim 可返回全部 depends_on 上游 | M3-25 | P0 | M |
 | M3-63 | database | 创建 Claim 下游递归查询 | SQL function | 给定 Claim 可返回全部依赖下游 | M3-25 | P0 | M |

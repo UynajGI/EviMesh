@@ -197,6 +197,10 @@ through the `task_dependencies_no_self_reference` database check.
 
 M3-59 adds an append-only PostgreSQL trigger for `research_events`; UPDATE and
 DELETE are rejected while INSERT remains available for event ingestion.
+
+M3-60 applies the same append-only trigger contract to every revision
+projection, including Project, Question, ResearchContract, Task, Claim,
+Artifact, Verification, and Challenge revisions.
 and self-dependency enforcement are subsequent database constraints.
 
 `DATABASE_URL` is read from the environment, with the local-only Compose URL
