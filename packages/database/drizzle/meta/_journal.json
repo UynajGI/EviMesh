@@ -351,6 +351,13 @@
       "when": 1785936397549,
       "tag": "0049_tidy_nehzno",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1785936802569,
+      "tag": "0050_regular_newton_destine",
+      "breakpoints": true
     }
   ]
 }

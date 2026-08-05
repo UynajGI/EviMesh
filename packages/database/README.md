@@ -160,6 +160,9 @@ to a concrete Task revision, mode, content hash, and storage URI.
 
 M3-48 adds typed, append-only `contribution_statements` that attribute a
 contribution role and description to an Actor.
+
+M3-49 adds composite-key `contribution_edges` for `produced` and `used`
+relationships to concrete object revisions.
 and self-dependency enforcement are subsequent database constraints.
 
 `DATABASE_URL` is read from the environment, with the local-only Compose URL
