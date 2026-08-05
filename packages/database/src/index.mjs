@@ -8,5 +8,6 @@ export { organizations } from './organizations.mjs';
 export { organizationMembers } from './organization-members.mjs';
 export { projectState, projects } from './projects.mjs';
 export { projectRevisions } from './project-revisions.mjs';
+export { projectMembers } from './project-members.mjs';
 export { signingKeys } from './signing-keys.mjs';
 export { schema } from './schema.mjs';

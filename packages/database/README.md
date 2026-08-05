@@ -58,6 +58,9 @@ M3-12 adds append-only `project_revisions`. Each project revision has a
 composite `(project_id, revision)` key, a required predecessor for revisions
 after 1, and no mutable lifecycle columns.
 
+M3-13 adds `project_members` with a composite project/actor key. Its role is
+an extensible text projection until M4-21 freezes the authorization enum.
+
 `DATABASE_URL` is read from the environment, with the local-only Compose URL
 used as a development fallback for Drizzle Kit commands. Production URLs must
 be provided by the deployment environment.
