@@ -10,5 +10,6 @@ export { projectState, projects } from './projects.mjs';
 export { projectRevisions } from './project-revisions.mjs';
 export { projectMembers } from './project-members.mjs';
 export { questionState, questions } from './questions.mjs';
+export { questionRevisions } from './question-revisions.mjs';
 export { signingKeys } from './signing-keys.mjs';
 export { schema } from './schema.mjs';

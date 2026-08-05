@@ -62,6 +62,8 @@ M3-13 adds `project_members` with a composite project/actor key. Its role is
 an extensible text projection until M4-21 freezes the authorization enum.
 
 M3-14 adds stable `questions` identity records scoped to a Project. Question
+M3-15 adds immutable `question_revisions` records containing the revision's
+title, statement, and research-contract content. Question
 content and research-contract data remain in the following revision/contract
 tables.
 
