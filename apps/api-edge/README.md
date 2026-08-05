@@ -36,6 +36,8 @@ Claim upstream graph queries use the database recursive traversal with an API
 depth bound of 1–32 and return root ID, depth, and visited paths.
 Claim downstream graph queries use the mirrored bounded traversal and expose a
 `dependencyTainted` marker for every affected node.
+Challenge detail queries return the current revision, status policy, impact rows,
+and Evidence linked to the locked target Claim revision.
 Attempt detail queries return the Attempt row plus a trace summary containing
 count, event types, and first/last timestamps without exposing trace payloads.
 
