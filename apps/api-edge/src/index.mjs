@@ -1,34 +1,48 @@
+import { Hono } from "hono";
 import { authenticateSupabaseRequest, JwtVerificationError } from "./jwt.mjs";
 
-const json = (body, status = 200) => new Response(JSON.stringify(body), {
-  status,
-  headers: { "content-type": "application/json; charset=utf-8" },
+const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
+
+function requestIdFor(value) {
+  return typeof value === "string" && REQUEST_ID_PATTERN.test(value) ? value : crypto.randomUUID();
+}
+
+function errorBody(code, message, requestId) {
+  return { code, message, request_id: requestId };
+}
+
+const app = new Hono();
+
+app.use("*", async (context, next) => {
+  const requestId = requestIdFor(context.req.header("x-request-id"));
+  context.set("requestId", requestId);
+  context.header("x-request-id", requestId);
+  await next();
 });
 
-export default {
-  async fetch(request, env) {
-    const url = new URL(request.url);
+app.get("/health", (context) => context.json({
+  service: "evimesh-api-edge",
+  status: "ok",
+  environment: context.env.EVIMESH_ENV ?? "development",
+}));
 
-    if (url.pathname === "/health") {
-      return json({
-        service: "evimesh-api-edge",
-        status: "ok",
-        environment: env.EVIMESH_ENV ?? "development",
-      });
+app.get("/auth/me", async (context) => {
+  try {
+    const claims = await authenticateSupabaseRequest(context.req.raw, context.env);
+    return context.json({ subject: claims.sub, email: claims.email ?? null });
+  } catch (error) {
+    if (error instanceof JwtVerificationError || error instanceof SyntaxError) {
+      return context.json(errorBody("unauthorized", "authentication required", context.get("requestId")), 401);
     }
+    throw error;
+  }
+});
 
-    if (url.pathname === "/auth/me") {
-      try {
-        const claims = await authenticateSupabaseRequest(request, env);
-        return json({ subject: claims.sub, email: claims.email ?? null });
-      } catch (error) {
-        if (error instanceof JwtVerificationError || error instanceof SyntaxError) {
-          return json({ error: "unauthorized" }, 401);
-        }
-        throw error;
-      }
-    }
+app.notFound((context) => context.json(errorBody("not_found", "route not found", context.get("requestId")), 404));
 
-    return json({ error: "not_found" }, 404);
-  },
-};
+app.onError((error, context) => {
+  console.error("api request failed", error);
+  return context.json(errorBody("internal_error", "internal server error", context.get("requestId")), 500);
+});
+
+export default app;

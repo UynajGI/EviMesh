@@ -1,49 +1,31 @@
 # @evimesh/api-edge
 
-## M2-07 Cloudflare Workers
+Cloudflare Workers API entrypoint built with Hono.
 
-This package is the minimal Cloudflare Workers edge entrypoint. It currently
-exposes `GET /health` and returns a JSON service status; business routes are
-deferred to later milestones.
+Routes currently include:
 
-Run the local contract test with:
+- `GET /health` — service status and environment marker.
+- `GET /auth/me` — verifies an ES256 Supabase JWT and returns subject/email.
+
+Every response receives an `X-Request-ID`. A valid incoming ID is preserved;
+otherwise the Worker generates a UUID. API errors use the stable shape
+`{ code, message, request_id }`.
+
+Configure `SUPABASE_JWKS_URL`, `SUPABASE_JWT_ISSUER`, and optionally
+`SUPABASE_JWT_AUDIENCE` as Worker variables. Do not commit a JWKS, API token,
+or runtime secret; keep local secrets in `.dev.vars` or Cloudflare's secret
+store.
+
+Run tests and the Worker locally with:
 
 ```powershell
 pnpm --filter @evimesh/api-edge test
-```
-
-Run the Worker locally after installing Wrangler and authenticating with the
-target Cloudflare account:
-
-```powershell
 pnpm --filter @evimesh/api-edge dev
-pnpm --filter @evimesh/api-edge deploy:dev
 ```
 
-The staging environment is explicit and isolated:
+Staging and production deployments are explicit Wrangler commands:
 
 ```powershell
-pnpm --filter @evimesh/api-edge dev:staging
 pnpm --filter @evimesh/api-edge deploy:staging
-```
-
-Production deployment is an explicit action and requires Wrangler
-authentication in the operator environment:
-
-```powershell
 pnpm --filter @evimesh/api-edge deploy:production
 ```
-
-The production block changes the Worker name and environment marker only;
-production secrets must be configured in Cloudflare's secret store.
-
-`GET /auth/me` is the first authenticated route. It validates an ES256
-Supabase JWT against the configured JWKS and returns only the subject and email
-claim. Configure `SUPABASE_JWKS_URL`, `SUPABASE_JWT_ISSUER`, and optionally
-`SUPABASE_JWT_AUDIENCE` as Worker variables; do not commit a JWKS or token.
-
-The configuration deliberately contains no account ID, API token, or runtime
-secret. Keep local secrets in `.dev.vars` or the environment-specific secret
-store; never commit them.
-
-面向外部入口的边缘 API 适配层。当前为骨架包。

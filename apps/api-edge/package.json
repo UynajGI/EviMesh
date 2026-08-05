@@ -13,5 +13,8 @@
   },
   "devDependencies": {
     "wrangler": "4.118.0"
+  },
+  "dependencies": {
+    "hono": "4.8.0"
   }
 }

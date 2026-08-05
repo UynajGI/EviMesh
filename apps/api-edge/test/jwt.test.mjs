@@ -59,6 +59,9 @@ test("rejects missing, tampered, and expired JWTs", async () => {
     const headers = token ? { authorization: `Bearer ${token}` } : {};
     const response = await worker.fetch(new Request("https://api.example.test/auth/me", { headers }), fixture.env);
     assert.equal(response.status, 401);
-    assert.deepEqual(await response.json(), { error: "unauthorized" });
+    const payload = await response.json();
+    assert.equal(payload.code, "unauthorized");
+    assert.equal(payload.message, "authentication required");
+    assert.match(response.headers.get("x-request-id"), /^[0-9a-f-]{36}$/);
   }
 });
