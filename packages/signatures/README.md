@@ -13,3 +13,5 @@ encoding to and from an Ed25519 `did:key` using base58btc multibase.
 signature; it does not canonicalize or retain the private key.
 `verifyEd25519Payload()` verifies the same bytes against a base64url SPKI public
 key and returns `false` for an invalid signature.
+`createKeyRotationDeclaration()` and `verifyKeyRotationDeclaration()` bind a
+new public key to an old key through an old-key signature.
