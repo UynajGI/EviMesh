@@ -17,6 +17,7 @@ import { contextMode, taskRevisions } from './task-revisions.mjs';
 import { taskDependencies } from './task-dependencies.mjs';
 import { taskLeases } from './task-leases.mjs';
 import { attempts } from './attempts.mjs';
+import { traceEvents } from './trace-events.mjs';
 
 export { actorProfiles } from './actor-profiles.mjs';
 export { apiTokens } from './api-tokens.mjs';
@@ -36,6 +37,7 @@ export { contextMode, taskRevisions } from './task-revisions.mjs';
 export { taskDependencies, taskDependencyType } from './task-dependencies.mjs';
 export { taskLeases } from './task-leases.mjs';
 export { attemptState, attempts } from './attempts.mjs';
+export { traceEvents } from './trace-events.mjs';
 export { signingKeys } from './signing-keys.mjs';
 
 export const schema = {
@@ -58,6 +60,7 @@ export const schema = {
   taskDependencies,
   taskLeases,
   attempts,
+  traceEvents,
 };
 
 export default schema;
