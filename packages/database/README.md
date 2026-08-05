@@ -100,6 +100,10 @@ rejected without changing prior revisions.
 M3-30 adds immutable `runs` for the execution-boundary fields of a Run
 Receipt. Input and output Artifact associations are normalized in M3-31 and
 M3-32.
+
+M3-31 adds `run_inputs` with a composite Run/Artifact/revision key and a
+composite foreign key to `artifact_revisions`, so a recorded input cannot
+silently drift to another revision.
 and self-dependency enforcement are subsequent database constraints.
 
 `DATABASE_URL` is read from the environment, with the local-only Compose URL
