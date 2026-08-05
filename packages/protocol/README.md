@@ -129,3 +129,9 @@ ResearchEvent 固定 schema `srp.event.v1`，包含 namespaced `event_type`、�
 ## Platform Receipt（M1-26）
 
 Platform Receipt 固定 schema `srp.platform-receipt.v1`，记录服务端 `server_time`、已接受事件的 UUIDv7 `event_id` 和不可变 `server_signature`。
+
+## Project authorization vocabulary
+
+Project roles are `owner`, `maintainer`, `contributor`, and `viewer`.
+Project visibility is `public`, `unlisted`, or `member-only`; consumers must
+reject values outside these enumerations.
