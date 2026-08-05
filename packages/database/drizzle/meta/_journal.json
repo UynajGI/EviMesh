@@ -365,6 +365,13 @@
       "when": 1785937096669,
       "tag": "0051_optimal_betty_brant",
       "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1785937478388,
+      "tag": "0052_giant_leopardon",
+      "breakpoints": true
     }
   ]
 }

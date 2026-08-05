@@ -166,6 +166,9 @@ relationships to concrete object revisions.
 
 M3-50 adds immutable `research_events` for signed, hash-addressed event
 envelopes with namespaced types and parent event IDs.
+
+M3-51 normalizes parent links into `research_event_parents`, preserving a
+non-self composite event ancestry edge with two restricted event references.
 and self-dependency enforcement are subsequent database constraints.
 
 `DATABASE_URL` is read from the environment, with the local-only Compose URL
