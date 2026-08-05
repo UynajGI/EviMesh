@@ -6,5 +6,6 @@ export { actorType, actors, identityStrength } from './actors.mjs';
 export { identities } from './identities.mjs';
 export { organizations } from './organizations.mjs';
 export { organizationMembers } from './organization-members.mjs';
+export { projectState, projects } from './projects.mjs';
 export { signingKeys } from './signing-keys.mjs';
 export { schema } from './schema.mjs';

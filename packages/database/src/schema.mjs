@@ -4,6 +4,7 @@ import { apiTokens } from './api-tokens.mjs';
 import { identities } from './identities.mjs';
 import { organizations } from './organizations.mjs';
 import { organizationMembers } from './organization-members.mjs';
+import { projects } from './projects.mjs';
 import { signingKeys } from './signing-keys.mjs';
 
 export { actorProfiles } from './actor-profiles.mjs';
@@ -12,6 +13,7 @@ export { actors, actorType, identityStrength } from './actors.mjs';
 export { identities } from './identities.mjs';
 export { organizations } from './organizations.mjs';
 export { organizationMembers } from './organization-members.mjs';
+export { projectState, projects } from './projects.mjs';
 export { signingKeys } from './signing-keys.mjs';
 
 export const schema = {
@@ -22,6 +24,7 @@ export const schema = {
   apiTokens,
   organizations,
   organizationMembers,
+  projects,
 };
 
 export default schema;

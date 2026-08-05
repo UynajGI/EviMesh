@@ -50,6 +50,10 @@ M3-10 adds `organization_members` with a composite organization/actor key.
 Its role is intentionally an extensible text field until the later
 authorization milestone freezes role semantics.
 
+M3-11 adds the stable `projects` projection using the M1 project states and
+revision fields. Project maintainer membership remains in the later
+`project_members` table.
+
 `DATABASE_URL` is read from the environment, with the local-only Compose URL
 used as a development fallback for Drizzle Kit commands. Production URLs must
 be provided by the deployment environment.
