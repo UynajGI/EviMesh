@@ -14,6 +14,10 @@ pnpm --filter @evimesh/database db:migrate
 pnpm --filter @evimesh/database test
 ```
 
+The first migration is the M3-02 PostgreSQL extension baseline. It enables
+`pgcrypto` and `uuid-ossp` with idempotent `CREATE EXTENSION IF NOT EXISTS`
+statements.
+
 `DATABASE_URL` is read from the environment, with the local-only Compose URL
 used as a development fallback for Drizzle Kit commands. Production URLs must
 be provided by the deployment environment.
