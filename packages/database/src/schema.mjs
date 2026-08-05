@@ -33,6 +33,7 @@ import { verificationContracts } from './verification-contracts.mjs';
 import { verificationContractRevisions } from './verification-contract-revisions.mjs';
 import { verificationPolicies } from './verification-policies.mjs';
 import { verificationPolicyRevisions } from './verification-policy-revisions.mjs';
+import { verificationOutcome, verificationReceipts } from './verification-receipts.mjs';
 
 export { actorProfiles } from './actor-profiles.mjs';
 export { apiTokens } from './api-tokens.mjs';
@@ -68,6 +69,7 @@ export { verificationContracts } from './verification-contracts.mjs';
 export { verificationContractRevisions } from './verification-contract-revisions.mjs';
 export { verificationPolicies } from './verification-policies.mjs';
 export { verificationPolicyRevisions } from './verification-policy-revisions.mjs';
+export { verificationOutcome, verificationReceipts } from './verification-receipts.mjs';
 export { signingKeys } from './signing-keys.mjs';
 
 export const schema = {
@@ -106,6 +108,7 @@ export const schema = {
   verificationContractRevisions,
   verificationPolicies,
   verificationPolicyRevisions,
+  verificationReceipts,
 };
 
 export default schema;

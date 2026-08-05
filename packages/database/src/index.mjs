@@ -34,5 +34,6 @@ export { verificationContracts } from './verification-contracts.mjs';
 export { verificationContractRevisions } from './verification-contract-revisions.mjs';
 export { verificationPolicies } from './verification-policies.mjs';
 export { verificationPolicyRevisions } from './verification-policy-revisions.mjs';
+export { verificationOutcome, verificationReceipts } from './verification-receipts.mjs';
 export { signingKeys } from './signing-keys.mjs';
 export { schema } from './schema.mjs';

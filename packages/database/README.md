@@ -129,6 +129,10 @@ and lifecycle timestamps for policy revisions.
 
 M3-38 adds append-only `verification_policy_revisions` with contiguous
 revision links and machine-readable requirements and outcomes.
+
+M3-39 adds immutable `verification_receipts` anchored to concrete claim and
+verification-contract revisions, with independence metadata and an explicit
+verification outcome.
 and self-dependency enforcement are subsequent database constraints.
 
 `DATABASE_URL` is read from the environment, with the local-only Compose URL
