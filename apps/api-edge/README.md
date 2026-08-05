@@ -26,6 +26,8 @@ Question queries add project/state filters and resolve the referenced Contract
 revision alongside the current Question revision.
 Task queries support project/status/type/tag filters and return dependencies
 plus current leases with task details.
+Attempt detail queries return the Attempt row plus a trace summary containing
+count, event types, and first/last timestamps without exposing trace payloads.
 
 Configure `SUPABASE_JWKS_URL`, `SUPABASE_JWT_ISSUER`, and optionally
 `SUPABASE_JWT_AUDIENCE` as Worker variables. Do not commit a JWKS, API token,
