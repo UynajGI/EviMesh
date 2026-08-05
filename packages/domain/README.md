@@ -43,3 +43,5 @@ trace envelope, and rejects ordinary trace writes after Attempt submission.
 the corresponding ResearchEvent atomically.
 `reviseClaim()` appends a new immutable Claim revision, updates only the current
 Claim projection, and requires a matching `If-Match` ETag to prevent stale edits.
+`createClaimRelation()` validates relation types, rejects duplicate/cyclic
+`depends_on` edges, and records the relation plus its ResearchEvent atomically.
