@@ -7,6 +7,7 @@
 - 单文件上传签名计划与 R2 multipart session 的过期、分片排序、完成和中止契约；
 - 内容寻址 Artifact revision 的短时效签名 GET 下载 redirect 契约；
 - Artifact 接受前的 malware scanner adapter 契约；感染或扫描服务不可用时 fail closed；
+- 分块 Artifact manifest：连续 offset 与每块 SHA-256 均可校验，任一字节篡改都会失败；
 - API Edge 的 Run 列表、详情及 Artifact input/output 查询契约；
 - API Edge 的 Evidence 列表、详情及 Claim revision link 查询契约；
 - Run 创建会在同一事务内确认 input/output Artifact revision 存在，并拒绝重复引用；输出 revision 必须已有 `verified` hash 核验状态；
