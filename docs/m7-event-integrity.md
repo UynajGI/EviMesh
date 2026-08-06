@@ -44,4 +44,12 @@ row in one repository transaction. The outbox row references the new Event, so a
 publisher only observes committed Events and a command cannot leave a committed
 Event without its delivery record.
 
+## Outbox claim lock
+
+`claimOutboxJobs` is the worker boundary for claiming due `pending` outbox rows.
+Its repository method must perform an atomic compare-and-set claim, transitioning a
+row to `processing` with `lockedAt` before returning it. The utility validates that
+returned locks are unique and complete, preventing a worker from treating an
+ambiguous result as safely claimed work.
+
 后续 M7 loop 会在这一边界上增加对象/Actor 哈希链、Outbox、Merkle checkpoint 与 provenance。
