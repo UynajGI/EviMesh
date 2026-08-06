@@ -8,4 +8,8 @@ keys for artifact revisions.
 `src/upload-verification.mjs` verifies an R2 object's reported size and
 streamed SHA-256 digest before the object can be accepted as an Artifact.
 
+`src/upload-session.mjs` builds bounded single-upload plans and manages R2
+multipart sessions, including expiry, ordered unique parts, completion, and
+abort operations.
+
 科研 Artifact、Evidence、Run Receipt 与对象存储边界。当前为骨架包。
