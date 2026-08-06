@@ -16,6 +16,13 @@ test("lists artifacts with filters and stable pagination", async () => {
   assert.ok(page.nextCursor);
 });
 
+test("rejects malformed pagination inputs", async () => {
+  const repository = { listArtifacts: async () => artifacts };
+  await assert.rejects(() => listArtifacts({ repository, limit: 0 }), /limit/);
+  await assert.rejects(() => listArtifacts({ repository, limit: 101 }), /limit/);
+  await assert.rejects(() => listArtifacts({ repository, cursor: 1 }), /cursor/);
+});
+
 test("returns current artifact revision and locations", async () => {
   const repository = {
     getArtifact: async (id) => ({ artifactId: id }),

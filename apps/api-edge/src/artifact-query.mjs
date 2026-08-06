@@ -11,8 +11,18 @@ export class ArtifactQueryError extends Error {
 
 function optionalFilter(value, field) {
   if (value === null || value === undefined) return null;
-  if (typeof value !== "string" || value.trim().length === 0) throw new ArtifactQueryError(`${field} must be a non-empty string or null`);
+  if (typeof value !== "string" || value.trim().length === 0) throw new ArtifactQueryError(`${field} must be a non-empty string, null, or undefined`);
   return value.trim();
+}
+
+function paginationOptions({ limit, cursor }) {
+  if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new ArtifactQueryError("limit must be an integer between 1 and 100");
+  if (cursor !== null && cursor !== undefined && (typeof cursor !== "string" || cursor.length === 0)) throw new ArtifactQueryError("cursor must be a non-empty string or null");
+  return { limit, cursor: cursor ?? null };
+}
+
+function requireRepository(repository, methods, message) {
+  if (!repository || methods.some((method) => typeof repository[method] !== "function")) throw new ArtifactQueryError(message);
 }
 
 function requiredId(value) {
@@ -21,19 +31,17 @@ function requiredId(value) {
 }
 
 export async function listArtifacts({ repository, artifactType = null, createdBy = null, limit = 20, cursor = null } = {}) {
-  if (!repository || typeof repository.listArtifacts !== "function") throw new ArtifactQueryError("repository listArtifacts is required");
+  requireRepository(repository, ["listArtifacts"], "repository listArtifacts is required");
   const artifacts = await repository.listArtifacts({
     artifactType: optionalFilter(artifactType, "artifact type"),
     createdBy: optionalFilter(createdBy, "created by"),
   });
-  return paginate(artifacts, { limit, cursor, getKey: (artifact) => ({ createdAt: artifact.createdAt, id: artifact.artifactId }) });
+  return paginate(artifacts, { ...paginationOptions({ limit, cursor }), getKey: (artifact) => ({ createdAt: artifact.createdAt, id: artifact.artifactId }) });
 }
 
 export async function getArtifact({ repository, artifactId } = {}) {
   artifactId = requiredId(artifactId);
-  if (!repository || typeof repository.getArtifact !== "function" || typeof repository.getCurrentArtifactRevision !== "function" || typeof repository.listArtifactLocations !== "function") {
-    throw new ArtifactQueryError("repository artifact detail methods are required");
-  }
+  requireRepository(repository, ["getArtifact", "getCurrentArtifactRevision", "listArtifactLocations"], "repository artifact detail methods are required");
   const artifact = await repository.getArtifact(artifactId);
   if (!artifact) throw new ArtifactQueryError("artifact not found", "ARTIFACT_NOT_FOUND", 404);
   const [currentRevision, locations] = await Promise.all([
@@ -47,7 +55,7 @@ export async function getArtifact({ repository, artifactId } = {}) {
 export async function getArtifactRevision({ repository, artifactId, revision } = {}) {
   artifactId = requiredId(artifactId);
   if (!Number.isInteger(revision) || revision < 1) throw new ArtifactQueryError("artifact revision must be a positive integer");
-  if (!repository || typeof repository.getArtifactRevision !== "function") throw new ArtifactQueryError("repository getArtifactRevision is required");
+  requireRepository(repository, ["getArtifactRevision"], "repository getArtifactRevision is required");
   const artifactRevision = await repository.getArtifactRevision(artifactId, revision);
   if (!artifactRevision) throw new ArtifactQueryError("artifact revision not found", "ARTIFACT_REVISION_NOT_FOUND", 404);
   return artifactRevision;
