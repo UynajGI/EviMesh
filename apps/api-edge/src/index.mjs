@@ -3,6 +3,9 @@ import { authenticateSupabaseRequest, JwtVerificationError } from "./jwt.mjs";
 import { ContextQueryError, getTaskContext } from "./context-query.mjs";
 import { RequestValidationError } from "./validation.mjs";
 import { getPlatformPublicKeys, PlatformPublicKeysError } from './platform-public-keys.mjs';
+import { getOwnProfile, patchOwnProfile } from './profile-api.mjs';
+import { ActorIdentityError, resolveActorForSupabaseClaims } from './actor-identity.mjs';
+import { ActorProfileError } from '../../../packages/domain/src/actor-profile.mjs';
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
 
@@ -66,6 +69,31 @@ app.get("/auth/me", async (context) => {
     if (error instanceof JwtVerificationError || error instanceof SyntaxError) {
       return context.json(errorBody("unauthorized", "authentication required", context.get("requestId")), 401);
     }
+    throw error;
+  }
+});
+
+app.get('/profile', async (context) => {
+  try {
+    const claims = await authenticateSupabaseRequest(context.req.raw, context.env);
+    const actorId = await resolveActorForSupabaseClaims({ repository, claims });
+    return context.json(await getOwnProfile({ repository, actorId }));
+  } catch (error) {
+    const status = error instanceof JwtVerificationError ? 401 : error instanceof ActorIdentityError ? error.status : error instanceof ActorProfileError ? 400 : error.status;
+    if (status) return context.json(errorBody(error.code ?? 'profile_unavailable', error.message, context.get('requestId')), status);
+    throw error;
+  }
+});
+
+app.patch('/profile', async (context) => {
+  try {
+    const claims = await authenticateSupabaseRequest(context.req.raw, context.env);
+    const actorId = await resolveActorForSupabaseClaims({ repository, claims });
+    const patch = await context.req.json();
+    return context.json(await patchOwnProfile({ repository, actorId, patch }));
+  } catch (error) {
+    const status = error instanceof JwtVerificationError ? 401 : error instanceof ActorIdentityError ? error.status : error instanceof ActorProfileError ? 400 : error.status;
+    if (status) return context.json(errorBody(error.code ?? 'profile_unavailable', error.message, context.get('requestId')), status);
     throw error;
   }
 });
