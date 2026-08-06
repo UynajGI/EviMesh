@@ -169,3 +169,11 @@ test('supports the third Question submission step for progress and falsification
   assert.match(page, /Continue to permissions/);
   assert.match(page, /setStep\(3\)/);
 });
+
+test('supports the fourth Question submission step for license and risks', async () => {
+  const page = await read('../app/questions/new/page.js');
+  assert.match(page, /Question license/);
+  assert.match(page, /Question risks/);
+  assert.match(page, /Review question/);
+  assert.match(page, /setStep\(4\)/);
+});
