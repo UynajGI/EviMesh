@@ -105,6 +105,29 @@ export async function appendResearchEvent({ repository, event } = {}) {
   });
 }
 
+/** Append a formal Event and its pending outbox record in one transaction. */
+export async function appendResearchEventWithOutbox({ repository, event, outboxId } = {}) {
+  if (!repository || typeof repository.withTransaction !== 'function') {
+    throw new ResearchEventAppendError('repository withTransaction is required');
+  }
+  for (const method of ['getResearchEvent', 'insertResearchEvent', 'insertResearchEventParent', 'insertEventOutbox']) {
+    if (typeof repository[method] !== 'function') {
+      throw new ResearchEventAppendError(`repository ${method} is required`);
+    }
+  }
+  outboxId = requiredText(outboxId, 'outbox id');
+  const normalized = normalizeEvent(event);
+  if (new Set(normalized.parents).size !== normalized.parents.length) {
+    throw new ResearchEventAppendError('event parents must be unique');
+  }
+
+  return repository.withTransaction(async (transaction) => {
+    const appended = await appendNormalizedResearchEvent(transaction, normalized);
+    const outbox = await transaction.insertEventOutbox({ outboxId, eventId: normalized.event_id, status: 'pending' });
+    return { ...appended, outbox: outbox ?? { outboxId, eventId: normalized.event_id, status: 'pending' } };
+  });
+}
+
 /** Append a signed Event whose payload binds it to the prior Event hash for one object. */
 export async function appendObjectResearchEvent({ repository, objectType, objectId, eventFactory } = {}) {
   if (!repository || typeof repository.withTransaction !== 'function') {

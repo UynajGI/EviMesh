@@ -36,4 +36,12 @@ authoritative event ordering and must return the complete contiguous range. The 
 layer rejects an empty range, missing boundaries, duplicate IDs, or malformed rows
 instead of silently producing a partial audit export.
 
+## Transactional outbox
+
+`appendResearchEventWithOutbox` is the formal Event command for downstream work.
+It creates the signed Event, immutable parent links, and a `pending` `event_outbox`
+row in one repository transaction. The outbox row references the new Event, so a
+publisher only observes committed Events and a command cannot leave a committed
+Event without its delivery record.
+
 后续 M7 loop 会在这一边界上增加对象/Actor 哈希链、Outbox、Merkle checkpoint 与 provenance。

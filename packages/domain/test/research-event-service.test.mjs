@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { appendActorResearchEvent, appendObjectResearchEvent, appendResearchEvent, getResearchEventSignature, ResearchEventAppendError } from '../src/research-event-service.mjs';
+import { appendActorResearchEvent, appendObjectResearchEvent, appendResearchEvent, appendResearchEventWithOutbox, getResearchEventSignature, ResearchEventAppendError } from '../src/research-event-service.mjs';
 
 const parentId = '018f0f4a-5c00-7000-8000-000000000000';
 const eventId = '018f0f4a-5c00-7000-8000-000000000001';
@@ -23,6 +23,7 @@ function repository({ existing = new Set([parentId]) } = {}) {
     getLatestActorEventHash: async () => null,
     insertResearchEvent: async (record) => { calls.push(['event', record]); existing.add(record.eventId); return record; },
     insertResearchEventParent: async (record) => { calls.push(['parent', record]); return record; },
+    insertEventOutbox: async (record) => { calls.push(['outbox', record]); return record; },
   };
   return repo;
 }
@@ -33,6 +34,23 @@ test('appends a signed Event and every parent link in one transaction', async ()
   assert.equal(result.event.eventId, eventId);
   assert.deepEqual(result.parents, [{ eventId, parentEventId: parentId }]);
   assert.deepEqual(repo.calls.map(([kind]) => kind), ['event', 'parent']);
+});
+
+test('writes the formal Event and its pending outbox row in the same transaction', async () => {
+  const repo = repository();
+  const result = await appendResearchEventWithOutbox({ repository: repo, event, outboxId: 'outbox_1' });
+  assert.deepEqual(repo.calls.map(([kind]) => kind), ['event', 'parent', 'outbox']);
+  assert.deepEqual(result.outbox, { outboxId: 'outbox_1', eventId, status: 'pending' });
+});
+
+test('requires an outbox writer before opening the formal Event transaction', async () => {
+  const repo = repository();
+  delete repo.insertEventOutbox;
+  await assert.rejects(
+    appendResearchEventWithOutbox({ repository: repo, event, outboxId: 'outbox_1' }),
+    /repository insertEventOutbox is required/,
+  );
+  assert.equal(repo.calls.length, 0);
 });
 
 test('binds a signed Event to the current Actor event hash chain head', async () => {
