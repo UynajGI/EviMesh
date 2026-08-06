@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 
-const SHA256_PREFIX = 'sha256:';
+export const SHA256_PREFIX = 'sha256:';
+export const SHA256_DIGEST_LENGTH = 64;
 
 function assertChunk(chunk) {
   if (!(typeof chunk === 'string' || chunk instanceof Uint8Array || Buffer.isBuffer(chunk))) {
@@ -54,7 +55,7 @@ export function artifactObjectKey({ artifactId, revision, rawHash } = {}) {
   if (!Number.isInteger(revision) || revision < 1) {
     throw new TypeError('artifact revision must be a positive integer');
   }
-  if (typeof rawHash !== 'string' || !/^sha256:[0-9a-f]{64}$/i.test(rawHash)) {
+  if (typeof rawHash !== 'string' || !new RegExp(`^${SHA256_PREFIX}[0-9a-f]{${SHA256_DIGEST_LENGTH}}$`, 'i').test(rawHash)) {
     throw new TypeError('raw hash must be a sha256 digest');
   }
   return `artifacts/${artifactId.trim()}/revisions/${revision}/${rawHash.slice(SHA256_PREFIX.length).toLowerCase()}`;
