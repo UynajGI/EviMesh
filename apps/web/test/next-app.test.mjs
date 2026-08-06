@@ -346,6 +346,16 @@ test('imports validated JSON and stored ZIP draft bundles into the Claim editor'
   assert.match(page, /accept=\"\.json,\.zip/);
 });
 
+test('keeps the Claim editor responsive at mobile and desktop breakpoints', async () => {
+  const page = await read('../app/claims/new/page.js');
+  const nav = await read('../components/site-nav.js');
+  assert.match(page, /mx-auto max-w-5xl px-6/);
+  assert.match(page, /flex flex-wrap gap-3/);
+  assert.match(page, /overflow-x-auto/);
+  assert.match(nav, /flex-wrap/);
+  assert.match(nav, /gap-/);
+});
+
 test('renders Claim revision diff controls and changed fields', async () => {
   const page = await read('../app/claims/[claimId]/diff/page.js');
   assert.match(page, /revisions\/\$\{revision\}/);
