@@ -95,4 +95,11 @@ the duplicated sibling at odd-width levels. Each step records the sibling hash a
 whether it is on the left or right, with the source leaf hash and resulting root
 bound into a versioned proof object.
 
-后续 M7 loop 会在这一边界上增加对象/Actor 哈希链、Outbox、Merkle checkpoint 与 provenance。
+## Merkle inclusion proof verification
+
+`verifyMerkleInclusionProof` strictly validates the proof shape and replays its
+ordered sibling path. It returns `false` for malformed data or any altered leaf,
+sibling, direction, or root, making proof validation safe for untrusted public
+inputs.
+
+后续 M7 loop 将在这一边界上增加 Merkle checkpoint 与 provenance。
