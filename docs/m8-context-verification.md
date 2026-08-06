@@ -220,3 +220,7 @@ M8-29 appends FrontierSnapshot records only at the next contiguous project
 sequence. It fixes the immediately previous sequence, the project revision,
 and a `ready` MergeProposal in the immutable checkpoint before emitting
 `frontier.created`.
+
+M8-30 adds a Frontier member only after loading both the named snapshot and
+the exact Claim revision. The member record stores the revision number rather
+than resolving a mutable current Claim projection.
