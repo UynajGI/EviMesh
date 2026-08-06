@@ -101,3 +101,27 @@ export async function appendArtifactLocation({ repository, actorId, actorRole, a
     };
   });
 }
+
+/** Submit a verifiable external mirror with its own immutable integrity metadata. */
+export async function submitExternalArtifactLocation({ repository, actorId, actorRole, artifactId, locationId, location, rawHash, sizeBytes, license, eventFactory } = {}) {
+  if (!repository || typeof repository.withTransaction !== 'function') throw new ArtifactCommandError('repository withTransaction is required');
+  for (const method of ['getArtifact', 'insertArtifactLocation', 'appendResearchEvent']) {
+    if (typeof repository[method] !== 'function') throw new ArtifactCommandError(`repository ${method} is required`);
+  }
+  actorId = requiredText(actorId, 'actor id');
+  artifactId = requiredText(artifactId, 'artifact id');
+  locationId = requiredText(locationId, 'location id');
+  location = assertUri(location);
+  if (typeof rawHash !== 'string' || !/^sha256:[0-9a-f]{64}$/i.test(rawHash)) throw new ArtifactCommandError('raw hash must be a sha256 digest');
+  sizeBytes = assertNonNegativeInteger(sizeBytes, 'size bytes');
+  license = requiredText(license, 'license');
+  if (typeof eventFactory !== 'function') throw new ArtifactCommandError('eventFactory is required');
+  assertProjectRoleForAction({ actorRole, requiredRole: 'contributor' });
+  const artifactLocation = { locationId, artifactId, locationType: 'external', uri: location, rawHash: rawHash.toLowerCase(), sizeBytes, license, createdBy: actorId };
+  return repository.withTransaction(async (transaction) => {
+    if (!await transaction.getArtifact(artifactId)) throw new ArtifactCommandError('artifact not found', 'ARTIFACT_NOT_FOUND', 404);
+    const event = await eventFactory({ eventType: 'artifact.location.external_submitted', payload: { entity_type: 'artifact', artifact_id: artifactId, location_id: locationId, uri: location, raw_hash: artifactLocation.rawHash, size_bytes: sizeBytes, license, actor_id: actorId } });
+    if (!event || typeof event !== 'object') throw new ArtifactCommandError('eventFactory must return an event object');
+    return { location: await transaction.insertArtifactLocation(artifactLocation) ?? artifactLocation, event: await transaction.appendResearchEvent(event) ?? event };
+  });
+}
