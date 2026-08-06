@@ -1,0 +1,3 @@
+import test from 'node:test'; import assert from 'node:assert/strict';
+import { taintDependentClaimsJob } from '../src/dependency-taint-worker.mjs';
+test('taints all downstream Claims but not the contested source', async () => { const calls = []; const repository = { getClaim: async (id) => ({ claimId: id, state: id === 'claim-old' ? 'dependency_tainted' : 'candidate' }), markClaimDependencyTainted: async (id) => calls.push(id) }; const result = await taintDependentClaimsJob({ repository, sourceClaimId: 'claim-root', impactedClaimIds: ['claim-child', 'claim-root', 'claim-old', 'claim-child'] }); assert.deepEqual(result.taintedClaimIds, ['claim-child']); assert.deepEqual(calls, ['claim-child']); });

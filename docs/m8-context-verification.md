@@ -190,3 +190,9 @@ audit boundary.
 M8-24 adds `calculateChallengeImpactJob`. For an upheld, revision-pinned
 Challenge it returns the challenged Claim plus the deduplicated downstream
 dependency set in stable order. Other Challenge outcomes have no impact set.
+
+## Dependency tainting
+
+M8-25 marks every impacted downstream Claim as `dependency_tainted` while
+leaving the directly challenged source Claim in its own Challenge-derived
+state. Already tainted Claims are not rewritten.
