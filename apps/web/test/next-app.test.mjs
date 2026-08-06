@@ -5,8 +5,8 @@ import test from 'node:test';
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8');
 
 test('initializes the Next App Router shell', async () => {
-  const [manifest, layout, page, config] = await Promise.all([
-    read('../package.json'), read('../app/layout.js'), read('../app/page.js'), read('../next.config.mjs'),
+  const [manifest, layout, page, config, globals, postcss] = await Promise.all([
+    read('../package.json'), read('../app/layout.js'), read('../app/page.js'), read('../next.config.mjs'), read('../app/globals.css'), read('../postcss.config.mjs'),
   ]);
   const packageJson = JSON.parse(manifest);
   assert.equal(packageJson.scripts.dev, 'next dev');
@@ -15,4 +15,7 @@ test('initializes the Next App Router shell', async () => {
   assert.match(layout, /import '\.\/globals\.css';/);
   assert.match(page, /Open distributed scientific network/);
   assert.match(config, /turbopack: \{ root: workspaceRoot \}/);
+  assert.match(globals, /@import "tailwindcss"/);
+  assert.match(postcss, /'@tailwindcss\/postcss': \{\}/);
+  assert.match(page, /className="mx-auto max-w-3xl/);
 });
