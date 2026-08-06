@@ -17,7 +17,7 @@ test('initializes the Next App Router shell', async () => {
   assert.match(config, /turbopack: \{ root: workspaceRoot \}/);
   assert.match(globals, /@import "tailwindcss"/);
   assert.match(postcss, /'@tailwindcss\/postcss': \{\}/);
-  assert.match(page, /className="mx-auto max-w-3xl/);
+  assert.match(page, /className="mx-auto max-w-6xl/);
 });
 
 test('configures shadcn-compatible Button, Input, and Dialog components', async () => {
@@ -98,4 +98,12 @@ test('manages API tokens with one-time secret display', async () => {
   assert.match(page, /setSecret\(result\.token\)/);
   assert.match(page, /It cannot be shown again/);
   assert.match(page, /Revoke/);
+});
+
+test('renders open questions on the homepage by latest available activity', async () => {
+  const page = await read('../app/page.js');
+  assert.match(page, /\/questions\?limit=20/);
+  assert.match(page, /CLOSED_STATES/);
+  assert.match(page, /Open questions/);
+  assert.match(page, /Newest activity first/);
 });

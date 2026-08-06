@@ -55,6 +55,16 @@ test("returns 404 for unknown routes", async () => {
   assert.equal(response.headers.get("x-request-id"), "unknown-route");
 });
 
+test('lists public questions with query filters', async () => {
+  const app = createApp({ repository: { listQuestions: async ({ state }) => [
+    { questionId: 'question-1', projectId: 'project-1', state: state ?? 'active', createdAt: '2026-08-06T00:00:00.000Z' },
+  ] } });
+  const response = await app.fetch(new Request('https://api.example.test/questions?state=active&limit=6'), {});
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.deepEqual(body.items.map((question) => question.questionId), ['question-1']);
+});
+
 test("serves Task Context by explicit mode", async () => {
   const app = createApp({ repository: { getContextBundleForTask: async () => ({ contextBundleId: "context-1", taskId: "task-1", mode: "blind", contentHash: `sha256:${"a".repeat(64)}`, storageUri: "r2://evimesh/context-1.json", manifest: {} }) } });
   const response = await app.fetch(new Request("https://api.example.test/tasks/task-1/context?mode=blind", { headers: { "x-request-id": "context-request" } }), {});

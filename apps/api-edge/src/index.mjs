@@ -10,6 +10,7 @@ import { registerOwnSigningKey } from './signing-key-api.mjs';
 import { SigningKeyError } from '../../../packages/domain/src/signing-key.mjs';
 import { listOwnTokens, createOwnToken, revokeOwnToken } from './api-token-api.mjs';
 import { ApiTokenError } from '../../../packages/domain/src/api-token.mjs';
+import { listQuestions, QuestionQueryError } from './question-query.mjs';
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
 
@@ -73,6 +74,23 @@ app.get("/auth/me", async (context) => {
     if (error instanceof JwtVerificationError || error instanceof SyntaxError) {
       return context.json(errorBody("unauthorized", "authentication required", context.get("requestId")), 401);
     }
+    throw error;
+  }
+});
+
+app.get('/questions', async (context) => {
+  try {
+    const requestedLimit = context.req.query('limit');
+    const limit = requestedLimit === undefined ? 20 : Number(requestedLimit);
+    return context.json(await listQuestions({
+      repository,
+      projectId: context.req.query('projectId') ?? null,
+      state: context.req.query('state') ?? null,
+      limit,
+      cursor: context.req.query('cursor') ?? null,
+    }));
+  } catch (error) {
+    if (error instanceof QuestionQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status);
     throw error;
   }
 });
