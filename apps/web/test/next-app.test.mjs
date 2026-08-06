@@ -380,6 +380,9 @@ test('renders Verification Receipt form with outcome, independence, and findings
   assert.match(page, /implementationRelation/);
   assert.match(page, /dataRelation/);
   assert.match(page, /findings/);
+  assert.match(page, /fieldPath/);
+  assert.match(page, /details: \{ text/);
+  assert.match(page, /location: \{ fieldPath/);
   assert.match(route, /VerificationReceiptForm/);
 });
 
@@ -389,4 +392,13 @@ test('renders Challenge form locking a Claim revision to counterexample Evidence
   assert.match(page, /claimRevision/);
   assert.match(page, /counterexampleEvidenceId/);
   assert.match(page, /Rationale/);
+});
+
+test('renders Frontier detail with members, policy, checkpoint, and diff', async () => {
+  const page = await read('../app/projects/[projectId]/frontier/[snapshotId]/page.js');
+  assert.match(page, /frontier\/history/);
+  assert.match(page, /Members/);
+  assert.match(page, /Policy/);
+  assert.match(page, /Checkpoint/);
+  assert.match(page, /Member diff/);
 });
