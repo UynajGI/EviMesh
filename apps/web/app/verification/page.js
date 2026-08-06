@@ -1,5 +1,6 @@
 import { SectionPlaceholder } from '@/components/section-placeholder';
 import { ClaimDag } from '@/components/claim-dag';
+import { VerificationWorkspace } from '@/components/verification-workspace';
 
 const sampleElements = [
   { data: { id: 'evidence', label: 'Evidence' } },
@@ -10,5 +11,5 @@ const sampleElements = [
 ];
 
 export default function VerificationPage() {
-  return <><SectionPlaceholder eyebrow="Trust layer" title="Verification" description="Review evidence, verification receipts, and the current confidence of the shared record." /><section className="mx-auto max-w-6xl px-6 pb-20"><ClaimDag elements={sampleElements} /></section></>;
+  return <><SectionPlaceholder eyebrow="Trust layer" title="Verification" description="Review evidence, verification receipts, and the current confidence of the shared record." /><VerificationWorkspace /><section className="mx-auto max-w-6xl px-6 pb-20"><ClaimDag elements={sampleElements} /></section></>;
 }

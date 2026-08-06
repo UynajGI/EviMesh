@@ -359,3 +359,12 @@ test('renders Evidence form linking Run, Artifact, and Claim revision', async ()
   assert.match(page, /claimRevision/);
   assert.match(page, /relationType/);
 });
+
+test('renders Verification workspace for Claim, Run, and Contract pinning', async () => {
+  const page = await read('../components/verification-workspace.js');
+  assert.match(page, /Verification workspace/);
+  assert.match(page, /claimRevision/);
+  assert.match(page, /runId/);
+  assert.match(page, /contractRevision/);
+  assert.match(page, /sawExpectedOutputs/);
+});
