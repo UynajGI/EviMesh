@@ -102,4 +102,11 @@ ordered sibling path. It returns `false` for malformed data or any altered leaf,
 sibling, direction, or root, making proof validation safe for untrusted public
 inputs.
 
-后续 M7 loop 将在这一边界上增加 Merkle checkpoint 与 provenance。
+## Merkle checkpoint creation
+
+The Worker creates an unsigned `evimesh.merkle-checkpoint.v1` candidate from an
+inclusive, repository-defined contiguous Event range. It binds the two range
+endpoints, event count, and deterministic Merkle root; M7-18 signs this
+candidate before it can be persisted as a published checkpoint.
+
+后续 M7 loop 将在这一边界上增加 checkpoint 签名与 provenance。
