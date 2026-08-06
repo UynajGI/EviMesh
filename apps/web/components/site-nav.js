@@ -6,6 +6,7 @@ const links = [
   { href: '/tasks', label: 'Tasks' },
   { href: '/verification', label: 'Verification' },
   { href: '/contributions', label: 'Contributions' },
+  { href: '/sign-in', label: 'Sign in' },
 ];
 
 export function SiteNav() {
