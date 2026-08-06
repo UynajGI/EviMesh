@@ -107,3 +107,10 @@ test('renders open questions on the homepage by latest available activity', asyn
   assert.match(page, /Open questions/);
   assert.match(page, /Newest activity first/);
 });
+
+test('renders only claims awaiting verification on the homepage', async () => {
+  const page = await read('../app/page.js');
+  assert.match(page, /under_verification/);
+  assert.match(page, /provisionally_accepted/);
+  assert.match(page, /Claims awaiting verification/);
+});

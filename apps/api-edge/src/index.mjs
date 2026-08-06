@@ -11,6 +11,7 @@ import { SigningKeyError } from '../../../packages/domain/src/signing-key.mjs';
 import { listOwnTokens, createOwnToken, revokeOwnToken } from './api-token-api.mjs';
 import { ApiTokenError } from '../../../packages/domain/src/api-token.mjs';
 import { listQuestions, QuestionQueryError } from './question-query.mjs';
+import { listClaims, ClaimQueryError } from './claim-query.mjs';
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
 
@@ -91,6 +92,24 @@ app.get('/questions', async (context) => {
     }));
   } catch (error) {
     if (error instanceof QuestionQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status);
+    throw error;
+  }
+});
+
+app.get('/claims', async (context) => {
+  try {
+    const requestedLimit = context.req.query('limit');
+    const limit = requestedLimit === undefined ? 20 : Number(requestedLimit);
+    return context.json(await listClaims({
+      repository,
+      projectId: context.req.query('projectId') ?? null,
+      status: context.req.query('status') ?? null,
+      tag: context.req.query('tag') ?? null,
+      limit,
+      cursor: context.req.query('cursor') ?? null,
+    }));
+  } catch (error) {
+    if (error instanceof ClaimQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status);
     throw error;
   }
 });

@@ -65,6 +65,16 @@ test('lists public questions with query filters', async () => {
   assert.deepEqual(body.items.map((question) => question.questionId), ['question-1']);
 });
 
+test('lists public claims with a status filter', async () => {
+  const app = createApp({ repository: { listClaims: async ({ status }) => [
+    { claimId: 'claim-1', questionId: 'question-1', state: status, createdAt: '2026-08-06T00:00:00.000Z' },
+  ] } });
+  const response = await app.fetch(new Request('https://api.example.test/claims?status=under_verification&limit=6'), {});
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.deepEqual(body.items.map((claim) => claim.state), ['under_verification']);
+});
+
 test("serves Task Context by explicit mode", async () => {
   const app = createApp({ repository: { getContextBundleForTask: async () => ({ contextBundleId: "context-1", taskId: "task-1", mode: "blind", contentHash: `sha256:${"a".repeat(64)}`, storageUri: "r2://evimesh/context-1.json", manifest: {} }) } });
   const response = await app.fetch(new Request("https://api.example.test/tasks/task-1/context?mode=blind", { headers: { "x-request-id": "context-request" } }), {});
