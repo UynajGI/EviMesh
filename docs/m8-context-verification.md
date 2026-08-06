@@ -109,3 +109,9 @@ M8-12 adds `submitVerification`. It checks the exact Claim and Contract
 revisions, then writes the VerificationReceipt, all Findings, a verifier
 ContributionStatement, and `verification.submitted` in one transaction.
 Missing revisions prevent every write, preserving the receipt's provenance.
+
+## Verification receipt query
+
+M8-13 adds `getVerificationReceipt`, returning exactly one persisted receipt
+and its persisted Findings by receipt ID. Missing receipts are explicit 404s;
+the query never decorates results with mutable Claim or Contract projections.
