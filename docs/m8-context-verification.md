@@ -88,3 +88,10 @@ contract and revision 1 atomically, with non-empty requirements, explicit
 unique verification types, and protocol-valid context modes. The command
 appends `verification_contract.created` in the same transaction, so every
 subsequent VerificationReceipt can name an immutable contract revision.
+
+## VerificationPolicy create command
+
+M8-10 adds `createVerificationPolicyCommand`. It delegates policy-shape
+validation to the protocol, then atomically writes the stable policy, immutable
+revision 1, and `verification_policy.created` event. Empty requirements or
+outcomes cannot enter persistence.

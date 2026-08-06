@@ -1,0 +1,7 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { VerificationPolicyCommandError, createVerificationPolicyCommand } from "../src/verification-policy-command.mjs";
+function repository() { const calls=[]; const repo={calls,withTransaction:async(cb)=>cb(repo),insertVerificationPolicy:async(v)=>{calls.push(["policy",v]);return v;},insertVerificationPolicyRevision:async(v)=>{calls.push(["revision",v]);return v;},appendResearchEvent:async(v)=>{calls.push(["event",v]);return v;}}; return repo; }
+const input={actorId:"actor-1",actorRole:"maintainer",policyId:"policy-1",requirements:{independentRuns:2},outcomes:{supports:"accept"},eventFactory:async(event)=>event};
+test("creates a stable VerificationPolicy, revision, and ResearchEvent",async()=>{const repo=repository();const result=await createVerificationPolicyCommand({...input,repository:repo});assert.equal(result.revision.revision,1);assert.deepEqual(result.revision.outcomes,{supports:"accept"});assert.equal(result.event.eventType,"verification_policy.created");assert.deepEqual(repo.calls.map(([type])=>type),["policy","revision","event"]);});
+test("rejects invalid policy records before writing",async()=>{const repo=repository();await assert.rejects(()=>createVerificationPolicyCommand({...input,repository:repo,requirements:{}}),VerificationPolicyCommandError);await assert.rejects(()=>createVerificationPolicyCommand({...input,repository:repo,outcomes:{supports:null}}),VerificationPolicyCommandError);assert.deepEqual(repo.calls,[]);});
