@@ -340,3 +340,13 @@ test('renders Artifact detail with hash, license, and locations', async () => {
   assert.match(page, /license/);
   assert.match(page, /locations/);
 });
+
+test('renders Run Receipt form for environment, command, seed, and outputs', async () => {
+  const page = await read('../app/runs/new/page.js');
+  assert.match(page, /Run Receipt/);
+  assert.match(page, /environment/);
+  assert.match(page, /command/);
+  assert.match(page, /randomSeed/);
+  assert.match(page, /outputArtifactIds/);
+  assert.match(page, /Preview Receipt/);
+});

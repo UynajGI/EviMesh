@@ -8,6 +8,7 @@ const links = [
   { href: '/claims', label: 'Claims' },
   { href: '/claims/new', label: 'Draft a claim' },
   { href: '/artifacts/upload', label: 'Upload evidence' },
+  { href: '/runs/new', label: 'Record a run' },
   { href: '/verification', label: 'Verification' },
   { href: '/contributions', label: 'Contributions' },
   { href: '/sign-in', label: 'Sign in' },
