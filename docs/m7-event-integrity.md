@@ -28,4 +28,12 @@ object, Actor, type, and created-time filters to its repository, requires object
 and ID together, normalizes ISO-8601 bounds, and applies the shared opaque cursor
 pagination by `(createdAt, eventId)`.
 
+## Event NDJSON export
+
+`exportResearchEventRangeNdjson` exports the inclusive Event range supplied by
+`listResearchEventRange({ firstEventId, lastEventId })`. The repository owns the
+authoritative event ordering and must return the complete contiguous range. The API
+layer rejects an empty range, missing boundaries, duplicate IDs, or malformed rows
+instead of silently producing a partial audit export.
+
 后续 M7 loop 会在这一边界上增加对象/Actor 哈希链、Outbox、Merkle checkpoint 与 provenance。
