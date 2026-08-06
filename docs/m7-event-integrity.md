@@ -52,4 +52,11 @@ row to `processing` with `lockedAt` before returning it. The utility validates t
 returned locks are unique and complete, preventing a worker from treating an
 ambiguous result as safely claimed work.
 
+## Outbox success acknowledgement
+
+`acknowledgeOutboxJob` confirms a completed `processing` job through an atomic
+repository update. A successful acknowledgement must return the same outbox ID with
+`status: processed` and the exact normalized `processedAt` timestamp; otherwise the
+worker treats the acknowledgement as failed rather than assuming delivery state.
+
 后续 M7 loop 会在这一边界上增加对象/Actor 哈希链、Outbox、Merkle checkpoint 与 provenance。
