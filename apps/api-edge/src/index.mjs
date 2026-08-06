@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { authenticateSupabaseRequest, JwtVerificationError } from "./jwt.mjs";
 import { RequestValidationError } from "./validation.mjs";
+import { getPlatformPublicKeys, PlatformPublicKeysError } from './platform-public-keys.mjs';
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
 
@@ -42,6 +43,18 @@ app.get("/health", (context) => context.json({
   status: "ok",
   environment: context.env.EVIMESH_ENV ?? "development",
 }));
+
+app.get('/platform/keys', (context) => {
+  try {
+    const keyring = JSON.parse(context.env?.PLATFORM_KEYRING ?? '');
+    return context.json(getPlatformPublicKeys({ keyring }));
+  } catch (error) {
+    if (error instanceof PlatformPublicKeysError || error instanceof SyntaxError) {
+      return context.json(errorBody('platform_keys_unavailable', 'platform public keys are unavailable', context.get('requestId')), 503);
+    }
+    throw error;
+  }
+});
 
 app.get("/auth/me", async (context) => {
   try {

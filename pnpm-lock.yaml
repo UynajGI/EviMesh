@@ -58,6 +58,8 @@ importers:
 
   packages/domain: {}
 
+  packages/merkle: {}
+
   packages/policy-engine: {}
 
   packages/protocol: {}
