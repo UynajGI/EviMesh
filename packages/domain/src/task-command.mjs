@@ -348,6 +348,34 @@ export async function renewTaskLease({
   });
 }
 
+/** Release the authenticated Actor's active Task lease as a soft deletion. */
+export async function releaseTaskLease({ repository, actorId, actorRole, taskId, now = new Date(), eventFactory } = {}) {
+  if (!repository || typeof repository.withTransaction !== "function") throw new TaskCommandError("repository withTransaction is required");
+  for (const method of ["listCurrentTaskLeases", "updateTaskLease", "appendResearchEvent"]) {
+    if (typeof repository[method] !== "function") throw new TaskCommandError(`repository ${method} is required`);
+  }
+  actorId = requiredText(actorId, "actor id");
+  taskId = requiredText(taskId, "task id");
+  const nowDate = now instanceof Date ? now : new Date(now);
+  if (Number.isNaN(nowDate.getTime())) throw new TaskCommandError("lease time is invalid");
+  if (typeof eventFactory !== "function") throw new TaskCommandError("eventFactory is required");
+  assertProjectRoleForAction({ actorRole, requiredRole: "contributor" });
+
+  return repository.withTransaction(async (transaction) => {
+    const lease = (await transaction.listCurrentTaskLeases(taskId) ?? []).find((candidate) => candidate.holderActorId === actorId);
+    if (!lease) throw new TaskCommandError("task lease not found for actor", "LEASE_NOT_FOUND", 404);
+    const deletedAt = nowDate.toISOString();
+    const event = await eventFactory({
+      eventType: "task.lease_released",
+      payload: { entity_type: "task_lease", task_id: taskId, holder_actor_id: actorId, released_at: deletedAt, actor_id: actorId },
+    });
+    if (!event || typeof event !== "object") throw new TaskCommandError("eventFactory must return an event object");
+    const persistedLease = await transaction.updateTaskLease(taskId, actorId, { deletedAt });
+    const persistedEvent = await transaction.appendResearchEvent(event);
+    return { lease: persistedLease ?? { ...lease, deletedAt }, event: persistedEvent ?? event };
+  });
+}
+
 /** Soft-delete expired Task leases and record cleanup events atomically. */
 export async function expireTaskLeases({
   repository,

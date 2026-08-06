@@ -6,6 +6,7 @@ import { getPlatformPublicKeys, PlatformPublicKeysError } from './platform-publi
 import { getOwnProfile, patchOwnProfile } from './profile-api.mjs';
 import { ActorIdentityError, resolveActorForSupabaseClaims } from './actor-identity.mjs';
 import { ActorProfileError } from '../../../packages/domain/src/actor-profile.mjs';
+import { ProjectAuthorizationError } from '../../../packages/domain/src/project-authorization.mjs';
 import { registerOwnSigningKey } from './signing-key-api.mjs';
 import { SigningKeyError } from '../../../packages/domain/src/signing-key.mjs';
 import { listOwnTokens, createOwnToken, revokeOwnToken } from './api-token-api.mjs';
@@ -19,7 +20,7 @@ import { createProject } from '../../../packages/domain/src/project-command.mjs'
 import { ProjectCommandError } from '../../../packages/domain/src/project-command.mjs';
 import { createQuestion } from '../../../packages/domain/src/question-command.mjs';
 import { QuestionCommandError } from '../../../packages/domain/src/question-command.mjs';
-import { createAttempt, TaskCommandError } from '../../../packages/domain/src/task-command.mjs';
+import { acquireTaskLease, createAttempt, releaseTaskLease, TaskCommandError } from '../../../packages/domain/src/task-command.mjs';
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
 
@@ -31,7 +32,7 @@ function errorBody(code, message, requestId) {
   return { code, message, request_id: requestId };
 }
 
-export function createApp({ repository = null, projectEventFactory = null, questionEventFactory = null, questionRoleResolver = null, attemptEventFactory = null, attemptRoleResolver = null, authenticate = authenticateSupabaseRequest } = {}) {
+export function createApp({ repository = null, projectEventFactory = null, questionEventFactory = null, questionRoleResolver = null, attemptEventFactory = null, attemptRoleResolver = null, leaseEventFactory = null, leaseRoleResolver = null, authenticate = authenticateSupabaseRequest } = {}) {
 const app = new Hono();
 
 app.use("*", async (context, next) => {
@@ -258,8 +259,37 @@ app.post('/tasks/:taskId/attempts', async (context) => {
     });
     return context.json(result, 201);
   } catch (error) {
-    const status = error instanceof JwtVerificationError ? 401 : error instanceof ActorIdentityError ? error.status : error instanceof TaskCommandError ? error.status : error.status;
+    const status = error instanceof JwtVerificationError ? 401 : error instanceof ActorIdentityError ? error.status : error instanceof ProjectAuthorizationError ? 403 : error instanceof TaskCommandError ? error.status : error.status;
     if (status) return context.json(errorBody(error.code ?? 'attempt_creation_failed', error.message, context.get('requestId')), status);
+    throw error;
+  }
+});
+
+app.post('/tasks/:taskId/lease', async (context) => {
+  try {
+    if (typeof leaseEventFactory !== 'function' || typeof leaseRoleResolver !== 'function') return context.json(errorBody('LEASE_OPERATION_UNAVAILABLE', 'lease operations are not configured', context.get('requestId')), 503);
+    const claims = await authenticate(context.req.raw, context.env);
+    const actorId = await resolveActorForSupabaseClaims({ repository, claims });
+    const body = await context.req.json().catch(() => ({}));
+    const actorRole = await leaseRoleResolver({ repository, actorId, taskId: context.req.param('taskId') });
+    return context.json(await acquireTaskLease({ repository, actorId, actorRole, taskId: context.req.param('taskId'), leaseDurationMs: body.leaseDurationMs ?? undefined, eventFactory: leaseEventFactory }), 201);
+  } catch (error) {
+    const status = error instanceof JwtVerificationError ? 401 : error instanceof ActorIdentityError ? error.status : error instanceof ProjectAuthorizationError ? 403 : error instanceof TaskCommandError ? error.status : error.status;
+    if (status) return context.json(errorBody(error.code ?? 'lease_operation_failed', error.message, context.get('requestId')), status);
+    throw error;
+  }
+});
+
+app.delete('/tasks/:taskId/lease', async (context) => {
+  try {
+    if (typeof leaseEventFactory !== 'function' || typeof leaseRoleResolver !== 'function') return context.json(errorBody('LEASE_OPERATION_UNAVAILABLE', 'lease operations are not configured', context.get('requestId')), 503);
+    const claims = await authenticate(context.req.raw, context.env);
+    const actorId = await resolveActorForSupabaseClaims({ repository, claims });
+    const actorRole = await leaseRoleResolver({ repository, actorId, taskId: context.req.param('taskId') });
+    return context.json(await releaseTaskLease({ repository, actorId, actorRole, taskId: context.req.param('taskId'), eventFactory: leaseEventFactory }));
+  } catch (error) {
+    const status = error instanceof JwtVerificationError ? 401 : error instanceof ActorIdentityError ? error.status : error instanceof TaskCommandError ? error.status : error.status;
+    if (status) return context.json(errorBody(error.code ?? 'lease_operation_failed', error.message, context.get('requestId')), status);
     throw error;
   }
 });

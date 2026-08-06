@@ -229,3 +229,11 @@ test('starts an Attempt and exposes a Context bundle download', async () => {
   assert.match(page, /Download Context bundle/);
   assert.match(page, /\/attempts/);
 });
+
+test('provides Task lease acquire and release actions', async () => {
+  const page = await read('../app/tasks/[taskId]/page.js');
+  assert.match(page, /Acquire lease/);
+  assert.match(page, /Release my lease/);
+  assert.match(page, /\/lease/);
+  assert.match(page, /updateLease/);
+});

@@ -206,6 +206,28 @@ test('starts an Attempt from a matching Context Bundle', async () => {
   assert.equal(body.attempt.state, 'active');
 });
 
+test('acquires and releases the authenticated Actor Task lease', async () => {
+  const leases = [];
+  const repository = {
+    findIdentity: async () => ({ actorId: 'actor-1' }),
+    listCurrentTaskLeases: async () => leases,
+    insertTaskLease: async (lease) => { leases.push(lease); return lease; },
+    updateTaskLease: async (taskId, actorId, patch) => {
+      const lease = leases.find((candidate) => candidate.taskId === taskId && candidate.holderActorId === actorId);
+      Object.assign(lease, patch);
+      return lease;
+    },
+    appendResearchEvent: async (event) => event,
+    withTransaction: async (callback) => callback(repository),
+  };
+  const app = createApp({ repository, leaseEventFactory: async ({ eventType, payload }) => ({ eventType, payload }), leaseRoleResolver: async () => 'maintainer', authenticate: async () => ({ sub: 'supabase-subject' }) });
+  const acquire = await app.fetch(new Request('https://api.example.test/tasks/task-1/lease', { method: 'POST', headers: { authorization: 'Bearer test-token' }, body: '{}' }), {});
+  assert.equal(acquire.status, 201);
+  const release = await app.fetch(new Request('https://api.example.test/tasks/task-1/lease', { method: 'DELETE', headers: { authorization: 'Bearer test-token' } }), {});
+  assert.equal(release.status, 200);
+  assert.ok(leases[0].deletedAt);
+});
+
 test('returns a Question with its Contract revision', async () => {
   const app = createApp({ repository: {
     getQuestion: async (questionId) => ({ questionId, projectId: 'project-1', state: 'draft' }),
