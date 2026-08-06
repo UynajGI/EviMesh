@@ -1,5 +1,7 @@
 import { createVerificationPolicy } from './verification-policy.mjs';
 
+const COUNT_REQUIREMENTS = new Set(['blind_reproductions']);
+
 export class VerificationPolicyEvaluationError extends Error {
   constructor(message, code = 'VERIFICATION_POLICY_EVALUATION_INVALID') {
     super(message);
@@ -27,6 +29,9 @@ function deepEqual(left, right) {
 function evaluateRequirement(key, expected, actual) {
   if (typeof expected === 'number') {
     if (!Number.isFinite(actual)) throw new VerificationPolicyEvaluationError(`input.${key} must be a finite number`);
+    if (COUNT_REQUIREMENTS.has(key) && (!Number.isInteger(actual) || actual < 0)) {
+      throw new VerificationPolicyEvaluationError(`input.${key} must be a non-negative integer`);
+    }
     if (key === 'blocking_findings') return actual <= expected;
     return actual >= expected;
   }

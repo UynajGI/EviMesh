@@ -31,6 +31,12 @@ test('does not promote a Claim with blocking Findings', () => {
   assert.equal(result.requirement_results.find((item) => item.key === 'blocking_findings').met, false);
 });
 
+test('requires the configured count of blind receipts before promotion', () => {
+  const result = evaluateVerificationPolicy({ policy, input: { blind_reproductions: 0, schema_gate: 'pass', successful_reproductions: 2 } });
+  assert.equal(result.requirements_met, false);
+  assert.throws(() => evaluateVerificationPolicy({ policy, input: { blind_reproductions: 0.5, schema_gate: 'pass', successful_reproductions: 2 } }), /blind_reproductions must be a non-negative integer/);
+});
+
 test('marks a Claim contested when a valid refuting Receipt exists', () => {
   const result = evaluateVerificationPolicy({ policy, input: { blind_reproductions: 1, refuting_receipts: 1, schema_gate: 'pass', successful_reproductions: 2 } });
   assert.equal(result.requirements_met, true);

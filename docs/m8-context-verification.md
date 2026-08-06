@@ -152,3 +152,9 @@ M8-18 gives a verified `refuting_receipts` count precedence over promotion:
 when it is positive, the interpreter recommends the policy's
 `any_refuting_receipt` outcome (normally `contested`) even if all promotion
 requirements are otherwise satisfied.
+
+## Blind receipt count rule
+
+M8-19 treats `blind_reproductions` as a non-negative integer count. The
+configured minimum must be reached before promotion is recommended; fractional
+or negative values fail evaluation rather than weakening the independence gate.
