@@ -197,6 +197,13 @@ test('returns bounded upstream and downstream Claim graphs', async () => {
   assert.equal((await downstream.json()).nodes[0].dependencyTainted, true);
 });
 
+test('returns an immutable Claim revision by revision number', async () => {
+  const app = createApp({ repository: { getClaimRevision: async (claimId, revision) => ({ claimId, revision, statement: 'Historical statement.' }) } });
+  const response = await app.fetch(new Request('https://api.example.test/claims/claim-1/revisions/1'), {});
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).claimRevision.revision, 1);
+});
+
 test('returns Task details with its current revision, dependencies, and leases', async () => {
   const app = createApp({ repository: {
     getTask: async (taskId) => ({ taskId, state: 'active' }),

@@ -313,3 +313,11 @@ test('renders the Claim editor for statement, scope, assumptions, and falsificat
   assert.match(page, /Claim preview/);
   assert.match(nav, /claims\/new/);
 });
+
+test('renders Claim revision diff controls and changed fields', async () => {
+  const page = await read('../app/claims/[claimId]/diff/page.js');
+  assert.match(page, /revisions\/\$\{revision\}/);
+  assert.match(page, /From revision/);
+  assert.match(page, /To revision/);
+  assert.match(page, /Changed fields/);
+});
