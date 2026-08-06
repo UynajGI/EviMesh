@@ -122,4 +122,11 @@ It returns the root hash, inclusive Event range, event count, and parsed platfor
 signature; missing checkpoints map to a typed 404 and malformed stored records
 fail closed as internal errors.
 
-后续 M7 loop 将在这一边界上增加 Event proof 查询与 provenance。
+## Research Event inclusion proof query
+
+`getResearchEventInclusionProof` resolves the published checkpoint covering one
+Event, rebuilds its inclusive range, and returns the Event's proof only when the
+reconstructed root equals the published root. The resulting proof is directly
+verifiable with `verifyMerkleInclusionProof`.
+
+后续 M7 loop 将在这一边界上增加 provenance。
