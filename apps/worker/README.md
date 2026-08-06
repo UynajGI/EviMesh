@@ -18,3 +18,12 @@ Attempt traces, current Claim projections, timestamps, and any dependency
 outside the selected Frontier are deliberately excluded. A repository adapter
 must expose the revision-oriented methods documented by the function's input
 contract. Run its contract tests with `pnpm --filter @evimesh/worker test`.
+
+## Blind Context compiler
+
+`src/blind-context-compiler.mjs` implements M8-04. It starts with the same
+immutable Frontier inputs, always removes the Task's `outputs`, then removes
+each explicitly supplied non-root JSON Pointer from the compiled payload.
+Invalid or missing pointers fail closed. The pointer list itself is not
+included in the emitted bundle, preventing it from disclosing target-label
+locations to a verifier.

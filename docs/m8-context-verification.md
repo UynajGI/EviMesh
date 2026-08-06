@@ -37,3 +37,12 @@ from those classified Frontier members; it never tries to infer consensus from
 free text. It then accepts only fixed-Frontier `refutes`, `qualifies`,
 `contradicts`, and `challenges` relations as counter-material. Any relation or
 classification outside the snapshot fails compilation.
+
+## Blind Context compiler
+
+M8-04 produces a revision-pinned `blind` bundle from the same fixed Frontier
+contract. It always removes `task.outputs`, then applies caller-supplied,
+non-root JSON Pointer redactions for fields such as target labels. The compiler
+does not keep those pointers in the output bundle. A malformed, unsafe, or
+missing pointer stops compilation rather than allowing an ambiguous context to
+reach a verifier.
