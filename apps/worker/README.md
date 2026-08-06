@@ -34,3 +34,5 @@ locations to a verifier.
 and SHA-256 semantic-hash rules. `hashContextBundle` returns a prefixed
 `sha256:<digest>` value; `verifyContextBundleHash` recomputes it for a
 downloaded payload and fails closed on mismatch before that payload is trusted.
+The integrity implementation lives in `@evimesh/protocol`, so the domain command
+uses the exact same algorithm when it persists a bundle.

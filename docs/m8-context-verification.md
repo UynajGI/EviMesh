@@ -54,3 +54,12 @@ algorithm and returns a lowercase `sha256:`-prefixed digest. Key-order changes
 therefore do not affect the value, while any semantic change does. Consumers
 call `verifyContextBundleHash` after download; it rejects a malformed expected
 digest or a payload whose recomputed digest differs from the supplied one.
+
+## ContextBundle create command
+
+M8-06 adds `createContextBundle` in `@evimesh/domain`. It derives task,
+revision, mode, Frontier snapshot, and content hash from the compiled bundle;
+verifies that the named immutable Task revision and snapshot exist; then writes
+the database row and `context_bundle.created` ResearchEvent in one transaction.
+The stored manifest records only durable identity and storage metadata, while
+the complete payload remains at the validated storage URI.
