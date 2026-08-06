@@ -332,3 +332,11 @@ test('renders direct R2 evidence upload with hash and progress', async () => {
   assert.match(panel, /SHA-256/);
   assert.match(page, /ArtifactUploadPanel/);
 });
+
+test('renders Artifact detail with hash, license, and locations', async () => {
+  const page = await read('../app/artifacts/[artifactId]/page.js');
+  assert.match(page, /artifacts\/\$\{artifactId\}/);
+  assert.match(page, /rawHash/);
+  assert.match(page, /license/);
+  assert.match(page, /locations/);
+});
