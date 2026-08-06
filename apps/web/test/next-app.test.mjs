@@ -202,5 +202,13 @@ test('renders the Task board with every protocol status lane', async () => {
   const page = await read('../app/tasks/page.js');
   for (const status of ['draft', 'open', 'active', 'blocked', 'verification_requested', 'completed', 'cancelled']) assert.match(page, new RegExp(`'${status}'`));
   assert.match(page, /Task board/);
-  assert.match(page, /tasks\?limit=100/);
+  assert.match(page, /URLSearchParams\(\{ limit: '100' \}\)/);
+});
+
+test('provides Task filters for type, status, tag, and Context Mode', async () => {
+  const page = await read('../app/tasks/page.js');
+  for (const filter of ['Type', 'Status', 'Tag', 'Context Mode']) assert.match(page, new RegExp(filter));
+  for (const mode of ['frontier', 'full_trace', 'adversarial', 'blind']) assert.match(page, new RegExp(`'${mode}'`));
+  assert.match(page, /filters\.contextMode/);
+  assert.match(page, /URLSearchParams/);
 });
