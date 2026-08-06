@@ -31,6 +31,12 @@ test('does not promote a Claim with blocking Findings', () => {
   assert.equal(result.requirement_results.find((item) => item.key === 'blocking_findings').met, false);
 });
 
+test('marks a Claim contested when a valid refuting Receipt exists', () => {
+  const result = evaluateVerificationPolicy({ policy, input: { blind_reproductions: 1, refuting_receipts: 1, schema_gate: 'pass', successful_reproductions: 2 } });
+  assert.equal(result.requirements_met, true);
+  assert.equal(result.recommended_outcome, 'contested');
+});
+
 test('fails closed for missing or malformed policy inputs', () => {
   assert.throws(() => evaluateVerificationPolicy({ policy, input: { schema_gate: 'pass', successful_reproductions: 2 } }), (error) => error instanceof VerificationPolicyEvaluationError && error.code === 'POLICY_INPUT_MISSING');
   assert.throws(() => evaluateVerificationPolicy({ policy, input: { blind_reproductions: '1', schema_gate: 'pass', successful_reproductions: 2 } }), /finite number/);

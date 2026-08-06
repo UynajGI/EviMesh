@@ -44,6 +44,10 @@ export function evaluateVerificationPolicy({ policy, input } = {}) {
     outcomes: candidate.outcomes,
   });
   input = record(input, 'input');
+  const refutingReceipts = input.refuting_receipts ?? 0;
+  if (!Number.isInteger(refutingReceipts) || refutingReceipts < 0) {
+    throw new VerificationPolicyEvaluationError('input.refuting_receipts must be a non-negative integer');
+  }
 
   const requirementResults = Object.entries(normalized.requirements)
     .sort(([left], [right]) => left.localeCompare(right))
@@ -61,6 +65,6 @@ export function evaluateVerificationPolicy({ policy, input } = {}) {
     input: Object.freeze({ ...input }),
     requirement_results: Object.freeze(requirementResults),
     requirements_met: requirementsMet,
-    recommended_outcome: requirementsMet ? normalized.outcomes.requirements_met ?? null : null,
+    recommended_outcome: refutingReceipts > 0 ? normalized.outcomes.any_refuting_receipt ?? 'contested' : requirementsMet ? normalized.outcomes.requirements_met ?? null : null,
   });
 }

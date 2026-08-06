@@ -145,3 +145,10 @@ M8-21.
 M8-17 interprets `blocking_findings` as a maximum rather than a lower-bound
 counter. A policy requiring zero blocking Findings therefore cannot recommend
 a promotion while any critical or major Finding remains.
+
+## Refuting Receipt rule
+
+M8-18 gives a verified `refuting_receipts` count precedence over promotion:
+when it is positive, the interpreter recommends the policy's
+`any_refuting_receipt` outcome (normally `contested`) even if all promotion
+requirements are otherwise satisfied.
