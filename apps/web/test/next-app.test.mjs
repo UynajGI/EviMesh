@@ -46,7 +46,8 @@ test('provides primary navigation and the five initial product routes', async ()
   assert.match(layout, /<SiteNav \/>/);
   assert.match(nav, /aria-label="Primary navigation"/);
   for (const href of ['/', '/projects', '/tasks', '/verification', '/contributions']) assert.match(nav, new RegExp(`href: '${href.replace('/', '\\/')}'`));
-  for (const page of [projects, tasks, verification, contributions]) assert.match(page, /SectionPlaceholder/);
+  for (const page of [tasks, verification, contributions]) assert.match(page, /SectionPlaceholder/);
+  assert.match(projects, /Create a project/);
 });
 
 test('renders a recoverable global error state with an API request ID', async () => {
@@ -136,4 +137,11 @@ test('renders project details with Questions, Frontier, and Task summaries', asy
   assert.match(page, /\/questions\?projectId=/);
   assert.match(page, /\/tasks\?projectId=/);
   assert.match(page, /Latest frontier/);
+});
+
+test('renders the project list and creation form', async () => {
+  const page = await read('../app/projects/page.js');
+  assert.match(page, /Create a project/);
+  assert.match(page, /POST/);
+  assert.match(page, /\/projects\/\$\{project\.projectId\}/);
 });

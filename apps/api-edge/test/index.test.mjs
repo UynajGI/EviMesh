@@ -98,6 +98,35 @@ test('returns a public project with its current revision', async () => {
   assert.equal((await response.json()).currentRevision.name, 'Evidence Mesh');
 });
 
+test('creates a project through the authenticated command boundary', async () => {
+  const calls = [];
+  const app = createApp({
+    repository: {
+      findIdentity: async () => ({ actorId: 'actor-1' }),
+      insertProject: async () => null,
+      insertProjectRevision: async () => null,
+      insertProjectMember: async () => null,
+      appendResearchEvent: async () => null,
+      withTransaction: async (callback) => callback({
+        insertProject: async (project) => { calls.push(['project', project]); return project; },
+        insertProjectRevision: async (revision) => { calls.push(['revision', revision]); return revision; },
+        insertProjectMember: async (member) => { calls.push(['member', member]); return member; },
+        appendResearchEvent: async (event) => { calls.push(['event', event]); return event; },
+      }),
+    },
+    projectEventFactory: async ({ eventType, payload }) => ({ eventType, payload }),
+    authenticate: async () => ({ sub: 'supabase-subject' }),
+  });
+  const response = await app.fetch(new Request('https://api.example.test/projects', {
+    method: 'POST',
+    headers: { authorization: 'Bearer test-token', 'content-type': 'application/json' },
+    body: JSON.stringify({ projectId: 'project-1', name: 'Evidence Mesh', summary: 'A research project.', license: 'CC-BY-4.0' }),
+  }), { SUPABASE_JWT_SECRET: 'test-secret' });
+  assert.equal(response.status, 201);
+  assert.equal((await response.json()).project.projectId, 'project-1');
+  assert.equal(calls.length, 4);
+});
+
 test('lists open newcomer tasks by tag', async () => {
   const app = createApp({ repository: { listTasks: async ({ status, tag }) => [
     { taskId: 'task-1', projectId: 'project-1', status, tag, createdAt: '2026-08-06T00:00:00.000Z' },

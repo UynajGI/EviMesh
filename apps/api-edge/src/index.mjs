@@ -15,6 +15,8 @@ import { listClaims, ClaimQueryError } from './claim-query.mjs';
 import { getProject, listProjects, ProjectQueryError } from './project-query.mjs';
 import { getLatestFrontier, FrontierQueryError } from './frontier-query.mjs';
 import { listTasks, TaskQueryError } from './task-query.mjs';
+import { createProject } from '../../../packages/domain/src/project-command.mjs';
+import { ProjectCommandError } from '../../../packages/domain/src/project-command.mjs';
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
 
@@ -26,7 +28,7 @@ function errorBody(code, message, requestId) {
   return { code, message, request_id: requestId };
 }
 
-export function createApp({ repository = null } = {}) {
+export function createApp({ repository = null, projectEventFactory = null, authenticate = authenticateSupabaseRequest } = {}) {
 const app = new Hono();
 
 app.use("*", async (context, next) => {
@@ -72,7 +74,7 @@ app.get('/platform/keys', (context) => {
 
 app.get("/auth/me", async (context) => {
   try {
-    const claims = await authenticateSupabaseRequest(context.req.raw, context.env);
+    const claims = await authenticate(context.req.raw, context.env);
     return context.json({ subject: claims.sub, email: claims.email ?? null });
   } catch (error) {
     if (error instanceof JwtVerificationError || error instanceof SyntaxError) {
@@ -138,6 +140,31 @@ app.get('/projects/:projectId/frontier/latest', async (context) => {
     return context.json({ frontier: await getLatestFrontier({ repository, projectId: context.req.param('projectId') }) });
   } catch (error) {
     if (error instanceof FrontierQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status);
+    throw error;
+  }
+});
+
+app.post('/projects', async (context) => {
+  try {
+    if (typeof projectEventFactory !== 'function') {
+      return context.json(errorBody('PROJECT_CREATION_UNAVAILABLE', 'project creation is not configured', context.get('requestId')), 503);
+    }
+    const claims = await authenticate(context.req.raw, context.env);
+    const actorId = await resolveActorForSupabaseClaims({ repository, claims });
+    const body = await context.req.json();
+    return context.json(await createProject({
+      repository,
+      actorId,
+      projectId: body.projectId,
+      name: body.name,
+      summary: body.summary,
+      license: body.license,
+      maintainerIds: body.maintainerIds ?? [],
+      eventFactory: projectEventFactory,
+    }), 201);
+  } catch (error) {
+    const status = error instanceof JwtVerificationError ? 401 : error instanceof ActorIdentityError ? error.status : error instanceof ProjectCommandError ? error.status : error.status;
+    if (status) return context.json(errorBody(error.code ?? 'project_creation_failed', error.message, context.get('requestId')), status);
     throw error;
   }
 });
