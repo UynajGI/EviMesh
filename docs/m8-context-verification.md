@@ -224,3 +224,7 @@ and a `ready` MergeProposal in the immutable checkpoint before emitting
 M8-30 adds a Frontier member only after loading both the named snapshot and
 the exact Claim revision. The member record stores the revision number rather
 than resolving a mutable current Claim projection.
+
+M8-31 returns the FrontierSnapshot with the maximum valid sequence for a
+project, returning `null` before genesis. Malformed repository sequence data
+fails closed rather than being treated as a latest Frontier.
