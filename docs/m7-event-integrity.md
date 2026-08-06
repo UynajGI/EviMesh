@@ -98,7 +98,9 @@ bound into a versioned proof object.
 ## Merkle inclusion proof verification
 
 `verifyMerkleInclusionProof` strictly validates the proof shape and replays its
-ordered sibling path. It returns `false` for malformed data or any altered leaf,
+ordered sibling path. Each path direction must match the parity of the declared
+`leafIndex` at that tree level, so the proof authenticates both inclusion and
+position. It returns `false` for malformed data or any altered leaf, index,
 sibling, direction, or root, making proof validation safe for untrusted public
 inputs.
 
@@ -156,15 +158,19 @@ become Entities with explicit `used` and `wasGeneratedBy` relations.
 ## Object provenance query
 
 `getObjectProvenance` returns the complete Actor → Event → immutable object
-revision → Frontier path. It fails closed with a typed 404 if any essential
-path segment is missing rather than presenting a partial provenance chain.
+revision → Frontier path. Its Event lookup is scoped to the requested immutable
+revision, so Events from another revision cannot satisfy the path. It fails
+closed with a typed 404 if any essential path segment is missing rather than
+presenting a partial provenance chain.
 
 ## Event replay projection
 
-`replayCoreProjections` clears only the derived current-state projections, then
-rebuilds them in append order from signed Event `payload.projection` snapshots.
-The first integrated core path covers Claim creation, revision, and lifecycle
-transitions; immutable Event history is never cleared or mutated during replay.
+`replayCoreProjections` clears only derived current-state projections represented
+by signed Event `payload.projection` snapshots, then rebuilds those collections
+in append order. The first integrated core path covers Claim creation, revision,
+and lifecycle transitions; unsupported projections are preserved until their
+Event producers emit compatible snapshots. Immutable Event history is never
+cleared or mutated during replay.
 
 
 ## Event deletion guard

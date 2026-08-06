@@ -19,7 +19,7 @@ function reference({ objectType, objectId, objectRevision }) {
 
 /** Return the Actor -> Event -> Object -> Frontier provenance path for one immutable object revision. */
 export async function getObjectProvenance({ repository, objectType, objectId, objectRevision } = {}) {
-  const methods = ['getObjectRevision', 'listContributionEdgesForObject', 'listContributionStatementsByIds', 'listResearchEventsForObject', 'listFrontiersForObjectRevision'];
+  const methods = ['getObjectRevision', 'listContributionEdgesForObject', 'listContributionStatementsByIds', 'listResearchEventsForObjectRevision', 'listFrontiersForObjectRevision'];
   if (!repository || methods.some((method) => typeof repository[method] !== 'function')) {
     throw new ObjectProvenanceQueryError('repository object provenance methods are required');
   }
@@ -29,7 +29,7 @@ export async function getObjectProvenance({ repository, objectType, objectId, ob
   const edges = await repository.listContributionEdgesForObject(object);
   const statementIds = [...new Set((Array.isArray(edges) ? edges : []).map((edge) => edge?.statementId).filter(Boolean))];
   const actors = await repository.listContributionStatementsByIds(statementIds);
-  const events = await repository.listResearchEventsForObject({ objectType: object.objectType, objectId: object.objectId });
+  const events = await repository.listResearchEventsForObjectRevision(object);
   const frontier = await repository.listFrontiersForObjectRevision(object);
   if (!Array.isArray(actors) || actors.length === 0 || !Array.isArray(events) || events.length === 0 || !Array.isArray(frontier) || frontier.length === 0) {
     throw new ObjectProvenanceQueryError('complete provenance path not found', 'OBJECT_PROVENANCE_PATH_NOT_FOUND', 404);

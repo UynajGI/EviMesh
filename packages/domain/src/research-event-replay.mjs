@@ -23,13 +23,12 @@ export function clearCoreProjections(projections) {
 /** Rebuild current core projections from signed Event payload snapshots in append order. */
 export function replayCoreProjections({ events, projections = createCoreProjections() } = {}) {
   if (!Array.isArray(events)) throw new ResearchEventReplayError('events must be an array');
-  clearCoreProjections(projections);
+  assertCoreProjections(projections);
+  const snapshots = events.map((event) => event?.payload?.projection).filter((snapshot) => snapshot !== undefined);
+  const collections = new Set(snapshots.map((snapshot) => snapshotDetails(snapshot).collection));
+  for (const collection of collections) projections[collection].clear();
 
-  for (const event of events) {
-    const snapshot = event?.payload?.projection;
-    if (snapshot === undefined) continue;
-    applySnapshot(projections, snapshot);
-  }
+  for (const snapshot of snapshots) applySnapshot(projections, snapshot);
   return projections;
 }
 
@@ -45,6 +44,15 @@ function assertCoreProjections(projections) {
 }
 
 function applySnapshot(projections, snapshot) {
+  const { collection, entityId, revision, state } = snapshotDetails(snapshot);
+  const previous = projections[collection].get(entityId);
+  if (previous && revision <= previous.revision) {
+    throw new ResearchEventReplayError('event projection revisions must increase in append order', 'RESEARCH_EVENT_REPLAY_ORDER_INVALID');
+  }
+  projections[collection].set(entityId, structuredClone({ revision, state }));
+}
+
+function snapshotDetails(snapshot) {
   if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) {
     throw new ResearchEventReplayError('event projection snapshot must be an object');
   }
@@ -59,9 +67,5 @@ function applySnapshot(projections, snapshot) {
   if (!collection || typeof entityId !== 'string' || entityId.length === 0 || !Number.isInteger(revision) || revision < 1 || !state || typeof state !== 'object' || Array.isArray(state)) {
     throw new ResearchEventReplayError('event projection snapshot is invalid');
   }
-  const previous = projections[collection].get(entityId);
-  if (previous && revision <= previous.revision) {
-    throw new ResearchEventReplayError('event projection revisions must increase in append order', 'RESEARCH_EVENT_REPLAY_ORDER_INVALID');
-  }
-  projections[collection].set(entityId, structuredClone({ revision, state }));
+  return { collection, entityId, revision, state };
 }

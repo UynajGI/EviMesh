@@ -9,7 +9,7 @@ function repository({ complete = true } = {}) {
     getObjectRevision: async (reference) => { calls.push(['object', reference]); return complete ? { revision: 2, state: 'verified' } : null; },
     listContributionEdgesForObject: async (reference) => { calls.push(['edges', reference]); return [{ statementId: 'statement_1', edgeType: 'produced', ...reference }]; },
     listContributionStatementsByIds: async (ids) => { calls.push(['actors', ids]); return complete ? [{ statementId: 'statement_1', actorId: 'actor_1', role: 'verifier' }] : []; },
-    listResearchEventsForObject: async (reference) => { calls.push(['events', reference]); return complete ? [{ eventId: 'event_1', eventType: 'verification.completed' }] : []; },
+    listResearchEventsForObjectRevision: async (reference) => { calls.push(['events', reference]); return complete ? [{ eventId: 'event_1', eventType: 'verification.completed', objectRevision: reference.objectRevision }] : []; },
     listFrontiersForObjectRevision: async (reference) => { calls.push(['frontier', reference]); return complete ? [{ frontierId: 'frontier_1', sequence: 4 }] : []; },
   };
 }
@@ -22,6 +22,7 @@ test('returns the Actor to Event to Object to Frontier path for an immutable rev
   assert.equal(result.object.revision.state, 'verified');
   assert.equal(result.frontier[0].frontierId, 'frontier_1');
   assert.deepEqual(repo.calls[0], ['object', { objectType: 'verification', objectId: 'verification_1', revision: 2 }]);
+  assert.deepEqual(repo.calls[3], ['events', { objectType: 'verification', objectId: 'verification_1', objectRevision: 2 }]);
 });
 
 test('rejects missing object revisions and incomplete provenance paths', async () => {

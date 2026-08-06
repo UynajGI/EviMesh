@@ -57,3 +57,19 @@ test('rebuilds the Claim current projection after it is cleared, using append-on
   assert.equal(repo.events.length, 3);
   assert.equal(repo.events.every((event) => event.payload.projection), true);
 });
+
+test('preserves projections that the supplied Event stream cannot rebuild', () => {
+  const projections = createCoreProjections();
+  projections.projects.set('project_1', { revision: 1, state: { projectId: 'project_1' } });
+  projections.tasks.set('task_1', { revision: 1, state: { taskId: 'task_1' } });
+  projections.claims.set('stale_claim', { revision: 1, state: { claimId: 'stale_claim' } });
+
+  replayCoreProjections({
+    projections,
+    events: [{ payload: { projection: { entity_type: 'claim', entity_id: 'claim_1', revision: 1, state: { claimId: 'claim_1' } } } }],
+  });
+
+  assert.deepEqual([...projections.projects.keys()], ['project_1']);
+  assert.deepEqual([...projections.tasks.keys()], ['task_1']);
+  assert.deepEqual([...projections.claims.keys()], ['claim_1']);
+});

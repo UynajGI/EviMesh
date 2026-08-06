@@ -15,11 +15,15 @@ export function verifyMerkleInclusionProof(proof) {
     return false;
   }
   try {
+    let index = proof.leafIndex;
     const reconstructed = proof.path.reduce((hash, step) => {
       if (!step || typeof step !== 'object' || !validHash(step.hash) || !['left', 'right'].includes(step.position)) {
         throw new TypeError('invalid proof step');
       }
-      return step.position === 'left' ? hashMerkleNode(step.hash, hash) : hashMerkleNode(hash, step.hash);
+      const expectedPosition = index % 2 === 0 ? 'right' : 'left';
+      if (step.position !== expectedPosition) throw new TypeError('proof direction does not match leaf index');
+      index = Math.floor(index / 2);
+      return expectedPosition === 'left' ? hashMerkleNode(step.hash, hash) : hashMerkleNode(hash, step.hash);
     }, proof.leafHash);
     return reconstructed === proof.root;
   } catch {
