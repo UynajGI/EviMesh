@@ -27,3 +27,10 @@ each explicitly supplied non-root JSON Pointer from the compiled payload.
 Invalid or missing pointers fail closed. The pointer list itself is not
 included in the emitted bundle, preventing it from disclosing target-label
 locations to a verifier.
+
+## ContextBundle hash
+
+`src/context-bundle-hash.mjs` implements M8-05 with the shared canonical JSON
+and SHA-256 semantic-hash rules. `hashContextBundle` returns a prefixed
+`sha256:<digest>` value; `verifyContextBundleHash` recomputes it for a
+downloaded payload and fails closed on mismatch before that payload is trusted.

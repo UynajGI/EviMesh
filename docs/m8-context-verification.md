@@ -46,3 +46,11 @@ non-root JSON Pointer redactions for fields such as target labels. The compiler
 does not keep those pointers in the output bundle. A malformed, unsafe, or
 missing pointer stops compilation rather than allowing an ambiguous context to
 reach a verifier.
+
+## ContextBundle hash
+
+M8-05 hashes every compiled ContextBundle with the shared canonical JSON
+algorithm and returns a lowercase `sha256:`-prefixed digest. Key-order changes
+therefore do not affect the value, while any semantic change does. Consumers
+call `verifyContextBundleHash` after download; it rejects a malformed expected
+digest or a payload whose recomputed digest differs from the supplied one.
