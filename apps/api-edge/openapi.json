@@ -1,0 +1,76 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "EviMesh API Edge",
+    "version": "0.3.0",
+    "description": "Public Cloudflare Worker API entrypoint for EviMesh."
+  },
+  "servers": [{ "url": "https://api.evimesh.com" }],
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "getHealth",
+        "summary": "Read service health",
+        "responses": {
+          "200": {
+            "description": "Service is healthy.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HealthResponse" } } }
+          }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "operationId": "getAuthenticatedActor",
+        "summary": "Read the authenticated Supabase subject",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Authenticated subject.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AuthMeResponse" } } }
+          },
+          "401": {
+            "description": "Authentication is missing or invalid.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" }
+    },
+    "schemas": {
+      "HealthResponse": {
+        "type": "object",
+        "required": ["service", "status", "environment"],
+        "properties": {
+          "service": { "const": "evimesh-api-edge" },
+          "status": { "const": "ok" },
+          "environment": { "type": "string" }
+        },
+        "additionalProperties": false
+      },
+      "AuthMeResponse": {
+        "type": "object",
+        "required": ["subject", "email"],
+        "properties": {
+          "subject": { "type": "string", "minLength": 1 },
+          "email": { "type": ["string", "null"] }
+        },
+        "additionalProperties": false
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": ["code", "message", "request_id"],
+        "properties": {
+          "code": { "type": "string" },
+          "message": { "type": "string" },
+          "request_id": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}

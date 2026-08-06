@@ -7,6 +7,9 @@ Routes currently include:
 - `GET /health` — service status and environment marker.
 - `GET /auth/me` — verifies an ES256 Supabase JWT and returns subject/email.
 
+The current public route contract is versioned in `openapi.json`; the contract
+snapshot test fails when these route or response-shape guarantees drift.
+
 Every response receives an `X-Request-ID`. A valid incoming ID is preserved;
 otherwise the Worker generates a UUID. API errors use the stable shape
 `{ code, message, request_id }`.
@@ -26,6 +29,20 @@ Question queries add project/state filters and resolve the referenced Contract
 revision alongside the current Question revision.
 Task queries support project/status/type/tag filters and return dependencies
 plus current leases with task details.
+Claim list queries support project/status/tag filters with the same stable cursor
+pagination contract.
+Claim detail queries return the current immutable revision and the protocol-derived
+status policy, including allowed next states.
+Claim revision queries return one immutable revision selected by its positive
+revision number.
+Claim upstream graph queries use the database recursive traversal with an API
+depth bound of 1–32 and return root ID, depth, and visited paths.
+Claim downstream graph queries use the mirrored bounded traversal and expose a
+`dependencyTainted` marker for every affected node.
+Challenge detail queries return the current revision, status policy, impact rows,
+and Evidence linked to the locked target Claim revision.
+Contribution queries return an Actor's role semantics plus separate produced and
+used attribution edges.
 Attempt detail queries return the Attempt row plus a trace summary containing
 count, event types, and first/last timestamps without exposing trace payloads.
 

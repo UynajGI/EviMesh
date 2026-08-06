@@ -41,3 +41,19 @@ protocol Attempt state machine, and timestamps submitted or abandoned Attempts.
 trace envelope, and rejects ordinary trace writes after Attempt submission.
 `createClaim()` creates a hypothesis Claim, its first immutable revision, and
 the corresponding ResearchEvent atomically.
+`reviseClaim()` appends a new immutable Claim revision, updates only the current
+Claim projection, and requires a matching `If-Match` ETag to prevent stale edits.
+`createClaimRelation()` validates relation types, checks only active relations
+for duplicate/cyclic `depends_on` edges, and records the relation plus its
+ResearchEvent atomically. Relation events use schema-valid namespaced types
+(`claim.relation.created`, `claim.relation.ended`, and
+`claim.relation.replaced`). `endClaimRelation()` timestamps an active edge and
+emits an ending event without deleting history; `replaceClaimRelation()` performs
+that ending and inserts the replacement edge in one transaction.
+`transitionClaim()` applies the protocol Claim state machine as a new revision,
+updates the current Claim projection, and records the from/to states in an event.
+`createChallenge()` verifies and locks an immutable target Claim revision before
+atomically creating the initial open Challenge revision and ResearchEvent.
+`transitionChallenge()` appends a validated Challenge state revision and emits
+`challenge.upheld` when the transition reaches the upheld outcome, preserving
+the locked target Claim revision in the event payload.
