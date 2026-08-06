@@ -80,3 +80,11 @@ download; the hook then appends `context_bundle.accessed` with the immutable
 bundle identity, content hash, actor, and access reason. Unrestricted reads do
 not generate events, and an incomplete restricted-access audit envelope fails
 closed.
+
+## VerificationContract create command
+
+M8-09 adds `createVerificationContract`. A maintainer creates the stable
+contract and revision 1 atomically, with non-empty requirements, explicit
+unique verification types, and protocol-valid context modes. The command
+appends `verification_contract.created` in the same transaction, so every
+subsequent VerificationReceipt can name an immutable contract revision.
