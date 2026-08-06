@@ -11,4 +11,7 @@
 `payload.integrity.previous_event_hash` 交给 Event factory，再验证 factory 返回的已签名
 Event 确实包含同一个链头。首个 Event 的前序 hash 为 `null`。
 
+`appendActorResearchEvent` 对每个 Actor 独立执行同一流程，使用
+`payload.integrity.actor_id` 与 `previous_actor_event_hash`；对象链与 Actor 链彼此独立。
+
 后续 M7 loop 会在这一边界上增加对象/Actor 哈希链、Outbox、Merkle checkpoint 与 provenance。

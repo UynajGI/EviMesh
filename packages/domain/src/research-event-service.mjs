@@ -47,6 +47,19 @@ function assertObjectChain(event, { objectType, objectId, previousEventHash }) {
   }
 }
 
+function assertActorChain(event, { actorId, previousEventHash }) {
+  const integrity = event.payload?.integrity;
+  if (!integrity || typeof integrity !== 'object' || Array.isArray(integrity)) {
+    throw new ResearchEventAppendError('event payload integrity is required');
+  }
+  if (integrity.actor_id !== actorId) {
+    throw new ResearchEventAppendError('event payload integrity actor does not match the requested actor');
+  }
+  if ((integrity.previous_actor_event_hash ?? null) !== previousEventHash) {
+    throw new ResearchEventAppendError('event payload integrity previous hash does not match the actor chain head', 'ACTOR_EVENT_HASH_CHAIN_CONFLICT', 409);
+  }
+}
+
 async function appendNormalizedResearchEvent(transaction, normalized) {
   if (await transaction.getResearchEvent(normalized.event_id)) {
     throw new ResearchEventAppendError('research event already exists', 'RESEARCH_EVENT_EXISTS', 409);
@@ -116,6 +129,33 @@ export async function appendObjectResearchEvent({ repository, objectType, object
       throw new ResearchEventAppendError('event parents must be unique');
     }
     assertObjectChain(event, { objectType, objectId, previousEventHash });
+    return appendNormalizedResearchEvent(transaction, event);
+  });
+}
+
+/** Append a signed Event whose payload binds it to the prior Event hash for one Actor. */
+export async function appendActorResearchEvent({ repository, actorId, eventFactory } = {}) {
+  if (!repository || typeof repository.withTransaction !== 'function') {
+    throw new ResearchEventAppendError('repository withTransaction is required');
+  }
+  for (const method of ['getLatestActorEventHash', 'getResearchEvent', 'insertResearchEvent', 'insertResearchEventParent']) {
+    if (typeof repository[method] !== 'function') {
+      throw new ResearchEventAppendError(`repository ${method} is required`);
+    }
+  }
+  actorId = requiredText(actorId, 'actor id');
+  if (typeof eventFactory !== 'function') throw new ResearchEventAppendError('eventFactory is required');
+
+  return repository.withTransaction(async (transaction) => {
+    const previousEventHash = await transaction.getLatestActorEventHash(actorId) ?? null;
+    if (previousEventHash !== null && (typeof previousEventHash !== 'string' || !/^sha256:[0-9a-f]{64}$/i.test(previousEventHash))) {
+      throw new ResearchEventAppendError('actor event chain head must be a sha256 digest');
+    }
+    const event = normalizeEvent(await eventFactory({ actorId, previousEventHash }));
+    if (new Set(event.parents).size !== event.parents.length) {
+      throw new ResearchEventAppendError('event parents must be unique');
+    }
+    assertActorChain(event, { actorId, previousEventHash });
     return appendNormalizedResearchEvent(transaction, event);
   });
 }

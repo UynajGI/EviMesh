@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { appendObjectResearchEvent, appendResearchEvent, ResearchEventAppendError } from '../src/research-event-service.mjs';
+import { appendActorResearchEvent, appendObjectResearchEvent, appendResearchEvent, ResearchEventAppendError } from '../src/research-event-service.mjs';
 
 const parentId = '018f0f4a-5c00-7000-8000-000000000000';
 const eventId = '018f0f4a-5c00-7000-8000-000000000001';
@@ -20,6 +20,7 @@ function repository({ existing = new Set([parentId]) } = {}) {
     withTransaction: async (callback) => callback(repo),
     getResearchEvent: async (id) => existing.has(id) ? { eventId: id } : null,
     getLatestObjectEventHash: async () => null,
+    getLatestActorEventHash: async () => null,
     insertResearchEvent: async (record) => { calls.push(['event', record]); existing.add(record.eventId); return record; },
     insertResearchEventParent: async (record) => { calls.push(['parent', record]); return record; },
   };
@@ -32,6 +33,44 @@ test('appends a signed Event and every parent link in one transaction', async ()
   assert.equal(result.event.eventId, eventId);
   assert.deepEqual(result.parents, [{ eventId, parentEventId: parentId }]);
   assert.deepEqual(repo.calls.map(([kind]) => kind), ['event', 'parent']);
+});
+
+test('binds a signed Event to the current Actor event hash chain head', async () => {
+  const previousEventHash = `sha256:${'d'.repeat(64)}`;
+  const repo = repository();
+  repo.getLatestActorEventHash = async (actorId) => {
+    assert.equal(actorId, 'actor_1');
+    return previousEventHash;
+  };
+  const result = await appendActorResearchEvent({
+    repository: repo,
+    actorId: 'actor_1',
+    eventFactory: async ({ actorId, previousEventHash: receivedPreviousHash }) => ({
+      ...event,
+      payload: {
+        claim_id: 'claim_1',
+        integrity: { actor_id: actorId, previous_actor_event_hash: receivedPreviousHash },
+      },
+    }),
+  });
+  assert.equal(result.event.payload.integrity.previous_actor_event_hash, previousEventHash);
+});
+
+test('rejects an Event that substitutes a different Actor chain head', async () => {
+  const repo = repository();
+  repo.getLatestActorEventHash = async () => `sha256:${'d'.repeat(64)}`;
+  await assert.rejects(
+    appendActorResearchEvent({
+      repository: repo,
+      actorId: 'actor_1',
+      eventFactory: async () => ({
+        ...event,
+        payload: { claim_id: 'claim_1', integrity: { actor_id: 'actor_1', previous_actor_event_hash: null } },
+      }),
+    }),
+    (error) => error.code === 'ACTOR_EVENT_HASH_CHAIN_CONFLICT' && error.status === 409,
+  );
+  assert.equal(repo.calls.length, 0);
 });
 
 test('binds a signed Event to the current object event hash chain head', async () => {
