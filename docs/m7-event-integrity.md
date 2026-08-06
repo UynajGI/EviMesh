@@ -153,4 +153,10 @@ between research inputs and outputs.
 Agents, contribution statements become Activities, and revision references
 become Entities with explicit `used` and `wasGeneratedBy` relations.
 
-后续 M7 loop 将在这一边界上增加 provenance 查询。
+## Object provenance query
+
+`getObjectProvenance` returns the complete Actor → Event → immutable object
+revision → Frontier path. It fails closed with a typed 404 if any essential
+path segment is missing rather than presenting a partial provenance chain.
+
+后续 M7 loop 将在这一边界上增加 Event replay、deletion guard 与 key rotation。
