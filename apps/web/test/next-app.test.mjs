@@ -220,3 +220,12 @@ test('renders Task details with inputs, outputs, acceptance, dependencies, and l
   assert.match(page, /currentRevision\.contextMode/);
   assert.match(page, /currentRevision\.description/);
 });
+
+test('starts an Attempt and exposes a Context bundle download', async () => {
+  const page = await read('../app/tasks/[taskId]/page.js');
+  assert.match(page, /Start Attempt/);
+  assert.match(page, /\/tasks\/\$\{taskId\}\/context/);
+  assert.match(page, /contextBundleId/);
+  assert.match(page, /Download Context bundle/);
+  assert.match(page, /\/attempts/);
+});

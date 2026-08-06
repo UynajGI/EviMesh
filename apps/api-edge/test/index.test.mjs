@@ -179,6 +179,33 @@ test('returns Task details with its current revision, dependencies, and leases',
   assert.equal(body.leases.length, 1);
 });
 
+test('starts an Attempt from a matching Context Bundle', async () => {
+  const app = createApp({
+    repository: {
+      findIdentity: async () => ({ actorId: 'actor-1' }),
+      getContextBundle: async () => ({ contextBundleId: 'bundle-1', taskId: 'task-1', mode: 'frontier' }),
+      insertAttempt: async () => null,
+      appendResearchEvent: async () => null,
+      withTransaction: async (callback) => callback({
+        getContextBundle: async () => ({ contextBundleId: 'bundle-1', taskId: 'task-1', mode: 'frontier' }),
+        insertAttempt: async (attempt) => attempt,
+        appendResearchEvent: async (event) => event,
+      }),
+    },
+    attemptEventFactory: async ({ eventType, payload }) => ({ eventType, payload }),
+    attemptRoleResolver: async () => 'contributor',
+    authenticate: async () => ({ sub: 'supabase-subject' }),
+  });
+  const response = await app.fetch(new Request('https://api.example.test/tasks/task-1/attempts', {
+    method: 'POST',
+    headers: { authorization: 'Bearer test-token', 'content-type': 'application/json' },
+    body: JSON.stringify({ attemptId: 'attempt-1', contextBundleId: 'bundle-1', contextMode: 'frontier' }),
+  }), {});
+  const body = await response.json();
+  assert.equal(response.status, 201, JSON.stringify(body));
+  assert.equal(body.attempt.state, 'active');
+});
+
 test('returns a Question with its Contract revision', async () => {
   const app = createApp({ repository: {
     getQuestion: async (questionId) => ({ questionId, projectId: 'project-1', state: 'draft' }),

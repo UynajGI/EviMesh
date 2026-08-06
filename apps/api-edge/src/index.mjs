@@ -19,6 +19,7 @@ import { createProject } from '../../../packages/domain/src/project-command.mjs'
 import { ProjectCommandError } from '../../../packages/domain/src/project-command.mjs';
 import { createQuestion } from '../../../packages/domain/src/question-command.mjs';
 import { QuestionCommandError } from '../../../packages/domain/src/question-command.mjs';
+import { createAttempt, TaskCommandError } from '../../../packages/domain/src/task-command.mjs';
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
 
@@ -30,7 +31,7 @@ function errorBody(code, message, requestId) {
   return { code, message, request_id: requestId };
 }
 
-export function createApp({ repository = null, projectEventFactory = null, questionEventFactory = null, questionRoleResolver = null, authenticate = authenticateSupabaseRequest } = {}) {
+export function createApp({ repository = null, projectEventFactory = null, questionEventFactory = null, questionRoleResolver = null, attemptEventFactory = null, attemptRoleResolver = null, authenticate = authenticateSupabaseRequest } = {}) {
 const app = new Hono();
 
 app.use("*", async (context, next) => {
@@ -232,6 +233,33 @@ app.get('/tasks/:taskId', async (context) => {
     return context.json(await getTask({ repository, taskId: context.req.param('taskId') }));
   } catch (error) {
     if (error instanceof TaskQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status);
+    throw error;
+  }
+});
+
+app.post('/tasks/:taskId/attempts', async (context) => {
+  try {
+    if (typeof attemptEventFactory !== 'function' || typeof attemptRoleResolver !== 'function') {
+      return context.json(errorBody('ATTEMPT_CREATION_UNAVAILABLE', 'attempt creation is not configured', context.get('requestId')), 503);
+    }
+    const claims = await authenticate(context.req.raw, context.env);
+    const actorId = await resolveActorForSupabaseClaims({ repository, claims });
+    const body = await context.req.json();
+    const actorRole = await attemptRoleResolver({ repository, actorId, taskId: context.req.param('taskId') });
+    const result = await createAttempt({
+      repository,
+      actorId,
+      actorRole,
+      attemptId: body.attemptId,
+      taskId: context.req.param('taskId'),
+      contextBundleId: body.contextBundleId,
+      contextMode: body.contextMode,
+      eventFactory: attemptEventFactory,
+    });
+    return context.json(result, 201);
+  } catch (error) {
+    const status = error instanceof JwtVerificationError ? 401 : error instanceof ActorIdentityError ? error.status : error instanceof TaskCommandError ? error.status : error.status;
+    if (status) return context.json(errorBody(error.code ?? 'attempt_creation_failed', error.message, context.get('requestId')), status);
     throw error;
   }
 });
