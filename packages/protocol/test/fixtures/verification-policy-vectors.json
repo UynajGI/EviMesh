@@ -1,0 +1,36 @@
+[
+  {
+    "name": "revision-7-satisfied",
+    "policy": {
+      "policy_id": "reproduction-gate",
+      "revision": 7,
+      "requirements": {
+        "blind_reproductions": 2,
+        "blocking_findings": 0,
+        "schema_gate": "pass",
+        "successful_reproductions": 3
+      },
+      "outcomes": {
+        "any_refuting_receipt": "contested",
+        "requirements_met": "provisionally_accepted"
+      }
+    },
+    "input": {
+      "blind_reproductions": 2,
+      "blocking_findings": 0,
+      "refuting_receipts": 0,
+      "schema_gate": "pass",
+      "successful_reproductions": 3
+    },
+    "expected": {
+      "requirements_met": true,
+      "recommended_outcome": "provisionally_accepted",
+      "requirement_results": [
+        ["blind_reproductions", true],
+        ["blocking_findings", true],
+        ["schema_gate", true],
+        ["successful_reproductions", true]
+      ]
+    }
+  }
+]

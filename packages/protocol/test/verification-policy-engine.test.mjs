@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 import { evaluateVerificationPolicy, VerificationPolicyEvaluationError } from '../src/verification-policy-engine.mjs';
 
 const policy = {
@@ -61,4 +63,19 @@ test('marks a Claim contested when a valid refuting Receipt exists', () => {
 test('fails closed for missing or malformed policy inputs', () => {
   assert.throws(() => evaluateVerificationPolicy({ policy, input: { schema_gate: 'pass', successful_reproductions: 2 } }), (error) => error instanceof VerificationPolicyEvaluationError && error.code === 'POLICY_INPUT_MISSING');
   assert.throws(() => evaluateVerificationPolicy({ policy, input: { blind_reproductions: '1', schema_gate: 'pass', successful_reproductions: 2 } }), /finite number/);
+});
+
+test('keeps fixed Policy revision vectors stable for identical inputs', async () => {
+  const path = fileURLToPath(new URL('./fixtures/verification-policy-vectors.json', import.meta.url));
+  const vectors = JSON.parse(await readFile(path, 'utf8'));
+  for (const vector of vectors) {
+    const first = evaluateVerificationPolicy({ policy: vector.policy, input: vector.input });
+    const second = evaluateVerificationPolicy({ policy: vector.policy, input: vector.input });
+    assert.deepEqual(first, second, vector.name);
+    assert.equal(first.policy_id, vector.policy.policy_id, vector.name);
+    assert.equal(first.revision, vector.policy.revision, vector.name);
+    assert.equal(first.requirements_met, vector.expected.requirements_met, vector.name);
+    assert.equal(first.recommended_outcome, vector.expected.recommended_outcome, vector.name);
+    assert.deepEqual(first.requirement_results.map(({ key, met }) => [key, met]), vector.expected.requirement_results, vector.name);
+  }
 });

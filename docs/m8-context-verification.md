@@ -242,3 +242,7 @@ ResearchEvent; no published Snapshot row is updated or deleted.
 M8-35 derives deduplicated follow-up Task suggestions from the named
 Frontier's unresolved blockers. Each generated suggestion has type
 `open_blocker` and is scoped to the fixed Frontier snapshot.
+
+M8-36 adds versioned Policy test vectors. The same input evaluated against the
+same Policy revision must reproduce the fixture's requirement outcomes and
+recommended decision exactly.
