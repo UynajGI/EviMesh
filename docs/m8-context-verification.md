@@ -129,3 +129,13 @@ the submit command confirms the Run exists, checks prior receipts for the same
 Actor and Run, and records `duplicateOfReceiptId` when present. Both references
 are persisted as restrictive foreign keys, so duplicates remain auditable rather
 than being silently discarded.
+
+## Policy JSON interpreter
+
+M8-16 adds a deterministic interpreter for one immutable VerificationPolicy
+revision. It evaluates the materialized input against each JSON requirement,
+uses numeric requirements as lower bounds and all other JSON values as exact
+matches, then emits a sorted explanation and the configured
+`requirements_met` outcome only when every requirement passes. Missing or
+malformed input fails closed; the domain-specific gates follow in M8-17 to
+M8-21.
