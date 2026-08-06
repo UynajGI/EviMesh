@@ -135,4 +135,10 @@ verifiable with `verifyMerkleInclusionProof`.
 more typed role statements atomically. It rejects empty contribution lists and
 roles outside the protocol's contribution-role vocabulary before persistence.
 
-后续 M7 loop 将在这一边界上增加 contribution 边与 provenance。
+## Contribution produced edges
+
+`addContributionProducedEdge` records a `produced` relation from an existing
+contribution statement to one existing object revision. It validates both ends
+and the positive revision number before writing the provenance edge.
+
+后续 M7 loop 将在这一边界上增加 used 边与 provenance。
