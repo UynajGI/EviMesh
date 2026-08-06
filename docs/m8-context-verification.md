@@ -231,3 +231,7 @@ fails closed rather than being treated as a latest Frontier.
 
 M8-32 pages immutable Frontier history with the existing opaque cursor scheme,
 using stable `createdAt` and `snapshotId` keys within one Project.
+
+M8-33 compares two fixed snapshots from the same Project and returns explicit
+`added`, `removed`, and `statusChanged` Claim groups, retaining each member's
+pinned revision in the diff result.

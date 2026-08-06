@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getLatestFrontier, listFrontierHistory, FrontierQueryError } from '../src/frontier-query.mjs';
+import { diffFrontiers, getLatestFrontier, listFrontierHistory, FrontierQueryError } from '../src/frontier-query.mjs';
 
 test('returns the FrontierSnapshot with the maximum project sequence', async () => {
   const sequence = [];
@@ -25,4 +25,17 @@ test('pages immutable Frontier history with a stable opaque cursor', async () =>
   assert.deepEqual(first.items.map((snapshot) => snapshot.sequence), [1, 2]);
   assert.deepEqual(second.items.map((snapshot) => snapshot.sequence), [3]);
   assert.equal(second.nextCursor, null);
+});
+
+test('diffs fixed Frontier members into added, removed, and status-changed groups', async () => {
+  const repository = {
+    getFrontierSnapshot: async (snapshotId) => ({ snapshotId, projectId: 'project-1' }),
+    listFrontierMembers: async (snapshotId) => snapshotId === 'frontier-old'
+      ? [{ claimId: 'claim-removed', claimRevision: 1, membershipType: 'supporting' }, { claimId: 'claim-state', claimRevision: 1, membershipType: 'supporting' }]
+      : [{ claimId: 'claim-added', claimRevision: 2, membershipType: 'supporting' }, { claimId: 'claim-state', claimRevision: 2, membershipType: 'contested' }],
+  };
+  const result = await diffFrontiers({ repository, fromSnapshotId: 'frontier-old', toSnapshotId: 'frontier-new' });
+  assert.deepEqual(result.added, [{ claimId: 'claim-added', revision: 2, status: 'supporting' }]);
+  assert.deepEqual(result.removed, [{ claimId: 'claim-removed', revision: 1, status: 'supporting' }]);
+  assert.deepEqual(result.statusChanged, [{ claimId: 'claim-state', from: { claimId: 'claim-state', revision: 1, status: 'supporting' }, to: { claimId: 'claim-state', revision: 2, status: 'contested' } }]);
 });
