@@ -170,3 +170,10 @@ must be met before promotion can be recommended.
 M8-21 interprets `challenge_window_hours` as a non-negative elapsed duration.
 When the supplied elapsed duration is below the policy window, its requirement
 does not pass and even an `accepted` policy outcome cannot be recommended.
+
+## Policy evaluation Worker
+
+M8-22 adds `evaluateClaimPolicyJob`. It materializes policy input only from the
+Claim, exact Policy revision, VerificationReceipts, and their Findings, then
+calls the deterministic interpreter. Unsupported rules and malformed temporal
+inputs fail closed; persistence of the resulting evaluation follows in M8-23.
