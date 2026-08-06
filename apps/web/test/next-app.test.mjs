@@ -420,3 +420,13 @@ test('renders Event audit with signatures and parent hash chain', async () => {
   assert.match(page, /Parents/);
   assert.match(page, /ResearchEvents/);
 });
+
+test('provides project SSE client with reconnect handling', async () => {
+  const component = await read('../components/project-event-stream.js');
+  const page = await read('../app/projects/[projectId]/page.js');
+  assert.match(component, /new EventSource/);
+  assert.match(component, /events\/stream/);
+  assert.match(component, /reconnecting/);
+  assert.match(component, /source\.close/);
+  assert.match(page, /ProjectEventStream/);
+});
