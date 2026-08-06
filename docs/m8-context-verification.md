@@ -238,3 +238,7 @@ pinned revision in the diff result.
 
 M8-34 publishes a Frontier by appending the immutable `frontier.published`
 ResearchEvent; no published Snapshot row is updated or deleted.
+
+M8-35 derives deduplicated follow-up Task suggestions from the named
+Frontier's unresolved blockers. Each generated suggestion has type
+`open_blocker` and is scoped to the fixed Frontier snapshot.
