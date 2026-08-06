@@ -9,6 +9,7 @@ const links = [
   { href: '/sign-in', label: 'Sign in' },
   { href: '/settings', label: 'Settings' },
   { href: '/settings/keys', label: 'Keys' },
+  { href: '/settings/tokens', label: 'Tokens' },
 ];
 
 export function SiteNav() {

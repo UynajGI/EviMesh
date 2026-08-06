@@ -91,3 +91,11 @@ test('edits the authenticated actor profile through the API Edge', async () => {
   assert.match(page, /profileRequest\('\/profile'/);
   assert.match(page, /Save profile/);
 });
+
+test('manages API tokens with one-time secret display', async () => {
+  const page = await read('../app/settings/tokens/page.js');
+  assert.match(page, /call\('\/api-tokens'/);
+  assert.match(page, /setSecret\(result\.token\)/);
+  assert.match(page, /It cannot be shown again/);
+  assert.match(page, /Revoke/);
+});
