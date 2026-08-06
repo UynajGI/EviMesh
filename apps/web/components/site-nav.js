@@ -11,6 +11,7 @@ const links = [
   { href: '/runs/new', label: 'Record a run' },
   { href: '/evidence/new', label: 'Create evidence' },
   { href: '/verification/receipt/new', label: 'Submit verification' },
+  { href: '/challenges/new', label: 'Challenge a claim' },
   { href: '/verification', label: 'Verification' },
   { href: '/contributions', label: 'Contributions' },
   { href: '/sign-in', label: 'Sign in' },

@@ -382,3 +382,11 @@ test('renders Verification Receipt form with outcome, independence, and findings
   assert.match(page, /findings/);
   assert.match(route, /VerificationReceiptForm/);
 });
+
+test('renders Challenge form locking a Claim revision to counterexample Evidence', async () => {
+  const page = await read('../app/challenges/new/page.js');
+  assert.match(page, /Challenge a claim/);
+  assert.match(page, /claimRevision/);
+  assert.match(page, /counterexampleEvidenceId/);
+  assert.match(page, /Rationale/);
+});
