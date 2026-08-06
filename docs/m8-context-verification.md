@@ -28,3 +28,12 @@ rechecks that rule even when its repository adapter claims to return public
 events, then sorts trace events by creation time and event ID. Private fields
 or duplicate trace event IDs fail compilation rather than silently producing a
 context that leaks data.
+
+## Adversarial Context compiler
+
+M8-03 requires an explicit, revision-pinned `mainstreamClaimKeys` classification
+from the repository or policy layer. The compiler removes the `statement` only
+from those classified Frontier members; it never tries to infer consensus from
+free text. It then accepts only fixed-Frontier `refutes`, `qualifies`,
+`contradicts`, and `challenges` relations as counter-material. Any relation or
+classification outside the snapshot fails compilation.
