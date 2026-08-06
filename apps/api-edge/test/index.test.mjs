@@ -88,6 +88,15 @@ test('lists projects and returns each latest frontier', async () => {
   assert.equal((await frontier.json()).frontier.sequence, 3);
 });
 
+test('lists open newcomer tasks by tag', async () => {
+  const app = createApp({ repository: { listTasks: async ({ status, tag }) => [
+    { taskId: 'task-1', projectId: 'project-1', status, tag, createdAt: '2026-08-06T00:00:00.000Z' },
+  ] } });
+  const response = await app.fetch(new Request('https://api.example.test/tasks?status=open&tag=cpu-only&limit=6'), {});
+  assert.equal(response.status, 200);
+  assert.deepEqual((await response.json()).items.map((task) => task.tag), ['cpu-only']);
+});
+
 test("serves Task Context by explicit mode", async () => {
   const app = createApp({ repository: { getContextBundleForTask: async () => ({ contextBundleId: "context-1", taskId: "task-1", mode: "blind", contentHash: `sha256:${"a".repeat(64)}`, storageUri: "r2://evimesh/context-1.json", manifest: {} }) } });
   const response = await app.fetch(new Request("https://api.example.test/tasks/task-1/context?mode=blind", { headers: { "x-request-id": "context-request" } }), {});

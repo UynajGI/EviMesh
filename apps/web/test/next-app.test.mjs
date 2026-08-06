@@ -122,3 +122,10 @@ test('renders each project latest frontier on the homepage', async () => {
   assert.match(page, /Latest frontiers/);
   assert.match(page, /Frontier #/);
 });
+
+test('renders tagged newcomer tasks on the homepage', async () => {
+  const page = await read('../app/page.js');
+  assert.match(page, /\['cpu-only', 'under-60-min'\]/);
+  assert.match(page, /tag=\$\{tag\}/);
+  assert.match(page, /Newcomer tasks/);
+});

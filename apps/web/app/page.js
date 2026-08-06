@@ -18,6 +18,7 @@ export default function HomePage() {
   const [questions, setQuestions] = useState([]);
   const [claims, setClaims] = useState([]);
   const [frontiers, setFrontiers] = useState([]);
+  const [tasks, setTasks] = useState([]);
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -29,6 +30,14 @@ export default function HomePage() {
       })
       .then((items) => setQuestions(items.filter((question) => !CLOSED_STATES.has(question.state)).sort((left, right) => Date.parse(right.createdAt ?? 0) - Date.parse(left.createdAt ?? 0)).slice(0, 6)))
       .catch((reason) => setError(reason.message));
+  }, []);
+
+  useEffect(() => {
+    Promise.all(['cpu-only', 'under-60-min'].map((tag) => fetch(`${process.env.NEXT_PUBLIC_EVIMESH_API_URL}/tasks?status=open&tag=${tag}&limit=6`).then(async (response) => {
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.message ?? 'Tasks are unavailable.');
+      return (payload.items ?? []).map((task) => ({ ...task, tag }));
+    }))).then((groups) => setTasks(groups.flat().slice(0, 6))).catch((reason) => setError(reason.message));
   }, []);
 
   useEffect(() => {
@@ -73,6 +82,11 @@ export default function HomePage() {
         <div><p className="text-sm font-semibold text-primary">Established knowledge</p><h2 id="frontier-heading" className="mt-2 text-3xl font-semibold">Latest frontiers</h2></div>
         {error ? null : <div className="mt-6 grid gap-4 md:grid-cols-2">{frontiers.map(({ project, frontier }) => <article className="rounded-xl border border-border bg-card p-5 shadow-sm" key={frontier.snapshotId}><p className="text-sm text-muted-foreground">Project {project.projectId}</p><h3 className="mt-3 text-xl font-semibold">Frontier #{frontier.sequence}</h3><p className="mt-2 text-sm text-muted-foreground">Snapshot {frontier.snapshotId}</p></article>)}</div>}
         {!error && frontiers.length === 0 && <p className="mt-6 text-sm text-muted-foreground">No published frontiers yet.</p>}
+      </section>
+      <section className="mt-16" aria-labelledby="newcomer-tasks-heading">
+        <div><p className="text-sm font-semibold text-primary">Contribute today</p><h2 id="newcomer-tasks-heading" className="mt-2 text-3xl font-semibold">Newcomer tasks</h2></div>
+        {error ? null : <div className="mt-6 grid gap-4 md:grid-cols-2">{tasks.map((task) => <article className="rounded-xl border border-border bg-card p-5 shadow-sm" key={`${task.taskId}-${task.tag}`}><span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold">{task.tag}</span><h3 className="mt-4 font-semibold">{task.taskId}</h3><p className="mt-2 text-sm text-muted-foreground">Open in project {task.projectId ?? 'not assigned'}</p></article>)}</div>}
+        {!error && tasks.length === 0 && <p className="mt-6 text-sm text-muted-foreground">No CPU-only or under-60-minute tasks are open right now.</p>}
       </section>
     </main>
   );

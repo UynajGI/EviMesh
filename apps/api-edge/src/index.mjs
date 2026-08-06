@@ -14,6 +14,7 @@ import { listQuestions, QuestionQueryError } from './question-query.mjs';
 import { listClaims, ClaimQueryError } from './claim-query.mjs';
 import { listProjects, ProjectQueryError } from './project-query.mjs';
 import { getLatestFrontier, FrontierQueryError } from './frontier-query.mjs';
+import { listTasks, TaskQueryError } from './task-query.mjs';
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
 
@@ -132,6 +133,25 @@ app.get('/projects/:projectId/frontier/latest', async (context) => {
     return context.json({ frontier: await getLatestFrontier({ repository, projectId: context.req.param('projectId') }) });
   } catch (error) {
     if (error instanceof FrontierQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status);
+    throw error;
+  }
+});
+
+app.get('/tasks', async (context) => {
+  try {
+    const requestedLimit = context.req.query('limit');
+    const limit = requestedLimit === undefined ? 20 : Number(requestedLimit);
+    return context.json(await listTasks({
+      repository,
+      projectId: context.req.query('projectId') ?? null,
+      status: context.req.query('status') ?? null,
+      type: context.req.query('type') ?? null,
+      tag: context.req.query('tag') ?? null,
+      limit,
+      cursor: context.req.query('cursor') ?? null,
+    }));
+  } catch (error) {
+    if (error instanceof TaskQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status);
     throw error;
   }
 });
