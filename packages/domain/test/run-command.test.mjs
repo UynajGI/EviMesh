@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createRun } from '../src/run-command.mjs';
+import { createRun, normalizeRandomSeed } from '../src/run-command.mjs';
 
 const container = `oci:example@sha256:${'a'.repeat(64)}`;
 
@@ -58,4 +58,12 @@ test('rejects mutable OCI tags without a sha256 digest', async () => {
   const repository = { withTransaction: async () => {}, getArtifactRevision() {}, getArtifactVerification() {}, insertRun() {}, insertRunInput() {}, insertRunOutput() {}, appendResearchEvent() {} };
   const base = { repository, actorId: 'actor_1', actorRole: 'contributor', runId: 'run_1', taskId: 'task_1', contextBundleId: 'context_1', sourceCode: 'git:abc', container: 'ghcr.io/evimesh/research:latest', command: 'pytest', environment: {}, hardware: {}, randomSeed: {}, startedAt: new Date('2026-01-01T00:00:00Z'), endedAt: new Date('2026-01-01T00:00:01Z'), exitCode: 0, signature: 'sig', eventFactory: async (event) => event };
   await assert.rejects(() => createRun(base), (error) => error.code === 'OCI_DIGEST_REQUIRED');
+});
+
+test('normalizes equivalent random seed objects to one stable semantic hash', () => {
+  const first = normalizeRandomSeed({ framework: 'numpy', seed: 7, replicas: { workerB: 2, workerA: 1 } });
+  const second = normalizeRandomSeed({ replicas: { workerA: 1, workerB: 2 }, seed: 7, framework: 'numpy' });
+  assert.deepEqual(first.value, second.value);
+  assert.equal(first.semanticHash, second.semanticHash);
+  assert.throws(() => normalizeRandomSeed({ seed: Number.NaN }), /JSON-compatible/);
 });

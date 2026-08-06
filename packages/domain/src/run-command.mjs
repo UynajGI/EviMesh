@@ -1,4 +1,5 @@
 import { assertProjectRoleForAction } from './project-authorization.mjs';
+import { canonicalJson, semanticHash } from '../../protocol/src/hash.mjs';
 
 export class RunCommandError extends Error {
   constructor(message, code = 'RUN_INVALID', status = 400) {
@@ -19,6 +20,19 @@ function assertOciDigest(value) {
     throw new RunCommandError('container must include an immutable sha256 OCI digest', 'OCI_DIGEST_REQUIRED');
   }
   return container;
+}
+
+export function normalizeRandomSeed(value) {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    throw new RunCommandError('random seed must be a JSON object');
+  }
+  try {
+    const canonical = canonicalJson(value);
+    return Object.freeze({ value: JSON.parse(canonical), semanticHash: semanticHash(value) });
+  } catch (error) {
+    if (error instanceof RunCommandError) throw error;
+    throw new RunCommandError(`random seed is not JSON-compatible: ${error.message}`);
+  }
 }
 
 function artifactRefs(values, field) {
@@ -60,19 +74,19 @@ export async function createRun({ repository, actorId, actorRole, runId, taskId,
   if (!Array.isArray(args)) throw new RunCommandError('args must be an array');
   if (environment === null || typeof environment !== 'object' || Array.isArray(environment)) throw new RunCommandError('environment must be a JSON object');
   if (hardware === null || typeof hardware !== 'object' || Array.isArray(hardware)) throw new RunCommandError('hardware must be a JSON object');
-  if (randomSeed === null || typeof randomSeed !== 'object' || Array.isArray(randomSeed)) throw new RunCommandError('random seed must be a JSON object');
+  const normalizedRandomSeed = normalizeRandomSeed(randomSeed);
   if (!(startedAt instanceof Date) || !(endedAt instanceof Date) || Number.isNaN(startedAt.getTime()) || Number.isNaN(endedAt.getTime()) || endedAt < startedAt) throw new RunCommandError('run timestamps must be valid and ordered');
   if (typeof networkAccess !== 'boolean' || !Number.isInteger(exitCode)) throw new RunCommandError('network access and exit code are required');
   const inputRows = artifactRefs(inputs, 'inputs').map((row) => ({ ...row, runId }));
   const outputRows = artifactRefs(outputs, 'outputs').map((row) => ({ ...row, runId }));
   if (typeof eventFactory !== 'function') throw new RunCommandError('eventFactory is required');
   assertProjectRoleForAction({ actorRole, requiredRole: 'contributor' });
-  const run = { runId, taskId, contextBundleId, sourceCode, container, command, args, environment, hardware, randomSeed, startedAt, endedAt, networkAccess, exitCode, createdBy: actorId, signature };
+  const run = { runId, taskId, contextBundleId, sourceCode, container, command, args, environment, hardware, randomSeed: normalizedRandomSeed.value, startedAt, endedAt, networkAccess, exitCode, createdBy: actorId, signature };
   return repository.withTransaction(async (transaction) => {
     await assertArtifactRevisions(transaction, inputRows, 'inputs');
     await assertArtifactRevisions(transaction, outputRows, 'outputs');
     await assertVerifiedOutputArtifacts(transaction, outputRows);
-    const event = await eventFactory({ eventType: 'run.created', payload: { entity_type: 'run', run_id: runId, task_id: taskId, actor_id: actorId, input_count: inputRows.length, output_count: outputRows.length } });
+    const event = await eventFactory({ eventType: 'run.created', payload: { entity_type: 'run', run_id: runId, task_id: taskId, actor_id: actorId, input_count: inputRows.length, output_count: outputRows.length, random_seed_semantic_hash: normalizedRandomSeed.semanticHash } });
     if (!event || typeof event !== 'object') throw new RunCommandError('eventFactory must return an event object');
     return {
       run: await transaction.insertRun(run) ?? run,
