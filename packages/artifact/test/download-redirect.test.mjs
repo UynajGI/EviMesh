@@ -12,7 +12,7 @@ test('creates a bounded signed GET redirect', async () => {
     return { url: `https://download.example/${input.key}` };
   } });
   assert.equal(redirect.status, 302);
-  assert.equal(redirect.key, `artifacts/artifact_1/revisions/2/${'b'.repeat(64)}`);
+  assert.equal(redirect.key, `objects/sha256/${'b'.repeat(64)}`);
   assert.equal(redirect.expiresAt.getTime() - now.getTime(), 300000);
   assert.equal(calls[0].method, 'GET');
 });

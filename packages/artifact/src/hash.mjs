@@ -58,5 +58,5 @@ export function artifactObjectKey({ artifactId, revision, rawHash } = {}) {
   if (typeof rawHash !== 'string' || !new RegExp(`^${SHA256_PREFIX}[0-9a-f]{${SHA256_DIGEST_LENGTH}}$`, 'i').test(rawHash)) {
     throw new TypeError('raw hash must be a sha256 digest');
   }
-  return `artifacts/${artifactId.trim()}/revisions/${revision}/${rawHash.slice(SHA256_PREFIX.length).toLowerCase()}`;
+  return `objects/sha256/${rawHash.slice(SHA256_PREFIX.length).toLowerCase()}`;
 }
