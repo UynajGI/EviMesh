@@ -505,6 +505,13 @@
       "when": 1786008600000,
       "tag": "0070_policy_evaluations",
       "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1786012200000,
+      "tag": "0071_published_frontier_immutable",
+      "breakpoints": true
     }
   ]
 }

@@ -250,3 +250,7 @@ recommended decision exactly.
 M8-37 integrates Challenge impact computation with dependency tainting: an
 upheld upstream Challenge leaves its source contested and marks every computed
 downstream Claim as `dependency_tainted`.
+
+M8-38 installs a database trigger that rejects `UPDATE` and `DELETE` for a
+FrontierSnapshot after its `frontier.published` event exists, retaining the
+published research record as immutable history.
