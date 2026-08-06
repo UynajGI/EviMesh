@@ -16,7 +16,7 @@ test("creates a ClaimRelation and event atomically", async () => {
   });
   assert.deepEqual(calls.map(([kind]) => kind), ["relation", "event"]);
   assert.equal(result.relation.relationType, "supports");
-  assert.equal(result.event.eventType, "claim.relation_created");
+  assert.equal(result.event.eventType, "claim.relation.created");
 });
 
 test("rejects duplicate and cyclic depends_on relations before writing", async () => {
@@ -55,7 +55,7 @@ test("ends a relation by timestamping the historical row and writing an event", 
   });
   assert.equal(calls[0][0], "update");
   assert.equal(calls[0][4].deletedAt, "2026-08-06T12:00:00.000Z");
-  assert.equal(result.event.eventType, "claim.relation_ended");
+  assert.equal(result.event.eventType, "claim.relation.ended");
 });
 
 test("replaces a relation without deleting its historical row", async () => {
@@ -73,5 +73,27 @@ test("replaces a relation without deleting its historical row", async () => {
   });
   assert.deepEqual(calls.map(([kind]) => kind), ["update", "insert", "event"]);
   assert.equal(result.replacement.relationType, "qualifies");
-  assert.equal(result.event.eventType, "claim.relation_replaced");
+  assert.equal(result.event.eventType, "claim.relation.replaced");
+});
+
+test("ignores soft-deleted relations when recreating dependencies", async () => {
+  const calls = [];
+  const repository = {
+    withTransaction: (callback) => callback(repository),
+    listClaimRelations: async () => [
+      { sourceClaimId: "claim-1", targetClaimId: "claim-2", relationType: "depends_on", deletedAt: "2026-08-06T11:00:00.000Z" },
+      { sourceClaimId: "claim-2", targetClaimId: "claim-3", relationType: "depends_on" },
+    ],
+    insertClaimRelation: async (value) => { calls.push(["relation", value]); return value; },
+    appendResearchEvent: async (value) => { calls.push(["event", value]); return value; },
+  };
+
+  const result = await createClaimRelation({
+    repository, actorId: "actor-1", actorRole: "maintainer", sourceClaimId: "claim-3", targetClaimId: "claim-1", relationType: "depends_on",
+    eventFactory: ({ eventType, payload }) => ({ eventId: "event-21", eventType, payload }),
+  });
+
+  assert.equal(result.relation.relationType, "depends_on");
+  assert.equal(result.event.eventType, "claim.relation.created");
+  assert.deepEqual(calls.map(([kind]) => kind), ["relation", "event"]);
 });

@@ -48,7 +48,7 @@ export async function createClaimRelation({
 
   return repository.withTransaction(async (transaction) => {
     const existing = await transaction.listClaimRelations();
-    const edges = (existing ?? []).map((relation) => ({
+    const edges = (existing ?? []).filter((relation) => !relation.deletedAt).map((relation) => ({
       type: relation.relationType ?? relation.type,
       source: relation.sourceClaimId ?? relation.source,
       target: relation.targetClaimId ?? relation.target,
@@ -65,7 +65,7 @@ export async function createClaimRelation({
     }
     const relation = { sourceClaimId, targetClaimId, relationType, createdBy: actorId };
     const event = await eventFactory({
-      eventType: "claim.relation_created",
+      eventType: "claim.relation.created",
       payload: { entity_type: "claim_relation", source_claim_id: sourceClaimId, target_claim_id: targetClaimId, relation_type: relationType, actor_id: actorId },
     });
     if (!event || typeof event !== "object") throw new ClaimRelationCommandError("eventFactory must return an event object");
@@ -123,7 +123,7 @@ async function changeClaimRelation({ repository, actorId, actorRole, sourceClaim
     const endedAt = nowDate.toISOString();
     const ended = await transaction.updateClaimRelation(sourceClaimId, targetClaimId, relationType, { deletedAt: endedAt });
     const event = await eventFactory({
-      eventType: replacementRelation ? "claim.relation_replaced" : "claim.relation_ended",
+      eventType: replacementRelation ? "claim.relation.replaced" : "claim.relation.ended",
       payload: {
         entity_type: "claim_relation", source_claim_id: sourceClaimId, target_claim_id: targetClaimId, relation_type: relationType,
         ended_at: endedAt, replacement: replacementRelation, actor_id: actorId,
