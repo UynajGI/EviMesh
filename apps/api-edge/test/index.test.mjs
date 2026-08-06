@@ -164,6 +164,18 @@ test('lists open newcomer tasks by tag', async () => {
   assert.deepEqual((await response.json()).items.map((task) => task.tag), ['cpu-only']);
 });
 
+test('returns a Claim with statement, scope, falsification, and status policy', async () => {
+  const app = createApp({ repository: {
+    getClaim: async (claimId) => ({ claimId, questionId: 'question-1', state: 'candidate' }),
+    getCurrentClaimRevision: async () => ({ claimId: 'claim-1', revision: 2, supersedes: 1, statement: 'The evidence supports the hypothesis.', scope: { population: 'sample' }, falsification: ['failed reproduction'] }),
+  } });
+  const response = await app.fetch(new Request('https://api.example.test/claims/claim-1'), {});
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.currentRevision.statement, 'The evidence supports the hypothesis.');
+  assert.deepEqual(body.statusPolicy.allowedTransitions, ['under_verification', 'contested', 'refuted', 'superseded', 'retracted', 'dependency_tainted']);
+});
+
 test('returns Task details with its current revision, dependencies, and leases', async () => {
   const app = createApp({ repository: {
     getTask: async (taskId) => ({ taskId, state: 'active' }),

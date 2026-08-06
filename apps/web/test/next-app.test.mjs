@@ -247,3 +247,10 @@ test('renders the Claim list with status and tag filters', async () => {
   assert.match(page, /under_verification/);
   assert.match(nav, /href: '\/claims'/);
 });
+
+test('renders Claim details with statement, scope, falsification, and revisions', async () => {
+  const page = await read('../app/claims/[claimId]/page.js');
+  assert.match(page, /\/claims\/\$\{claimId\}/);
+  for (const section of ['statement', 'Scope', 'Falsification conditions', 'Revision history']) assert.match(page, new RegExp(section));
+  assert.match(page, /currentRevision\.revision/);
+});
