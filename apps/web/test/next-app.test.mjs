@@ -184,4 +184,7 @@ test('renders a normalized Question preview before submission', async () => {
   assert.match(page, /JSON\.stringify\(draft/);
   assert.match(page, /Back to edit/);
   assert.match(page, /setPreview\(true\)/);
+  assert.match(page, /POST/);
+  assert.match(page, /Submit question/);
+  assert.match(page, /router\.push\(`\/questions\/\$\{body\.question\.questionId\}`\)/);
 });

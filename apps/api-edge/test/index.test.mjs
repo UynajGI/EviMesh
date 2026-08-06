@@ -127,6 +127,34 @@ test('creates a project through the authenticated command boundary', async () =>
   assert.equal(calls.length, 4);
 });
 
+test('creates a question through the authenticated command boundary', async () => {
+  const calls = [];
+  const app = createApp({
+    repository: {
+      findIdentity: async () => ({ actorId: 'actor-1' }),
+      insertQuestion: async () => null,
+      insertQuestionRevision: async () => null,
+      appendResearchEvent: async () => null,
+      withTransaction: async (callback) => callback({
+        insertQuestion: async (question) => { calls.push(['question', question]); return question; },
+        insertQuestionRevision: async (revision) => { calls.push(['revision', revision]); return revision; },
+        appendResearchEvent: async (event) => { calls.push(['event', event]); return event; },
+      }),
+    },
+    questionEventFactory: async ({ eventType, payload }) => ({ eventType, payload }),
+    questionRoleResolver: async () => 'maintainer',
+    authenticate: async () => ({ sub: 'supabase-subject' }),
+  });
+  const response = await app.fetch(new Request('https://api.example.test/questions', {
+    method: 'POST',
+    headers: { authorization: 'Bearer test-token', 'content-type': 'application/json' },
+    body: JSON.stringify({ questionId: 'question-1', projectId: 'project-1', title: 'Evidence question', statement: 'What should we test?', researchContract: { contractId: 'contract-1', revision: 1 } }),
+  }), {});
+  assert.equal(response.status, 201);
+  assert.equal((await response.json()).question.questionId, 'question-1');
+  assert.equal(calls.length, 3);
+});
+
 test('lists open newcomer tasks by tag', async () => {
   const app = createApp({ repository: { listTasks: async ({ status, tag }) => [
     { taskId: 'task-1', projectId: 'project-1', status, tag, createdAt: '2026-08-06T00:00:00.000Z' },

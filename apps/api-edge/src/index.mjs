@@ -17,6 +17,8 @@ import { getLatestFrontier, FrontierQueryError } from './frontier-query.mjs';
 import { listTasks, TaskQueryError } from './task-query.mjs';
 import { createProject } from '../../../packages/domain/src/project-command.mjs';
 import { ProjectCommandError } from '../../../packages/domain/src/project-command.mjs';
+import { createQuestion } from '../../../packages/domain/src/question-command.mjs';
+import { QuestionCommandError } from '../../../packages/domain/src/question-command.mjs';
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
 
@@ -28,7 +30,7 @@ function errorBody(code, message, requestId) {
   return { code, message, request_id: requestId };
 }
 
-export function createApp({ repository = null, projectEventFactory = null, authenticate = authenticateSupabaseRequest } = {}) {
+export function createApp({ repository = null, projectEventFactory = null, questionEventFactory = null, questionRoleResolver = null, authenticate = authenticateSupabaseRequest } = {}) {
 const app = new Hono();
 
 app.use("*", async (context, next) => {
@@ -165,6 +167,34 @@ app.post('/projects', async (context) => {
   } catch (error) {
     const status = error instanceof JwtVerificationError ? 401 : error instanceof ActorIdentityError ? error.status : error instanceof ProjectCommandError ? error.status : error.status;
     if (status) return context.json(errorBody(error.code ?? 'project_creation_failed', error.message, context.get('requestId')), status);
+    throw error;
+  }
+});
+
+app.post('/questions', async (context) => {
+  try {
+    if (typeof questionEventFactory !== 'function' || typeof questionRoleResolver !== 'function') {
+      return context.json(errorBody('QUESTION_CREATION_UNAVAILABLE', 'question creation is not configured', context.get('requestId')), 503);
+    }
+    const claims = await authenticate(context.req.raw, context.env);
+    const actorId = await resolveActorForSupabaseClaims({ repository, claims });
+    const body = await context.req.json();
+    const actorRole = await questionRoleResolver({ repository, actorId, projectId: body.projectId });
+    const result = await createQuestion({
+      repository,
+      actorId,
+      actorRole,
+      questionId: body.questionId,
+      projectId: body.projectId,
+      title: body.title,
+      statement: body.statement,
+      researchContract: body.researchContract,
+      eventFactory: questionEventFactory,
+    });
+    return context.json(result, 201);
+  } catch (error) {
+    const status = error instanceof JwtVerificationError ? 401 : error instanceof ActorIdentityError ? error.status : error instanceof QuestionCommandError ? error.status : error.status;
+    if (status) return context.json(errorBody(error.code ?? 'question_creation_failed', error.message, context.get('requestId')), status);
     throw error;
   }
 });
