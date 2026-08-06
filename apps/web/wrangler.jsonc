@@ -3,7 +3,7 @@
   "main": ".open-next/worker.js",
   "name": "evimesh-web",
   "compatibility_date": "2026-08-06",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
