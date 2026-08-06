@@ -13,6 +13,14 @@ function requiredText(value, field) {
   return value.trim();
 }
 
+function assertOciDigest(value) {
+  const container = requiredText(value, 'container');
+  if (!/^(?:oci:)?[^\s@]+@sha256:[a-f0-9]{64}$/i.test(container)) {
+    throw new RunCommandError('container must include an immutable sha256 OCI digest', 'OCI_DIGEST_REQUIRED');
+  }
+  return container;
+}
+
 function artifactRefs(values, field) {
   if (!Array.isArray(values)) throw new RunCommandError(`${field} must be an array`);
   const rows = values.map((value) => ({ runId: null, artifactId: requiredText(value?.artifactId, `${field}.artifactId`), artifactRevision: Number.isInteger(value?.artifactRevision) && value.artifactRevision > 0 ? value.artifactRevision : (() => { throw new RunCommandError(`${field}.artifactRevision must be positive`); })() }));
@@ -46,7 +54,7 @@ export async function createRun({ repository, actorId, actorRole, runId, taskId,
   taskId = requiredText(taskId, 'task id');
   contextBundleId = requiredText(contextBundleId, 'context bundle id');
   sourceCode = requiredText(sourceCode, 'source code');
-  container = requiredText(container, 'container');
+  container = assertOciDigest(container);
   command = requiredText(command, 'command');
   signature = requiredText(signature, 'signature');
   if (!Array.isArray(args)) throw new RunCommandError('args must be an array');
