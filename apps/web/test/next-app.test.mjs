@@ -371,3 +371,14 @@ test('renders Verification workspace for Claim, Run, and Contract pinning', asyn
   assert.match(page, /Expected outputs hidden/);
   assert.match(page, /expectedOutputs: undefined/);
 });
+
+test('renders Verification Receipt form with outcome, independence, and findings', async () => {
+  const page = await read('../components/verification-receipt-form.js');
+  const route = await read('../app/verification/receipt/new/page.js');
+  assert.match(page, /Verification Receipt/);
+  assert.match(page, /outcome/);
+  assert.match(page, /implementationRelation/);
+  assert.match(page, /dataRelation/);
+  assert.match(page, /findings/);
+  assert.match(route, /VerificationReceiptForm/);
+});
