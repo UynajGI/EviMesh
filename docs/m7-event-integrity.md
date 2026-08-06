@@ -166,7 +166,6 @@ rebuilds them in append order from signed Event `payload.projection` snapshots.
 The first integrated core path covers Claim creation, revision, and lifecycle
 transitions; immutable Event history is never cleared or mutated during replay.
 
-后续 M7 loop 将在这一边界上增加 key rotation。
 
 ## Event deletion guard
 
@@ -188,3 +187,10 @@ update is rejected with `55000`; the original statement remains intact.
 makes the replacement key active, and retains the outgoing public key. Receipt
 verification resolves its embedded `key_id` through the complete keyring, so
 both pre-rotation and post-rotation receipts remain independently verifiable.
+
+## Platform public keys endpoint
+
+`GET /platform/keys` publishes the active and retained Ed25519 public keys with
+their `key_id`; it never includes private key fields, even if a deployment
+configuration accidentally contains them. Missing or malformed keyring
+configuration fails closed with `503`.
