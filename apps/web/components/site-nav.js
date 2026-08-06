@@ -8,6 +8,7 @@ const links = [
   { href: '/contributions', label: 'Contributions' },
   { href: '/sign-in', label: 'Sign in' },
   { href: '/settings', label: 'Settings' },
+  { href: '/settings/keys', label: 'Keys' },
 ];
 
 export function SiteNav() {

@@ -6,6 +6,8 @@ import { getPlatformPublicKeys, PlatformPublicKeysError } from './platform-publi
 import { getOwnProfile, patchOwnProfile } from './profile-api.mjs';
 import { ActorIdentityError, resolveActorForSupabaseClaims } from './actor-identity.mjs';
 import { ActorProfileError } from '../../../packages/domain/src/actor-profile.mjs';
+import { registerOwnSigningKey } from './signing-key-api.mjs';
+import { SigningKeyError } from '../../../packages/domain/src/signing-key.mjs';
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
 
@@ -94,6 +96,19 @@ app.patch('/profile', async (context) => {
   } catch (error) {
     const status = error instanceof JwtVerificationError ? 401 : error instanceof ActorIdentityError ? error.status : error instanceof ActorProfileError ? 400 : error.status;
     if (status) return context.json(errorBody(error.code ?? 'profile_unavailable', error.message, context.get('requestId')), status);
+    throw error;
+  }
+});
+
+app.post('/signing-keys', async (context) => {
+  try {
+    const claims = await authenticateSupabaseRequest(context.req.raw, context.env);
+    const actorId = await resolveActorForSupabaseClaims({ repository, claims });
+    const { keyId, publicKey } = await context.req.json();
+    return context.json(await registerOwnSigningKey({ repository, actorId, keyId, publicKey }), 201);
+  } catch (error) {
+    const status = error instanceof JwtVerificationError ? 401 : error instanceof ActorIdentityError ? error.status : error instanceof SigningKeyError ? 400 : error.status;
+    if (status) return context.json(errorBody(error.code ?? 'signing_key_unavailable', error.message, context.get('requestId')), status);
     throw error;
   }
 });
