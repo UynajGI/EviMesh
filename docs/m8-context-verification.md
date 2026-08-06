@@ -71,3 +71,12 @@ mode against the protocol vocabulary and returns the one stored immutable
 ContextBundle for that Task/mode pair, including its manifest, content hash,
 and storage URI. It never regenerates a context from mutable current
 projections; a missing bundle is an explicit 404.
+
+## Context access audit hook
+
+M8-08 adds `recordContextBundleAccess` to the domain layer. The authorization
+layer passes `accessRestricted: true` after it has approved a protected bundle
+download; the hook then appends `context_bundle.accessed` with the immutable
+bundle identity, content hash, actor, and access reason. Unrestricted reads do
+not generate events, and an incomplete restricted-access audit envelope fails
+closed.
