@@ -202,3 +202,10 @@ state. Already tainted Claims are not rewritten.
 M8-26 creates one re-verification Task for each affected downstream Claim.
 The worker excludes the challenged source Claim, de-duplicates Claim IDs, and
 does not create a second task where one already exists for the same source.
+
+## Merge proposals
+
+M8-27 creates a MergeProposal only after loading the explicitly requested
+Claim revision and VerificationPolicy revision. The persisted proposal and its
+event pin both revision numbers; its status is `ready` only when the pinned
+evaluation has met every policy requirement.
