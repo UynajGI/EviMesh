@@ -196,3 +196,9 @@ dependency set in stable order. Other Challenge outcomes have no impact set.
 M8-25 marks every impacted downstream Claim as `dependency_tainted` while
 leaving the directly challenged source Claim in its own Challenge-derived
 state. Already tainted Claims are not rewritten.
+
+## Re-verification tasks
+
+M8-26 creates one re-verification Task for each affected downstream Claim.
+The worker excludes the challenged source Claim, de-duplicates Claim IDs, and
+does not create a second task where one already exists for the same source.
