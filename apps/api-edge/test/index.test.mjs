@@ -88,6 +88,16 @@ test('lists projects and returns each latest frontier', async () => {
   assert.equal((await frontier.json()).frontier.sequence, 3);
 });
 
+test('returns a public project with its current revision', async () => {
+  const app = createApp({ repository: {
+    getProject: async (projectId) => ({ projectId, state: 'active' }),
+    getCurrentProjectRevision: async (projectId) => ({ projectId, revision: 2, name: 'Evidence Mesh', summary: 'A research project.' }),
+  } });
+  const response = await app.fetch(new Request('https://api.example.test/projects/project-1'), {});
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).currentRevision.name, 'Evidence Mesh');
+});
+
 test('lists open newcomer tasks by tag', async () => {
   const app = createApp({ repository: { listTasks: async ({ status, tag }) => [
     { taskId: 'task-1', projectId: 'project-1', status, tag, createdAt: '2026-08-06T00:00:00.000Z' },

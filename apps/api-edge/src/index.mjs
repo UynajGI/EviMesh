@@ -12,7 +12,7 @@ import { listOwnTokens, createOwnToken, revokeOwnToken } from './api-token-api.m
 import { ApiTokenError } from '../../../packages/domain/src/api-token.mjs';
 import { listQuestions, QuestionQueryError } from './question-query.mjs';
 import { listClaims, ClaimQueryError } from './claim-query.mjs';
-import { listProjects, ProjectQueryError } from './project-query.mjs';
+import { getProject, listProjects, ProjectQueryError } from './project-query.mjs';
 import { getLatestFrontier, FrontierQueryError } from './frontier-query.mjs';
 import { listTasks, TaskQueryError } from './task-query.mjs';
 
@@ -126,6 +126,11 @@ app.get('/projects', async (context) => {
     if (error instanceof ProjectQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status);
     throw error;
   }
+});
+
+app.get('/projects/:projectId', async (context) => {
+  try { return context.json(await getProject({ repository, projectId: context.req.param('projectId') })); }
+  catch (error) { if (error instanceof ProjectQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status); throw error; }
 });
 
 app.get('/projects/:projectId/frontier/latest', async (context) => {

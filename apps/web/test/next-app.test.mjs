@@ -129,3 +129,11 @@ test('renders tagged newcomer tasks on the homepage', async () => {
   assert.match(page, /tag=\$\{tag\}/);
   assert.match(page, /Newcomer tasks/);
 });
+
+test('renders project details with Questions, Frontier, and Task summaries', async () => {
+  const page = await read('../app/projects/[projectId]/page.js');
+  assert.match(page, /\/projects\/\$\{projectId\}/);
+  assert.match(page, /\/questions\?projectId=/);
+  assert.match(page, /\/tasks\?projectId=/);
+  assert.match(page, /Latest frontier/);
+});
