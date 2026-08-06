@@ -184,3 +184,9 @@ M8-23 persists each Policy evaluation as an append-only record with the exact
 Policy revision, materialized input summary, per-requirement outcome, and final
 recommendation. Restrictive Claim and Policy-revision foreign keys preserve the
 audit boundary.
+
+## Challenge impact calculation
+
+M8-24 adds `calculateChallengeImpactJob`. For an upheld, revision-pinned
+Challenge it returns the challenged Claim plus the deduplicated downstream
+dependency set in stable order. Other Challenge outcomes have no impact set.

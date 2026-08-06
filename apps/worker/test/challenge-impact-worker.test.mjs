@@ -1,0 +1,8 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { calculateChallengeImpactJob, ChallengeImpactWorkerError } from '../src/challenge-impact-worker.mjs';
+
+function repository(state = 'upheld') { return { getCurrentChallengeRevision: async () => ({ revision: 2, state, targetClaimId: 'claim-root' }), getClaimDownstreamGraph: async () => [{ claimId: 'claim-child' }, { claimId: 'claim-leaf' }, { claimId: 'claim-child' }] }; }
+test('returns every downstream Claim for an upheld Challenge', async () => { const result = await calculateChallengeImpactJob({ repository: repository(), challengeId: 'challenge-1', challengeRevision: 2 }); assert.deepEqual(result.impactedClaimIds, ['claim-child', 'claim-leaf', 'claim-root']); });
+test('does not calculate impact for a non-upheld Challenge', async () => { const result = await calculateChallengeImpactJob({ repository: repository('rejected'), challengeId: 'challenge-1', challengeRevision: 2 }); assert.deepEqual(result.impactedClaimIds, []); });
+test('fails closed for a missing fixed Challenge revision', async () => { await assert.rejects(() => calculateChallengeImpactJob({ repository: repository(), challengeId: 'challenge-1', challengeRevision: 1 }), (error) => error instanceof ChallengeImpactWorkerError && error.code === 'CHALLENGE_REVISION_NOT_FOUND'); });
