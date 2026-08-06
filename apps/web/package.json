@@ -7,9 +7,10 @@
     "test": "node --test",
     "dev": "next dev",
     "build": "next build",
+    "preview": "opennextjs-cloudflare preview",
     "start": "next start",
-    "deploy:preview": "wrangler pages deploy public --project-name evimesh-web-dev",
-    "deploy:production": "wrangler pages deploy public --project-name evimesh-web"
+    "deploy:preview": "opennextjs-cloudflare deploy --env preview",
+    "deploy:production": "opennextjs-cloudflare deploy --env production"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.1.18",
@@ -18,6 +19,7 @@
     "wrangler": "4.118.0"
   },
   "dependencies": {
+    "@opennextjs/cloudflare": "^1.20.2",
     "@radix-ui/react-dialog": "1.1.15",
     "@supabase/supabase-js": "^2.112.1",
     "class-variance-authority": "0.7.1",

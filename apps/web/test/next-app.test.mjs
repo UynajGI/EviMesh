@@ -20,6 +20,20 @@ test('initializes the Next App Router shell', async () => {
   assert.match(page, /className="mx-auto max-w-6xl/);
 });
 
+test('configures OpenNext for Cloudflare Workers deployment', async () => {
+  const [manifest, nextConfig, workerConfig, openNextConfig, headers] = await Promise.all([
+    read('../package.json'), read('../next.config.mjs'), read('../wrangler.jsonc'), read('../open-next.config.ts'), read('../public/_headers'),
+  ]);
+  const packageJson = JSON.parse(manifest);
+  assert.match(packageJson.scripts.preview, /opennextjs-cloudflare preview/);
+  assert.match(packageJson.scripts['deploy:production'], /opennextjs-cloudflare deploy --env production/);
+  assert.match(nextConfig, /initOpenNextCloudflareForDev/);
+  assert.match(workerConfig, /"main": "\.open-next\/worker\.js"/);
+  assert.match(workerConfig, /"directory": "\.open-next\/assets"/);
+  assert.match(openNextConfig, /defineCloudflareConfig/);
+  assert.match(headers, /Cache-Control: public,max-age=31536000,immutable/);
+});
+
 test('configures shadcn-compatible Button, Input, and Dialog components', async () => {
   const [config, button, input, dialog] = await Promise.all([
     read('../components.json'), read('../components/ui/button.js'), read('../components/ui/input.js'), read('../components/ui/dialog.js'),

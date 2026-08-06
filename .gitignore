@@ -31,3 +31,4 @@ venv/
 apps/api-edge/.wrangler/
 apps/web/.wrangler/
 apps/web/.next/
+apps/web/.open-next/
