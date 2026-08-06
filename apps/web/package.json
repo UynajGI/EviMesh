@@ -5,11 +5,18 @@
   "scripts": {
     "lint": "node ../../scripts/check-package.mjs",
     "test": "node --test",
-    "dev": "wrangler pages dev public --port 3000",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
     "deploy:preview": "wrangler pages deploy public --project-name evimesh-web-dev",
     "deploy:production": "wrangler pages deploy public --project-name evimesh-web"
   },
   "devDependencies": {
     "wrangler": "4.118.0"
+  },
+  "dependencies": {
+    "next": "16.1.6",
+    "react": "19.2.3",
+    "react-dom": "19.2.3"
   }
 }
