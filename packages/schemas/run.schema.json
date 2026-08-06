@@ -12,7 +12,7 @@
     "context_bundle_id": { "type": "string", "minLength": 1 },
     "input_artifact_ids": { "type": "array", "items": { "type": "string", "minLength": 1 } },
     "source_code": { "type": "string", "minLength": 1 },
-    "container": { "type": "string", "minLength": 1 },
+    "container": { "type": "string", "pattern": "^(?:oci:)?[^\\s@]+@sha256:[a-fA-F0-9]{64}$" },
     "command": { "type": "string", "minLength": 1 },
     "args": { "type": "array", "items": { "type": "string" } },
     "environment": { "type": "object", "minProperties": 1 },

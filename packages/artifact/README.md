@@ -12,4 +12,10 @@ streamed SHA-256 digest before the object can be accepted as an Artifact.
 multipart sessions, including expiry, ordered unique parts, completion, and
 abort operations.
 
+`src/download-redirect.mjs` builds short-lived signed GET redirects for
+content-addressed Artifact revisions.
+
+`src/malware-scan.mjs` defines the scanner adapter boundary and fails closed
+for infected or unavailable scan results.
+
 科研 Artifact、Evidence、Run Receipt 与对象存储边界。当前为骨架包。

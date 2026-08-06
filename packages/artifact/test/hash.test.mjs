@@ -29,7 +29,7 @@ test('builds a content-addressed artifact object key', () => {
       revision: 2,
       rawHash: `sha256:${'A'.repeat(64)}`,
     }),
-    `artifacts/artifact_123/revisions/2/${'a'.repeat(64)}`,
+    `objects/sha256/${'a'.repeat(64)}`,
   );
   assert.throws(() => artifactObjectKey({ artifactId: 'a', revision: 0, rawHash: `sha256:${'a'.repeat(64)}` }), /positive integer/);
   assert.throws(() => artifactObjectKey({ artifactId: 'artifact_123', revision: 1, rawHash: `sha512:${'a'.repeat(64)}` }), /sha256/);
@@ -37,6 +37,10 @@ test('builds a content-addressed artifact object key', () => {
   assert.throws(() => artifactObjectKey({ artifactId: 'artifact_123', revision: 1, rawHash: `sha256:${'g'.repeat(64)}` }), /sha256/);
   assert.equal(
     artifactObjectKey({ artifactId: '  artifact_123  ', revision: 2, rawHash: `sha256:${'Aa'.repeat(32)}` }),
-    `artifacts/artifact_123/revisions/2/${'aa'.repeat(32)}`,
+    `objects/sha256/${'aa'.repeat(32)}`,
+  );
+  assert.equal(
+    artifactObjectKey({ artifactId: 'another_artifact', revision: 1, rawHash: `sha256:${'a'.repeat(64)}` }),
+    `objects/sha256/${'a'.repeat(64)}`,
   );
 });

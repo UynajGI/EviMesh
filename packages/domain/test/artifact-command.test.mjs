@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { appendArtifactLocation, ArtifactCommandError, createArtifact } from '../src/artifact-command.mjs';
+import { appendArtifactLocation, ArtifactCommandError, createArtifact, submitExternalArtifactLocation } from '../src/artifact-command.mjs';
 
 function repository() {
   const calls = [];
@@ -46,4 +46,12 @@ test('rejects location append for missing artifacts', async () => {
   const repo = repository();
   repo.getArtifact = async () => null;
   await assert.rejects(() => appendArtifactLocation({ repository: repo, actorId: 'actor_1', actorRole: 'contributor', artifactId: 'missing', locationId: 'location_2', locationType: 'mirror', location: 'https://example.test/object', eventFactory: async (event) => event }), (error) => error.code === 'ARTIFACT_NOT_FOUND');
+});
+
+test('submits an external Artifact location with verifiable metadata', async () => {
+  const repo = repository();
+  const result = await submitExternalArtifactLocation({ repository: repo, actorId: 'actor_1', actorRole: 'contributor', artifactId: 'artifact_1', locationId: 'location_3', location: 'https://example.test/object', rawHash: `sha256:${'a'.repeat(64)}`, sizeBytes: 12, license: 'CC-BY-4.0', eventFactory: async (event) => event });
+  assert.equal(result.location.locationType, 'external');
+  assert.equal(result.location.sizeBytes, 12);
+  await assert.rejects(() => submitExternalArtifactLocation({ repository: repo, actorId: 'actor_1', actorRole: 'contributor', artifactId: 'artifact_1', locationId: 'location_4', location: 'https://example.test/object', rawHash: 'sha256:bad', sizeBytes: 12, license: 'CC-BY-4.0', eventFactory: async (event) => event }), /raw hash/);
 });

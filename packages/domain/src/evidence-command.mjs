@@ -51,3 +51,44 @@ export async function createEvidence({ repository, actorId, actorRole, evidenceI
     event: await transaction.appendResearchEvent(event) ?? event,
   }));
 }
+
+/** Link immutable Evidence to one specific immutable Claim revision atomically. */
+export async function linkEvidenceClaim({ repository, actorId, actorRole, evidenceId, claimId, claimRevision, relationType, eventFactory } = {}) {
+  if (!repository || typeof repository.withTransaction !== 'function') throw new EvidenceCommandError('repository withTransaction is required');
+  for (const method of ['getEvidence', 'getClaimRevision', 'insertEvidenceClaimLink', 'appendResearchEvent']) {
+    if (typeof repository[method] !== 'function') throw new EvidenceCommandError(`repository ${method} is required`);
+  }
+  actorId = requiredText(actorId, 'actor id');
+  evidenceId = requiredText(evidenceId, 'evidence id');
+  claimId = requiredText(claimId, 'claim id');
+  claimRevision = positiveInteger(claimRevision, 'claim revision');
+  relationType = requiredText(relationType, 'link relation type');
+  if (!LINK_TYPES.has(relationType)) throw new EvidenceCommandError(`unsupported evidence link relation: ${relationType}`);
+  if (typeof eventFactory !== 'function') throw new EvidenceCommandError('eventFactory is required');
+  assertProjectRoleForAction({ actorRole, requiredRole: 'contributor' });
+
+  return repository.withTransaction(async (transaction) => {
+    if (!await transaction.getEvidence(evidenceId)) {
+      throw new EvidenceCommandError('evidence not found', 'EVIDENCE_NOT_FOUND', 404);
+    }
+    if (!await transaction.getClaimRevision(claimId, claimRevision)) {
+      throw new EvidenceCommandError('claim revision not found', 'CLAIM_REVISION_NOT_FOUND', 404);
+    }
+    const link = { evidenceId, claimId, claimRevision, relationType, createdBy: actorId };
+    const event = await eventFactory({
+      eventType: 'evidence.claim_linked',
+      payload: {
+        entity_type: 'evidence',
+        evidence_id: evidenceId,
+        claim_id: claimId,
+        claim_revision: claimRevision,
+        relation_type: relationType,
+        actor_id: actorId,
+      },
+    });
+    if (!event || typeof event !== 'object') throw new EvidenceCommandError('eventFactory must return an event object');
+    const persistedLink = await transaction.insertEvidenceClaimLink(link);
+    const persistedEvent = await transaction.appendResearchEvent(event);
+    return { link: persistedLink ?? link, event: persistedEvent ?? event };
+  });
+}

@@ -8,7 +8,7 @@ const now = new Date('2026-01-01T00:00:00Z');
 test('creates a signed single upload plan with a bounded expiry', async () => {
   const plan = await createSingleUploadPlan({ artifactId: 'artifact_1', revision: 1, rawHash: hash, sizeBytes: 12, mediaType: 'application/json', now, signer: async (input) => ({ url: `https://upload.example/${input.key}` }) });
   assert.equal(plan.uploadType, 'single');
-  assert.equal(plan.key, `artifacts/artifact_1/revisions/1/${'a'.repeat(64)}`);
+  assert.equal(plan.key, `objects/sha256/${'a'.repeat(64)}`);
   assert.equal(plan.expiresAt.getTime() - now.getTime(), 900000);
 });
 
