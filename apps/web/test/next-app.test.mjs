@@ -212,3 +212,11 @@ test('provides Task filters for type, status, tag, and Context Mode', async () =
   assert.match(page, /filters\.contextMode/);
   assert.match(page, /URLSearchParams/);
 });
+
+test('renders Task details with inputs, outputs, acceptance, dependencies, and leases', async () => {
+  const page = await read('../app/tasks/[taskId]/page.js');
+  assert.match(page, /\/tasks\/\$\{taskId\}/);
+  for (const section of ['Inputs', 'Outputs', 'Acceptance', 'Dependencies', 'Leases']) assert.match(page, new RegExp(section));
+  assert.match(page, /currentRevision\.contextMode/);
+  assert.match(page, /currentRevision\.description/);
+});

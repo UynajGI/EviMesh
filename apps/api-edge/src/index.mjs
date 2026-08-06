@@ -14,7 +14,7 @@ import { getQuestion, listQuestions, QuestionQueryError } from './question-query
 import { listClaims, ClaimQueryError } from './claim-query.mjs';
 import { getProject, listProjects, ProjectQueryError } from './project-query.mjs';
 import { getLatestFrontier, FrontierQueryError } from './frontier-query.mjs';
-import { listTasks, TaskQueryError } from './task-query.mjs';
+import { getTask, listTasks, TaskQueryError } from './task-query.mjs';
 import { createProject } from '../../../packages/domain/src/project-command.mjs';
 import { ProjectCommandError } from '../../../packages/domain/src/project-command.mjs';
 import { createQuestion } from '../../../packages/domain/src/question-command.mjs';
@@ -221,6 +221,15 @@ app.get('/tasks', async (context) => {
       limit,
       cursor: context.req.query('cursor') ?? null,
     }));
+  } catch (error) {
+    if (error instanceof TaskQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status);
+    throw error;
+  }
+});
+
+app.get('/tasks/:taskId', async (context) => {
+  try {
+    return context.json(await getTask({ repository, taskId: context.req.param('taskId') }));
   } catch (error) {
     if (error instanceof TaskQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status);
     throw error;

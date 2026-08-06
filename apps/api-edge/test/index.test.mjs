@@ -164,6 +164,21 @@ test('lists open newcomer tasks by tag', async () => {
   assert.deepEqual((await response.json()).items.map((task) => task.tag), ['cpu-only']);
 });
 
+test('returns Task details with its current revision, dependencies, and leases', async () => {
+  const app = createApp({ repository: {
+    getTask: async (taskId) => ({ taskId, state: 'active' }),
+    getCurrentTaskRevision: async (taskId) => ({ taskId, revision: 2, state: 'active', title: 'Verify evidence', description: 'Check the claim.', inputs: [], outputs: {}, acceptance: [], contextMode: 'adversarial' }),
+    listTaskDependencies: async () => [{ sourceTaskId: 'task-1', targetTaskId: 'task-2', dependencyType: 'depends_on' }],
+    listCurrentTaskLeases: async () => [{ taskId: 'task-1', holderActorId: 'actor-1' }],
+  } });
+  const response = await app.fetch(new Request('https://api.example.test/tasks/task-1'), {});
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.currentRevision.contextMode, 'adversarial');
+  assert.equal(body.dependencies.length, 1);
+  assert.equal(body.leases.length, 1);
+});
+
 test('returns a Question with its Contract revision', async () => {
   const app = createApp({ repository: {
     getQuestion: async (questionId) => ({ questionId, projectId: 'project-1', state: 'draft' }),
