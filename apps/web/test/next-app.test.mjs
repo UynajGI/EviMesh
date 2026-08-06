@@ -19,3 +19,13 @@ test('initializes the Next App Router shell', async () => {
   assert.match(postcss, /'@tailwindcss\/postcss': \{\}/);
   assert.match(page, /className="mx-auto max-w-3xl/);
 });
+
+test('configures shadcn-compatible Button, Input, and Dialog components', async () => {
+  const [config, button, input, dialog] = await Promise.all([
+    read('../components.json'), read('../components/ui/button.js'), read('../components/ui/input.js'), read('../components/ui/dialog.js'),
+  ]);
+  assert.equal(JSON.parse(config).tailwind.config, '');
+  assert.match(button, /export function Button/);
+  assert.match(input, /export function Input/);
+  assert.match(dialog, /export function DialogContent/);
+});
