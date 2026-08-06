@@ -5,6 +5,7 @@
 - `@evimesh/artifact` 的流式 SHA-256（不缓存完整对象）和 Artifact revision object key；
 - R2 上传后的 size/hash 流式核验，校验失败时不会进入 Artifact 接受流程；
 - 单文件上传签名计划与 R2 multipart session 的过期、分片排序、完成和中止契约；
+- 内容寻址 Artifact revision 的短时效签名 GET 下载 redirect 契约；
 - domain 层 Artifact 创建命令，原子写入 Artifact、首个 revision、初始 location 与事件；
 - Evidence 创建命令，链接固定的 Claim revision；
 - Run 创建命令，链接不可变的 Artifact revision 输入/输出并记录可复现环境字段；
