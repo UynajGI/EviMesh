@@ -145,3 +145,11 @@ test('renders the project list and creation form', async () => {
   assert.match(page, /POST/);
   assert.match(page, /\/projects\/\$\{project\.projectId\}/);
 });
+
+test('renders the first Question submission step for question and value', async () => {
+  const page = await read('../app/questions/new/page.js');
+  assert.match(page, /Step 1 of 4/);
+  assert.match(page, /Question statement/);
+  assert.match(page, /Question value/);
+  assert.match(page, /Continue to scope/);
+});
