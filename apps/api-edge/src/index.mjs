@@ -10,7 +10,7 @@ import { registerOwnSigningKey } from './signing-key-api.mjs';
 import { SigningKeyError } from '../../../packages/domain/src/signing-key.mjs';
 import { listOwnTokens, createOwnToken, revokeOwnToken } from './api-token-api.mjs';
 import { ApiTokenError } from '../../../packages/domain/src/api-token.mjs';
-import { listQuestions, QuestionQueryError } from './question-query.mjs';
+import { getQuestion, listQuestions, QuestionQueryError } from './question-query.mjs';
 import { listClaims, ClaimQueryError } from './claim-query.mjs';
 import { getProject, listProjects, ProjectQueryError } from './project-query.mjs';
 import { getLatestFrontier, FrontierQueryError } from './frontier-query.mjs';
@@ -97,6 +97,15 @@ app.get('/questions', async (context) => {
       limit,
       cursor: context.req.query('cursor') ?? null,
     }));
+  } catch (error) {
+    if (error instanceof QuestionQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status);
+    throw error;
+  }
+});
+
+app.get('/questions/:questionId', async (context) => {
+  try {
+    return context.json(await getQuestion({ repository, questionId: context.req.param('questionId') }));
   } catch (error) {
     if (error instanceof QuestionQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status);
     throw error;

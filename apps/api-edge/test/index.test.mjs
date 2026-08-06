@@ -164,6 +164,19 @@ test('lists open newcomer tasks by tag', async () => {
   assert.deepEqual((await response.json()).items.map((task) => task.tag), ['cpu-only']);
 });
 
+test('returns a Question with its Contract revision', async () => {
+  const app = createApp({ repository: {
+    getQuestion: async (questionId) => ({ questionId, projectId: 'project-1', state: 'draft' }),
+    getCurrentQuestionRevision: async () => ({ questionId: 'question-1', revision: 1, title: 'Evidence question', statement: 'What should we test?', researchContract: { contractId: 'contract-1', revision: 1 } }),
+    getResearchContractRevision: async () => ({ contractId: 'contract-1', revision: 1, title: 'Research contract' }),
+  } });
+  const response = await app.fetch(new Request('https://api.example.test/questions/question-1'), {});
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.question.state, 'draft');
+  assert.equal(body.contract.title, 'Research contract');
+});
+
 test("serves Task Context by explicit mode", async () => {
   const app = createApp({ repository: { getContextBundleForTask: async () => ({ contextBundleId: "context-1", taskId: "task-1", mode: "blind", contentHash: `sha256:${"a".repeat(64)}`, storageUri: "r2://evimesh/context-1.json", manifest: {} }) } });
   const response = await app.fetch(new Request("https://api.example.test/tasks/task-1/context?mode=blind", { headers: { "x-request-id": "context-request" } }), {});

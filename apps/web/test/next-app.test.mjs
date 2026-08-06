@@ -188,3 +188,11 @@ test('renders a normalized Question preview before submission', async () => {
   assert.match(page, /Submit question/);
   assert.match(page, /router\.push\(`\/questions\/\$\{body\.question\.questionId\}`\)/);
 });
+
+test('renders Question details with Contract, state, and Task summaries', async () => {
+  const page = await read('../app/questions/[questionId]/page.js');
+  assert.match(page, /\/questions\/\$\{questionId\}/);
+  assert.match(page, /Research Contract/);
+  assert.match(page, /data\.question\.state/);
+  assert.match(page, /data\.tasks/);
+});
