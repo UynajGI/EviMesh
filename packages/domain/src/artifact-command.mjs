@@ -90,12 +90,14 @@ export async function appendArtifactLocation({ repository, actorId, actorRole, a
   location = assertUri(location);
   if (typeof eventFactory !== 'function') throw new ArtifactCommandError('eventFactory is required');
   assertProjectRoleForAction({ actorRole, requiredRole: 'contributor' });
-  if (!await repository.getArtifact(artifactId)) throw new ArtifactCommandError('artifact not found', 'ARTIFACT_NOT_FOUND', 404);
   const artifactLocation = { locationId, artifactId, locationType, uri: location, createdBy: actorId };
-  const event = await eventFactory({ eventType: 'artifact.location.added', payload: { entity_type: 'artifact', artifact_id: artifactId, location_id: locationId, location_type: locationType, uri: location, actor_id: actorId } });
-  if (!event || typeof event !== 'object') throw new ArtifactCommandError('eventFactory must return an event object');
-  return repository.withTransaction(async (transaction) => ({
-    location: await transaction.insertArtifactLocation(artifactLocation) ?? artifactLocation,
-    event: await transaction.appendResearchEvent(event) ?? event,
-  }));
+  return repository.withTransaction(async (transaction) => {
+    if (!await transaction.getArtifact(artifactId)) throw new ArtifactCommandError('artifact not found', 'ARTIFACT_NOT_FOUND', 404);
+    const event = await eventFactory({ eventType: 'artifact.location.added', payload: { entity_type: 'artifact', artifact_id: artifactId, location_id: locationId, location_type: locationType, uri: location, actor_id: actorId } });
+    if (!event || typeof event !== 'object') throw new ArtifactCommandError('eventFactory must return an event object');
+    return {
+      location: await transaction.insertArtifactLocation(artifactLocation) ?? artifactLocation,
+      event: await transaction.appendResearchEvent(event) ?? event,
+    };
+  });
 }
