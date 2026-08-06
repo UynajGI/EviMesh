@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { FrontierContextCompileError } from "../src/frontier-context-compiler.mjs";
-import { compileFullTraceContext } from "../src/full-trace-context-compiler.mjs";
+import { compileFullTraceContext, compileFullTraceContextJob } from "../src/full-trace-context-compiler.mjs";
 
 const base = {
   taskRevision: { taskId: "task-1", revision: 1, title: "Trace task", description: "Public trace only", inputs: [], outputs: {}, acceptance: {} },
@@ -23,4 +23,11 @@ test("Full Trace compiler rejects private data even if a repository returns it",
   assert.throws(() => compileFullTraceContext({ ...base, traceEvents: [
     { eventId: "trace-1", attemptId: "attempt-1", eventType: "attempt.progress", payload: { summary: "safe", secret: "leak" }, hash: "sha256:one", createdAt: "2026-08-06T00:00:01.000Z" },
   ] }), (error) => error instanceof FrontierContextCompileError && error.code === "TRACE_EVENT_PRIVATE");
+});
+
+test("Full Trace job rejects an incomplete repository adapter before reading data", async () => {
+  await assert.rejects(
+    () => compileFullTraceContextJob({ repository: { listPublicTraceEventsByTask: async () => [] }, taskId: "task-1", taskRevision: 1, frontierSnapshotId: "frontier-1" }),
+    (error) => error instanceof FrontierContextCompileError && error.message === "repository full trace context methods are required",
+  );
 });

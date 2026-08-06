@@ -54,8 +54,9 @@ export function compileFullTraceContext({ traceEvents = [], ...frontierContext }
 
 /** Worker entry point for a full-trace context with repository-enforced public traces. */
 export async function compileFullTraceContextJob({ repository, taskId, taskRevision, frontierSnapshotId } = {}) {
-  if (!repository || typeof repository.listPublicTraceEventsByTask !== "function") {
-    throw new FrontierContextCompileError("repository listPublicTraceEventsByTask is required");
+  const requiredMethods = ["getTaskRevision", "getFrontierSnapshot", "listFrontierMembers", "getClaimRevision", "listFrontierDependencies", "listPublicTraceEventsByTask"];
+  if (!repository || requiredMethods.some((method) => typeof repository[method] !== "function")) {
+    throw new FrontierContextCompileError("repository full trace context methods are required");
   }
   const traceEvents = await repository.listPublicTraceEventsByTask(requiredText(taskId, "task id"));
   return compileFullTraceContext({
