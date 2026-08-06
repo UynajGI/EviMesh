@@ -33,6 +33,7 @@ import { verificationContracts } from './verification-contracts.mjs';
 import { verificationContractRevisions } from './verification-contract-revisions.mjs';
 import { verificationPolicies } from './verification-policies.mjs';
 import { verificationPolicyRevisions } from './verification-policy-revisions.mjs';
+import { policyEvaluations } from './policy-evaluations.mjs';
 import { verificationOutcome, verificationReceipts } from './verification-receipts.mjs';
 import { findingSeverity, verificationFindings } from './verification-findings.mjs';
 import { challenges } from './challenges.mjs';
@@ -84,6 +85,7 @@ export { verificationContracts } from './verification-contracts.mjs';
 export { verificationContractRevisions } from './verification-contract-revisions.mjs';
 export { verificationPolicies } from './verification-policies.mjs';
 export { verificationPolicyRevisions } from './verification-policy-revisions.mjs';
+export { policyEvaluations } from './policy-evaluations.mjs';
 export { verificationOutcome, verificationReceipts } from './verification-receipts.mjs';
 export { findingSeverity, verificationFindings } from './verification-findings.mjs';
 export { challenges } from './challenges.mjs';
@@ -138,6 +140,7 @@ export const schema = {
   verificationContractRevisions,
   verificationPolicies,
   verificationPolicyRevisions,
+  policyEvaluations,
   verificationReceipts,
   verificationFindings,
   challenges,

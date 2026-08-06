@@ -177,3 +177,10 @@ M8-22 adds `evaluateClaimPolicyJob`. It materializes policy input only from the
 Claim, exact Policy revision, VerificationReceipts, and their Findings, then
 calls the deterministic interpreter. Unsupported rules and malformed temporal
 inputs fail closed; persistence of the resulting evaluation follows in M8-23.
+
+## Policy evaluation record
+
+M8-23 persists each Policy evaluation as an append-only record with the exact
+Policy revision, materialized input summary, per-requirement outcome, and final
+recommendation. Restrictive Claim and Policy-revision foreign keys preserve the
+audit boundary.

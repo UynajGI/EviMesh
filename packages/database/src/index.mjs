@@ -34,6 +34,7 @@ export { verificationContracts } from './verification-contracts.mjs';
 export { verificationContractRevisions } from './verification-contract-revisions.mjs';
 export { verificationPolicies } from './verification-policies.mjs';
 export { verificationPolicyRevisions } from './verification-policy-revisions.mjs';
+export { policyEvaluations } from './policy-evaluations.mjs';
 export { verificationOutcome, verificationReceipts } from './verification-receipts.mjs';
 export { findingSeverity, verificationFindings } from './verification-findings.mjs';
 export { challenges } from './challenges.mjs';
