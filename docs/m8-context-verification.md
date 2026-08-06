@@ -63,3 +63,11 @@ verifies that the named immutable Task revision and snapshot exist; then writes
 the database row and `context_bundle.created` ResearchEvent in one transaction.
 The stored manifest records only durable identity and storage metadata, while
 the complete payload remains at the validated storage URI.
+
+## Task Context query endpoint
+
+M8-07 exposes `GET /tasks/{taskId}/context?mode=…`. It validates the requested
+mode against the protocol vocabulary and returns the one stored immutable
+ContextBundle for that Task/mode pair, including its manifest, content hash,
+and storage URI. It never regenerates a context from mutable current
+projections; a missing bundle is an explicit 404.

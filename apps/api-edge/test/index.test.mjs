@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import worker from "../src/index.mjs";
+import worker, { createApp } from "../src/index.mjs";
 
 test("returns a healthy JSON response", async () => {
   const response = await worker.fetch(new Request("https://api.example.test/health"), {
@@ -53,4 +53,11 @@ test("returns 404 for unknown routes", async () => {
     request_id: "unknown-route",
   });
   assert.equal(response.headers.get("x-request-id"), "unknown-route");
+});
+
+test("serves Task Context by explicit mode", async () => {
+  const app = createApp({ repository: { getContextBundleForTask: async () => ({ contextBundleId: "context-1", taskId: "task-1", mode: "blind", contentHash: `sha256:${"a".repeat(64)}`, storageUri: "r2://evimesh/context-1.json", manifest: {} }) } });
+  const response = await app.fetch(new Request("https://api.example.test/tasks/task-1/context?mode=blind", { headers: { "x-request-id": "context-request" } }), {});
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).contextBundleId, "context-1");
 });
