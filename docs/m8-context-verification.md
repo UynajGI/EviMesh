@@ -121,3 +121,11 @@ the query never decorates results with mutable Claim or Contract projections.
 M8-14 adds `listClaimVerifications`, querying persisted receipts by Claim with
 optional outcome, context-mode, and actor filters. Results have a stable
 creation-time/receipt-ID order for callers that need reproducible summaries.
+
+## Duplicate verification detection
+
+M8-15 binds every VerificationReceipt to an immutable Run. Before insertion,
+the submit command confirms the Run exists, checks prior receipts for the same
+Actor and Run, and records `duplicateOfReceiptId` when present. Both references
+are persisted as restrictive foreign keys, so duplicates remain auditable rather
+than being silently discarded.

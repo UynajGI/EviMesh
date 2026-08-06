@@ -11,6 +11,7 @@ import {
 import { actors } from './actors.mjs';
 import { claimRevisions } from './claim-revisions.mjs';
 import { verificationContractRevisions } from './verification-contract-revisions.mjs';
+import { runs } from './runs.mjs';
 
 export const verificationOutcome = pgEnum('verification_outcome', [
   'supports',
@@ -23,6 +24,8 @@ export const verificationReceipts = pgTable(
   'verification_receipts',
   {
     receiptId: text('receipt_id').primaryKey(),
+    runId: text('run_id').notNull().references(() => runs.runId, { onDelete: 'restrict' }),
+    duplicateOfReceiptId: text('duplicate_of_receipt_id'),
     claimId: text('claim_id').notNull(),
     claimRevision: integer('claim_revision').notNull(),
     contractId: text('contract_id').notNull(),
@@ -47,6 +50,11 @@ export const verificationReceipts = pgTable(
       name: 'verification_receipts_contract_revision_fk',
       columns: [table.contractId, table.contractRevision],
       foreignColumns: [verificationContractRevisions.contractId, verificationContractRevisions.revision],
+    }).onDelete('restrict'),
+    foreignKey({
+      name: 'verification_receipts_duplicate_of_receipt_fk',
+      columns: [table.duplicateOfReceiptId],
+      foreignColumns: [table.receiptId],
     }).onDelete('restrict'),
   ],
 );

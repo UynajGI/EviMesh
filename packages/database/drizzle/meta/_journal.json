@@ -491,6 +491,13 @@
       "when": 1786002912964,
       "tag": "0069_lame_violations",
       "breakpoints": true
+    },
+    {
+      "idx": 70,
+      "version": "7",
+      "when": 1786005000000,
+      "tag": "0070_verification_receipt_run",
+      "breakpoints": true
     }
   ]
 }
