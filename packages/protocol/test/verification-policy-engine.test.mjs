@@ -44,6 +44,14 @@ test('requires distinct implementations before promotion', () => {
   assert.throws(() => evaluateVerificationPolicy({ policy: distinctPolicy, input: { blind_reproductions: 1, distinct_implementations: -1, schema_gate: 'pass', successful_reproductions: 2 } }), /distinct_implementations must be a non-negative integer/);
 });
 
+test('does not accept a Claim before its challenge window expires', () => {
+  const windowPolicy = { ...policy, requirements: { ...policy.requirements, challenge_window_hours: 168 }, outcomes: { ...policy.outcomes, requirements_met: 'accepted' } };
+  const result = evaluateVerificationPolicy({ policy: windowPolicy, input: { blind_reproductions: 1, challenge_window_hours: 167.99, schema_gate: 'pass', successful_reproductions: 2 } });
+  assert.equal(result.requirements_met, false);
+  assert.equal(result.recommended_outcome, null);
+  assert.throws(() => evaluateVerificationPolicy({ policy: windowPolicy, input: { blind_reproductions: 1, challenge_window_hours: -1, schema_gate: 'pass', successful_reproductions: 2 } }), /challenge_window_hours must be a non-negative duration/);
+});
+
 test('marks a Claim contested when a valid refuting Receipt exists', () => {
   const result = evaluateVerificationPolicy({ policy, input: { blind_reproductions: 1, refuting_receipts: 1, schema_gate: 'pass', successful_reproductions: 2 } });
   assert.equal(result.requirements_met, true);

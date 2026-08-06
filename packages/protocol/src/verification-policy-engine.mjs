@@ -1,6 +1,7 @@
 import { createVerificationPolicy } from './verification-policy.mjs';
 
 const COUNT_REQUIREMENTS = new Set(['blind_reproductions', 'distinct_implementations']);
+const DURATION_REQUIREMENTS = new Set(['challenge_window_hours']);
 
 export class VerificationPolicyEvaluationError extends Error {
   constructor(message, code = 'VERIFICATION_POLICY_EVALUATION_INVALID') {
@@ -31,6 +32,9 @@ function evaluateRequirement(key, expected, actual) {
     if (!Number.isFinite(actual)) throw new VerificationPolicyEvaluationError(`input.${key} must be a finite number`);
     if (COUNT_REQUIREMENTS.has(key) && (!Number.isInteger(actual) || actual < 0)) {
       throw new VerificationPolicyEvaluationError(`input.${key} must be a non-negative integer`);
+    }
+    if (DURATION_REQUIREMENTS.has(key) && actual < 0) {
+      throw new VerificationPolicyEvaluationError(`input.${key} must be a non-negative duration`);
     }
     if (key === 'blocking_findings') return actual <= expected;
     return actual >= expected;

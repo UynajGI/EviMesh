@@ -164,3 +164,9 @@ or negative values fail evaluation rather than weakening the independence gate.
 M8-20 treats `distinct_implementations` as an explicit non-negative count,
 separate from the number of successful or blind receipts. The policy's minimum
 must be met before promotion can be recommended.
+
+## Challenge window rule
+
+M8-21 interprets `challenge_window_hours` as a non-negative elapsed duration.
+When the supplied elapsed duration is below the policy window, its requirement
+does not pass and even an `accepted` policy outcome cannot be recommended.
