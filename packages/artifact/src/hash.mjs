@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 
-const SHA256_PREFIX = 'sha256:';
+export const SHA256_PREFIX = 'sha256:';
+export const SHA256_DIGEST_LENGTH = 64;
 
 function assertChunk(chunk) {
   if (!(typeof chunk === 'string' || chunk instanceof Uint8Array || Buffer.isBuffer(chunk))) {
@@ -28,6 +29,25 @@ export async function sha256Bytes(bytes) {
   return sha256Stream((async function* () { yield bytes; })());
 }
 
+export async function sha256ReadableStream(stream) {
+  if (!stream || typeof stream.getReader !== 'function') {
+    throw new TypeError('sha256ReadableStream requires a ReadableStream');
+  }
+  const reader = stream.getReader();
+  const hash = createHash('sha256');
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      assertChunk(value);
+      hash.update(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  return `${SHA256_PREFIX}${hash.digest('hex')}`;
+}
+
 export function artifactObjectKey({ artifactId, revision, rawHash } = {}) {
   if (typeof artifactId !== 'string' || artifactId.trim().length === 0) {
     throw new TypeError('artifact id must be a non-empty string');
@@ -35,7 +55,7 @@ export function artifactObjectKey({ artifactId, revision, rawHash } = {}) {
   if (!Number.isInteger(revision) || revision < 1) {
     throw new TypeError('artifact revision must be a positive integer');
   }
-  if (typeof rawHash !== 'string' || !/^sha256:[0-9a-f]{64}$/i.test(rawHash)) {
+  if (typeof rawHash !== 'string' || !new RegExp(`^${SHA256_PREFIX}[0-9a-f]{${SHA256_DIGEST_LENGTH}}$`, 'i').test(rawHash)) {
     throw new TypeError('raw hash must be a sha256 digest');
   }
   return `artifacts/${artifactId.trim()}/revisions/${revision}/${rawHash.slice(SHA256_PREFIX.length).toLowerCase()}`;

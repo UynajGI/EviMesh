@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { artifactObjectKey, sha256Bytes, sha256Stream } from '../src/hash.mjs';
+import { artifactObjectKey, sha256Bytes, sha256ReadableStream, sha256Stream } from '../src/hash.mjs';
 
 test('hashes a stream without requiring a complete object buffer', async () => {
   async function* chunks() {
@@ -19,6 +19,7 @@ test('hashes byte arrays and rejects invalid streams', async () => {
     'sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
   );
   await assert.rejects(() => sha256Stream([]), /async iterable/);
+  await assert.rejects(() => sha256ReadableStream({}), /ReadableStream/);
 });
 
 test('builds a content-addressed artifact object key', () => {
