@@ -109,4 +109,10 @@ inclusive, repository-defined contiguous Event range. It binds the two range
 endpoints, event count, and deterministic Merkle root; M7-18 signs this
 candidate before it can be persisted as a published checkpoint.
 
-后续 M7 loop 将在这一边界上增加 checkpoint 签名与 provenance。
+## Merkle checkpoint signing
+
+`signMerkleCheckpoint` signs the canonical checkpoint range, count, and root
+with the platform Ed25519 key. `verifyMerkleCheckpoint` accepts the published
+platform public key and fails if the root, range, count, or signature changes.
+
+后续 M7 loop 将在这一边界上增加 checkpoint 查询与 provenance。
