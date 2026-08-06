@@ -14,4 +14,8 @@ Event 确实包含同一个链头。首个 Event 的前序 hash 为 `null`。
 `appendActorResearchEvent` 对每个 Actor 独立执行同一流程，使用
 `payload.integrity.actor_id` 与 `previous_actor_event_hash`；对象链与 Actor 链彼此独立。
 
+平台 Receipt 使用 `@evimesh/signatures` 的 `createSignedPlatformReceipt` 以 Ed25519 签名
+`schema`、`event_id` 和 `server_time`，并可由公开的平台 SPKI key 通过
+`verifyPlatformReceipt` 独立验证。
+
 后续 M7 loop 会在这一边界上增加对象/Actor 哈希链、Outbox、Merkle checkpoint 与 provenance。
