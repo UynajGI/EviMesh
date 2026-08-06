@@ -10,8 +10,18 @@ export async function calculateChallengeImpactJob({ repository, challengeId, cha
   const revision = await repository.getCurrentChallengeRevision(challengeId.trim());
   if (!revision || revision.revision !== challengeRevision) throw new ChallengeImpactWorkerError('challenge revision not found', 'CHALLENGE_REVISION_NOT_FOUND');
   if (revision.state !== 'upheld') return Object.freeze({ challengeId: challengeId.trim(), challengeRevision, impactedClaimIds: Object.freeze([]) });
-  const nodes = await repository.getClaimDownstreamGraph({ claimId: revision.targetClaimId, maxDepth: 32 });
   const identifiers = new Set([revision.targetClaimId]);
-  for (const node of Array.isArray(nodes) ? nodes : []) if (typeof node.claimId === 'string' && node.claimId) identifiers.add(node.claimId);
+  const pending = [revision.targetClaimId];
+  // The graph adapter is intentionally bounded. Re-querying each discovered
+  // node exhausts an acyclic graph without silently truncating long chains.
+  while (pending.length > 0) {
+    const claimId = pending.shift();
+    const nodes = await repository.getClaimDownstreamGraph({ claimId, maxDepth: 32 });
+    for (const node of Array.isArray(nodes) ? nodes : []) {
+      if (typeof node.claimId !== 'string' || !node.claimId || identifiers.has(node.claimId)) continue;
+      identifiers.add(node.claimId);
+      pending.push(node.claimId);
+    }
+  }
   return Object.freeze({ challengeId: challengeId.trim(), challengeRevision, impactedClaimIds: Object.freeze([...identifiers].sort()) });
 }

@@ -25,3 +25,16 @@ test('fails closed for an unsupported policy requirement', async () => {
   const repo = repository(); repo.getVerificationPolicyRevision = async () => ({ policy_id: 'policy-1', revision: 1, requirements: { opaque_requirement: true }, outcomes: { requirements_met: 'accepted' } });
   await assert.rejects(() => evaluateClaimPolicyJob({ repository: repo, claimId: 'claim-1', policyId: 'policy-1', policyRevision: 1 }), (error) => error instanceof PolicyEvaluationWorkerError && error.code === 'POLICY_REQUIREMENT_UNSUPPORTED');
 });
+
+test('excludes duplicate receipts from support, blind, and refutation counters', async () => {
+  const repo = repository();
+  repo.listVerificationReceipts = async () => [
+    { receiptId: 'support', runId: 'run-1', outcome: 'supports', contextMode: 'blind' },
+    { receiptId: 'duplicate-support', runId: 'run-1', outcome: 'supports', contextMode: 'blind', duplicateOfReceiptId: 'support' },
+    { receiptId: 'duplicate-refutation', runId: 'run-2', outcome: 'refutes', contextMode: 'blind', duplicateOfReceiptId: 'support' },
+  ];
+  repo.getVerificationPolicyRevision = async () => ({ policy_id: 'policy-1', revision: 1, requirements: { blind_reproductions: 1, successful_reproductions: 1 }, outcomes: { requirements_met: 'provisionally_accepted', any_refuting_receipt: 'contested' } });
+  const result = await evaluateClaimPolicyJob({ repository: repo, claimId: 'claim-1', policyId: 'policy-1', policyRevision: 1 });
+  assert.equal(result.evaluation.recommended_outcome, 'provisionally_accepted');
+  assert.equal(result.evaluation.input.refuting_receipts, 0);
+});

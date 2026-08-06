@@ -24,7 +24,9 @@ export const verificationReceipts = pgTable(
   'verification_receipts',
   {
     receiptId: text('receipt_id').primaryKey(),
-    runId: text('run_id').notNull().references(() => runs.runId, { onDelete: 'restrict' }),
+    // Legacy receipts may predate the immutable Run boundary; new submissions
+    // are still required to provide a Run by the domain command.
+    runId: text('run_id').references(() => runs.runId, { onDelete: 'restrict' }),
     duplicateOfReceiptId: text('duplicate_of_receipt_id'),
     claimId: text('claim_id').notNull(),
     claimRevision: integer('claim_revision').notNull(),
