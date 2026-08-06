@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { check, pgEnum, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
 import { actors } from './actors.mjs';
+import { researchEvents } from './research-events.mjs';
 
 export const contributionRole = pgEnum('contribution_role', [
   'originator',
@@ -15,6 +16,7 @@ export const contributionStatements = pgTable(
   'contribution_statements',
   {
     statementId: text('statement_id').primaryKey(),
+    eventId: text('event_id').notNull().references(() => researchEvents.eventId, { onDelete: 'restrict' }),
     actorId: text('actor_id').notNull().references(() => actors.actorId, { onDelete: 'restrict' }),
     role: contributionRole('role').notNull(),
     description: text('description').notNull(),

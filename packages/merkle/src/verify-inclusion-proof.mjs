@@ -25,7 +25,7 @@ export function verifyMerkleInclusionProof(proof) {
       index = Math.floor(index / 2);
       return expectedPosition === 'left' ? hashMerkleNode(step.hash, hash) : hashMerkleNode(hash, step.hash);
     }, proof.leafHash);
-    return reconstructed === proof.root;
+    return index === 0 && reconstructed === proof.root;
   } catch {
     return false;
   }

@@ -52,7 +52,8 @@ test('writes a formal Event with at least one typed role contribution in the sam
     contributions: [{ statementId: 'contribution_1', actorId: 'actor_1', role: 'contributor', description: 'Implemented the revision.' }],
   });
   assert.deepEqual(repo.calls.map(([kind]) => kind), ['event', 'parent', 'contribution']);
-  assert.deepEqual(result.contributions, [{ statementId: 'contribution_1', actorId: 'actor_1', role: 'contributor', description: 'Implemented the revision.' }]);
+  assert.deepEqual(result.contributions, [{ statementId: 'contribution_1', eventId, actorId: 'actor_1', role: 'contributor', description: 'Implemented the revision.' }]);
+  assert.equal(repo.calls[2][1].eventId, eventId);
 });
 
 test('rejects formal Events without a valid role contribution before persistence', async () => {

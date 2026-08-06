@@ -134,8 +134,10 @@ verifiable with `verifyMerkleInclusionProof`.
 ## Contribution statements
 
 `appendResearchEventWithContributions` appends a signed formal Event and one or
-more typed role statements atomically. It rejects empty contribution lists and
-roles outside the protocol's contribution-role vocabulary before persistence.
+more typed role statements atomically. Each persisted statement carries the
+immutable `event_id` of the Event that produced it, so actor attribution stays
+linked to its audit event. It rejects empty contribution lists and roles outside
+the protocol's contribution-role vocabulary before persistence.
 
 ## Contribution produced edges
 
@@ -158,10 +160,11 @@ become Entities with explicit `used` and `wasGeneratedBy` relations.
 ## Object provenance query
 
 `getObjectProvenance` returns the complete Actor → Event → immutable object
-revision → Frontier path. Its Event lookup is scoped to the requested immutable
-revision, so Events from another revision cannot satisfy the path. It fails
-closed with a typed 404 if any essential path segment is missing rather than
-presenting a partial provenance chain.
+revision → Frontier path. It constructs `actorEvents` from contribution
+statements' immutable Event links, while the contribution edges scope those
+statements to the requested revision. It fails closed with a typed 404 if any
+essential path segment is missing rather than presenting a partial provenance
+chain.
 
 ## Event replay projection
 
@@ -199,4 +202,5 @@ both pre-rotation and post-rotation receipts remain independently verifiable.
 `GET /platform/keys` publishes the active and retained Ed25519 public keys with
 their `key_id`; it never includes private key fields, even if a deployment
 configuration accidentally contains them. Missing or malformed keyring
-configuration fails closed with `503`.
+configuration fails closed with `503`. The checked-in OpenAPI contract exposes
+the same public response and failure shapes for generated clients.

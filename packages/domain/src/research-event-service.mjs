@@ -174,7 +174,8 @@ export async function appendResearchEventWithContributions({ repository, event, 
   return repository.withTransaction(async (transaction) => {
     const appended = await appendNormalizedResearchEvent(transaction, normalized);
     const persistedContributions = await Promise.all(normalizedContributions.map(async (statement) => {
-      return await transaction.insertContributionStatement(statement) ?? statement;
+      const record = { ...statement, eventId: normalized.event_id };
+      return await transaction.insertContributionStatement(record) ?? record;
     }));
     return { ...appended, contributions: persistedContributions };
   });
