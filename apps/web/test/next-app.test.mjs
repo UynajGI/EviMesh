@@ -237,3 +237,13 @@ test('provides Task lease acquire and release actions', async () => {
   assert.match(page, /\/lease/);
   assert.match(page, /updateLease/);
 });
+
+test('renders the Claim list with status and tag filters', async () => {
+  const [page, nav] = await Promise.all([read('../app/claims/page.js'), read('../components/site-nav.js')]);
+  assert.match(page, /Claims/);
+  assert.match(page, /claims\?/);
+  assert.match(page, /filters\.status/);
+  assert.match(page, /filters\.tag/);
+  assert.match(page, /under_verification/);
+  assert.match(nav, /href: '\/claims'/);
+});

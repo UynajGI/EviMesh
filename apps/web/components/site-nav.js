@@ -5,6 +5,7 @@ const links = [
   { href: '/projects', label: 'Projects' },
   { href: '/questions/new', label: 'Ask a question' },
   { href: '/tasks', label: 'Tasks' },
+  { href: '/claims', label: 'Claims' },
   { href: '/verification', label: 'Verification' },
   { href: '/contributions', label: 'Contributions' },
   { href: '/sign-in', label: 'Sign in' },
