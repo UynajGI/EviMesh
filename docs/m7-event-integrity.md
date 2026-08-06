@@ -88,4 +88,11 @@ leaf even when equivalent JSON objects arrive with different key order.
 level. The returned immutable levels and root make the construction rule explicit
 for checkpoint and proof callers.
 
+## Merkle inclusion proof generation
+
+`createMerkleInclusionProof` emits a stable sibling path for any leaf, including
+the duplicated sibling at odd-width levels. Each step records the sibling hash and
+whether it is on the left or right, with the source leaf hash and resulting root
+bound into a versioned proof object.
+
 后续 M7 loop 会在这一边界上增加对象/Actor 哈希链、Outbox、Merkle checkpoint 与 provenance。
