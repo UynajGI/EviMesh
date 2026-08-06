@@ -335,6 +335,17 @@ test('exports claim drafts as JSON and a real ZIP bundle', async () => {
   assert.match(page, /downloadDraftBundle\(form, 'zip'\)/);
 });
 
+test('imports validated JSON and stored ZIP draft bundles into the Claim editor', async () => {
+  const bundle = await read('../lib/draft-bundle.js');
+  const page = await read('../app/claims/new/page.js');
+  assert.match(bundle, /readDraftBundle/);
+  assert.match(bundle, /Unsupported EviMesh draft Bundle/);
+  assert.match(bundle, /Compressed or invalid draft ZIP/);
+  assert.match(page, /readDraftBundle\(file\)/);
+  assert.match(page, /Draft imported/);
+  assert.match(page, /accept=\"\.json,\.zip/);
+});
+
 test('renders Claim revision diff controls and changed fields', async () => {
   const page = await read('../app/claims/[claimId]/diff/page.js');
   assert.match(page, /revisions\/\$\{revision\}/);

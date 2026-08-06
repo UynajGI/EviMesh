@@ -48,3 +48,23 @@ export function downloadDraftBundle(form, format) {
   anchor.href = url; anchor.download = `evimesh-claim-draft.${suffix}`; anchor.click();
   URL.revokeObjectURL(url);
 }
+
+function parseBundle(json) {
+  const bundle = JSON.parse(json);
+  if (bundle?.kind !== 'evimesh-draft-bundle' || bundle.version !== BUNDLE_VERSION || bundle.draftType !== 'claim' || !bundle.form || typeof bundle.form !== 'object') {
+    throw new Error('Unsupported EviMesh draft Bundle.');
+  }
+  return bundle.form;
+}
+
+export async function readDraftBundle(file) {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  if (bytes[0] === 0x50 && bytes[1] === 0x4b && bytes[2] === 0x03 && bytes[3] === 0x04) {
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const nameLength = view.getUint16(26, true); const extraLength = view.getUint16(28, true);
+    const size = view.getUint32(18, true); const start = 30 + nameLength + extraLength;
+    if (view.getUint16(6, true) !== 0 || start + size > bytes.length) throw new Error('Compressed or invalid draft ZIP is not supported.');
+    return parseBundle(new TextDecoder().decode(bytes.slice(start, start + size)));
+  }
+  return parseBundle(new TextDecoder().decode(bytes));
+}
