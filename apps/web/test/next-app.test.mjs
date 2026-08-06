@@ -283,3 +283,10 @@ test('supports upstream and downstream Claim graph switching', async () => {
   assert.match(page, /Downstream/);
   assert.match(page, /getClaimDownstreamGraph|graphNodes/);
 });
+
+test('renders a Claim DAG state legend with state-derived node colors', async () => {
+  const component = await read('../components/claim-dag.js');
+  assert.match(component, /CLAIM_STATE_COLORS/);
+  assert.match(component, /background-color.*data\(color\)/);
+  assert.match(component, /Claim state legend/);
+});
