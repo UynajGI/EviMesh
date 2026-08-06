@@ -115,3 +115,9 @@ Missing revisions prevent every write, preserving the receipt's provenance.
 M8-13 adds `getVerificationReceipt`, returning exactly one persisted receipt
 and its persisted Findings by receipt ID. Missing receipts are explicit 404s;
 the query never decorates results with mutable Claim or Contract projections.
+
+## Claim verification list
+
+M8-14 adds `listClaimVerifications`, querying persisted receipts by Claim with
+optional outcome, context-mode, and actor filters. Results have a stable
+creation-time/receipt-ID order for callers that need reproducible summaries.
