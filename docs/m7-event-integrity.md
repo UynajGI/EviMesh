@@ -141,4 +141,10 @@ roles outside the protocol's contribution-role vocabulary before persistence.
 contribution statement to one existing object revision. It validates both ends
 and the positive revision number before writing the provenance edge.
 
-后续 M7 loop 将在这一边界上增加 used 边与 provenance。
+## Contribution used edges
+
+`addContributionUsedEdge` applies the same checks before recording a `used`
+relation to an existing input object revision, preserving the distinction
+between research inputs and outputs.
+
+后续 M7 loop 将在这一边界上增加 W3C PROV 导出与 provenance 查询。

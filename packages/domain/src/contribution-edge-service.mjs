@@ -44,3 +44,24 @@ export async function addContributionProducedEdge({ repository, statementId, obj
     return await transaction.insertContributionEdge(edge) ?? edge;
   });
 }
+
+/** Attach a contribution statement to one existing input object revision. */
+export async function addContributionUsedEdge({ repository, statementId, objectType, objectId, objectRevision } = {}) {
+  if (!repository || typeof repository.withTransaction !== 'function') {
+    throw new ContributionEdgeError('repository withTransaction is required');
+  }
+  for (const method of ['getContributionStatement', 'getObjectRevision', 'insertContributionEdge']) {
+    if (typeof repository[method] !== 'function') throw new ContributionEdgeError(`repository ${method} is required`);
+  }
+  const reference = normalizeReference({ statementId, objectType, objectId, objectRevision });
+  return repository.withTransaction(async (transaction) => {
+    if (!await transaction.getContributionStatement(reference.statementId)) {
+      throw new ContributionEdgeError('contribution statement not found', 'CONTRIBUTION_STATEMENT_NOT_FOUND', 404);
+    }
+    if (!await transaction.getObjectRevision({ objectType: reference.objectType, objectId: reference.objectId, revision: reference.objectRevision })) {
+      throw new ContributionEdgeError('input object revision not found', 'CONTRIBUTION_INPUT_NOT_FOUND', 404);
+    }
+    const edge = { ...reference, edgeType: 'used' };
+    return await transaction.insertContributionEdge(edge) ?? edge;
+  });
+}
