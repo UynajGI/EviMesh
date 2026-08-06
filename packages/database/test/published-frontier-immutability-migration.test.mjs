@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
-const migrationPath = fileURLToPath(new URL('../drizzle/0071_published_frontier_immutable.sql', import.meta.url));
+const migrationPath = fileURLToPath(new URL('../drizzle/0072_published_frontier_immutable.sql', import.meta.url));
 
 test('M8-38 rejects UPDATE and DELETE after frontier.published', async () => {
   const migration = await readFile(migrationPath, 'utf8');
