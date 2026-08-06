@@ -321,3 +321,14 @@ test('renders Claim revision diff controls and changed fields', async () => {
   assert.match(page, /To revision/);
   assert.match(page, /Changed fields/);
 });
+
+test('renders direct R2 evidence upload with hash and progress', async () => {
+  const panel = await read('../components/artifact-upload-panel.js');
+  const page = await read('../app/artifacts/upload/page.js');
+  assert.match(panel, /crypto\.subtle\.digest/);
+  assert.match(panel, /artifacts\/upload-plan/);
+  assert.match(panel, /XMLHttpRequest/);
+  assert.match(panel, /onprogress/);
+  assert.match(panel, /SHA-256/);
+  assert.match(page, /ArtifactUploadPanel/);
+});
