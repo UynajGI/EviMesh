@@ -167,3 +167,10 @@ The first integrated core path covers Claim creation, revision, and lifecycle
 transitions; immutable Event history is never cleared or mutated during replay.
 
 后续 M7 loop 将在这一边界上增加 deletion guard 与 key rotation。
+
+## Event deletion guard
+
+The opt-in database integration test provisions a disposable ordinary application
+role inside a rolled-back transaction, grants it `DELETE`, and proves that
+`DELETE` still raises the append-only PostgreSQL error (`55000`). The outer
+transaction is rolled back, so neither the role nor the fixture Event remains.
