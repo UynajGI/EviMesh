@@ -325,6 +325,16 @@ test('persists claim drafts through IndexedDB and restores them on refresh', asy
   assert.match(page, /Draft restored from this browser/);
 });
 
+test('exports claim drafts as JSON and a real ZIP bundle', async () => {
+  const bundle = await read('../lib/draft-bundle.js');
+  const page = await read('../app/claims/new/page.js');
+  assert.match(bundle, /kind: 'evimesh-draft-bundle'/);
+  assert.match(bundle, /application\/zip/);
+  assert.match(bundle, /claim-draft\.json/);
+  assert.match(page, /downloadDraftBundle\(form, 'json'\)/);
+  assert.match(page, /downloadDraftBundle\(form, 'zip'\)/);
+});
+
 test('renders Claim revision diff controls and changed fields', async () => {
   const page = await read('../app/claims/[claimId]/diff/page.js');
   assert.match(page, /revisions\/\$\{revision\}/);
