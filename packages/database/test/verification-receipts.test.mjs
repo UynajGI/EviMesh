@@ -10,6 +10,8 @@ test('verification_receipts persist immutable verification boundary fields', () 
 
   for (const [property, name] of [
     ['receiptId', 'receipt_id'],
+    ['runId', 'run_id'],
+    ['duplicateOfReceiptId', 'duplicate_of_receipt_id'],
     ['claimId', 'claim_id'],
     ['claimRevision', 'claim_revision'],
     ['contractId', 'contract_id'],
@@ -29,5 +31,6 @@ test('verification_receipts persist immutable verification boundary fields', () 
 
   assert.equal(columns.receiptId.primary, true);
   assert.equal(columns.sawExpectedOutputs.notNull, true);
-  assert.equal(config.foreignKeys.length, 3);
+  assert.equal(columns.runId.notNull, false, 'legacy receipts may predate Run binding; new writes are guarded by the domain command');
+  assert.equal(config.foreignKeys.length, 5);
 });

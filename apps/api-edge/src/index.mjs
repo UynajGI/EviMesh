@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { authenticateSupabaseRequest, JwtVerificationError } from "./jwt.mjs";
+import { ContextQueryError, getTaskContext } from "./context-query.mjs";
 import { RequestValidationError } from "./validation.mjs";
 import { getPlatformPublicKeys, PlatformPublicKeysError } from './platform-public-keys.mjs';
 
@@ -13,6 +14,7 @@ function errorBody(code, message, requestId) {
   return { code, message, request_id: requestId };
 }
 
+export function createApp({ repository = null } = {}) {
 const app = new Hono();
 
 app.use("*", async (context, next) => {
@@ -68,6 +70,18 @@ app.get("/auth/me", async (context) => {
   }
 });
 
+app.get("/tasks/:taskId/context", async (context) => {
+  try {
+    const contextBundle = await getTaskContext({ repository, taskId: context.req.param("taskId"), mode: context.req.query("mode") });
+    return context.json(contextBundle);
+  } catch (error) {
+    if (error instanceof ContextQueryError) {
+      return context.json(errorBody(error.code, error.message, context.get("requestId")), error.status);
+    }
+    throw error;
+  }
+});
+
 app.notFound((context) => context.json(errorBody("not_found", "route not found", context.get("requestId")), 404));
 
 app.onError((error, context) => {
@@ -81,4 +95,7 @@ app.onError((error, context) => {
   return context.json(errorBody("internal_error", "internal server error", context.get("requestId")), 500);
 });
 
-export default app;
+return app;
+}
+
+export default createApp();

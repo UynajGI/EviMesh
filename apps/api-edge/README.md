@@ -2,6 +2,13 @@
 
 Cloudflare Workers API entrypoint built with Hono.
 
+## Task Context endpoint
+
+`GET /tasks/{taskId}/context?mode=frontier|full_trace|adversarial|blind` returns
+the immutable ContextBundle metadata for exactly that Task and mode. It returns
+the derived content hash and storage URI but does not construct a fresh context
+from current projections.
+
 Routes currently include:
 
 - `GET /health` — service status and environment marker.

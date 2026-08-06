@@ -51,6 +51,21 @@
           }
         }
       }
+    },
+    "/tasks/{taskId}/context": {
+      "get": {
+        "operationId": "getTaskContext",
+        "summary": "Read the immutable ContextBundle for one Task and mode",
+        "parameters": [
+          { "name": "taskId", "in": "path", "required": true, "schema": { "type": "string", "minLength": 1 } },
+          { "name": "mode", "in": "query", "required": true, "schema": { "type": "string", "enum": ["frontier", "full_trace", "adversarial", "blind"] } }
+        ],
+        "responses": {
+          "200": { "description": "Immutable ContextBundle metadata.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ContextBundleResponse" } } } },
+          "400": { "description": "Invalid Task ID or ContextBundle mode.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "404": { "description": "No matching ContextBundle exists.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
     }
   },
   "components": {
@@ -97,6 +112,21 @@
           "key_id": { "type": "string", "minLength": 1 },
           "algorithm": { "const": "Ed25519" },
           "public_key": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": false
+      },
+      "ContextBundleResponse": {
+        "type": "object",
+        "required": ["contextBundleId", "taskId", "taskRevision", "frontierSnapshotId", "mode", "manifest", "contentHash", "storageUri"],
+        "properties": {
+          "contextBundleId": { "type": "string" },
+          "taskId": { "type": "string" },
+          "taskRevision": { "type": "integer", "minimum": 1 },
+          "frontierSnapshotId": { "type": "string" },
+          "mode": { "type": "string", "enum": ["frontier", "full_trace", "adversarial", "blind"] },
+          "manifest": { "type": "object" },
+          "contentHash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+          "storageUri": { "type": "string", "format": "uri" }
         },
         "additionalProperties": false
       },
