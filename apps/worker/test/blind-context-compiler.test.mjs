@@ -34,3 +34,14 @@ test("Blind compiler fails closed for missing or malformed target paths", () => 
   assert.throws(() => compileBlindContext({ ...context, hiddenPaths: ["task/outputs"] }), (error) => error instanceof FrontierContextCompileError && error.code === "BLIND_PATH_INVALID");
   assert.throws(() => compileBlindContext({ ...context, hiddenPaths: ["/task/inputs/nope"] }), (error) => error instanceof FrontierContextCompileError && error.code === "BLIND_PATH_INVALID");
 });
+
+test("Blind compiler redacts sibling array elements without shifting later pointers", () => {
+  const revision = { ...taskRevision, inputs: [
+    { artifact: "input-1", targetLabel: "first-secret" },
+    { artifact: "input-2", targetLabel: "second-secret" },
+  ] };
+  const bundle = compileBlindContext({ taskRevision: revision, frontierSnapshot: snapshot, frontierMembers: [member], hiddenPaths: ["/task/inputs/0", "/task/inputs/1"] });
+  assert.equal(Object.hasOwn(bundle.task.inputs, 0), false);
+  assert.equal(Object.hasOwn(bundle.task.inputs, 1), false);
+  assert.equal(JSON.stringify(bundle).includes("secret"), false);
+});

@@ -29,7 +29,7 @@ export async function evaluateClaimPolicyJob({ repository, claimId, policyId, po
   const policy = await repository.getVerificationPolicyRevision(policyId, policyRevision);
   if (!policy) throw new PolicyEvaluationWorkerError('policy revision not found', 'POLICY_REVISION_NOT_FOUND');
   const loadedReceipts = await repository.listVerificationReceipts({ claimId });
-  const receipts = Array.isArray(loadedReceipts) ? loadedReceipts : [];
+  const receipts = (Array.isArray(loadedReceipts) ? loadedReceipts : []).filter((receipt) => !receipt.duplicateOfReceiptId);
   const findings = (await Promise.all(receipts.map(async (receipt) => ({ receiptId: receipt.receiptId, findings: await repository.listVerificationFindings(receipt.receiptId) })))).flatMap(({ findings: values }) => Array.isArray(values) ? values : []);
   const supporting = supportedReceipts(receipts);
   const input = {};

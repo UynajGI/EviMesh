@@ -11,5 +11,6 @@ test('M8-38 rejects UPDATE and DELETE after frontier.published', async () => {
   assert.match(migration, /event_type = 'frontier\.published'/);
   assert.match(migration, /payload ->> 'snapshot_id' = OLD\.snapshot_id/);
   assert.match(migration, /BEFORE UPDATE OR DELETE ON frontier_snapshots/);
+  assert.match(migration, /BEFORE INSERT OR UPDATE OR DELETE ON frontier_members/);
   assert.match(migration, /RAISE EXCEPTION 'published frontier snapshots are immutable; % is not allowed'/);
 });

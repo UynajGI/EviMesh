@@ -37,7 +37,9 @@ function deleteAtPointer(bundle, pointer) {
     throw new FrontierContextCompileError("blind path is not present in the fixed context", "BLIND_PATH_NOT_FOUND");
   }
   if (Array.isArray(parent)) {
-    parent.splice(Number(finalSegment), 1);
+    // Preserve original indexes so subsequent JSON Pointers still address the
+    // same elements when multiple siblings are redacted from one array.
+    delete parent[Number(finalSegment)];
   }
   else delete parent[finalSegment];
 }
