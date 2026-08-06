@@ -1,0 +1,6 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { VerificationPrepareError, prepareVerification } from "../src/verification-prepare.mjs";
+const nonce="0123456789abcdef";
+test("prepare locks Claim and Contract revisions into canonical signing bytes",async()=>{const result=await prepareVerification({repository:{getClaimRevision:async()=>({claimId:"claim-1",revision:2}),getVerificationContractRevision:async()=>({contractId:"contract-1",revision:3,verificationTypes:["independent_reproduction"],contextModes:["blind"]})},actorId:"actor-1",claimId:"claim-1",claimRevision:2,contractId:"contract-1",contractRevision:3,nonce});assert.match(result.signingBytesHash,/^sha256:[0-9a-f]{64}$/);assert.match(result.signingBytes,/"claim_revision":2/);assert.match(result.signingBytes,/"contract_revision":3/);});
+test("prepare rejects unavailable immutable revisions",async()=>{await assert.rejects(()=>prepareVerification({repository:{getClaimRevision:async()=>null,getVerificationContractRevision:async()=>null},actorId:"actor-1",claimId:"claim-1",claimRevision:1,contractId:"contract-1",contractRevision:1,nonce}),(error)=>error instanceof VerificationPrepareError&&error.code==="CLAIM_REVISION_NOT_FOUND");});

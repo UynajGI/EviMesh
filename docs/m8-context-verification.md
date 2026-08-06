@@ -95,3 +95,10 @@ M8-10 adds `createVerificationPolicyCommand`. It delegates policy-shape
 validation to the protocol, then atomically writes the stable policy, immutable
 revision 1, and `verification_policy.created` event. Empty requirements or
 outcomes cannot enter persistence.
+
+## Verification prepare
+
+M8-11 adds `prepareVerification` at the API edge. It reads the requested Claim
+and VerificationContract revisions by exact ID/revision pair and returns only
+canonical `verification.submitted` signing bytes plus their SHA-256 hash. A
+missing revision fails with 404; current projections are never substituted.
