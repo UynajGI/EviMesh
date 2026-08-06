@@ -115,4 +115,11 @@ candidate before it can be persisted as a published checkpoint.
 with the platform Ed25519 key. `verifyMerkleCheckpoint` accepts the published
 platform public key and fails if the root, range, count, or signature changes.
 
-后续 M7 loop 将在这一边界上增加 checkpoint 查询与 provenance。
+## Merkle checkpoint query
+
+`getMerkleCheckpoint` is the API Edge query contract for a published checkpoint.
+It returns the root hash, inclusive Event range, event count, and parsed platform
+signature; missing checkpoints map to a typed 404 and malformed stored records
+fail closed as internal errors.
+
+后续 M7 loop 将在这一边界上增加 Event proof 查询与 provenance。
