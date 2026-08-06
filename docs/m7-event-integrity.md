@@ -21,4 +21,11 @@ Event 确实包含同一个链头。首个 Event 的前序 hash 为 `null`。
 `getResearchEventSignature` 原样返回正式 Event 已持久化的 client signature，不重新编码、
 规范化或替换该签名；缺失 Event 返回 `RESEARCH_EVENT_NOT_FOUND`。
 
+## Event query boundary
+
+`listResearchEvents` is the API-edge query boundary for formal Events. It delegates
+object, Actor, type, and created-time filters to its repository, requires object type
+and ID together, normalizes ISO-8601 bounds, and applies the shared opaque cursor
+pagination by `(createdAt, eventId)`.
+
 后续 M7 loop 会在这一边界上增加对象/Actor 哈希链、Outbox、Merkle checkpoint 与 provenance。
