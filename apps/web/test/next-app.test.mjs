@@ -48,3 +48,12 @@ test('provides primary navigation and the five initial product routes', async ()
   for (const href of ['/', '/projects', '/tasks', '/verification', '/contributions']) assert.match(nav, new RegExp(`href: '${href.replace('/', '\\/')}'`));
   for (const page of [projects, tasks, verification, contributions]) assert.match(page, /SectionPlaceholder/);
 });
+
+test('renders a recoverable global error state with an API request ID', async () => {
+  const errorPage = await read('../app/error.js');
+  assert.match(errorPage, /'use client'/);
+  assert.match(errorPage, /export function requestIdFrom/);
+  assert.match(errorPage, /error\?\.request_id/);
+  assert.match(errorPage, /request_id: \{requestId\}/);
+  assert.match(errorPage, /onClick=\{reset\}/);
+});
