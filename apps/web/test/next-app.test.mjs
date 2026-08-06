@@ -367,4 +367,7 @@ test('renders Verification workspace for Claim, Run, and Contract pinning', asyn
   assert.match(page, /runId/);
   assert.match(page, /contractRevision/);
   assert.match(page, /sawExpectedOutputs/);
+  assert.match(page, /Blind Context/);
+  assert.match(page, /Expected outputs hidden/);
+  assert.match(page, /expectedOutputs: undefined/);
 });
