@@ -314,6 +314,17 @@ test('renders the Claim editor for statement, scope, assumptions, and falsificat
   assert.match(nav, /claims\/new/);
 });
 
+test('persists claim drafts through IndexedDB and restores them on refresh', async () => {
+  const store = await read('../lib/draft-store.js');
+  const page = await read('../app/claims/new/page.js');
+  assert.match(store, /indexedDB\.open/);
+  assert.match(store, /createObjectStore\(STORE_NAME\)/);
+  assert.match(store, /transaction\(STORE_NAME, 'readwrite'\)/);
+  assert.match(page, /loadDraft\(DRAFT_KEY, INITIAL\)/);
+  assert.match(page, /saveDraft\(DRAFT_KEY, form\)/);
+  assert.match(page, /Draft restored from this browser/);
+});
+
 test('renders Claim revision diff controls and changed fields', async () => {
   const page = await read('../app/claims/[claimId]/diff/page.js');
   assert.match(page, /revisions\/\$\{revision\}/);
