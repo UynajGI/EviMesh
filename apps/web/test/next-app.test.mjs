@@ -38,3 +38,13 @@ test('defines light and dark design tokens for the web product', async () => {
   assert.match(globals, /:root \{[\s\S]*--evimesh-background:/);
   assert.match(globals, /@media \(prefers-color-scheme: dark\) \{[\s\S]*--evimesh-background:/);
 });
+
+test('provides primary navigation and the five initial product routes', async () => {
+  const [layout, nav, projects, tasks, verification, contributions] = await Promise.all([
+    read('../app/layout.js'), read('../components/site-nav.js'), read('../app/projects/page.js'), read('../app/tasks/page.js'), read('../app/verification/page.js'), read('../app/contributions/page.js'),
+  ]);
+  assert.match(layout, /<SiteNav \/>/);
+  assert.match(nav, /aria-label="Primary navigation"/);
+  for (const href of ['/', '/projects', '/tasks', '/verification', '/contributions']) assert.match(nav, new RegExp(`href: '${href.replace('/', '\\/')}'`));
+  for (const page of [projects, tasks, verification, contributions]) assert.match(page, /SectionPlaceholder/);
+});
