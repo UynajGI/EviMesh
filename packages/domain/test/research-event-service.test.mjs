@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { appendActorResearchEvent, appendObjectResearchEvent, appendResearchEvent, ResearchEventAppendError } from '../src/research-event-service.mjs';
+import { appendActorResearchEvent, appendObjectResearchEvent, appendResearchEvent, getResearchEventSignature, ResearchEventAppendError } from '../src/research-event-service.mjs';
 
 const parentId = '018f0f4a-5c00-7000-8000-000000000000';
 const eventId = '018f0f4a-5c00-7000-8000-000000000001';
@@ -139,4 +139,17 @@ test('rejects duplicate events, duplicate parents, and missing parents before pe
     (error) => error.code === 'RESEARCH_EVENT_PARENT_NOT_FOUND' && error.status === 404,
   );
   assert.equal(missingParent.calls.length, 0);
+});
+
+test('returns the original stored client signature without re-encoding it', async () => {
+  const signature = { algorithm: 'Ed25519', key_id: 'client-key-1', value: 'original-base64url-signature', nonce: 'unchanged' };
+  const returned = await getResearchEventSignature({
+    repository: { getResearchEvent: async (id) => id === eventId ? { eventId: id, signature } : null },
+    eventId,
+  });
+  assert.strictEqual(returned, signature);
+  await assert.rejects(
+    getResearchEventSignature({ repository: { getResearchEvent: async () => null }, eventId: 'missing' }),
+    (error) => error.code === 'RESEARCH_EVENT_NOT_FOUND' && error.status === 404,
+  );
 });

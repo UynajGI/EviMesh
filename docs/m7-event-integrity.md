@@ -18,4 +18,7 @@ Event 确实包含同一个链头。首个 Event 的前序 hash 为 `null`。
 `schema`、`event_id` 和 `server_time`，并可由公开的平台 SPKI key 通过
 `verifyPlatformReceipt` 独立验证。
 
+`getResearchEventSignature` 原样返回正式 Event 已持久化的 client signature，不重新编码、
+规范化或替换该签名；缺失 Event 返回 `RESEARCH_EVENT_NOT_FOUND`。
+
 后续 M7 loop 会在这一边界上增加对象/Actor 哈希链、Outbox、Merkle checkpoint 与 provenance。

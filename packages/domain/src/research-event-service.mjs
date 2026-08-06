@@ -159,3 +159,17 @@ export async function appendActorResearchEvent({ repository, actorId, eventFacto
     return appendNormalizedResearchEvent(transaction, event);
   });
 }
+
+/** Return the original signature stored with one formal ResearchEvent without re-encoding it. */
+export async function getResearchEventSignature({ repository, eventId } = {}) {
+  if (!repository || typeof repository.getResearchEvent !== 'function') {
+    throw new ResearchEventAppendError('repository getResearchEvent is required');
+  }
+  eventId = requiredText(eventId, 'event id');
+  const event = await repository.getResearchEvent(eventId);
+  if (!event) throw new ResearchEventAppendError('research event not found', 'RESEARCH_EVENT_NOT_FOUND', 404);
+  if (!event.signature || typeof event.signature !== 'object' || Array.isArray(event.signature)) {
+    throw new ResearchEventAppendError('stored research event signature is invalid', 'RESEARCH_EVENT_SIGNATURE_INVALID', 500);
+  }
+  return event.signature;
+}
