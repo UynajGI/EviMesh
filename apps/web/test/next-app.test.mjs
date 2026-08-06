@@ -290,3 +290,11 @@ test('renders a Claim DAG state legend with state-derived node colors', async ()
   assert.match(component, /background-color.*data\(color\)/);
   assert.match(component, /Claim state legend/);
 });
+
+test('opens Claim DAG node details with revision and Evidence fields', async () => {
+  const component = await read('../components/claim-dag.js');
+  assert.match(component, /Claim node details/);
+  assert.match(component, /currentRevision\?\.revision/);
+  assert.match(component, /Evidence:/);
+  assert.match(component, /cy\.on\('tap', 'node'/);
+});
