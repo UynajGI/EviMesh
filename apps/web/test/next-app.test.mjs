@@ -350,3 +350,12 @@ test('renders Run Receipt form for environment, command, seed, and outputs', asy
   assert.match(page, /outputArtifactIds/);
   assert.match(page, /Preview Receipt/);
 });
+
+test('renders Evidence form linking Run, Artifact, and Claim revision', async () => {
+  const page = await read('../app/evidence/new/page.js');
+  assert.match(page, /Create Evidence/);
+  assert.match(page, /artifactId/);
+  assert.match(page, /runId/);
+  assert.match(page, /claimRevision/);
+  assert.match(page, /relationType/);
+});
