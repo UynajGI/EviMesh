@@ -246,3 +246,7 @@ Frontier's unresolved blockers. Each generated suggestion has type
 M8-36 adds versioned Policy test vectors. The same input evaluated against the
 same Policy revision must reproduce the fixture's requirement outcomes and
 recommended decision exactly.
+
+M8-37 integrates Challenge impact computation with dependency tainting: an
+upheld upstream Challenge leaves its source contested and marks every computed
+downstream Claim as `dependency_tainted`.
