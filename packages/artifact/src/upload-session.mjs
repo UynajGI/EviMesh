@@ -35,6 +35,12 @@ function assertActive(session, now) {
   }
 }
 
+function assertUploadMethod(session, method) {
+  if (!session?.upload || typeof session.upload[method] !== 'function') {
+    throw new UploadSessionError(`multipart upload ${method} is required`);
+  }
+}
+
 /** Build a signed single-object upload plan without exposing storage credentials. */
 export async function createSingleUploadPlan({ artifactId, revision, rawHash, sizeBytes, mediaType, signer, expiresInSeconds = DEFAULT_EXPIRY_SECONDS, now = new Date() } = {}) {
   if (!Number.isInteger(sizeBytes) || sizeBytes < 0) throw new UploadSessionError('size bytes must be a non-negative integer');
@@ -42,7 +48,13 @@ export async function createSingleUploadPlan({ artifactId, revision, rawHash, si
   if (typeof signer !== 'function') throw new UploadSessionError('upload signer is required');
   const fields = sessionFields({ artifactId, revision, rawHash, expiresInSeconds, now });
   const signed = await signer({ key: fields.key, method: 'PUT', sizeBytes, mediaType: mediaType.trim(), expiresAt: fields.expiresAt });
-  if (!signed || typeof signed.url !== 'string' || signed.url.length === 0) throw new UploadSessionError('upload signer returned an invalid URL');
+  let url;
+  try {
+    url = new URL(signed?.url);
+  } catch {
+    throw new UploadSessionError('upload signer returned an invalid URL');
+  }
+  if (!['http:', 'https:'].includes(url.protocol)) throw new UploadSessionError('upload signer returned an invalid URL');
   return Object.freeze({ uploadType: 'single', key: fields.key, sizeBytes, mediaType: mediaType.trim(), issuedAt: fields.issuedAt, expiresAt: fields.expiresAt, url: signed.url });
 }
 
@@ -57,22 +69,31 @@ export async function createMultipartUploadSession({ bucket, artifactId, revisio
 
 function normalizeParts(parts) {
   if (!Array.isArray(parts) || parts.length === 0) throw new UploadSessionError('multipart parts are required');
-  const normalized = parts.map((part) => {
-    if (!Number.isInteger(part?.partNumber) || part.partNumber < 1 || typeof part.etag !== 'string' || part.etag.trim().length === 0) throw new UploadSessionError('each multipart part requires a positive part number and ETag');
-    return { partNumber: part.partNumber, etag: part.etag.trim() };
-  }).sort((left, right) => left.partNumber - right.partNumber);
+  const invalidParts = [];
+  const normalized = [];
+  parts.forEach((part, index) => {
+    const partNumber = part?.partNumber;
+    const etag = typeof part?.etag === 'string' ? part.etag.trim() : '';
+    if (!Number.isInteger(partNumber) || partNumber < 1 || etag.length === 0) {
+      invalidParts.push(`index ${index}${partNumber != null ? ` (partNumber ${partNumber})` : ''}`);
+      return;
+    }
+    normalized.push({ partNumber, etag });
+  });
+  if (invalidParts.length > 0) throw new UploadSessionError(`each multipart part requires a positive part number and ETag; invalid parts at ${invalidParts.join(', ')}`);
+  normalized.sort((left, right) => left.partNumber - right.partNumber);
   if (new Set(normalized.map((part) => part.partNumber)).size !== normalized.length) throw new UploadSessionError('multipart part numbers must be unique');
   return normalized;
 }
 
 export async function completeMultipartUploadSession({ session, parts, now = new Date() } = {}) {
   assertActive(session, now);
-  if (!session.upload || typeof session.upload.complete !== 'function') throw new UploadSessionError('multipart upload complete is required');
+  assertUploadMethod(session, 'complete');
   return session.upload.complete(normalizeParts(parts));
 }
 
 export async function abortMultipartUploadSession({ session, now = new Date() } = {}) {
-  assertActive(session, now);
-  if (!session.upload || typeof session.upload.abort !== 'function') throw new UploadSessionError('multipart upload abort is required');
+  validNow(now);
+  assertUploadMethod(session, 'abort');
   return session.upload.abort();
 }
