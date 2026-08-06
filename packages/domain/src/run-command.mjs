@@ -28,10 +28,19 @@ async function assertArtifactRevisions(transaction, rows, field) {
   }
 }
 
+async function assertVerifiedOutputArtifacts(transaction, rows) {
+  for (const row of rows) {
+    const verification = await transaction.getArtifactVerification(row.artifactId, row.artifactRevision);
+    if (verification?.status !== 'verified') {
+      throw new RunCommandError('outputs reference an artifact revision whose hash is not verified', 'ARTIFACT_OUTPUT_UNVERIFIED', 409);
+    }
+  }
+}
+
 /** Persist a reproducibility Run and its immutable input/output artifact references. */
 export async function createRun({ repository, actorId, actorRole, runId, taskId, contextBundleId, sourceCode, container, command, args = [], environment, hardware, randomSeed, startedAt, endedAt, networkAccess = false, exitCode, signature, inputs = [], outputs = [], eventFactory } = {}) {
   if (!repository || typeof repository.withTransaction !== 'function') throw new RunCommandError('repository withTransaction is required');
-  for (const method of ['getArtifactRevision', 'insertRun', 'insertRunInput', 'insertRunOutput', 'appendResearchEvent']) if (typeof repository[method] !== 'function') throw new RunCommandError(`repository ${method} is required`);
+  for (const method of ['getArtifactRevision', 'getArtifactVerification', 'insertRun', 'insertRunInput', 'insertRunOutput', 'appendResearchEvent']) if (typeof repository[method] !== 'function') throw new RunCommandError(`repository ${method} is required`);
   actorId = requiredText(actorId, 'actor id');
   runId = requiredText(runId, 'run id');
   taskId = requiredText(taskId, 'task id');
@@ -54,6 +63,7 @@ export async function createRun({ repository, actorId, actorRole, runId, taskId,
   return repository.withTransaction(async (transaction) => {
     await assertArtifactRevisions(transaction, inputRows, 'inputs');
     await assertArtifactRevisions(transaction, outputRows, 'outputs');
+    await assertVerifiedOutputArtifacts(transaction, outputRows);
     const event = await eventFactory({ eventType: 'run.created', payload: { entity_type: 'run', run_id: runId, task_id: taskId, actor_id: actorId, input_count: inputRows.length, output_count: outputRows.length } });
     if (!event || typeof event !== 'object') throw new RunCommandError('eventFactory must return an event object');
     return {
