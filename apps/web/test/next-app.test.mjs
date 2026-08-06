@@ -29,3 +29,12 @@ test('configures shadcn-compatible Button, Input, and Dialog components', async 
   assert.match(input, /export function Input/);
   assert.match(dialog, /export function DialogContent/);
 });
+
+test('defines light and dark design tokens for the web product', async () => {
+  const globals = await read('../app/globals.css');
+  assert.match(globals, /@theme inline/);
+  assert.match(globals, /--color-background: var\(--evimesh-background\)/);
+  assert.match(globals, /--color-primary: var\(--evimesh-primary\)/);
+  assert.match(globals, /:root \{[\s\S]*--evimesh-background:/);
+  assert.match(globals, /@media \(prefers-color-scheme: dark\) \{[\s\S]*--evimesh-background:/);
+});
