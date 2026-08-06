@@ -356,6 +356,24 @@ test('keeps the Claim editor responsive at mobile and desktop breakpoints', asyn
   assert.match(nav, /gap-/);
 });
 
+test('provides basic accessible names and status semantics on key M9 pages', async () => {
+  const [page, workspace, nav, events] = await Promise.all([
+    read('../app/claims/new/page.js'),
+    read('../components/verification-workspace.js'),
+    read('../components/site-nav.js'),
+    read('../app/events/page.js'),
+  ]);
+  assert.match(nav, /aria-label="Primary navigation"/);
+  assert.match(page, /<h1 className=.*Draft a Claim/);
+  assert.match(page, /<label className=.*Statement/);
+  assert.match(page, /role="status"/);
+  assert.match(page, /role="alert"/);
+  assert.match(workspace, /aria-label="Verification workspace"/);
+  assert.match(workspace, /aria-label="Blind Context"/);
+  assert.match(events, /<h1 className=.*Event audit/);
+  assert.match(events, /role="alert"/);
+});
+
 test('renders Claim revision diff controls and changed fields', async () => {
   const page = await read('../app/claims/[claimId]/diff/page.js');
   assert.match(page, /revisions\/\$\{revision\}/);
