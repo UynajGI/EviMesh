@@ -28,6 +28,25 @@ export async function sha256Bytes(bytes) {
   return sha256Stream((async function* () { yield bytes; })());
 }
 
+export async function sha256ReadableStream(stream) {
+  if (!stream || typeof stream.getReader !== 'function') {
+    throw new TypeError('sha256ReadableStream requires a ReadableStream');
+  }
+  const reader = stream.getReader();
+  const hash = createHash('sha256');
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      assertChunk(value);
+      hash.update(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  return `${SHA256_PREFIX}${hash.digest('hex')}`;
+}
+
 export function artifactObjectKey({ artifactId, revision, rawHash } = {}) {
   if (typeof artifactId !== 'string' || artifactId.trim().length === 0) {
     throw new TypeError('artifact id must be a non-empty string');
