@@ -74,4 +74,11 @@ return the complete new retry state; a stale or already completed job is rejecte
 retry attempts remain. Dead-letter rows therefore cannot be accidentally returned to
 the automatic pending queue.
 
+## Merkle leaf encoding
+
+`@evimesh/merkle` encodes a complete signed `srp.event.v1` under the
+`evimesh.merkle-leaf.v1` domain separator using canonical JSON. Its leaf hash is
+`sha256(canonical encoding)`, so the same formal Event always produces the same
+leaf even when equivalent JSON objects arrive with different key order.
+
 后续 M7 loop 会在这一边界上增加对象/Actor 哈希链、Outbox、Merkle checkpoint 与 provenance。
