@@ -57,3 +57,12 @@ test('renders a recoverable global error state with an API request ID', async ()
   assert.match(errorPage, /request_id: \{requestId\}/);
   assert.match(errorPage, /onClick=\{reset\}/);
 });
+
+test('provides loading skeletons for each main product route', async () => {
+  const [skeleton, root, projects, tasks, verification, contributions] = await Promise.all([
+    read('../components/page-skeleton.js'), read('../app/loading.js'), read('../app/projects/loading.js'), read('../app/tasks/loading.js'), read('../app/verification/loading.js'), read('../app/contributions/loading.js'),
+  ]);
+  assert.match(skeleton, /aria-busy="true"/);
+  assert.match(skeleton, /animate-pulse/);
+  for (const loading of [root, projects, tasks, verification, contributions]) assert.match(loading, /PageSkeleton/);
+});
