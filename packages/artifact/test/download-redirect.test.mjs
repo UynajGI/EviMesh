@@ -21,5 +21,23 @@ test('rejects invalid signer, expiry, and URL inputs', async () => {
   const base = { artifactId: 'artifact_1', revision: 1, rawHash, now, signer: async () => ({ url: 'https://download.example/object' }) };
   await assert.rejects(() => createDownloadRedirect({ ...base, signer: undefined }), DownloadRedirectError);
   await assert.rejects(() => createDownloadRedirect({ ...base, expiresInSeconds: 30 }), DownloadRedirectError);
+  await assert.rejects(() => createDownloadRedirect({ ...base, expiresInSeconds: 3601 }), DownloadRedirectError);
+  await assert.rejects(() => createDownloadRedirect({ ...base, expiresInSeconds: 90.5 }), DownloadRedirectError);
+  await assert.rejects(() => createDownloadRedirect({ ...base, now: '2026-08-06T00:00:00.000Z' }), DownloadRedirectError);
+  await assert.rejects(() => createDownloadRedirect({ ...base, now: new Date('invalid') }), DownloadRedirectError);
   await assert.rejects(() => createDownloadRedirect({ ...base, signer: async () => ({ url: 'not-a-url' }) }), DownloadRedirectError);
+  await assert.rejects(() => createDownloadRedirect({ ...base, signer: async () => ({ url: 'http://download.example/object' }) }), DownloadRedirectError);
+  await assert.rejects(
+    () => createDownloadRedirect({ ...base, signer: async () => { throw new Error('signing unavailable'); } }),
+    (error) => error.code === 'DOWNLOAD_SIGNER_FAILED' && error.cause?.message === 'signing unavailable',
+  );
+});
+
+test('allows an explicitly configured local HTTP signer', async () => {
+  const redirect = await createDownloadRedirect({
+    artifactId: 'artifact_1', revision: 1, rawHash, now,
+    signer: async () => ({ url: 'http://127.0.0.1:9000/object' }),
+    allowedProtocols: ['https:', 'http:'],
+  });
+  assert.equal(redirect.location, 'http://127.0.0.1:9000/object');
 });

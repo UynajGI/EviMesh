@@ -21,19 +21,38 @@ function validExpiry(seconds) {
   return seconds;
 }
 
+function normalizeAllowedProtocols(value) {
+  if (!Array.isArray(value) || value.length === 0) throw new DownloadRedirectError('allowed protocols must be a non-empty array');
+  const protocols = value.map((protocol) => {
+    if (typeof protocol !== 'string' || !/^[a-z][a-z0-9+.-]*:$/i.test(protocol.trim())) {
+      throw new DownloadRedirectError('allowed protocols must contain URL protocols');
+    }
+    return protocol.trim().toLowerCase();
+  });
+  return new Set(protocols);
+}
+
 /** Create a short-lived signed GET redirect for a content-addressed Artifact. */
-export async function createDownloadRedirect({ artifactId, revision, rawHash, signer, expiresInSeconds = DEFAULT_EXPIRY_SECONDS, now = new Date() } = {}) {
+export async function createDownloadRedirect({ artifactId, revision, rawHash, signer, expiresInSeconds = DEFAULT_EXPIRY_SECONDS, now = new Date(), allowedProtocols = ['https:'] } = {}) {
   if (typeof signer !== 'function') throw new DownloadRedirectError('download signer is required');
   const issuedAt = validNow(now);
   const expiresAt = new Date(issuedAt.getTime() + validExpiry(expiresInSeconds) * 1000);
   const key = artifactObjectKey({ artifactId, revision, rawHash });
-  const signed = await signer({ key, method: 'GET', expiresAt });
+  const protocols = normalizeAllowedProtocols(allowedProtocols);
+  let signed;
+  try {
+    signed = await signer({ key, method: 'GET', expiresAt });
+  } catch (error) {
+    const signerError = new DownloadRedirectError('download signer failed', 'DOWNLOAD_SIGNER_FAILED');
+    signerError.cause = error;
+    throw signerError;
+  }
   let url;
   try {
     url = new URL(signed?.url);
   } catch {
     throw new DownloadRedirectError('download signer returned an invalid URL');
   }
-  if (!['http:', 'https:'].includes(url.protocol)) throw new DownloadRedirectError('download signer returned an invalid URL');
+  if (!protocols.has(url.protocol.toLowerCase())) throw new DownloadRedirectError('download signer returned an invalid URL');
   return Object.freeze({ status: 302, location: signed.url, key, issuedAt, expiresAt });
 }

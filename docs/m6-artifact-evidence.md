@@ -6,7 +6,7 @@
 - Object key 按 raw hash 全局内容寻址，相同内容复用同一个 R2 对象；
 - R2 上传后的 size/hash 流式核验，校验失败时不会进入 Artifact 接受流程；
 - 单文件上传签名计划与 R2 multipart session 的过期、分片排序、完成和中止契约；
-- 内容寻址 Artifact revision 的短时效签名 GET 下载 redirect 契约；
+- 内容寻址 Artifact revision 的短时效签名 GET 下载 redirect 契约（默认仅 HTTPS，受控本地环境可显式放开协议）；
 - Artifact 接受前的 malware scanner adapter 契约；感染或扫描服务不可用时 fail closed；
 - Artifact media-type detector 会在实际类型与声明不一致时产出 warning Finding；
 - 分块 Artifact manifest：连续 offset 与每块 SHA-256 均可校验，任一字节篡改都会失败；
