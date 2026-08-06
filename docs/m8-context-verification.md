@@ -235,3 +235,6 @@ using stable `createdAt` and `snapshotId` keys within one Project.
 M8-33 compares two fixed snapshots from the same Project and returns explicit
 `added`, `removed`, and `statusChanged` Claim groups, retaining each member's
 pinned revision in the diff result.
+
+M8-34 publishes a Frontier by appending the immutable `frontier.published`
+ResearchEvent; no published Snapshot row is updated or deleted.
