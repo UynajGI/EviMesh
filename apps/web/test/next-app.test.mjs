@@ -254,3 +254,10 @@ test('renders Claim details with statement, scope, falsification, and revisions'
   for (const section of ['statement', 'Scope', 'Falsification conditions', 'Revision history']) assert.match(page, new RegExp(section));
   assert.match(page, /currentRevision\.revision/);
 });
+
+test('renders a Cytoscape Claim DAG on the Claim detail page', async () => {
+  const page = await read('../app/claims/[claimId]/page.js');
+  assert.match(page, /import \{ ClaimDag \}/);
+  assert.match(page, /<ClaimDag elements=\{dagElements\} \/>/);
+  assert.match(page, /Claim dependency graph/);
+});
