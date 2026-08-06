@@ -261,3 +261,11 @@ test('renders a Cytoscape Claim DAG on the Claim detail page', async () => {
   assert.match(page, /<ClaimDag elements=\{dagElements\} \/>/);
   assert.match(page, /Claim dependency graph/);
 });
+
+test('supports upstream and downstream Claim graph switching', async () => {
+  const page = await read('../app/claims/[claimId]/page.js');
+  assert.match(page, /direction=\$\{direction\}/);
+  assert.match(page, /Upstream/);
+  assert.match(page, /Downstream/);
+  assert.match(page, /getClaimDownstreamGraph|graphNodes/);
+});

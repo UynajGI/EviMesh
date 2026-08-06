@@ -176,6 +176,17 @@ test('returns a Claim with statement, scope, falsification, and status policy', 
   assert.deepEqual(body.statusPolicy.allowedTransitions, ['under_verification', 'contested', 'refuted', 'superseded', 'retracted', 'dependency_tainted']);
 });
 
+test('returns bounded upstream and downstream Claim graphs', async () => {
+  const app = createApp({ repository: {
+    getClaimUpstreamGraph: async ({ claimId, maxDepth }) => [{ claimId: 'parent-1', root: claimId, maxDepth }],
+    getClaimDownstreamGraph: async () => [{ claimId: 'child-1', state: 'dependency_tainted' }],
+  } });
+  const upstream = await app.fetch(new Request('https://api.example.test/claims/claim-1/graph?direction=upstream&maxDepth=2'), {});
+  const downstream = await app.fetch(new Request('https://api.example.test/claims/claim-1/graph?direction=downstream'), {});
+  assert.equal((await upstream.json()).nodes[0].claimId, 'parent-1');
+  assert.equal((await downstream.json()).nodes[0].dependencyTainted, true);
+});
+
 test('returns Task details with its current revision, dependencies, and leases', async () => {
   const app = createApp({ repository: {
     getTask: async (taskId) => ({ taskId, state: 'active' }),

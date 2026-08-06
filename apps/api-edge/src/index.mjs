@@ -12,7 +12,7 @@ import { SigningKeyError } from '../../../packages/domain/src/signing-key.mjs';
 import { listOwnTokens, createOwnToken, revokeOwnToken } from './api-token-api.mjs';
 import { ApiTokenError } from '../../../packages/domain/src/api-token.mjs';
 import { getQuestion, listQuestions, QuestionQueryError } from './question-query.mjs';
-import { getClaim, listClaims, ClaimQueryError } from './claim-query.mjs';
+import { getClaim, getClaimDownstreamGraph, getClaimUpstreamGraph, listClaims, ClaimQueryError } from './claim-query.mjs';
 import { getProject, listProjects, ProjectQueryError } from './project-query.mjs';
 import { getLatestFrontier, FrontierQueryError } from './frontier-query.mjs';
 import { getTask, listTasks, TaskQueryError } from './task-query.mjs';
@@ -135,6 +135,19 @@ app.get('/claims', async (context) => {
 app.get('/claims/:claimId', async (context) => {
   try {
     return context.json(await getClaim({ repository, claimId: context.req.param('claimId') }));
+  } catch (error) {
+    if (error instanceof ClaimQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status);
+    throw error;
+  }
+});
+
+app.get('/claims/:claimId/graph', async (context) => {
+  try {
+    const maxDepth = context.req.query('maxDepth') === undefined ? 3 : Number(context.req.query('maxDepth'));
+    const query = { repository, claimId: context.req.param('claimId'), maxDepth };
+    if (context.req.query('direction') === 'upstream') return context.json(await getClaimUpstreamGraph(query));
+    if (context.req.query('direction') === 'downstream' || context.req.query('direction') === undefined) return context.json(await getClaimDownstreamGraph(query));
+    throw new ClaimQueryError('graph direction must be upstream or downstream');
   } catch (error) {
     if (error instanceof ClaimQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status);
     throw error;
