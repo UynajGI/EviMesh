@@ -8,6 +8,8 @@ import { ActorIdentityError, resolveActorForSupabaseClaims } from './actor-ident
 import { ActorProfileError } from '../../../packages/domain/src/actor-profile.mjs';
 import { registerOwnSigningKey } from './signing-key-api.mjs';
 import { SigningKeyError } from '../../../packages/domain/src/signing-key.mjs';
+import { listOwnTokens, createOwnToken, revokeOwnToken } from './api-token-api.mjs';
+import { ApiTokenError } from '../../../packages/domain/src/api-token.mjs';
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
 
@@ -112,6 +114,12 @@ app.post('/signing-keys', async (context) => {
     throw error;
   }
 });
+
+async function actorFor(context) { return resolveActorForSupabaseClaims({ repository, claims: await authenticateSupabaseRequest(context.req.raw, context.env) }); }
+function tokenFailure(error, context) { const status = error instanceof JwtVerificationError ? 401 : error instanceof ActorIdentityError ? error.status : error instanceof ApiTokenError ? 400 : error.status; return status ? context.json(errorBody(error.code ?? 'api_token_unavailable', error.message, context.get('requestId')), status) : null; }
+app.get('/api-tokens', async (context) => { try { return context.json(await listOwnTokens({ repository, actorId: await actorFor(context) })); } catch (error) { const response = tokenFailure(error, context); if (response) return response; throw error; } });
+app.post('/api-tokens', async (context) => { try { const { scopes = [], expiresAt = null } = await context.req.json(); return context.json(await createOwnToken({ repository, actorId: await actorFor(context), scopes, expiresAt }), 201); } catch (error) { const response = tokenFailure(error, context); if (response) return response; throw error; } });
+app.delete('/api-tokens/:tokenId', async (context) => { try { return context.json(await revokeOwnToken({ repository, actorId: await actorFor(context), tokenId: context.req.param('tokenId') })); } catch (error) { const response = tokenFailure(error, context); if (response) return response; throw error; } });
 
 app.get("/tasks/:taskId/context", async (context) => {
   try {
