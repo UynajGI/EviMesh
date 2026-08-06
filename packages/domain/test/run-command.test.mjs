@@ -15,3 +15,14 @@ test('creates a reproducibility run with immutable artifact references', async (
   assert.equal(result.run.exitCode, 0);
   assert.equal(calls.length, 4);
 });
+
+test('reports invalid run JSON fields precisely and rejects seed arrays', async () => {
+  const base = {
+    repository: { withTransaction: async () => {}, insertRun() {}, insertRunInput() {}, insertRunOutput() {}, appendResearchEvent() {} },
+    actorId: 'actor_1', actorRole: 'contributor', runId: 'run_1', taskId: 'task_1', contextBundleId: 'context_1',
+    sourceCode: 'git:abc', container: 'oci:example@sha256:abc', command: 'pytest', environment: {}, hardware: {}, randomSeed: {},
+    startedAt: new Date('2026-01-01T00:00:00Z'), endedAt: new Date('2026-01-01T00:00:01Z'), exitCode: 0, signature: 'sig', eventFactory: async (event) => event,
+  };
+  await assert.rejects(() => createRun({ ...base, environment: [] }), /environment must be/);
+  await assert.rejects(() => createRun({ ...base, randomSeed: [] }), /random seed must be/);
+});

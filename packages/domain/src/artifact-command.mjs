@@ -15,7 +15,7 @@ function requiredText(value, field) {
   return value.trim();
 }
 
-function assertPositiveInteger(value, field) {
+function assertNonNegativeInteger(value, field) {
   if (!Number.isInteger(value) || value < 0) throw new ArtifactCommandError(`${field} must be a non-negative integer`);
   return value;
 }
@@ -53,7 +53,7 @@ export async function createArtifact({
   if (!ARTIFACT_TYPES.has(artifactType)) throw new ArtifactCommandError(`unsupported artifact type: ${artifactType}`);
   if (typeof rawHash !== 'string' || !/^sha256:[0-9a-f]{64}$/i.test(rawHash)) throw new ArtifactCommandError('raw hash must be a sha256 digest');
   if (semanticHash !== null && (typeof semanticHash !== 'string' || !/^sha256:[0-9a-f]{64}$/i.test(semanticHash))) throw new ArtifactCommandError('semantic hash must be a sha256 digest or null');
-  sizeBytes = assertPositiveInteger(sizeBytes, 'size bytes');
+  sizeBytes = assertNonNegativeInteger(sizeBytes, 'size bytes');
   mediaType = requiredText(mediaType, 'media type');
   if (!/^[^\s/]+\/[^\s/]+$/.test(mediaType)) throw new ArtifactCommandError('media type must be type/subtype');
   license = requiredText(license, 'license');
