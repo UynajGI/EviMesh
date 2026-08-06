@@ -83,3 +83,11 @@ test('renders a reusable Cytoscape Claim DAG component', async () => {
   assert.match(dag, /Claim dependency graph/);
   assert.match(verification, /<ClaimDag elements=\{sampleElements\}/);
 });
+
+test('edits the authenticated actor profile through the API Edge', async () => {
+  const page = await read('../app/settings/page.js');
+  assert.match(page, /auth\.getSession/);
+  assert.match(page, /NEXT_PUBLIC_EVIMESH_API_URL/);
+  assert.match(page, /profileRequest\('\/profile'/);
+  assert.match(page, /Save profile/);
+});

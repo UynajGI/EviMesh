@@ -7,6 +7,7 @@ const links = [
   { href: '/verification', label: 'Verification' },
   { href: '/contributions', label: 'Contributions' },
   { href: '/sign-in', label: 'Sign in' },
+  { href: '/settings', label: 'Settings' },
 ];
 
 export function SiteNav() {
