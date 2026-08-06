@@ -27,6 +27,7 @@ function deepEqual(left, right) {
 function evaluateRequirement(key, expected, actual) {
   if (typeof expected === 'number') {
     if (!Number.isFinite(actual)) throw new VerificationPolicyEvaluationError(`input.${key} must be a finite number`);
+    if (key === 'blocking_findings') return actual <= expected;
     return actual >= expected;
   }
   if (typeof expected === 'string' || typeof expected === 'boolean' || expected === null) return Object.is(actual, expected);

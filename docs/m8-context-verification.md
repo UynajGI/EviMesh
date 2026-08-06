@@ -139,3 +139,9 @@ matches, then emits a sorted explanation and the configured
 `requirements_met` outcome only when every requirement passes. Missing or
 malformed input fails closed; the domain-specific gates follow in M8-17 to
 M8-21.
+
+## Blocking Finding rule
+
+M8-17 interprets `blocking_findings` as a maximum rather than a lower-bound
+counter. A policy requiring zero blocking Findings therefore cannot recommend
+a promotion while any critical or major Finding remains.

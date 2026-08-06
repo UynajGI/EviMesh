@@ -23,6 +23,14 @@ test('reports unmet requirements without promoting the Claim', () => {
   assert.equal(result.requirement_results.find((item) => item.key === 'blind_reproductions').met, false);
 });
 
+test('does not promote a Claim with blocking Findings', () => {
+  const blockedPolicy = { ...policy, requirements: { ...policy.requirements, blocking_findings: 0 } };
+  const result = evaluateVerificationPolicy({ policy: blockedPolicy, input: { blind_reproductions: 1, blocking_findings: 1, schema_gate: 'pass', successful_reproductions: 2 } });
+  assert.equal(result.requirements_met, false);
+  assert.equal(result.recommended_outcome, null);
+  assert.equal(result.requirement_results.find((item) => item.key === 'blocking_findings').met, false);
+});
+
 test('fails closed for missing or malformed policy inputs', () => {
   assert.throws(() => evaluateVerificationPolicy({ policy, input: { schema_gate: 'pass', successful_reproductions: 2 } }), (error) => error instanceof VerificationPolicyEvaluationError && error.code === 'POLICY_INPUT_MISSING');
   assert.throws(() => evaluateVerificationPolicy({ policy, input: { blind_reproductions: '1', schema_gate: 'pass', successful_reproductions: 2 } }), /finite number/);
