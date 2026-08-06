@@ -9,6 +9,7 @@ export default function NewQuestionPage() {
   const [step, setStep] = useState(1);
   const [draft, setDraft] = useState({ title: '', statement: '', value: '', scope: '', exclusions: '', progress: '', falsification: '', license: '', risks: '' });
   const [saved, setSaved] = useState(false);
+  const [preview, setPreview] = useState(false);
 
   function update(field, value) {
     setSaved(false);
@@ -33,12 +34,19 @@ export default function NewQuestionPage() {
     setStep(4);
   }
 
+  function reviewQuestion(event) {
+    event.preventDefault();
+    setPreview(true);
+    setSaved(false);
+  }
+
   return <main className="mx-auto max-w-3xl px-6 py-16">
     <Link className="text-sm font-medium text-primary" href="/projects">← Back to projects</Link>
     <p className="mt-10 text-sm font-bold uppercase tracking-[0.18em] text-primary">Question submission · {step === 1 ? 'Step 1 of 4' : step === 2 ? 'Step 2 of 4' : step === 3 ? 'Step 3 of 4' : 'Step 4 of 4'}</p>
     <h1 className="mt-3 text-5xl font-semibold tracking-tight">{step === 1 ? 'Frame the question' : step === 2 ? 'Define the scope' : step === 3 ? 'Describe progress and falsification' : 'Set permissions and risks'}</h1>
     <p className="mt-5 max-w-2xl leading-7 text-muted-foreground">{step === 1 ? 'State what you want to learn and why the answer matters. Later steps will define the scope, progress, and safeguards.' : step === 2 ? 'Make the investigation bounded and reproducible by stating what is included and what is explicitly out of scope.' : step === 3 ? 'Record what is already known and the evidence that would show the question should be rejected or revised.' : 'Choose the sharing license and identify risks that reviewers should understand before submission.'}</p>
-    <form onSubmit={step === 1 ? continueToScope : step === 2 ? continueToProgress : step === 3 ? continueToPermissions : (event) => { event.preventDefault(); setSaved(true); }} className="mt-10 space-y-6 rounded-xl border border-border bg-card p-6 shadow-sm">
+    <form onSubmit={step === 1 ? continueToScope : step === 2 ? continueToProgress : step === 3 ? continueToPermissions : reviewQuestion} className="mt-10 space-y-6 rounded-xl border border-border bg-card p-6 shadow-sm">
+      {preview ? <div className="space-y-6"><div><p className="text-sm font-semibold text-primary">Normalized question object</p><h2 className="mt-2 text-3xl font-semibold">Review before submission</h2><p className="mt-3 text-sm text-muted-foreground">Check every field before the formal submit action in the next step.</p></div><pre aria-label="Normalized question object" className="max-h-[32rem] overflow-auto rounded-lg bg-slate-950 p-5 text-sm leading-6 text-slate-100">{JSON.stringify(draft, null, 2)}</pre><Button type="button" variant="outline" onClick={() => setPreview(false)}>Back to edit</Button></div> : <>
       {step === 1 ? <>
         <label className="block"><span className="text-sm font-semibold">Question title</span><Input required className="mt-2" aria-label="Question title" placeholder="A concise title" value={draft.title} onChange={(event) => update('title', event.target.value)} /></label>
         <label className="block"><span className="text-sm font-semibold">Question</span><textarea required aria-label="Question statement" className="mt-2 min-h-36 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm outline-none placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-indigo-600" placeholder="What should the network investigate?" value={draft.statement} onChange={(event) => update('statement', event.target.value)} /></label>
@@ -55,6 +63,7 @@ export default function NewQuestionPage() {
       </>}
       <div className="flex items-center justify-between gap-4"><Button type="button" variant="outline" onClick={() => { setSaved(false); setStep(Math.max(1, step - 1)); }} disabled={step === 1}>Back</Button><Button type="submit">{step === 1 ? 'Continue to scope' : step === 2 ? 'Continue to progress' : step === 3 ? 'Continue to permissions' : 'Review question'}</Button></div>
       {saved && <p role="status" className="text-sm text-primary">Step 4 is complete. The question is ready for review.</p>}
+      </>}
     </form>
   </main>;
 }

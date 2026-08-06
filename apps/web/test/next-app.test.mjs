@@ -177,3 +177,11 @@ test('supports the fourth Question submission step for license and risks', async
   assert.match(page, /Review question/);
   assert.match(page, /setStep\(4\)/);
 });
+
+test('renders a normalized Question preview before submission', async () => {
+  const page = await read('../app/questions/new/page.js');
+  assert.match(page, /Normalized question object/);
+  assert.match(page, /JSON\.stringify\(draft/);
+  assert.match(page, /Back to edit/);
+  assert.match(page, /setPreview\(true\)/);
+});
