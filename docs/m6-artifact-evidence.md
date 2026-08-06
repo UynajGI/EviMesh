@@ -15,7 +15,7 @@
 - Run 创建会在同一事务内确认 input/output Artifact revision 存在，并拒绝重复引用；输出 revision 必须已有 `verified` hash 核验状态；
 - domain 层 Artifact 创建命令，原子写入 Artifact、首个 revision、初始 location 与事件；
 - 外部 Artifact location 必须同时提交 URL、SHA-256、size 和 license，并持久化为可核验 metadata；
-- Evidence 创建命令，链接固定的 Claim revision；
+- Evidence 创建及后续 link 命令只链接固定、已存在的 Claim revision，并写入审计事件；
 - Run 创建命令，链接不可变的 Artifact revision 输入/输出并记录可复现环境字段；容器必须使用不可变的 SHA-256 OCI digest，并规范化随机种子后记录稳定的 semantic hash；
 - API Edge 的 `ARTIFACTS` R2 binding：development 使用 `evimesh-dev`，staging 使用
   `evimesh-staging`，production 使用 `evimesh-production`。
