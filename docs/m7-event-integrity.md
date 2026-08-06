@@ -66,4 +66,12 @@ failed `processing` job to `pending` at `availableAt = failedAt + min(baseDelay 
 2^attempts, maxDelay)`. The repository must perform this transition atomically and
 return the complete new retry state; a stale or already completed job is rejected.
 
+## Outbox dead letter
+
+`deadLetterOutboxJob` stops automatic delivery when the failure being recorded makes
+`attempts + 1 >= maxAttempts`. It atomically changes only a `processing` job to
+`dead_letter`, retains the final error, and refuses to invoke the repository while
+retry attempts remain. Dead-letter rows therefore cannot be accidentally returned to
+the automatic pending queue.
+
 后续 M7 loop 会在这一边界上增加对象/Actor 哈希链、Outbox、Merkle checkpoint 与 provenance。
