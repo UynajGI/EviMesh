@@ -59,4 +59,11 @@ repository update. A successful acknowledgement must return the same outbox ID w
 `status: processed` and the exact normalized `processedAt` timestamp; otherwise the
 worker treats the acknowledgement as failed rather than assuming delivery state.
 
+## Outbox retry
+
+`retryOutboxJob` records a bounded error string, increments `attempts`, and returns a
+failed `processing` job to `pending` at `availableAt = failedAt + min(baseDelay ×
+2^attempts, maxDelay)`. The repository must perform this transition atomically and
+return the complete new retry state; a stale or already completed job is rejected.
+
 后续 M7 loop 会在这一边界上增加对象/Actor 哈希链、Outbox、Merkle checkpoint 与 provenance。
