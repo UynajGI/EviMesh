@@ -402,3 +402,12 @@ test('renders Frontier detail with members, policy, checkpoint, and diff', async
   assert.match(page, /Checkpoint/);
   assert.match(page, /Member diff/);
 });
+
+test('renders contributor detail with roles, produced, used, and Frontier usage', async () => {
+  const page = await read('../app/contributors/[actorId]/page.js');
+  assert.match(page, /actors\/\$\{actorId\}/);
+  assert.match(page, /Roles/);
+  assert.match(page, /Produced/);
+  assert.match(page, /Used/);
+  assert.match(page, /Frontier usage/);
+});
