@@ -228,3 +228,6 @@ than resolving a mutable current Claim projection.
 M8-31 returns the FrontierSnapshot with the maximum valid sequence for a
 project, returning `null` before genesis. Malformed repository sequence data
 fails closed rather than being treated as a latest Frontier.
+
+M8-32 pages immutable Frontier history with the existing opaque cursor scheme,
+using stable `createdAt` and `snapshotId` keys within one Project.
