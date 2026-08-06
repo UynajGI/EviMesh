@@ -158,3 +158,9 @@ requirements are otherwise satisfied.
 M8-19 treats `blind_reproductions` as a non-negative integer count. The
 configured minimum must be reached before promotion is recommended; fractional
 or negative values fail evaluation rather than weakening the independence gate.
+
+## Distinct implementation rule
+
+M8-20 treats `distinct_implementations` as an explicit non-negative count,
+separate from the number of successful or blind receipts. The policy's minimum
+must be met before promotion can be recommended.

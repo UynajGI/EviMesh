@@ -37,6 +37,13 @@ test('requires the configured count of blind receipts before promotion', () => {
   assert.throws(() => evaluateVerificationPolicy({ policy, input: { blind_reproductions: 0.5, schema_gate: 'pass', successful_reproductions: 2 } }), /blind_reproductions must be a non-negative integer/);
 });
 
+test('requires distinct implementations before promotion', () => {
+  const distinctPolicy = { ...policy, requirements: { ...policy.requirements, distinct_implementations: 2 } };
+  const result = evaluateVerificationPolicy({ policy: distinctPolicy, input: { blind_reproductions: 1, distinct_implementations: 1, schema_gate: 'pass', successful_reproductions: 2 } });
+  assert.equal(result.requirements_met, false);
+  assert.throws(() => evaluateVerificationPolicy({ policy: distinctPolicy, input: { blind_reproductions: 1, distinct_implementations: -1, schema_gate: 'pass', successful_reproductions: 2 } }), /distinct_implementations must be a non-negative integer/);
+});
+
 test('marks a Claim contested when a valid refuting Receipt exists', () => {
   const result = evaluateVerificationPolicy({ policy, input: { blind_reproductions: 1, refuting_receipts: 1, schema_gate: 'pass', successful_reproductions: 2 } });
   assert.equal(result.requirements_met, true);

@@ -1,6 +1,6 @@
 import { createVerificationPolicy } from './verification-policy.mjs';
 
-const COUNT_REQUIREMENTS = new Set(['blind_reproductions']);
+const COUNT_REQUIREMENTS = new Set(['blind_reproductions', 'distinct_implementations']);
 
 export class VerificationPolicyEvaluationError extends Error {
   constructor(message, code = 'VERIFICATION_POLICY_EVALUATION_INVALID') {
