@@ -75,3 +75,11 @@ test('provides Supabase email and GitHub authentication from the sign-in page', 
   assert.match(page, /signInWithOAuth\(\{ provider: 'github'/);
   assert.match(page, /Continue with GitHub/);
 });
+
+test('renders a reusable Cytoscape Claim DAG component', async () => {
+  const [dag, verification] = await Promise.all([read('../components/claim-dag.js'), read('../app/verification/page.js')]);
+  assert.match(dag, /import cytoscape from 'cytoscape'/);
+  assert.match(dag, /return \(\) => cy\.destroy\(\)/);
+  assert.match(dag, /Claim dependency graph/);
+  assert.match(verification, /<ClaimDag elements=\{sampleElements\}/);
+});

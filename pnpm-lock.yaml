@@ -45,6 +45,9 @@ importers:
       clsx:
         specifier: 2.1.1
         version: 2.1.1
+      cytoscape:
+        specifier: ^3.34.0
+        version: 3.34.0
       lucide-react:
         specifier: 0.468.0
         version: 0.468.0(react@19.2.3)
@@ -1386,6 +1389,10 @@ packages:
     resolution: {integrity: sha512-9Kr/j4O16ISv8zBBhJoi4bXOYNTkFLOqSL3UDB0njXxCXNezjeyVrJyGOWtgfs/q2km1gwBcfH8q1yEGoMYunA==}
     engines: {node: '>=18'}
 
+  cytoscape@3.34.0:
+    resolution: {integrity: sha512-62rNSrioXw93uliKFBwjukeQyeWwH2PqDrTac31r2P6464u3AUvTk0xS4LVvT251g7IgkFunrI48ZEZGjywSOg==}
+    engines: {node: '>=0.10'}
+
   detect-libc@2.1.2:
     resolution: {integrity: sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ==}
     engines: {node: '>=8'}
@@ -2686,6 +2693,8 @@ snapshots:
   clsx@2.1.1: {}
 
   cookie@1.0.2: {}
+
+  cytoscape@3.34.0: {}
 
   detect-libc@2.1.2: {}
 
