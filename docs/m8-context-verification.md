@@ -102,3 +102,10 @@ M8-11 adds `prepareVerification` at the API edge. It reads the requested Claim
 and VerificationContract revisions by exact ID/revision pair and returns only
 canonical `verification.submitted` signing bytes plus their SHA-256 hash. A
 missing revision fails with 404; current projections are never substituted.
+
+## Verification submit
+
+M8-12 adds `submitVerification`. It checks the exact Claim and Contract
+revisions, then writes the VerificationReceipt, all Findings, a verifier
+ContributionStatement, and `verification.submitted` in one transaction.
+Missing revisions prevent every write, preserving the receipt's provenance.

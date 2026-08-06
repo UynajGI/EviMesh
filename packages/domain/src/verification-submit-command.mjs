@@ -1,0 +1,21 @@
+import { assertProjectRoleForAction } from "./project-authorization.mjs";
+import { createVerificationReceipt } from "../../protocol/src/verification-receipt.mjs";
+
+export class VerificationSubmitError extends Error { constructor(message, code = "VERIFICATION_SUBMIT_INVALID", status = 400) { super(message); this.name = "VerificationSubmitError"; this.code = code; this.status = status; } }
+const text=(v,f)=>{if(typeof v!=="string"||!v.trim())throw new VerificationSubmitError(`${f} must be a non-empty string`);return v.trim();};
+const positive=(v,f)=>{if(!Number.isInteger(v)||v<1)throw new VerificationSubmitError(`${f} must be a positive integer`);return v;};
+
+/** Persist a receipt, findings, verifier contribution, and event atomically. */
+export async function submitVerification({repository,actorId,actorRole,receiptId,claimId,claimRevision,contractId,contractRevision,outcome,verificationTypes,contextMode,sawExpectedOutputs,implementationRelation,dataRelation,modelFamily,findings=[],contributionStatementId,eventFactory}={}){
+  if(!repository||typeof repository.withTransaction!=="function")throw new VerificationSubmitError("repository withTransaction is required");
+  for(const m of ["getClaimRevision","getVerificationContractRevision","insertVerificationReceipt","insertVerificationFinding","insertContributionStatement","appendResearchEvent"])if(typeof repository[m]!=="function")throw new VerificationSubmitError(`repository ${m} is required`);
+  actorId=text(actorId,"actor id");receiptId=text(receiptId,"receipt id");claimId=text(claimId,"claim id");claimRevision=positive(claimRevision,"claim revision");contractId=text(contractId,"contract id");contractRevision=positive(contractRevision,"contract revision");contributionStatementId=text(contributionStatementId,"contribution statement id");
+  let protocol;try{protocol=createVerificationReceipt({claimRevisionId:`${claimId}@${claimRevision}`,contractRevisionId:`${contractId}@${contractRevision}`,outcome,verificationTypes,contextMode,sawExpectedOutputs,implementationRelation,dataRelation,modelFamily,findings});}catch(e){throw new VerificationSubmitError(e.message);}
+  if(!Array.isArray(findings)||findings.some((f)=>!f||typeof f!=="object"||typeof f.findingId!=="string"||!f.findingId.trim()))throw new VerificationSubmitError("findings require non-empty finding IDs");
+  if(typeof eventFactory!=="function")throw new VerificationSubmitError("eventFactory is required");assertProjectRoleForAction({actorRole,requiredRole:"contributor"});
+  return repository.withTransaction(async(tx)=>{if(!await tx.getClaimRevision(claimId,claimRevision))throw new VerificationSubmitError("claim revision not found","CLAIM_REVISION_NOT_FOUND",404);if(!await tx.getVerificationContractRevision(contractId,contractRevision))throw new VerificationSubmitError("verification contract revision not found","CONTRACT_REVISION_NOT_FOUND",404);
+    const receipt={receiptId,claimId,claimRevision,contractId,contractRevision,outcome:protocol.outcome,verificationTypes:protocol.verification_types,contextMode:protocol.context_mode,sawExpectedOutputs:protocol.saw_expected_outputs,implementationRelation:protocol.implementation_relation,dataRelation:protocol.data_relation,modelFamily:protocol.model_family,createdBy:actorId};
+    const contribution={statementId:contributionStatementId,actorId,role:"verifier",description:`Verified ${claimId}@${claimRevision} with receipt ${receiptId}`};
+    const event=await eventFactory({eventType:"verification.submitted",payload:{entity_type:"verification_receipt",receipt_id:receiptId,claim_id:claimId,claim_revision:claimRevision,contract_id:contractId,contract_revision:contractRevision,outcome:protocol.outcome,actor_id:actorId,finding_count:findings.length}});if(!event||typeof event!=="object")throw new VerificationSubmitError("eventFactory must return an event object");
+    return {receipt:await tx.insertVerificationReceipt(receipt)??receipt,findings:await Promise.all(findings.map((f)=>tx.insertVerificationFinding({findingId:f.findingId.trim(),receiptId,severity:f.severity,code:f.code,details:f.details??{}}))),contribution:await tx.insertContributionStatement(contribution)??contribution,event:await tx.appendResearchEvent(event)??event};});
+}
