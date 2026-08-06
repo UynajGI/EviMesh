@@ -166,7 +166,7 @@ rebuilds them in append order from signed Event `payload.projection` snapshots.
 The first integrated core path covers Claim creation, revision, and lifecycle
 transitions; immutable Event history is never cleared or mutated during replay.
 
-后续 M7 loop 将在这一边界上增加 deletion guard 与 key rotation。
+后续 M7 loop 将在这一边界上增加 revision guard 与 key rotation。
 
 ## Event deletion guard
 
@@ -174,3 +174,10 @@ The opt-in database integration test provisions a disposable ordinary applicatio
 role inside a rolled-back transaction, grants it `DELETE`, and proves that
 `DELETE` still raises the append-only PostgreSQL error (`55000`). The outer
 transaction is rolled back, so neither the role nor the fixture Event remains.
+
+## Revision update guard
+
+The companion integration test creates an Actor, Claim, and ClaimRevision inside
+the same rollback-only transaction. A disposable ordinary role receives UPDATE
+permission and a matching temporary RLS policy, yet an in-place ClaimRevision
+update is rejected with `55000`; the original statement remains intact.
