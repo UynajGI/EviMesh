@@ -213,3 +213,10 @@ evaluation has met every policy requirement.
 M8-28 exposes a proposal's pinned evaluation as two explicit lists:
 `satisfied` and `unsatisfied` conditions. This prevents clients from inferring
 merge readiness from mutable Claim or Policy projections.
+
+## Frontier snapshots
+
+M8-29 appends FrontierSnapshot records only at the next contiguous project
+sequence. It fixes the immediately previous sequence, the project revision,
+and a `ready` MergeProposal in the immutable checkpoint before emitting
+`frontier.created`.
