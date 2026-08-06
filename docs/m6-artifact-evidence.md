@@ -9,6 +9,7 @@
 - Artifact 接受前的 malware scanner adapter 契约；感染或扫描服务不可用时 fail closed；
 - API Edge 的 Run 列表、详情及 Artifact input/output 查询契约；
 - API Edge 的 Evidence 列表、详情及 Claim revision link 查询契约；
+- Run 创建会在同一事务内确认 input/output Artifact revision 存在，并拒绝重复引用；
 - domain 层 Artifact 创建命令，原子写入 Artifact、首个 revision、初始 location 与事件；
 - Evidence 创建命令，链接固定的 Claim revision；
 - Run 创建命令，链接不可变的 Artifact revision 输入/输出并记录可复现环境字段；
