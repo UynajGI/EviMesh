@@ -159,4 +159,11 @@ become Entities with explicit `used` and `wasGeneratedBy` relations.
 revision → Frontier path. It fails closed with a typed 404 if any essential
 path segment is missing rather than presenting a partial provenance chain.
 
-后续 M7 loop 将在这一边界上增加 Event replay、deletion guard 与 key rotation。
+## Event replay projection
+
+`replayCoreProjections` clears only the derived current-state projections, then
+rebuilds them in append order from signed Event `payload.projection` snapshots.
+The first integrated core path covers Claim creation, revision, and lifecycle
+transitions; immutable Event history is never cleared or mutated during replay.
+
+后续 M7 loop 将在这一边界上增加 deletion guard 与 key rotation。

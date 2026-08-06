@@ -66,9 +66,13 @@ export async function createClaim({
     questionId,
     createdBy: actorId,
   };
+  const projected = { claimId, questionId, state: "hypothesis" };
   const event = await eventFactory({
     eventType: "claim.created",
-    payload: { entity_type: "claim", claim_id: claimId, question_id: questionId, revision: 1, actor_id: actorId },
+    payload: {
+      entity_type: "claim", claim_id: claimId, question_id: questionId, revision: 1, actor_id: actorId,
+      projection: { entity_type: "claim", entity_id: claimId, revision: 1, state: { claim: projected, revision } },
+    },
   });
   if (!event || typeof event !== "object") throw new ClaimCommandError("eventFactory must return an event object");
   return repository.withTransaction(async (transaction) => {
@@ -122,12 +126,15 @@ export async function reviseClaim({
       questionId: nextQuestionId,
       createdBy: actorId,
     };
+    const projected = { claimId, questionId: next.questionId, state: next.state };
     const event = await eventFactory({
       eventType: "claim.revised",
-      payload: { entity_type: "claim", claim_id: claimId, revision: next.revision, actor_id: actorId },
+      payload: {
+        entity_type: "claim", claim_id: claimId, revision: next.revision, actor_id: actorId,
+        projection: { entity_type: "claim", entity_id: claimId, revision: next.revision, state: { claim: projected, revision: next } },
+      },
     });
     if (!event || typeof event !== "object") throw new ClaimCommandError("eventFactory must return an event object");
-    const projected = { claimId, questionId: next.questionId, state: next.state };
     const persistedRevision = await transaction.insertClaimRevision(next);
     const persistedClaim = await transaction.updateClaim(claimId, projected);
     const persistedEvent = await transaction.appendResearchEvent(event);
@@ -174,12 +181,15 @@ export async function transitionClaim({
       createdBy: actorId,
     };
     delete next.createdAt;
+    const projected = { claimId, questionId: next.questionId ?? null, state: next.state };
     const event = await eventFactory({
       eventType: "claim.state_changed",
-      payload: { entity_type: "claim", claim_id: claimId, from_state: current.state, to_state: toState, revision: next.revision, actor_id: actorId },
+      payload: {
+        entity_type: "claim", claim_id: claimId, from_state: current.state, to_state: toState, revision: next.revision, actor_id: actorId,
+        projection: { entity_type: "claim", entity_id: claimId, revision: next.revision, state: { claim: projected, revision: next } },
+      },
     });
     if (!event || typeof event !== "object") throw new ClaimCommandError("eventFactory must return an event object");
-    const projected = { claimId, questionId: next.questionId ?? null, state: next.state };
     const persistedRevision = await transaction.insertClaimRevision(next);
     const persistedClaim = await transaction.updateClaim(claimId, projected);
     const persistedEvent = await transaction.appendResearchEvent(event);
