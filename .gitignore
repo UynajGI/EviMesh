@@ -30,3 +30,4 @@ venv/
 *.log
 apps/api-edge/.wrangler/
 apps/web/.wrangler/
+apps/web/.next/
