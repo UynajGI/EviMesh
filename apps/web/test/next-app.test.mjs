@@ -411,3 +411,12 @@ test('renders contributor detail with roles, produced, used, and Frontier usage'
   assert.match(page, /Used/);
   assert.match(page, /Frontier usage/);
 });
+
+test('renders Event audit with signatures and parent hash chain', async () => {
+  const page = await read('../app/events/page.js');
+  assert.match(page, /events\?limit=100/);
+  assert.match(page, /Hash/);
+  assert.match(page, /Signature/);
+  assert.match(page, /Parents/);
+  assert.match(page, /ResearchEvents/);
+});
