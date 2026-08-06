@@ -88,6 +88,16 @@ test('lists projects and returns each latest frontier', async () => {
   assert.equal((await frontier.json()).frontier.sequence, 3);
 });
 
+test('lists Frontier history with fixed Claim members', async () => {
+  const app = createApp({ repository: {
+    listFrontierSnapshots: async () => [{ snapshotId: 'frontier-1', projectId: 'project-1', sequence: 1, createdAt: '2026-08-06T00:00:00.000Z' }],
+    listFrontierMembers: async () => [{ claimId: 'claim-1', claimRevision: 2, membershipType: 'core' }],
+  } });
+  const response = await app.fetch(new Request('https://api.example.test/projects/project-1/frontier/history?limit=6'), {});
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).items[0].members[0].claimId, 'claim-1');
+});
+
 test('returns a public project with its current revision', async () => {
   const app = createApp({ repository: {
     getProject: async (projectId) => ({ projectId, state: 'active' }),

@@ -298,3 +298,11 @@ test('opens Claim DAG node details with revision and Evidence fields', async () 
   assert.match(component, /Evidence:/);
   assert.match(component, /cy\.on\('tap', 'node'/);
 });
+
+test('renders Frontier time travel with fixed members', async () => {
+  const [component, page] = await Promise.all([read('../components/frontier-timeline.js'), read('../app/projects/[projectId]/page.js')]);
+  assert.match(component, /frontier\/history/);
+  assert.match(component, /Select an immutable Frontier/);
+  assert.match(component, /members\.map/);
+  assert.match(page, /FrontierTimeline/);
+});

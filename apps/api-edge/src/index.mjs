@@ -14,7 +14,7 @@ import { ApiTokenError } from '../../../packages/domain/src/api-token.mjs';
 import { getQuestion, listQuestions, QuestionQueryError } from './question-query.mjs';
 import { getClaim, getClaimDownstreamGraph, getClaimUpstreamGraph, listClaims, ClaimQueryError } from './claim-query.mjs';
 import { getProject, listProjects, ProjectQueryError } from './project-query.mjs';
-import { getLatestFrontier, FrontierQueryError } from './frontier-query.mjs';
+import { getLatestFrontier, listFrontierHistory, FrontierQueryError } from './frontier-query.mjs';
 import { getTask, listTasks, TaskQueryError } from './task-query.mjs';
 import { createProject } from '../../../packages/domain/src/project-command.mjs';
 import { ProjectCommandError } from '../../../packages/domain/src/project-command.mjs';
@@ -173,6 +173,16 @@ app.get('/projects/:projectId', async (context) => {
 app.get('/projects/:projectId/frontier/latest', async (context) => {
   try {
     return context.json({ frontier: await getLatestFrontier({ repository, projectId: context.req.param('projectId') }) });
+  } catch (error) {
+    if (error instanceof FrontierQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status);
+    throw error;
+  }
+});
+
+app.get('/projects/:projectId/frontier/history', async (context) => {
+  try {
+    const limit = context.req.query('limit') === undefined ? 20 : Number(context.req.query('limit'));
+    return context.json(await listFrontierHistory({ repository, projectId: context.req.param('projectId'), limit, cursor: context.req.query('cursor') ?? null }));
   } catch (error) {
     if (error instanceof FrontierQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status);
     throw error;
