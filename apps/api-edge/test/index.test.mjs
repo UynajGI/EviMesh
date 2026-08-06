@@ -75,6 +75,19 @@ test('lists public claims with a status filter', async () => {
   assert.deepEqual(body.items.map((claim) => claim.state), ['under_verification']);
 });
 
+test('lists projects and returns each latest frontier', async () => {
+  const app = createApp({ repository: {
+    listProjects: async () => [{ projectId: 'project-1', state: 'active', createdAt: '2026-08-06T00:00:00.000Z' }],
+    listFrontierSnapshots: async () => [{ snapshotId: 'frontier-1', projectId: 'project-1', sequence: 3, createdAt: '2026-08-06T00:00:00.000Z' }],
+  } });
+  const projects = await app.fetch(new Request('https://api.example.test/projects?limit=6'), {});
+  assert.equal(projects.status, 200);
+  assert.deepEqual((await projects.json()).items.map((project) => project.projectId), ['project-1']);
+  const frontier = await app.fetch(new Request('https://api.example.test/projects/project-1/frontier/latest'), {});
+  assert.equal(frontier.status, 200);
+  assert.equal((await frontier.json()).frontier.sequence, 3);
+});
+
 test("serves Task Context by explicit mode", async () => {
   const app = createApp({ repository: { getContextBundleForTask: async () => ({ contextBundleId: "context-1", taskId: "task-1", mode: "blind", contentHash: `sha256:${"a".repeat(64)}`, storageUri: "r2://evimesh/context-1.json", manifest: {} }) } });
   const response = await app.fetch(new Request("https://api.example.test/tasks/task-1/context?mode=blind", { headers: { "x-request-id": "context-request" } }), {});

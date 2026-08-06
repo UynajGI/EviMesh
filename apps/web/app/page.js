@@ -17,6 +17,7 @@ function relativeTime(value) {
 export default function HomePage() {
   const [questions, setQuestions] = useState([]);
   const [claims, setClaims] = useState([]);
+  const [frontiers, setFrontiers] = useState([]);
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -28,6 +29,19 @@ export default function HomePage() {
       })
       .then((items) => setQuestions(items.filter((question) => !CLOSED_STATES.has(question.state)).sort((left, right) => Date.parse(right.createdAt ?? 0) - Date.parse(left.createdAt ?? 0)).slice(0, 6)))
       .catch((reason) => setError(reason.message));
+  }, []);
+
+  useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_EVIMESH_API_URL}/projects?limit=6`).then(async (response) => {
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.message ?? 'Projects are unavailable.');
+      return payload.items ?? [];
+    }).then((projects) => Promise.all(projects.map(async (project) => {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_EVIMESH_API_URL}/projects/${project.projectId}/frontier/latest`);
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.message ?? 'Frontiers are unavailable.');
+      return payload.frontier ? { project, frontier: payload.frontier } : null;
+    }))).then((items) => setFrontiers(items.filter(Boolean))).catch((reason) => setError(reason.message));
   }, []);
 
   useEffect(() => {
@@ -54,6 +68,11 @@ export default function HomePage() {
         <div><p className="text-sm font-semibold text-primary">Evidence in motion</p><h2 id="verification-claims-heading" className="mt-2 text-3xl font-semibold">Claims awaiting verification</h2></div>
         {error ? null : <div className="mt-6 grid gap-4 md:grid-cols-2">{claims.map((claim) => <article className="rounded-xl border border-border bg-card p-5 shadow-sm" key={claim.claimId}><span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold capitalize">{claim.state.replaceAll('_', ' ')}</span><h3 className="mt-4 font-semibold">{claim.claimId}</h3><p className="mt-2 text-sm text-muted-foreground">Question {claim.questionId ?? 'not linked'}</p></article>)}</div>}
         {!error && claims.length === 0 && <p className="mt-6 text-sm text-muted-foreground">No claims are currently awaiting verification.</p>}
+      </section>
+      <section className="mt-16" aria-labelledby="frontier-heading">
+        <div><p className="text-sm font-semibold text-primary">Established knowledge</p><h2 id="frontier-heading" className="mt-2 text-3xl font-semibold">Latest frontiers</h2></div>
+        {error ? null : <div className="mt-6 grid gap-4 md:grid-cols-2">{frontiers.map(({ project, frontier }) => <article className="rounded-xl border border-border bg-card p-5 shadow-sm" key={frontier.snapshotId}><p className="text-sm text-muted-foreground">Project {project.projectId}</p><h3 className="mt-3 text-xl font-semibold">Frontier #{frontier.sequence}</h3><p className="mt-2 text-sm text-muted-foreground">Snapshot {frontier.snapshotId}</p></article>)}</div>}
+        {!error && frontiers.length === 0 && <p className="mt-6 text-sm text-muted-foreground">No published frontiers yet.</p>}
       </section>
     </main>
   );

@@ -12,6 +12,8 @@ import { listOwnTokens, createOwnToken, revokeOwnToken } from './api-token-api.m
 import { ApiTokenError } from '../../../packages/domain/src/api-token.mjs';
 import { listQuestions, QuestionQueryError } from './question-query.mjs';
 import { listClaims, ClaimQueryError } from './claim-query.mjs';
+import { listProjects, ProjectQueryError } from './project-query.mjs';
+import { getLatestFrontier, FrontierQueryError } from './frontier-query.mjs';
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
 
@@ -110,6 +112,26 @@ app.get('/claims', async (context) => {
     }));
   } catch (error) {
     if (error instanceof ClaimQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status);
+    throw error;
+  }
+});
+
+app.get('/projects', async (context) => {
+  try {
+    const requestedLimit = context.req.query('limit');
+    const limit = requestedLimit === undefined ? 20 : Number(requestedLimit);
+    return context.json(await listProjects({ repository, state: context.req.query('state') ?? null, limit, cursor: context.req.query('cursor') ?? null }));
+  } catch (error) {
+    if (error instanceof ProjectQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status);
+    throw error;
+  }
+});
+
+app.get('/projects/:projectId/frontier/latest', async (context) => {
+  try {
+    return context.json({ frontier: await getLatestFrontier({ repository, projectId: context.req.param('projectId') }) });
+  } catch (error) {
+    if (error instanceof FrontierQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status);
     throw error;
   }
 });

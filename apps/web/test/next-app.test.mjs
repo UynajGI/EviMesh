@@ -114,3 +114,11 @@ test('renders only claims awaiting verification on the homepage', async () => {
   assert.match(page, /provisionally_accepted/);
   assert.match(page, /Claims awaiting verification/);
 });
+
+test('renders each project latest frontier on the homepage', async () => {
+  const page = await read('../app/page.js');
+  assert.match(page, /\/projects\?limit=6/);
+  assert.match(page, /frontier\/latest/);
+  assert.match(page, /Latest frontiers/);
+  assert.match(page, /Frontier #/);
+});
