@@ -3,18 +3,36 @@
   "name": "evimesh-api-edge-dev",
   "main": "src/index.mjs",
   "compatibility_date": "2026-08-04",
+  "r2_buckets": [
+    {
+      "binding": "ARTIFACTS",
+      "bucket_name": "evimesh-dev"
+    }
+  ],
   "vars": {
     "EVIMESH_ENV": "development"
   },
   "env": {
     "staging": {
       "name": "evimesh-api-edge-staging",
+      "r2_buckets": [
+        {
+          "binding": "ARTIFACTS",
+          "bucket_name": "evimesh-staging"
+        }
+      ],
       "vars": {
         "EVIMESH_ENV": "staging"
       }
     },
     "production": {
       "name": "evimesh-api-edge",
+      "r2_buckets": [
+        {
+          "binding": "ARTIFACTS",
+          "bucket_name": "evimesh-production"
+        }
+      ],
       "vars": {
         "EVIMESH_ENV": "production"
       }

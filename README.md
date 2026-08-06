@@ -167,6 +167,10 @@ Edge health contract in [`apps/api-edge`](apps/api-edge/README.md). Hosted
 infrastructure and deployment remain gated on the corresponding provider
 accounts and credentials.
 
+M6 now includes the first Artifact/Evidence/Run domain baseline and streaming
+SHA-256 object hashing. See [`docs/m6-artifact-evidence.md`](docs/m6-artifact-evidence.md)
+for the current boundary and R2 environment bindings.
+
 The Web preview workflow in [`.github/workflows/web-preview.yml`](.github/workflows/web-preview.yml)
 deploys `apps/web/public` to the `evimesh-web-dev` Cloudflare Pages project for
 same-repository pull requests. It requires `CLOUDFLARE_API_TOKEN` and
