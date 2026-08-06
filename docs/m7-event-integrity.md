@@ -147,4 +147,10 @@ and the positive revision number before writing the provenance edge.
 relation to an existing input object revision, preserving the distinction
 between research inputs and outputs.
 
-后续 M7 loop 将在这一边界上增加 W3C PROV 导出与 provenance 查询。
+## W3C PROV export
+
+`exportContributionProv` maps contribution graphs to PROV-JSON: actors become
+Agents, contribution statements become Activities, and revision references
+become Entities with explicit `used` and `wasGeneratedBy` relations.
+
+后续 M7 loop 将在这一边界上增加 provenance 查询。
