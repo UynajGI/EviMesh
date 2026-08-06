@@ -209,3 +209,7 @@ M8-27 creates a MergeProposal only after loading the explicitly requested
 Claim revision and VerificationPolicy revision. The persisted proposal and its
 event pin both revision numbers; its status is `ready` only when the pinned
 evaluation has met every policy requirement.
+
+M8-28 exposes a proposal's pinned evaluation as two explicit lists:
+`satisfied` and `unsatisfied` conditions. This prevents clients from inferring
+merge readiness from mutable Claim or Policy projections.
