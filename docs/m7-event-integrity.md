@@ -81,4 +81,11 @@ the automatic pending queue.
 `sha256(canonical encoding)`, so the same formal Event always produces the same
 leaf even when equivalent JSON objects arrive with different key order.
 
+## Merkle tree construction
+
+`buildMerkleTree` preserves Event order, hashes child pairs under the separate
+`evimesh.merkle-node.v1` domain, and duplicates the final node at every odd-width
+level. The returned immutable levels and root make the construction rule explicit
+for checkpoint and proof callers.
+
 后续 M7 loop 会在这一边界上增加对象/Actor 哈希链、Outbox、Merkle checkpoint 与 provenance。
