@@ -306,3 +306,10 @@ test('renders Frontier time travel with fixed members', async () => {
   assert.match(component, /members\.map/);
   assert.match(page, /FrontierTimeline/);
 });
+
+test('renders the Claim editor for statement, scope, assumptions, and falsification', async () => {
+  const [page, nav] = await Promise.all([read('../app/claims/new/page.js'), read('../components/site-nav.js')]);
+  for (const field of ['Statement', 'Scope', 'Assumptions', 'Falsification conditions']) assert.match(page, new RegExp(field));
+  assert.match(page, /Claim preview/);
+  assert.match(nav, /claims\/new/);
+});
