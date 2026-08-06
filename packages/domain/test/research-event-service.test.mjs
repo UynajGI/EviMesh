@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { appendResearchEvent, ResearchEventAppendError } from '../src/research-event-service.mjs';
+import { appendObjectResearchEvent, appendResearchEvent, ResearchEventAppendError } from '../src/research-event-service.mjs';
 
 const parentId = '018f0f4a-5c00-7000-8000-000000000000';
 const eventId = '018f0f4a-5c00-7000-8000-000000000001';
@@ -19,6 +19,7 @@ function repository({ existing = new Set([parentId]) } = {}) {
     calls,
     withTransaction: async (callback) => callback(repo),
     getResearchEvent: async (id) => existing.has(id) ? { eventId: id } : null,
+    getLatestObjectEventHash: async () => null,
     insertResearchEvent: async (record) => { calls.push(['event', record]); existing.add(record.eventId); return record; },
     insertResearchEventParent: async (record) => { calls.push(['parent', record]); return record; },
   };
@@ -31,6 +32,51 @@ test('appends a signed Event and every parent link in one transaction', async ()
   assert.equal(result.event.eventId, eventId);
   assert.deepEqual(result.parents, [{ eventId, parentEventId: parentId }]);
   assert.deepEqual(repo.calls.map(([kind]) => kind), ['event', 'parent']);
+});
+
+test('binds a signed Event to the current object event hash chain head', async () => {
+  const previousEventHash = `sha256:${'b'.repeat(64)}`;
+  const repo = repository();
+  repo.getLatestObjectEventHash = async ({ objectType, objectId }) => {
+    assert.deepEqual({ objectType, objectId }, { objectType: 'claim', objectId: 'claim_1' });
+    return previousEventHash;
+  };
+  const result = await appendObjectResearchEvent({
+    repository: repo,
+    objectType: 'claim',
+    objectId: 'claim_1',
+    eventFactory: async ({ objectType, objectId, previousEventHash: receivedPreviousHash }) => ({
+      ...event,
+      payload: {
+        claim_id: 'claim_1',
+        revision: 2,
+        integrity: { object_type: objectType, object_id: objectId, previous_event_hash: receivedPreviousHash },
+      },
+    }),
+  });
+  assert.equal(result.event.payload.integrity.previous_event_hash, previousEventHash);
+  assert.equal(repo.calls[0][1].payload.integrity.previous_event_hash, previousEventHash);
+});
+
+test('rejects an Event that substitutes a different object chain head', async () => {
+  const repo = repository();
+  repo.getLatestObjectEventHash = async () => `sha256:${'b'.repeat(64)}`;
+  await assert.rejects(
+    appendObjectResearchEvent({
+      repository: repo,
+      objectType: 'claim',
+      objectId: 'claim_1',
+      eventFactory: async () => ({
+        ...event,
+        payload: {
+          claim_id: 'claim_1',
+          integrity: { object_type: 'claim', object_id: 'claim_1', previous_event_hash: `sha256:${'c'.repeat(64)}` },
+        },
+      }),
+    }),
+    (error) => error.code === 'OBJECT_EVENT_HASH_CHAIN_CONFLICT' && error.status === 409,
+  );
+  assert.equal(repo.calls.length, 0);
 });
 
 test('rejects duplicate events, duplicate parents, and missing parents before persistence', async () => {

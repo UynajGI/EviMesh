@@ -27,6 +27,51 @@ function normalizeEvent(event) {
   }
 }
 
+function requiredText(value, field) {
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    throw new ResearchEventAppendError(`${field} must be a non-empty string`);
+  }
+  return value.trim();
+}
+
+function assertObjectChain(event, { objectType, objectId, previousEventHash }) {
+  const integrity = event.payload?.integrity;
+  if (!integrity || typeof integrity !== 'object' || Array.isArray(integrity)) {
+    throw new ResearchEventAppendError('event payload integrity is required');
+  }
+  if (integrity.object_type !== objectType || integrity.object_id !== objectId) {
+    throw new ResearchEventAppendError('event payload integrity object does not match the requested object');
+  }
+  if ((integrity.previous_event_hash ?? null) !== previousEventHash) {
+    throw new ResearchEventAppendError('event payload integrity previous hash does not match the object chain head', 'OBJECT_EVENT_HASH_CHAIN_CONFLICT', 409);
+  }
+}
+
+async function appendNormalizedResearchEvent(transaction, normalized) {
+  if (await transaction.getResearchEvent(normalized.event_id)) {
+    throw new ResearchEventAppendError('research event already exists', 'RESEARCH_EVENT_EXISTS', 409);
+  }
+  for (const parentEventId of normalized.parents) {
+    if (!await transaction.getResearchEvent(parentEventId)) {
+      throw new ResearchEventAppendError('parent research event not found', 'RESEARCH_EVENT_PARENT_NOT_FOUND', 404);
+    }
+  }
+  const record = {
+    eventId: normalized.event_id,
+    eventType: normalized.event_type,
+    payload: normalized.payload,
+    hash: normalized.hash,
+    signature: normalized.signature,
+    parents: normalized.parents,
+  };
+  const persistedEvent = await transaction.insertResearchEvent(record);
+  const parents = await Promise.all(normalized.parents.map((parentEventId) => transaction.insertResearchEventParent({
+    eventId: normalized.event_id,
+    parentEventId,
+  })));
+  return { event: persistedEvent ?? record, parents };
+}
+
 /** Append a signed SRP Event and its immutable parent links in one transaction. */
 export async function appendResearchEvent({ repository, event } = {}) {
   if (!repository || typeof repository.withTransaction !== 'function') {
@@ -43,27 +88,34 @@ export async function appendResearchEvent({ repository, event } = {}) {
   }
 
   return repository.withTransaction(async (transaction) => {
-    if (await transaction.getResearchEvent(normalized.event_id)) {
-      throw new ResearchEventAppendError('research event already exists', 'RESEARCH_EVENT_EXISTS', 409);
+    return appendNormalizedResearchEvent(transaction, normalized);
+  });
+}
+
+/** Append a signed Event whose payload binds it to the prior Event hash for one object. */
+export async function appendObjectResearchEvent({ repository, objectType, objectId, eventFactory } = {}) {
+  if (!repository || typeof repository.withTransaction !== 'function') {
+    throw new ResearchEventAppendError('repository withTransaction is required');
+  }
+  for (const method of ['getLatestObjectEventHash', 'getResearchEvent', 'insertResearchEvent', 'insertResearchEventParent']) {
+    if (typeof repository[method] !== 'function') {
+      throw new ResearchEventAppendError(`repository ${method} is required`);
     }
-    for (const parentEventId of normalized.parents) {
-      if (!await transaction.getResearchEvent(parentEventId)) {
-        throw new ResearchEventAppendError('parent research event not found', 'RESEARCH_EVENT_PARENT_NOT_FOUND', 404);
-      }
+  }
+  objectType = requiredText(objectType, 'object type');
+  objectId = requiredText(objectId, 'object id');
+  if (typeof eventFactory !== 'function') throw new ResearchEventAppendError('eventFactory is required');
+
+  return repository.withTransaction(async (transaction) => {
+    const previousEventHash = await transaction.getLatestObjectEventHash({ objectType, objectId }) ?? null;
+    if (previousEventHash !== null && (typeof previousEventHash !== 'string' || !/^sha256:[0-9a-f]{64}$/i.test(previousEventHash))) {
+      throw new ResearchEventAppendError('object event chain head must be a sha256 digest');
     }
-    const record = {
-      eventId: normalized.event_id,
-      eventType: normalized.event_type,
-      payload: normalized.payload,
-      hash: normalized.hash,
-      signature: normalized.signature,
-      parents: normalized.parents,
-    };
-    const persistedEvent = await transaction.insertResearchEvent(record);
-    const parents = await Promise.all(normalized.parents.map((parentEventId) => transaction.insertResearchEventParent({
-      eventId: normalized.event_id,
-      parentEventId,
-    })));
-    return { event: persistedEvent ?? record, parents };
+    const event = normalizeEvent(await eventFactory({ objectType, objectId, previousEventHash }));
+    if (new Set(event.parents).size !== event.parents.length) {
+      throw new ResearchEventAppendError('event parents must be unique');
+    }
+    assertObjectChain(event, { objectType, objectId, previousEventHash });
+    return appendNormalizedResearchEvent(transaction, event);
   });
 }

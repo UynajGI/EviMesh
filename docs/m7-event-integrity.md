@@ -7,4 +7,8 @@
 - 拒绝重复 Event、重复 parent 与不存在的 parent；
 - 历史 Event 不通过该服务更新或删除，数据库的 append-only 规则继续作为最终防线。
 
+对象链追加使用 `appendObjectResearchEvent`：先读取该对象当前的 Event hash，作为
+`payload.integrity.previous_event_hash` 交给 Event factory，再验证 factory 返回的已签名
+Event 确实包含同一个链头。首个 Event 的前序 hash 为 `null`。
+
 后续 M7 loop 会在这一边界上增加对象/Actor 哈希链、Outbox、Merkle checkpoint 与 provenance。
