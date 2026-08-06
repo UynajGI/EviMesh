@@ -1,4 +1,5 @@
 import { createResearchEvent } from '../../protocol/src/research-event.mjs';
+import { assertContributionRole } from '../../protocol/src/contribution-role.mjs';
 
 export class ResearchEventAppendError extends Error {
   constructor(message, code = 'RESEARCH_EVENT_INVALID', status = 400) {
@@ -32,6 +33,33 @@ function requiredText(value, field) {
     throw new ResearchEventAppendError(`${field} must be a non-empty string`);
   }
   return value.trim();
+}
+
+function normalizeContributionStatements(value) {
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new ResearchEventAppendError('formal Event must produce at least one contribution statement');
+  }
+  const statementIds = new Set();
+  return value.map((statement) => {
+    if (!statement || typeof statement !== 'object' || Array.isArray(statement)) {
+      throw new ResearchEventAppendError('contribution statement must be an object');
+    }
+    const statementId = requiredText(statement.statementId, 'contribution statement id');
+    if (statementIds.has(statementId)) throw new ResearchEventAppendError('contribution statement ids must be unique');
+    statementIds.add(statementId);
+    let role;
+    try {
+      role = assertContributionRole(statement.role);
+    } catch (error) {
+      throw new ResearchEventAppendError(error.message);
+    }
+    return Object.freeze({
+      statementId,
+      actorId: requiredText(statement.actorId, 'contribution actor id'),
+      role,
+      description: requiredText(statement.description, 'contribution description'),
+    });
+  });
 }
 
 function assertObjectChain(event, { objectType, objectId, previousEventHash }) {
@@ -125,6 +153,30 @@ export async function appendResearchEventWithOutbox({ repository, event, outboxI
     const appended = await appendNormalizedResearchEvent(transaction, normalized);
     const outbox = await transaction.insertEventOutbox({ outboxId, eventId: normalized.event_id, status: 'pending' });
     return { ...appended, outbox: outbox ?? { outboxId, eventId: normalized.event_id, status: 'pending' } };
+  });
+}
+
+/** Append a formal Event and at least one typed role contribution in one transaction. */
+export async function appendResearchEventWithContributions({ repository, event, contributions } = {}) {
+  if (!repository || typeof repository.withTransaction !== 'function') {
+    throw new ResearchEventAppendError('repository withTransaction is required');
+  }
+  for (const method of ['getResearchEvent', 'insertResearchEvent', 'insertResearchEventParent', 'insertContributionStatement']) {
+    if (typeof repository[method] !== 'function') {
+      throw new ResearchEventAppendError(`repository ${method} is required`);
+    }
+  }
+  const normalized = normalizeEvent(event);
+  if (new Set(normalized.parents).size !== normalized.parents.length) {
+    throw new ResearchEventAppendError('event parents must be unique');
+  }
+  const normalizedContributions = normalizeContributionStatements(contributions);
+  return repository.withTransaction(async (transaction) => {
+    const appended = await appendNormalizedResearchEvent(transaction, normalized);
+    const persistedContributions = await Promise.all(normalizedContributions.map(async (statement) => {
+      return await transaction.insertContributionStatement(statement) ?? statement;
+    }));
+    return { ...appended, contributions: persistedContributions };
   });
 }
 

@@ -129,4 +129,10 @@ Event, rebuilds its inclusive range, and returns the Event's proof only when the
 reconstructed root equals the published root. The resulting proof is directly
 verifiable with `verifyMerkleInclusionProof`.
 
-后续 M7 loop 将在这一边界上增加 provenance。
+## Contribution statements
+
+`appendResearchEventWithContributions` appends a signed formal Event and one or
+more typed role statements atomically. It rejects empty contribution lists and
+roles outside the protocol's contribution-role vocabulary before persistence.
+
+后续 M7 loop 将在这一边界上增加 contribution 边与 provenance。

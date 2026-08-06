@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { appendActorResearchEvent, appendObjectResearchEvent, appendResearchEvent, appendResearchEventWithOutbox, getResearchEventSignature, ResearchEventAppendError } from '../src/research-event-service.mjs';
+import { appendActorResearchEvent, appendObjectResearchEvent, appendResearchEvent, appendResearchEventWithContributions, appendResearchEventWithOutbox, getResearchEventSignature, ResearchEventAppendError } from '../src/research-event-service.mjs';
 
 const parentId = '018f0f4a-5c00-7000-8000-000000000000';
 const eventId = '018f0f4a-5c00-7000-8000-000000000001';
@@ -24,6 +24,7 @@ function repository({ existing = new Set([parentId]) } = {}) {
     insertResearchEvent: async (record) => { calls.push(['event', record]); existing.add(record.eventId); return record; },
     insertResearchEventParent: async (record) => { calls.push(['parent', record]); return record; },
     insertEventOutbox: async (record) => { calls.push(['outbox', record]); return record; },
+    insertContributionStatement: async (record) => { calls.push(['contribution', record]); return record; },
   };
   return repo;
 }
@@ -41,6 +42,30 @@ test('writes the formal Event and its pending outbox row in the same transaction
   const result = await appendResearchEventWithOutbox({ repository: repo, event, outboxId: 'outbox_1' });
   assert.deepEqual(repo.calls.map(([kind]) => kind), ['event', 'parent', 'outbox']);
   assert.deepEqual(result.outbox, { outboxId: 'outbox_1', eventId, status: 'pending' });
+});
+
+test('writes a formal Event with at least one typed role contribution in the same transaction', async () => {
+  const repo = repository();
+  const result = await appendResearchEventWithContributions({
+    repository: repo,
+    event,
+    contributions: [{ statementId: 'contribution_1', actorId: 'actor_1', role: 'contributor', description: 'Implemented the revision.' }],
+  });
+  assert.deepEqual(repo.calls.map(([kind]) => kind), ['event', 'parent', 'contribution']);
+  assert.deepEqual(result.contributions, [{ statementId: 'contribution_1', actorId: 'actor_1', role: 'contributor', description: 'Implemented the revision.' }]);
+});
+
+test('rejects formal Events without a valid role contribution before persistence', async () => {
+  const repo = repository();
+  await assert.rejects(
+    appendResearchEventWithContributions({ repository: repo, event, contributions: [] }),
+    /at least one contribution statement/,
+  );
+  await assert.rejects(
+    appendResearchEventWithContributions({ repository: repo, event, contributions: [{ statementId: 'contribution_1', actorId: 'actor_1', role: 'author', description: 'Invalid role.' }] }),
+    /unsupported contribution role/,
+  );
+  assert.equal(repo.calls.length, 0);
 });
 
 test('requires an outbox writer before opening the formal Event transaction', async () => {
