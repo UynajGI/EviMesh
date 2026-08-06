@@ -51,23 +51,23 @@ endpoints. `SUPABASE_URL`, `R2_ENDPOINT`, `EVIMESH_API_URL`, and
 endpoints are reported as `PENDING`, not treated as configured.
 `pnpm infra:hosted-readiness` is a separate read-only check for provider CLIs,
 non-secret configuration, credentials presence, and hosted origins; it never
-prints secret values. See [`docs/hosted-readiness.md`](docs/hosted-readiness.md).
+prints secret values. See [`hosted-readiness.md`](hosted-readiness.md).
 
 Copy `.env.example` to `.env` for local configuration. Secret names and
 development/staging/production separation are documented in
-[`docs/infra-secrets.md`](docs/infra-secrets.md); real secret values must stay
+[`infra-secrets.md`](infra-secrets.md); real secret values must stay
 outside the repository.
 Hosted origin naming and DNS acceptance criteria are documented in
-[`docs/infra-domains.md`](docs/infra-domains.md).
+[`infra-domains.md`](infra-domains.md).
 R2 CORS policy generation and the account-authorized apply step are documented
-in [`docs/infra-r2-cors.md`](docs/infra-r2-cors.md).
+in [`infra-r2-cors.md`](infra-r2-cors.md).
 The local Supabase CLI project and its Docker/authentication boundary are
-documented in [`docs/supabase-local.md`](docs/supabase-local.md).
+documented in [`supabase-local.md`](supabase-local.md).
 Supabase email/password provider setup and its verification command are
-documented in [`docs/auth-email.md`](docs/auth-email.md).
+documented in [`auth-email.md`](auth-email.md).
 The first protected API route and JWT/JWKS runtime variables are documented in
 [`apps/api-edge/README.md`](apps/api-edge/README.md) and
-[`docs/infra-secrets.md`](docs/infra-secrets.md).
+[`infra-secrets.md`](infra-secrets.md).
 
 MinIO exposes its S3-compatible API on port 9000 and its console on port 9001;
 set `EVIMESH_S3_PORT` or `EVIMESH_S3_CONSOLE_PORT` if either port is occupied.
@@ -168,8 +168,13 @@ infrastructure and deployment remain gated on the corresponding provider
 accounts and credentials.
 
 M6 now includes the first Artifact/Evidence/Run domain baseline and streaming
-SHA-256 object hashing. See [`docs/m6-artifact-evidence.md`](docs/m6-artifact-evidence.md)
+SHA-256 object hashing. See [`m6-artifact-evidence.md`](m6-artifact-evidence.md)
 for the current boundary and R2 environment bindings.
+
+The M9 web UI surface and deployment boundary are documented in
+[`web-ui.md`](web-ui.md). The feature branch contains the UI changes; the
+production domain only changes after the Part-level review, merge, and
+Cloudflare deployment workflow complete.
 
 The Web preview workflow in [`.github/workflows/web-preview.yml`](.github/workflows/web-preview.yml)
 deploys `apps/web/public` to the `evimesh-web-dev` Cloudflare Pages project for

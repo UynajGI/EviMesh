@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-background: var(--evimesh-background);
+  --color-foreground: var(--evimesh-foreground);
+  --color-card: var(--evimesh-card);
+  --color-card-foreground: var(--evimesh-card-foreground);
+  --color-muted: var(--evimesh-muted);
+  --color-muted-foreground: var(--evimesh-muted-foreground);
+  --color-border: var(--evimesh-border);
+  --color-primary: var(--evimesh-primary);
+  --color-primary-foreground: var(--evimesh-primary-foreground);
+  --color-ring: var(--evimesh-ring);
+}
+
+:root {
+  color-scheme: light;
+  --evimesh-background: oklch(0.985 0.002 264);
+  --evimesh-foreground: oklch(0.21 0.027 264);
+  --evimesh-card: oklch(1 0 0);
+  --evimesh-card-foreground: oklch(0.21 0.027 264);
+  --evimesh-muted: oklch(0.955 0.006 264);
+  --evimesh-muted-foreground: oklch(0.48 0.024 264);
+  --evimesh-border: oklch(0.89 0.012 264);
+  --evimesh-primary: oklch(0.53 0.19 265);
+  --evimesh-primary-foreground: oklch(0.985 0.002 264);
+  --evimesh-ring: oklch(0.53 0.19 265);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --evimesh-background: oklch(0.16 0.018 264);
+    --evimesh-foreground: oklch(0.95 0.006 264);
+    --evimesh-card: oklch(0.21 0.022 264);
+    --evimesh-card-foreground: oklch(0.95 0.006 264);
+    --evimesh-muted: oklch(0.27 0.024 264);
+    --evimesh-muted-foreground: oklch(0.72 0.018 264);
+    --evimesh-border: oklch(0.34 0.022 264);
+    --evimesh-primary: oklch(0.72 0.15 265);
+    --evimesh-primary-foreground: oklch(0.16 0.018 264);
+    --evimesh-ring: oklch(0.72 0.15 265);
+  }
+}
+
+body {
+  margin: 0;
+  background: var(--evimesh-background);
+  color: var(--evimesh-foreground);
+}

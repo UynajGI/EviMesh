@@ -5,11 +5,30 @@
   "scripts": {
     "lint": "node ../../scripts/check-package.mjs",
     "test": "node --test",
-    "dev": "wrangler pages dev public --port 3000",
-    "deploy:preview": "wrangler pages deploy public --project-name evimesh-web-dev",
-    "deploy:production": "wrangler pages deploy public --project-name evimesh-web"
+    "dev": "next dev",
+    "build": "next build",
+    "preview": "opennextjs-cloudflare preview",
+    "start": "next start",
+    "deploy:preview": "opennextjs-cloudflare deploy --env preview",
+    "deploy:production": "opennextjs-cloudflare deploy --env production"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "4.1.18",
+    "postcss": "8.5.6",
+    "tailwindcss": "4.1.18",
     "wrangler": "4.118.0"
+  },
+  "dependencies": {
+    "@opennextjs/cloudflare": "^1.20.2",
+    "@radix-ui/react-dialog": "1.1.15",
+    "@supabase/supabase-js": "^2.112.1",
+    "class-variance-authority": "0.7.1",
+    "clsx": "2.1.1",
+    "cytoscape": "^3.34.0",
+    "lucide-react": "0.468.0",
+    "next": "16.1.6",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "tailwind-merge": "3.3.0"
   }
 }

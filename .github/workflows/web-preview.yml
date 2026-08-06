@@ -18,8 +18,13 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           version: 11.17.0
-      - name: Deploy Cloudflare Pages preview
-        run: pnpm --filter @evimesh/web deploy:preview -- --branch "pr-${{ github.event.pull_request.number }}"
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Deploy Cloudflare Workers preview
+        run: pnpm --filter @evimesh/web deploy:preview
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          NEXT_PUBLIC_EVIMESH_API_URL: https://api.evimesh.com
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
