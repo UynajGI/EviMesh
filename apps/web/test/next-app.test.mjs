@@ -46,7 +46,8 @@ test('provides primary navigation and the five initial product routes', async ()
   assert.match(layout, /<SiteNav \/>/);
   assert.match(nav, /aria-label="Primary navigation"/);
   for (const href of ['/', '/projects', '/tasks', '/verification', '/contributions']) assert.match(nav, new RegExp(`href: '${href.replace('/', '\\/')}'`));
-  for (const page of [tasks, verification, contributions]) assert.match(page, /SectionPlaceholder/);
+  for (const page of [verification, contributions]) assert.match(page, /SectionPlaceholder/);
+  assert.match(tasks, /Task board/);
   assert.match(projects, /Create a project/);
 });
 
@@ -195,4 +196,11 @@ test('renders Question details with Contract, state, and Task summaries', async 
   assert.match(page, /Research Contract/);
   assert.match(page, /data\.question\.state/);
   assert.match(page, /data\.tasks/);
+});
+
+test('renders the Task board with every protocol status lane', async () => {
+  const page = await read('../app/tasks/page.js');
+  for (const status of ['draft', 'open', 'active', 'blocked', 'verification_requested', 'completed', 'cancelled']) assert.match(page, new RegExp(`'${status}'`));
+  assert.match(page, /Task board/);
+  assert.match(page, /tasks\?limit=100/);
 });
