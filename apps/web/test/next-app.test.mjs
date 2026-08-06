@@ -153,3 +153,11 @@ test('renders the first Question submission step for question and value', async 
   assert.match(page, /Question value/);
   assert.match(page, /Continue to scope/);
 });
+
+test('supports the second Question submission step for scope and exclusions', async () => {
+  const page = await read('../app/questions/new/page.js');
+  assert.match(page, /Question scope/);
+  assert.match(page, /Question exclusions/);
+  assert.match(page, /Continue to progress/);
+  assert.match(page, /setStep\(2\)/);
+});
