@@ -122,6 +122,45 @@ test("unknown command exits with code 2", async (t) => {
   assert.equal(code, 2);
 });
 
+test("auth login device flow obtains a limited token from the API", async (t) => {
+  const { dir, env, cleanup } = setup();
+  t.after(cleanup);
+  assert.equal(await runCli(["config", "init", "--api-url", "https://api.test"], { env }), 0);
+  const { createApp } = await import("../../../apps/api-edge/src/index.mjs");
+  const tokens = [];
+  const insertApiToken = async (record) => {
+    const persisted = { tokenId: `token-${tokens.length + 1}`, ...record };
+    tokens.push(persisted);
+    return persisted;
+  };
+  const repository = {
+    findIdentity: async () => ({ actorId: "actor-1" }),
+    insertApiToken,
+    withTransaction: async (callback) => callback({ insertApiToken }),
+  };
+  const app = createApp({ repository, authenticate: async () => ({ sub: "supabase-subject" }) });
+  let userCode = null;
+  const fetchImpl = async (url, options) => {
+    const response = await app.fetch(new Request(url, options), {});
+    if (String(url).endsWith("/auth/device") && options?.method === "POST") {
+      userCode = (await response.clone().json()).user_code;
+      queueMicrotask(() => {
+        app.fetch(new Request("https://api.test/auth/device/approve", {
+          method: "POST",
+          headers: { authorization: "Bearer browser-token", "content-type": "application/json" },
+          body: JSON.stringify({ user_code: userCode }),
+        }), {});
+      });
+    }
+    return response;
+  };
+  const code = await runCli(["auth", "login", "--json"], { env, fetchImpl });
+  assert.equal(code, 0);
+  const stored = JSON.parse(readFileSync(join(dir, "state.json"), "utf8"))["evimesh.cli.token"];
+  assert.match(stored, /evimesh_/);
+  assert.deepEqual(tokens[0].scopes, ["profile:read", "project:read"]);
+});
+
 test("auth login --token stores only limited scopes", async (t) => {
   const { dir, env, cleanup } = setup();
   t.after(cleanup);

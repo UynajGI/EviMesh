@@ -15,6 +15,9 @@ operation ID. The grouped summary:
 - `GET /health` — service status and environment marker.
 - `GET /platform/keys` — platform verification keyring.
 - `GET /auth/me` — verifies a Supabase JWT and returns subject/email.
+- Device authorization — `POST /auth/device`, `POST /auth/device/approve`, and
+  `POST /auth/device/token` implement the RFC-8628 grant the CLI uses; the
+  exchange issues only the limited `profile:read`/`project:read` scopes.
 - Profile, signing keys, API tokens — `/profile`, `/signing-keys`, `/api-tokens`.
 - Projects — list/detail/revise plus latest Frontier, history, and diff.
 - Questions — list/detail/create/transition.

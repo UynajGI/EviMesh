@@ -44,6 +44,8 @@ import { createArtifact, ArtifactCommandError } from '../../../packages/domain/s
 import { createChallenge, transitionChallenge, ChallengeCommandError } from '../../../packages/domain/src/challenge-command.mjs';
 import { submitVerification, VerificationSubmitError } from '../../../packages/domain/src/verification-submit-command.mjs';
 import { createSingleUploadPlan, UploadSessionError } from '../../../packages/artifact/src/upload-session.mjs';
+import { createActorApiToken, ApiTokenError as DeviceTokenError } from '../../../packages/domain/src/api-token.mjs';
+import { approveDeviceAuthorization, CLI_DEVICE_SCOPES, createMemoryDeviceCodeStore, DeviceAuthError, exchangeDeviceToken, startDeviceAuthorization } from './device-auth.mjs';
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
 
@@ -55,7 +57,7 @@ function errorBody(code, message, requestId) {
   return { code, message, request_id: requestId };
 }
 
-export function createApp({ repository = null, projectEventFactory = null, questionEventFactory = null, questionRoleResolver = null, attemptEventFactory = null, attemptRoleResolver = null, leaseEventFactory = null, leaseRoleResolver = null, taskEventFactory = null, taskRoleResolver = null, claimEventFactory = null, claimRoleResolver = null, evidenceEventFactory = null, evidenceRoleResolver = null, runEventFactory = null, runRoleResolver = null, artifactEventFactory = null, artifactRoleResolver = null, challengeEventFactory = null, challengeRoleResolver = null, verificationEventFactory = null, verificationRoleResolver = null, uploadSigner = null, authenticate = authenticateSupabaseRequest } = {}) {
+export function createApp({ repository = null, projectEventFactory = null, questionEventFactory = null, questionRoleResolver = null, attemptEventFactory = null, attemptRoleResolver = null, leaseEventFactory = null, leaseRoleResolver = null, taskEventFactory = null, taskRoleResolver = null, claimEventFactory = null, claimRoleResolver = null, evidenceEventFactory = null, evidenceRoleResolver = null, runEventFactory = null, runRoleResolver = null, artifactEventFactory = null, artifactRoleResolver = null, challengeEventFactory = null, challengeRoleResolver = null, verificationEventFactory = null, verificationRoleResolver = null, uploadSigner = null, deviceCodeStore = createMemoryDeviceCodeStore(), authenticate = authenticateSupabaseRequest } = {}) {
 const app = new Hono();
 
 function revisionEtagFor(objectId, revision) {
@@ -123,6 +125,58 @@ app.get("/auth/me", async (context) => {
       return context.json(errorBody("unauthorized", "authentication required", context.get("requestId")), 401);
     }
     throw error;
+  }
+});
+
+function deviceFailure(error, context) {
+  if (error instanceof DeviceAuthError) {
+    return context.json({ error: error.code.toLowerCase(), error_description: error.message }, error.status);
+  }
+  return null;
+}
+
+app.post("/auth/device", async (context) => {
+  try {
+    const body = await context.req.json().catch(() => ({}));
+    return context.json(await startDeviceAuthorization({ store: deviceCodeStore, clientId: body.client_id }));
+  } catch (error) {
+    return deviceFailure(error, context) ?? deviceFailure(new DeviceAuthError(error.message, "INVALID_REQUEST"), context);
+  }
+});
+
+app.post("/auth/device/approve", async (context) => {
+  try {
+    const claims = await authenticate(context.req.raw, context.env);
+    const actorId = await resolveActorForSupabaseClaims({ repository, claims });
+    const body = await context.req.json().catch(() => ({}));
+    return context.json(await approveDeviceAuthorization({ store: deviceCodeStore, actorId, userCode: body.user_code }));
+  } catch (error) {
+    const device = deviceFailure(error, context);
+    if (device) return device;
+    const response = knownFailure(error, context);
+    if (response) return response;
+    throw error;
+  }
+});
+
+app.post("/auth/device/token", async (context) => {
+  try {
+    const body = await context.req.json().catch(() => ({}));
+    const issueToken = async (actorId) => {
+      if (!repository || typeof repository.insertApiToken !== "function") {
+        throw new DeviceAuthError("device token issuance is not configured", "DEVICE_AUTH_TOKEN_UNAVAILABLE", 503);
+      }
+      try {
+        const { token, record } = await createActorApiToken({ repository, actorId, scopes: [...CLI_DEVICE_SCOPES] });
+        return { access_token: token, scopes: [...CLI_DEVICE_SCOPES], token_id: record?.tokenId ?? null };
+      } catch (error) {
+        if (error instanceof DeviceTokenError) throw new DeviceAuthError(error.message, "DEVICE_AUTH_TOKEN_UNAVAILABLE", 503);
+        throw error;
+      }
+    };
+    return context.json(await exchangeDeviceToken({ store: deviceCodeStore, deviceCode: body.device_code, issueToken }));
+  } catch (error) {
+    return deviceFailure(error, context) ?? deviceFailure(new DeviceAuthError(error.message, "INVALID_REQUEST"), context);
   }
 });
 

@@ -8,12 +8,17 @@ command-only modules into HTTP routes for Artifacts, Evidence, Runs,
 Challenges, Attempts, Contributions, Verifications, Events (with NDJSON
 export, inclusion proofs, and checkpoints), MergeProposals, provenance, and
 Frontier diffs, alongside the authenticated write routes for Tasks, Claims,
-Evidence, Runs, Artifacts, Verifications, and Challenges. Detail responses for
-Projects, Tasks, Claims, and Challenges carry an `etag` used for `If-Match`
-revision guards. The full contract is versioned in `apps/api-edge/openapi.json`
-(52 paths) and pinned by `test/openapi-contract.test.mjs`, which asserts every
-operation ID and that all writes except the signed upload plan require bearer
-auth.
+Evidence, Runs, Artifacts, Verifications, and Challenges. It also implements
+the RFC-8628 device authorization grant (`/auth/device`,
+`/auth/device/approve`, `/auth/device/token`) backing `sq auth login`; the
+exchange issues only the limited CLI scopes. Pending device codes live in an
+in-process store by default; multi-instance deployments inject a shared
+`deviceCodeStore`. Detail responses for Projects, Tasks, Claims, and
+Challenges carry an `etag` used for `If-Match` revision guards. The full
+contract is versioned in `apps/api-edge/openapi.json` and pinned by
+`test/openapi-contract.test.mjs`, which asserts every operation ID and that
+all writes except the signed upload plan and the public device start/poll
+endpoints require bearer auth.
 
 ## @evimesh/sdk-ts
 

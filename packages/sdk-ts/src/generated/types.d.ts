@@ -9,6 +9,20 @@ export type HealthResponse = { service: "evimesh-api-edge"; status: "ok"; enviro
 
 export type AuthMeResponse = { subject: string; email: string | null; };
 
+export type DeviceAuthorizationRequest = { client_id: string; };
+
+export type DeviceAuthorizationResponse = { device_code: string; user_code: string; verification_uri: string; interval: number; expires_in: number; };
+
+export type DeviceApprovalRequest = { user_code: string; };
+
+export type DeviceApprovalResponse = { status: "approved"; device_code?: string | null; };
+
+export type DeviceTokenRequest = { device_code: string; };
+
+export type DeviceTokenResponse = { access_token: string; scopes: string[]; token_id?: string | null; };
+
+export type DeviceAuthErrorResponse = { error: string; error_description?: string; };
+
 export type PlatformPublicKeysResponse = { active_key_id: string; keys: PlatformPublicKey[]; };
 
 export type PlatformPublicKey = { key_id: string; algorithm: "Ed25519"; public_key: string; };
@@ -68,6 +82,12 @@ export interface EviMeshOperations {
   getPlatformPublicKeys: { method: "GET"; path: "/platform/keys" };
   /** GET /auth/me (bearer auth) */
   getAuthenticatedActor: { method: "GET"; path: "/auth/me" };
+  /** POST /auth/device */
+  startDeviceAuthorization: { method: "POST"; path: "/auth/device" };
+  /** POST /auth/device/approve (bearer auth) */
+  approveDeviceAuthorization: { method: "POST"; path: "/auth/device/approve" };
+  /** POST /auth/device/token */
+  exchangeDeviceToken: { method: "POST"; path: "/auth/device/token" };
   /** GET /profile (bearer auth) */
   getOwnProfile: { method: "GET"; path: "/profile" };
   /** PATCH /profile (bearer auth) */

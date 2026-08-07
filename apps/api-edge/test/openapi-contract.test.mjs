@@ -21,6 +21,9 @@ test("publishes the current API route contract", () => {
     "/attempts/{attemptId}",
     "/attempts/{attemptId}/trace",
     "/attempts/{attemptId}/transitions",
+    "/auth/device",
+    "/auth/device/approve",
+    "/auth/device/token",
     "/auth/me",
     "/challenges",
     "/challenges/{challengeId}",
@@ -92,7 +95,9 @@ test("keeps the stable response shapes in the contract", () => {
 test("gives every operation a stable id and guards all write operations with bearer auth", () => {
   // The browser upload panel requests signed upload plans before sign-in exists on that page;
   // plans are bounded by expiry and content-addressed keys, so this stays the one open write.
-  const publicWrites = new Set(["post /artifacts/upload-plan"]);
+  // The RFC-8628 device grant start/poll endpoints are public by design; only approval
+  // and the issued limited-scope token require authentication.
+  const publicWrites = new Set(["post /artifacts/upload-plan", "post /auth/device", "post /auth/device/token"]);
   const operationIds = new Set();
   for (const [path, operations] of Object.entries(document.paths)) {
     for (const [method, operation] of Object.entries(operations)) {

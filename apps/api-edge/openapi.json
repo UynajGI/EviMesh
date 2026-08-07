@@ -52,6 +52,43 @@
         }
       }
     },
+    "/auth/device": {
+      "post": {
+        "operationId": "startDeviceAuthorization",
+        "summary": "Start an RFC-8628 device authorization grant for the CLI",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DeviceAuthorizationRequest" } } } },
+        "responses": {
+          "200": { "description": "Device authorization started.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DeviceAuthorizationResponse" } } } },
+          "400": { "description": "Invalid device authorization request.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DeviceAuthErrorResponse" } } } }
+        }
+      }
+    },
+    "/auth/device/approve": {
+      "post": {
+        "operationId": "approveDeviceAuthorization",
+        "summary": "Bind one user code to the authenticated Actor after browser confirmation",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DeviceApprovalRequest" } } } },
+        "responses": {
+          "200": { "description": "User code approved.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DeviceApprovalResponse" } } } },
+          "401": { "description": "Authentication is missing or invalid.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "404": { "description": "User code not found or expired.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DeviceAuthErrorResponse" } } } },
+          "409": { "description": "User code was already used.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DeviceAuthErrorResponse" } } } }
+        }
+      }
+    },
+    "/auth/device/token": {
+      "post": {
+        "operationId": "exchangeDeviceToken",
+        "summary": "Exchange an approved device code for one limited-scope CLI token",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DeviceTokenRequest" } } } },
+        "responses": {
+          "200": { "description": "Limited CLI token issued.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DeviceTokenResponse" } } } },
+          "400": { "description": "Device code is pending, expired, or invalid.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DeviceAuthErrorResponse" } } } },
+          "503": { "description": "Device token issuance is not configured.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DeviceAuthErrorResponse" } } } }
+        }
+      }
+    },
     "/profile": {
       "get": {
         "operationId": "getOwnProfile",
@@ -848,6 +885,58 @@
         "properties": {
           "subject": { "type": "string", "minLength": 1 },
           "email": { "type": ["string", "null"] }
+        },
+        "additionalProperties": false
+      },
+      "DeviceAuthorizationRequest": {
+        "type": "object",
+        "required": ["client_id"],
+        "properties": { "client_id": { "type": "string", "minLength": 1 } }
+      },
+      "DeviceAuthorizationResponse": {
+        "type": "object",
+        "required": ["device_code", "user_code", "verification_uri", "interval", "expires_in"],
+        "properties": {
+          "device_code": { "type": "string", "minLength": 1 },
+          "user_code": { "type": "string", "minLength": 1 },
+          "verification_uri": { "type": "string", "minLength": 1 },
+          "interval": { "type": "integer", "minimum": 1 },
+          "expires_in": { "type": "integer", "minimum": 1 }
+        }
+      },
+      "DeviceApprovalRequest": {
+        "type": "object",
+        "required": ["user_code"],
+        "properties": { "user_code": { "type": "string", "minLength": 1 } }
+      },
+      "DeviceApprovalResponse": {
+        "type": "object",
+        "required": ["status"],
+        "properties": {
+          "status": { "const": "approved" },
+          "device_code": { "type": ["string", "null"] }
+        }
+      },
+      "DeviceTokenRequest": {
+        "type": "object",
+        "required": ["device_code"],
+        "properties": { "device_code": { "type": "string", "minLength": 1 } }
+      },
+      "DeviceTokenResponse": {
+        "type": "object",
+        "required": ["access_token", "scopes"],
+        "properties": {
+          "access_token": { "type": "string", "minLength": 1 },
+          "scopes": { "type": "array", "items": { "type": "string" } },
+          "token_id": { "type": ["string", "null"] }
+        }
+      },
+      "DeviceAuthErrorResponse": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+          "error": { "type": "string", "minLength": 1 },
+          "error_description": { "type": "string" }
         },
         "additionalProperties": false
       },
