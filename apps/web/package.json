@@ -7,10 +7,10 @@
     "test": "node --test",
     "dev": "next dev",
     "build": "next build",
-    "preview": "opennextjs-cloudflare preview",
+    "preview": "opennextjs-cloudflare build && node ../../scripts/patch-open-next-manifest.mjs && opennextjs-cloudflare preview",
     "start": "next start",
-    "deploy:preview": "opennextjs-cloudflare deploy --env preview",
-    "deploy:production": "opennextjs-cloudflare deploy --env production"
+    "deploy:preview": "opennextjs-cloudflare build && node ../../scripts/patch-open-next-manifest.mjs && opennextjs-cloudflare deploy --env preview",
+    "deploy:production": "opennextjs-cloudflare build && node ../../scripts/patch-open-next-manifest.mjs && opennextjs-cloudflare deploy --env production"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.1.18",
@@ -26,7 +26,7 @@
     "clsx": "2.1.1",
     "cytoscape": "^3.34.0",
     "lucide-react": "0.468.0",
-    "next": "16.1.6",
+    "next": "15.5.16",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "styled-jsx": "5.1.6",
