@@ -8,12 +8,30 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "evimesh-web"
+    }
+  ],
   "env": {
     "preview": {
-      "name": "evimesh-web-preview"
+      "name": "evimesh-web-preview",
+      "services": [
+        {
+          "binding": "WORKER_SELF_REFERENCE",
+          "service": "evimesh-web-preview"
+        }
+      ]
     },
     "production": {
-      "name": "evimesh-web"
+      "name": "evimesh-web",
+      "services": [
+        {
+          "binding": "WORKER_SELF_REFERENCE",
+          "service": "evimesh-web"
+        }
+      ]
     }
   }
 }
