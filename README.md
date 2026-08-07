@@ -182,6 +182,14 @@ dependency-free TypeScript SDK ships in `packages/sdk-ts`, and the `sq` CLI
 ships in `packages/cli`. The SDK/CLI boundary and behavior are documented in
 [`docs/m10-sdk-cli.md`](docs/m10-sdk-cli.md).
 
+M11 adds the MCP server in `apps/mcp`: a stdio JSON-RPC server that exposes
+research resources (projects, open questions/tasks, task context, fixed claim
+revisions, frontiers, contributions) and research tools (search, attempts,
+drafts, evidence upload, signed publishing, verification, challenges,
+provenance, proof checks) to any MCP-capable agent. Write tools require an
+explicit `confirm: true`. The server boundary and tool surface are documented
+in [`docs/m11-mcp-server.md`](docs/m11-mcp-server.md).
+
 The Web preview workflow in [`.github/workflows/web-preview.yml`](.github/workflows/web-preview.yml)
 deploys `apps/web/public` to the `evimesh-web-dev` Cloudflare Pages project for
 same-repository pull requests. It requires `CLOUDFLARE_API_TOKEN` and
