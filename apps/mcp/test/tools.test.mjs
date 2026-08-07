@@ -100,6 +100,19 @@ test("attach_evidence hashes content and uploads after consent", async () => {
   assert.equal(uploads.length, 1);
 });
 
+test("attach_evidence rejects invalid base64 and oversized content", async () => {
+  const client = createFakeClient();
+  const invalid = await callTool({ client, name: "attach_evidence", args: { contentBase64: "not base64!", mediaType: "text/plain" } });
+  assert.equal(invalid.isError, true);
+  assert.equal(invalid.structuredContent.error, "MCP_TOOL_INVALID");
+  assert.match(invalid.structuredContent.message, /valid base64/);
+  const { MAX_EVIDENCE_BYTES } = await import("../src/tools.mjs");
+  const big = Buffer.alloc(MAX_EVIDENCE_BYTES + 1).toString("base64");
+  const oversized = await callTool({ client, name: "attach_evidence", args: { contentBase64: big, mediaType: "application/octet-stream" } });
+  assert.equal(oversized.isError, true);
+  assert.match(oversized.structuredContent.message, /exceeds/);
+});
+
 test("validate_submission returns structured findings", async () => {
   const client = createFakeClient();
   const validDoc = { schema: "srp.claim.v1", claim_id: "claim_018f0f4a-5c00-4000-8000-000000000001", revision: 1, state: "hypothesis", statement: "s", scope: ["s"], assumptions: [], falsification: ["f"], created_at: "2026-08-06T00:00:00.000Z", created_by: "actor_01" };

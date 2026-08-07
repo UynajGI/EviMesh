@@ -20,6 +20,8 @@ const STRING = { type: "string" };
 const BOOLEAN = { type: "boolean" };
 const OBJECT = { type: "object" };
 
+export const MAX_EVIDENCE_BYTES = 16 * 1024 * 1024;
+
 function requiredArg(value, field) {
   if (value === undefined || value === null || (typeof value === "string" && value.trim().length === 0)) {
     throw new McpToolError(`argument ${field} is required`);
@@ -231,7 +233,14 @@ const TOOL_DEFINITIONS = [
     run: async ({ client, args }) => {
       requiredArg(args.contentBase64, "contentBase64");
       requiredArg(args.mediaType, "mediaType");
-      const bytes = Buffer.from(String(args.contentBase64), "base64");
+      const encoded = String(args.contentBase64);
+      if (!/^[A-Za-z0-9+/]*={0,2}$/.test(encoded) || encoded.length % 4 !== 0) {
+        throw new McpToolError("contentBase64 must be valid base64");
+      }
+      const bytes = Buffer.from(encoded, "base64");
+      if (bytes.length > MAX_EVIDENCE_BYTES) {
+        throw new McpToolError(`evidence content exceeds the ${MAX_EVIDENCE_BYTES} byte limit`);
+      }
       const rawHash = await sha256Bytes(bytes);
       const summary = { action: "upload evidence content and register it", sizeBytes: bytes.length, rawHash, mediaType: args.mediaType };
       if (args.confirm !== true) return consentResult("attach_evidence", summary);
