@@ -161,6 +161,45 @@ test("auth login device flow obtains a limited token from the API", async (t) =>
   assert.deepEqual(tokens[0].scopes, ["profile:read", "project:read"]);
 });
 
+test("submit sends a verifiable signature envelope with the request", async (t) => {
+  const { dir, env, cleanup } = setup();
+  t.after(cleanup);
+  assert.equal(await runCli(["config", "init", "--api-url", "https://api.test"], { env }), 0);
+  assert.equal(await runCli(["identity", "generate"], { env }), 0);
+  const out = join(dir, "draft.claim.json");
+  await runCli(["claim", "create", "--out", out], { env });
+  const draft = JSON.parse(readFileSync(out, "utf8"));
+  draft.created_by = "actor_01";
+  writeFileSync(out, JSON.stringify(draft, null, 2));
+  const requests = [];
+  const fetchImpl = async (url, options) => {
+    requests.push({ url, options });
+    return jsonResponse(201, { claim: { claimId: draft.claim_id } });
+  };
+  const code = await runCli(["submit", out, "--json"], { env, fetchImpl });
+  assert.equal(code, 0);
+  assert.equal(requests.length, 1);
+  const sent = JSON.parse(requests[0].options.body);
+  assert.ok(sent.signatureEnvelope, "submission must carry the signature envelope");
+  assert.equal(sent.signatureEnvelope.schema, "srp.client-signature-envelope.v1");
+  assert.equal(sent.signatureEnvelope.event_type, "claim.created");
+  assert.equal(sent.signatureEnvelope.payload.claimId, draft.claim_id);
+  const config = JSON.parse(readFileSync(join(dir, "config.json"), "utf8"));
+  const { canonicalJson } = await import("../../protocol/src/hash.mjs");
+  const { verifyEd25519Payload } = await import("../../signatures/src/server-verification.mjs");
+  const signingBytes = Buffer.from(canonicalJson({
+    event_type: sent.signatureEnvelope.event_type,
+    payload: sent.signatureEnvelope.payload,
+    nonce: sent.signatureEnvelope.nonce,
+  }), "utf8");
+  const verified = await verifyEd25519Payload({
+    signingBytes: new Uint8Array(signingBytes),
+    signature: sent.signatureEnvelope.signature.value,
+    publicKey: config.identity.publicKey,
+  });
+  assert.equal(verified, true);
+});
+
 test("auth login --token stores only limited scopes", async (t) => {
   const { dir, env, cleanup } = setup();
   t.after(cleanup);

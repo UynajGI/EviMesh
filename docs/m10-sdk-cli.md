@@ -44,6 +44,24 @@ TypeScript declarations are generated from the OpenAPI document:
 `pnpm --filter @evimesh/sdk-ts test` reruns the generator in `--check` mode
 and compiles the output plus `test/types-smoke.ts` with `tsc --noEmit`.
 
+## Signed submissions
+
+`submit`, `challenge create`, and `verify submit` sign the canonical request
+payload with the stored Ed25519 identity and attach the result as
+`signatureEnvelope` (the `srp.client-signature-envelope.v1` protocol object).
+The API verifies any supplied envelope fail-closed in
+`apps/api-edge/src/client-signature.mjs`: the envelope's `payload` must
+canonically equal the request body, `signing_bytes_hash` must match, and the
+Ed25519 signature must verify against the actor's active registered signing
+key. A mismatched payload, unknown key, or bad signature rejects the write with
+a typed `CLIENT_SIGNATURE_*` error. Unsigned submissions remain accepted so
+the existing web flow keeps working; the CLI always signs.
+
+Revision-guarded writes (Project/Claim/Challenge) recheck `If-Match` against
+the revision read inside the write transaction, so a concurrent revision
+committed after the caller's pre-read fails with `412` instead of being
+applied on top of stale state. Frontier diffs are scoped to the path project.
+
 ## @evimesh/cli (`sq`)
 
 The CLI builds on the SDK. Command groups:

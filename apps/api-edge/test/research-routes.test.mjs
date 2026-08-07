@@ -223,6 +223,54 @@ test("diffs two Frontier snapshots of one project", async () => {
   assert.deepEqual(body.added.map((member) => member.claimId), ["claim-2"]);
 });
 
+test("rejects a revision that lost an If-Match race inside the transaction", async () => {
+  const outerRevision = { claimId: "claim-1", revision: 1, statement: "s", scope: ["s"], assumptions: [], falsification: ["f"], state: "candidate" };
+  const transactionRevision = { claimId: "claim-1", revision: 2, statement: "concurrent", scope: ["s"], assumptions: [], falsification: ["f"], state: "candidate" };
+  const insertClaimRevision = async (revision) => revision;
+  const updateClaim = async (claimId, projection) => ({ claimId, ...projection });
+  const appendResearchEvent = async (event) => event;
+  const app = createApp({
+    repository: {
+      findIdentity: async () => ({ actorId: "actor-1" }),
+      getClaim: async (claimId) => ({ claimId, questionId: null, state: outerRevision.state }),
+      getCurrentClaimRevision: async () => outerRevision,
+      insertClaimRevision,
+      updateClaim,
+      appendResearchEvent,
+      withTransaction: async (callback) => callback({
+        getCurrentClaimRevision: async () => transactionRevision,
+        insertClaimRevision,
+        updateClaim,
+        appendResearchEvent,
+      }),
+    },
+    claimEventFactory: async ({ eventType, payload }) => ({ eventType, payload }),
+    claimRoleResolver: async () => "maintainer",
+    ...AUTH,
+  });
+  const detail = await (await app.fetch(new Request("https://api.example.test/claims/claim-1"), {})).json();
+  const stale = await app.fetch(new Request("https://api.example.test/claims/claim-1/revisions", {
+    method: "POST",
+    headers: { authorization: "Bearer test-token", "content-type": "application/json", "if-match": detail.etag },
+    body: JSON.stringify({ statement: "should lose the race" }),
+  }), {});
+  assert.equal(stale.status, 412);
+});
+
+test("rejects frontier diffs for snapshots owned by another project", async () => {
+  const members = new Map([
+    ["frontier-1", [{ claimId: "claim-1", claimRevision: 1, membershipType: "core" }]],
+    ["frontier-2", [{ claimId: "claim-1", claimRevision: 2, membershipType: "core" }]],
+  ]);
+  const app = createApp({ repository: {
+    getFrontierSnapshot: async (snapshotId) => ({ snapshotId, projectId: "project-B", sequence: 1 }),
+    listFrontierMembers: async (snapshotId) => members.get(snapshotId),
+  } });
+  const response = await app.fetch(new Request("https://api.example.test/projects/project-A/frontier/diff?fromSnapshotId=frontier-1&toSnapshotId=frontier-2"), {});
+  assert.equal(response.status, 404);
+  assert.equal((await response.json()).code, "FRONTIER_SNAPSHOT_NOT_FOUND");
+});
+
 test("exposes revision etags on claim, task, and project details", async () => {
   const app = createApp({ repository: {
     getClaim: async (claimId) => ({ claimId, state: "candidate" }),

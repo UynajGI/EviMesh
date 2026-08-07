@@ -46,6 +46,7 @@ import { submitVerification, VerificationSubmitError } from '../../../packages/d
 import { createSingleUploadPlan, UploadSessionError } from '../../../packages/artifact/src/upload-session.mjs';
 import { createActorApiToken, ApiTokenError as DeviceTokenError } from '../../../packages/domain/src/api-token.mjs';
 import { approveDeviceAuthorization, CLI_DEVICE_SCOPES, createMemoryDeviceCodeStore, DeviceAuthError, exchangeDeviceToken, startDeviceAuthorization } from './device-auth.mjs';
+import { verifyClientSignatureEnvelope } from './client-signature.mjs';
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
 
@@ -634,7 +635,7 @@ app.get('/provenance/:objectType/:objectId', async (context) => {
 
 app.get('/projects/:projectId/frontier/diff', async (context) => {
   try {
-    return context.json(await diffFrontiers({ repository, fromSnapshotId: context.req.query('fromSnapshotId'), toSnapshotId: context.req.query('toSnapshotId') }));
+    return context.json(await diffFrontiers({ repository, projectId: context.req.param('projectId'), fromSnapshotId: context.req.query('fromSnapshotId'), toSnapshotId: context.req.query('toSnapshotId') }));
   } catch (error) {
     if (error instanceof FrontierQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status);
     throw error;
@@ -656,6 +657,7 @@ app.post('/projects/:projectId/revisions', async (context) => {
       projectId,
       ifMatch: context.req.header('if-match') ?? null,
       currentEtag: revisionEtagFor(projectId, current),
+      etagForRevision: (revision) => revisionEtagFor(projectId, revision),
       name: body.name,
       summary: body.summary,
       license: body.license,
@@ -719,17 +721,23 @@ app.post('/claims', async (context) => {
     const claims = await authenticate(context.req.raw, context.env);
     const actorId = await resolveActorForSupabaseClaims({ repository, claims });
     const body = await context.req.json();
-    const actorRole = await claimRoleResolver({ repository, actorId, questionId: body.questionId ?? null, projectId: body.projectId ?? null });
-    return context.json(await createClaim({
-      repository,
-      actorId,
-      actorRole,
+    const submission = {
       claimId: body.claimId,
       questionId: body.questionId ?? null,
       statement: body.statement,
       scope: body.scope,
       assumptions: body.assumptions ?? [],
       falsification: body.falsification,
+    };
+    if (body.signatureEnvelope !== undefined) {
+      await verifyClientSignatureEnvelope({ repository, actorId, envelope: body.signatureEnvelope, payload: submission, expectedEventType: 'claim.created' });
+    }
+    const actorRole = await claimRoleResolver({ repository, actorId, questionId: body.questionId ?? null, projectId: body.projectId ?? null });
+    return context.json(await createClaim({
+      repository,
+      actorId,
+      actorRole,
+      ...submission,
       eventFactory: claimEventFactory,
     }), 201);
   } catch (error) {
@@ -756,6 +764,7 @@ app.post('/claims/:claimId/revisions', async (context) => {
       claimId,
       ifMatch: context.req.header('if-match') ?? null,
       currentEtag: revisionEtagFor(claimId, current),
+      etagForRevision: (revision) => revisionEtagFor(claimId, revision),
       questionId: body.questionId,
       statement: body.statement,
       scope: body.scope,
@@ -788,6 +797,7 @@ app.post('/claims/:claimId/transitions', async (context) => {
       toState,
       ifMatch: context.req.header('if-match') ?? null,
       currentEtag: revisionEtagFor(claimId, current),
+      etagForRevision: (revision) => revisionEtagFor(claimId, revision),
       eventFactory: claimEventFactory,
     }), 201);
   } catch (error) {
@@ -898,11 +908,7 @@ app.post('/runs', async (context) => {
     const claims = await authenticate(context.req.raw, context.env);
     const actorId = await resolveActorForSupabaseClaims({ repository, claims });
     const body = await context.req.json();
-    const actorRole = await runRoleResolver({ repository, actorId, taskId: body.taskId ?? null });
-    return context.json(await createRun({
-      repository,
-      actorId,
-      actorRole,
+    const submission = {
       runId: body.runId,
       taskId: body.taskId,
       contextBundleId: body.contextBundleId,
@@ -913,13 +919,25 @@ app.post('/runs', async (context) => {
       environment: body.environment,
       hardware: body.hardware,
       randomSeed: body.randomSeed,
-      startedAt: body.startedAt === undefined ? undefined : new Date(body.startedAt),
-      endedAt: body.endedAt === undefined ? undefined : new Date(body.endedAt),
+      startedAt: body.startedAt,
+      endedAt: body.endedAt,
       networkAccess: body.networkAccess ?? false,
       exitCode: body.exitCode,
       signature: body.signature,
       inputs: body.inputs ?? [],
       outputs: body.outputs ?? [],
+    };
+    if (body.signatureEnvelope !== undefined) {
+      await verifyClientSignatureEnvelope({ repository, actorId, envelope: body.signatureEnvelope, payload: submission, expectedEventType: 'run.created' });
+    }
+    const actorRole = await runRoleResolver({ repository, actorId, taskId: body.taskId ?? null });
+    return context.json(await createRun({
+      repository,
+      actorId,
+      actorRole,
+      ...submission,
+      startedAt: submission.startedAt === undefined ? undefined : new Date(submission.startedAt),
+      endedAt: submission.endedAt === undefined ? undefined : new Date(submission.endedAt),
       eventFactory: runEventFactory,
     }), 201);
   } catch (error) {
@@ -1006,11 +1024,7 @@ app.post('/verifications', async (context) => {
     const claims = await authenticate(context.req.raw, context.env);
     const actorId = await resolveActorForSupabaseClaims({ repository, claims });
     const body = await context.req.json();
-    const actorRole = await verificationRoleResolver({ repository, actorId, claimId: body.claimId ?? null });
-    return context.json(await submitVerification({
-      repository,
-      actorId,
-      actorRole,
+    const submission = {
       receiptId: body.receiptId,
       runId: body.runId,
       claimId: body.claimId,
@@ -1024,8 +1038,18 @@ app.post('/verifications', async (context) => {
       implementationRelation: body.implementationRelation,
       dataRelation: body.dataRelation,
       modelFamily: body.modelFamily,
-      findings: body.findings ?? [],
+      findings: (body.findings ?? []).map((finding, index) => ({ findingId: finding.findingId ?? `finding_${index + 1}`, ...finding })),
       contributionStatementId: body.contributionStatementId,
+    };
+    if (body.signatureEnvelope !== undefined) {
+      await verifyClientSignatureEnvelope({ repository, actorId, envelope: body.signatureEnvelope, payload: submission, expectedEventType: 'verification.submitted' });
+    }
+    const actorRole = await verificationRoleResolver({ repository, actorId, claimId: body.claimId ?? null });
+    return context.json(await submitVerification({
+      repository,
+      actorId,
+      actorRole,
+      ...submission,
       eventFactory: verificationEventFactory,
     }), 201);
   } catch (error) {
@@ -1041,17 +1065,23 @@ app.post('/challenges', async (context) => {
     const claims = await authenticate(context.req.raw, context.env);
     const actorId = await resolveActorForSupabaseClaims({ repository, claims });
     const body = await context.req.json();
-    const actorRole = await challengeRoleResolver({ repository, actorId, targetClaimId: body.targetClaimId ?? null });
-    return context.json(await createChallenge({
-      repository,
-      actorId,
-      actorRole,
+    const submission = {
       challengeId: body.challengeId,
       targetClaimId: body.targetClaimId,
       targetClaimRevision: body.targetClaimRevision,
       reason: body.reason,
       impact: body.impact,
       proposedResolution: body.proposedResolution ?? null,
+    };
+    if (body.signatureEnvelope !== undefined) {
+      await verifyClientSignatureEnvelope({ repository, actorId, envelope: body.signatureEnvelope, payload: submission, expectedEventType: 'challenge.created' });
+    }
+    const actorRole = await challengeRoleResolver({ repository, actorId, targetClaimId: body.targetClaimId ?? null });
+    return context.json(await createChallenge({
+      repository,
+      actorId,
+      actorRole,
+      ...submission,
       eventFactory: challengeEventFactory,
     }), 201);
   } catch (error) {
@@ -1079,6 +1109,7 @@ app.post('/challenges/:challengeId/transitions', async (context) => {
       toState,
       ifMatch: context.req.header('if-match') ?? null,
       currentEtag: revisionEtagFor(challengeId, current),
+      etagForRevision: (revision) => revisionEtagFor(challengeId, revision),
       eventFactory: challengeEventFactory,
     }), 201);
   } catch (error) {

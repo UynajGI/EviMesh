@@ -988,6 +988,26 @@
         },
         "additionalProperties": false
       },
+      "ClientSignatureEnvelope": {
+        "type": "object",
+        "required": ["schema", "event_type", "payload", "nonce", "signing_bytes_hash", "signature"],
+        "properties": {
+          "schema": { "const": "srp.client-signature-envelope.v1" },
+          "event_type": { "type": "string", "minLength": 1 },
+          "payload": { "type": "object" },
+          "nonce": { "type": "string", "pattern": "^[A-Za-z0-9_-]{16,128}$" },
+          "signing_bytes_hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+          "signature": {
+            "type": "object",
+            "required": ["algorithm", "key_id", "value"],
+            "properties": {
+              "algorithm": { "const": "Ed25519" },
+              "key_id": { "type": "string", "minLength": 1 },
+              "value": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      },
       "PagedResponse": {
         "type": "object",
         "required": ["items"],
@@ -1086,7 +1106,8 @@
           "statement": { "type": "string", "minLength": 1 },
           "scope": { "type": ["object", "array"] },
           "assumptions": { "type": ["object", "array"] },
-          "falsification": { "type": ["object", "array"] }
+          "falsification": { "type": ["object", "array"] },
+          "signatureEnvelope": { "$ref": "#/components/schemas/ClientSignatureEnvelope" }
         }
       },
       "CreateArtifactRequest": {
@@ -1181,7 +1202,8 @@
           "exitCode": { "type": "integer" },
           "signature": { "type": "string", "minLength": 1 },
           "inputs": { "type": "array", "items": { "$ref": "#/components/schemas/ArtifactRevisionRef" } },
-          "outputs": { "type": "array", "items": { "$ref": "#/components/schemas/ArtifactRevisionRef" } }
+          "outputs": { "type": "array", "items": { "$ref": "#/components/schemas/ArtifactRevisionRef" } },
+          "signatureEnvelope": { "$ref": "#/components/schemas/ClientSignatureEnvelope" }
         }
       },
       "ArtifactRevisionRef": {
@@ -1233,7 +1255,8 @@
                 "details": { "type": "object" }
               }
             }
-          }
+          },
+          "signatureEnvelope": { "$ref": "#/components/schemas/ClientSignatureEnvelope" }
         }
       },
       "CreateChallengeRequest": {
@@ -1245,7 +1268,8 @@
           "targetClaimRevision": { "type": "integer", "minimum": 1 },
           "reason": { "type": "string", "minLength": 1 },
           "impact": { "type": ["object", "array"] },
-          "proposedResolution": { "type": ["string", "null"] }
+          "proposedResolution": { "type": ["string", "null"] },
+          "signatureEnvelope": { "$ref": "#/components/schemas/ClientSignatureEnvelope" }
         }
       }
     }

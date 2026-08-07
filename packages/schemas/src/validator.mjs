@@ -36,6 +36,12 @@ function check(schema, value, root, path, findings) {
     check(resolveRef(schema, root), value, root, path, findings);
     return;
   }
+  if (Array.isArray(schema.anyOf) && schema.anyOf.length > 0) {
+    const matched = schema.anyOf.some((option) => validateAgainstSchema(option, value).valid);
+    if (!matched) {
+      findings.push({ path, message: "must match at least one allowed variant" });
+    }
+  }
   if (schema.const !== undefined && JSON.stringify(value) !== JSON.stringify(schema.const)) {
     findings.push({ path, message: `must equal ${JSON.stringify(schema.const)}` });
     return;

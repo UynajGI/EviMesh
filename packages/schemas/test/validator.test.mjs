@@ -50,3 +50,15 @@ test("returns null for documents without a known schema discriminator", () => {
   assert.equal(schemaFileForDocument({ schema: "srp.unknown.v9" }), null);
   assert.equal(schemaFileForDocument(null), null);
 });
+
+test("enforces anyOf variants in the Contribution schema", async () => {
+  const schema = await loadSchema("contribution.schema.json");
+  const valid = await loadFixture("valid", "contribution.json");
+  assert.equal(validateAgainstSchema(schema, valid).valid, true);
+  const empty = { ...valid, produced: [], used: [] };
+  const result = validateAgainstSchema(schema, empty);
+  assert.equal(result.valid, false);
+  assert.ok(result.findings.some((finding) => finding.message.includes("variant")));
+  const onlyProduced = { ...valid, used: [] };
+  assert.equal(validateAgainstSchema(schema, onlyProduced).valid, true);
+});

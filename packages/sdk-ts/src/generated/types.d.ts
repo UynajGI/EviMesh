@@ -31,6 +31,8 @@ export type ContextBundleResponse = { contextBundleId: string; taskId: string; t
 
 export type ErrorResponse = { code: string; message: string; request_id: string; };
 
+export type ClientSignatureEnvelope = { schema: "srp.client-signature-envelope.v1"; event_type: string; payload: Record<string, unknown>; nonce: string; signing_bytes_hash: string; signature: { algorithm: "Ed25519"; key_id: string; value: string; }; };
+
 export type PagedResponse = { items: Record<string, unknown>[]; nextCursor?: string | null; };
 
 export type ObjectResponse = Record<string, unknown>;
@@ -53,7 +55,7 @@ export type StartAttemptRequest = { attemptId: string; contextBundleId: string; 
 
 export type TraceEventRequest = { eventId: string; eventType: string; payload: Record<string, unknown>; hash?: string | null; signature?: Record<string, unknown> | null; parents?: string[]; };
 
-export type CreateClaimRequest = { claimId: string; questionId?: string | null; statement: string; scope: Record<string, unknown> | unknown[]; assumptions?: Record<string, unknown> | unknown[]; falsification: Record<string, unknown> | unknown[]; };
+export type CreateClaimRequest = { claimId: string; questionId?: string | null; statement: string; scope: Record<string, unknown> | unknown[]; assumptions?: Record<string, unknown> | unknown[]; falsification: Record<string, unknown> | unknown[]; signatureEnvelope?: ClientSignatureEnvelope; };
 
 export type CreateArtifactRequest = { artifactId: string; artifactType: "code" | "dataset" | "document" | "figure" | "proof" | "notebook" | "container" | "model" | "report" | "other"; rawHash: string; semanticHash?: string | null; sizeBytes: number; mediaType: string; license: string; description?: string | null; locationId: string; location: string; };
 
@@ -65,15 +67,15 @@ export type CreateEvidenceRequest = { evidenceId: string; evidenceType: "formal_
 
 export type LinkEvidenceRequest = { claimId: string; claimRevision: number; relationType: "supports" | "refutes" | "qualifies" | "reproduces"; };
 
-export type CreateRunRequest = { runId: string; taskId: string; contextBundleId: string; sourceCode: string; container: string; command: string; args?: string[]; environment: Record<string, unknown>; hardware: Record<string, unknown>; randomSeed: Record<string, unknown>; startedAt: string; endedAt: string; networkAccess?: boolean; exitCode: number; signature: string; inputs?: ArtifactRevisionRef[]; outputs?: ArtifactRevisionRef[]; };
+export type CreateRunRequest = { runId: string; taskId: string; contextBundleId: string; sourceCode: string; container: string; command: string; args?: string[]; environment: Record<string, unknown>; hardware: Record<string, unknown>; randomSeed: Record<string, unknown>; startedAt: string; endedAt: string; networkAccess?: boolean; exitCode: number; signature: string; inputs?: ArtifactRevisionRef[]; outputs?: ArtifactRevisionRef[]; signatureEnvelope?: ClientSignatureEnvelope; };
 
 export type ArtifactRevisionRef = { artifactId: string; artifactRevision: number; };
 
 export type PrepareVerificationRequest = { claimId: string; claimRevision: number; contractId: string; contractRevision: number; nonce: string; };
 
-export type SubmitVerificationRequest = { receiptId: string; runId: string; claimId: string; claimRevision: number; contractId: string; contractRevision: number; outcome: "supports" | "refutes" | "qualifies" | "inconclusive"; verificationTypes: string[]; contextMode: "frontier" | "full_trace" | "adversarial" | "blind"; sawExpectedOutputs: boolean; implementationRelation: string; dataRelation: string; modelFamily: string; contributionStatementId: string; findings?: { findingId: string; severity: "critical" | "major" | "warning" | "note"; code: string; details?: Record<string, unknown>; }[]; };
+export type SubmitVerificationRequest = { receiptId: string; runId: string; claimId: string; claimRevision: number; contractId: string; contractRevision: number; outcome: "supports" | "refutes" | "qualifies" | "inconclusive"; verificationTypes: string[]; contextMode: "frontier" | "full_trace" | "adversarial" | "blind"; sawExpectedOutputs: boolean; implementationRelation: string; dataRelation: string; modelFamily: string; contributionStatementId: string; findings?: { findingId: string; severity: "critical" | "major" | "warning" | "note"; code: string; details?: Record<string, unknown>; }[]; signatureEnvelope?: ClientSignatureEnvelope; };
 
-export type CreateChallengeRequest = { challengeId: string; targetClaimId: string; targetClaimRevision: number; reason: string; impact: Record<string, unknown> | unknown[]; proposedResolution?: string | null; };
+export type CreateChallengeRequest = { challengeId: string; targetClaimId: string; targetClaimRevision: number; reason: string; impact: Record<string, unknown> | unknown[]; proposedResolution?: string | null; signatureEnvelope?: ClientSignatureEnvelope; };
 
 export interface EviMeshOperations {
   /** GET /health */

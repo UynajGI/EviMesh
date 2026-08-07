@@ -72,12 +72,19 @@ export async function submit({ flags, output, positionals, env = process.env, fe
   const body = route.toApi(document);
   const nonce = createNonce();
   const signed = await signSubmission({ eventType: route.eventType, payload: body, nonce }, { env });
-  const envelope = { eventType: route.eventType, payload: body, nonce, signing_bytes_hash: signed.signingBytesHash, signature: signed.signature };
+  const envelope = {
+    schema: "srp.client-signature-envelope.v1",
+    event_type: route.eventType,
+    payload: body,
+    nonce,
+    signing_bytes_hash: signed.signingBytesHash,
+    signature: signed.signature,
+  };
   if (flagBool(flags, "dry-run")) {
     output.emit({ json: flagBool(flags, "json") }, { dryRun: true, route: route.path, envelope }, (data) => `[dry-run] would POST ${data.route}\n${JSON.stringify(data.envelope, null, 2)}`);
     return 0;
   }
-  const response = await client.http.request(route.method, route.path, { body });
+  const response = await client.http.request(route.method, route.path, { body: { ...body, signatureEnvelope: envelope } });
   output.emit({ json: flagBool(flags, "json") }, { submitted: true, route: route.path, envelope, response }, (data) => `submitted to ${data.route}\nsigning hash: ${data.envelope.signing_bytes_hash}`);
   return 0;
 }
@@ -90,11 +97,21 @@ export async function challengeCreate({ flags, output, positionals, env = proces
   if (document.schema !== "srp.challenge.v1") throw new Error(`expected srp.challenge.v1, got ${document.schema}`);
   const { challengeDocToApi } = await import("./documents.mjs");
   const body = challengeDocToApi(document);
+  const nonce = createNonce();
+  const signed = await signSubmission({ eventType: "challenge.created", payload: body, nonce }, { env });
+  const envelope = {
+    schema: "srp.client-signature-envelope.v1",
+    event_type: "challenge.created",
+    payload: body,
+    nonce,
+    signing_bytes_hash: signed.signingBytesHash,
+    signature: signed.signature,
+  };
   if (flagBool(flags, "dry-run")) {
-    output.emit({ json: flagBool(flags, "json") }, { dryRun: true, route: "/challenges", body }, (data) => `[dry-run] would POST ${data.route}\n${JSON.stringify(data.body, null, 2)}`);
+    output.emit({ json: flagBool(flags, "json") }, { dryRun: true, route: "/challenges", body, envelope }, (data) => `[dry-run] would POST ${data.route}\n${JSON.stringify(data.body, null, 2)}`);
     return 0;
   }
-  const response = await client.challenges.create(body);
+  const response = await client.challenges.create({ ...body, signatureEnvelope: envelope });
   output.emit({ json: flagBool(flags, "json") }, { submitted: true, response }, () => `challenge ${body.challengeId} submitted`);
   return 0;
 }

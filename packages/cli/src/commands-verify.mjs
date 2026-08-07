@@ -61,12 +61,19 @@ export async function verifySubmit({ flags, output, positionals, env = process.e
   const body = verificationDocToApi(document, { receiptId, runId, contributionStatementId });
   const nonce = createNonce();
   const signed = await signSubmission({ eventType: "verification.submitted", payload: body, nonce }, { env });
-  const envelope = { eventType: "verification.submitted", payload: body, nonce, signing_bytes_hash: signed.signingBytesHash, signature: signed.signature };
+  const envelope = {
+    schema: "srp.client-signature-envelope.v1",
+    event_type: "verification.submitted",
+    payload: body,
+    nonce,
+    signing_bytes_hash: signed.signingBytesHash,
+    signature: signed.signature,
+  };
   if (flagBool(flags, "dry-run")) {
     output.emit({ json: flagBool(flags, "json") }, { dryRun: true, route: "/verifications", envelope }, (data) => `[dry-run] would POST ${data.route}\n${JSON.stringify(data.envelope, null, 2)}`);
     return 0;
   }
-  const response = await client.verifications.submit(body);
+  const response = await client.verifications.submit({ ...body, signatureEnvelope: envelope });
   output.emit({ json: flagBool(flags, "json") }, { submitted: true, receiptId, envelope, response }, (data) => `submitted verification receipt ${data.receiptId}\nsigning hash: ${data.envelope.signing_bytes_hash}`);
   return 0;
 }

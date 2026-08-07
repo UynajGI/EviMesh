@@ -89,6 +89,7 @@ export async function transitionChallenge({
   toState,
   ifMatch,
   currentEtag,
+  etagForRevision = null,
   eventFactory,
 } = {}) {
   if (!repository || typeof repository.withTransaction !== "function") throw new ChallengeCommandError("repository withTransaction is required");
@@ -105,7 +106,7 @@ export async function transitionChallenge({
   return repository.withTransaction(async (transaction) => {
     const current = await transaction.getCurrentChallengeRevision(challengeId);
     if (!current) throw new ChallengeCommandError("current challenge revision not found", "CHALLENGE_REVISION_NOT_FOUND", 404);
-    assertIfMatch(ifMatch, currentEtag);
+    assertIfMatch(ifMatch, typeof etagForRevision === "function" ? etagForRevision(current) : currentEtag);
     try {
       assertChallengeTransition(current.state, toState);
     } catch (error) {

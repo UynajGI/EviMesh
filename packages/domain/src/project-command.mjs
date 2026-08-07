@@ -124,6 +124,7 @@ export async function reviseProject({
   projectId,
   ifMatch,
   currentEtag,
+  etagForRevision = null,
   name,
   summary,
   license,
@@ -152,7 +153,10 @@ export async function reviseProject({
     if (!current) {
       throw new ProjectCommandError("current project revision not found", "PROJECT_REVISION_NOT_FOUND", 404);
     }
-    assertIfMatch(ifMatch, currentEtag);
+    // Recheck If-Match against the revision read inside the transaction so a
+    // concurrent revision committed after the caller's pre-read still fails.
+    const expectedEtag = typeof etagForRevision === "function" ? etagForRevision(current) : currentEtag;
+    assertIfMatch(ifMatch, expectedEtag);
     const next = {
       projectId,
       revision: current.revision + 1,
