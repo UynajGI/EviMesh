@@ -176,6 +176,12 @@ The M9 web UI surface and deployment boundary are documented in
 production domain only changes after the Part-level review, merge, and
 Cloudflare deployment workflow complete.
 
+M10 adds the programmatic access layer: the research API routes are now fully
+wired in `apps/api-edge` (contract in `apps/api-edge/openapi.json`), the
+dependency-free TypeScript SDK ships in `packages/sdk-ts`, and the `sq` CLI
+ships in `packages/cli`. The SDK/CLI boundary and behavior are documented in
+[`docs/m10-sdk-cli.md`](docs/m10-sdk-cli.md).
+
 The Web preview workflow in [`.github/workflows/web-preview.yml`](.github/workflows/web-preview.yml)
 deploys `apps/web/public` to the `evimesh-web-dev` Cloudflare Pages project for
 same-repository pull requests. It requires `CLOUDFLARE_API_TOKEN` and

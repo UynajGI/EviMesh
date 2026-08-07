@@ -22,7 +22,7 @@ The UI changes are currently on the feature branch and are not visible at
 workflow completes. A raw unstyled sign-in page at the domain indicates the
 previous static deployment, not that the UI source is missing.
 
-Several M9 pages already render against intended API contracts that still need
-their corresponding server routes before they are end-to-end live. The UI
-build, test suite, and lint checks remain independent of those hosted data
-dependencies.
+The server routes those M9 pages render against were implemented in
+`apps/api-edge` during M10 (see [`docs/m10-sdk-cli.md`](docs/m10-sdk-cli.md));
+they become end-to-end live once the Worker is redeployed. The UI build, test
+suite, and lint checks remain independent of those hosted data dependencies.

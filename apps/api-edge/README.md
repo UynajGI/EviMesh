@@ -9,10 +9,25 @@ the immutable ContextBundle metadata for exactly that Task and mode. It returns
 the derived content hash and storage URI but does not construct a fresh context
 from current projections.
 
-Routes currently include:
+Routes cover the full research surface; `openapi.json` lists every path and
+operation ID. The grouped summary:
 
 - `GET /health` — service status and environment marker.
-- `GET /auth/me` — verifies an ES256 Supabase JWT and returns subject/email.
+- `GET /platform/keys` — platform verification keyring.
+- `GET /auth/me` — verifies a Supabase JWT and returns subject/email.
+- Profile, signing keys, API tokens — `/profile`, `/signing-keys`, `/api-tokens`.
+- Projects — list/detail/revise plus latest Frontier, history, and diff.
+- Questions — list/detail/create/transition.
+- Tasks — list/detail/create, Context endpoint, Attempts, and leases.
+- Attempts — detail, transition, and public trace events.
+- Claims — list/detail/create/revise/transition, graph, fixed revisions, and verification listing.
+- Artifacts — list/detail/fixed revision, creation, and signed upload plans.
+- Evidence — list/detail/create and ClaimRevision links.
+- Runs — list/detail/create.
+- Verifications — prepare signing bytes, submit receipts, and receipt detail.
+- Challenges — create/detail/transition.
+- Events — listing, NDJSON export, inclusion proofs, and Merkle checkpoints.
+- Contributions and provenance — `/actors/{actorId}`, `/provenance/{objectType}/{objectId}`, merge proposals.
 
 The current public route contract is versioned in `openapi.json`; the contract
 snapshot test fails when these route or response-shape guarantees drift.
