@@ -165,21 +165,24 @@ test("submit sends a verifiable signature envelope with the request", async (t) 
   const { dir, env, cleanup } = setup();
   t.after(cleanup);
   assert.equal(await runCli(["config", "init", "--api-url", "https://api.test"], { env }), 0);
-  assert.equal(await runCli(["identity", "generate"], { env }), 0);
+  assert.equal(await runCli(["auth", "login", "--token", "evimesh_test", "--scopes", "profile:read,project:read", "--json"], { env }), 0);
+  const requests = [];
+  const fetchImpl = async (url, options) => {
+    requests.push({ url, options });
+    return jsonResponse(201, {});
+  };
+  assert.equal(await runCli(["identity", "generate", "--json"], { env, fetchImpl }), 0);
   const out = join(dir, "draft.claim.json");
   await runCli(["claim", "create", "--out", out], { env });
   const draft = JSON.parse(readFileSync(out, "utf8"));
   draft.created_by = "actor_01";
   writeFileSync(out, JSON.stringify(draft, null, 2));
-  const requests = [];
-  const fetchImpl = async (url, options) => {
-    requests.push({ url, options });
-    return jsonResponse(201, { claim: { claimId: draft.claim_id } });
-  };
   const code = await runCli(["submit", out, "--json"], { env, fetchImpl });
   assert.equal(code, 0);
-  assert.equal(requests.length, 1);
-  const sent = JSON.parse(requests[0].options.body);
+  assert.ok(requests.some((request) => request.url.endsWith("/signing-keys")), "identity generate must register the signing key");
+  const claimRequest = requests.find((request) => request.url.endsWith("/claims"));
+  assert.ok(claimRequest, "submission must reach the claims endpoint");
+  const sent = JSON.parse(claimRequest.options.body);
   assert.ok(sent.signatureEnvelope, "submission must carry the signature envelope");
   assert.equal(sent.signatureEnvelope.schema, "srp.client-signature-envelope.v1");
   assert.equal(sent.signatureEnvelope.event_type, "claim.created");
@@ -198,6 +201,44 @@ test("submit sends a verifiable signature envelope with the request", async (t) 
     publicKey: config.identity.publicKey,
   });
   assert.equal(verified, true);
+});
+
+test("bundle verify binds proofs to the signed checkpoint root", async (t) => {
+  const { dir, env, cleanup } = setup();
+  t.after(cleanup);
+  const { buildMerkleTree } = await import("../../merkle/src/merkle-tree.mjs");
+  const { hashResearchEventLeaf } = await import("../../merkle/src/research-event-leaf.mjs");
+  const { createMerkleInclusionProof } = await import("../../merkle/src/inclusion-proof.mjs");
+  const { signMerkleCheckpoint } = await import("../../signatures/src/merkle-checkpoint.mjs");
+  const { generateEd25519KeyPair } = await import("../../signatures/src/ed25519.mjs");
+  const events = ["event-1", "event-2"].map((eventId, index) => ({
+    schema: "srp.event.v1",
+    event_id: eventId,
+    event_type: "claim.created",
+    payload: { claim_id: "claim-1" },
+    hash: `sha256:${String(index).repeat(64)}`,
+    signature: { algorithm: "Ed25519", value: "sig" },
+    parents: [],
+  }));
+  const leafHashes = events.map((event) => hashResearchEventLeaf(event));
+  const tree = buildMerkleTree(leafHashes);
+  const boundProof = createMerkleInclusionProof({ leafHashes, leafIndex: 0 });
+  const platformKey = generateEd25519KeyPair();
+  const checkpoint = await signMerkleCheckpoint({
+    checkpoint: { schema: "evimesh.merkle-checkpoint.v1", firstEventId: "event-1", lastEventId: "event-2", eventCount: 2, rootHash: tree.root },
+    keyId: "platform-key-1",
+    privateKey: platformKey.private_key,
+  });
+  const forgedLeaves = [hashResearchEventLeaf({ ...events[0], event_id: "event-forged" })];
+  const forgedProof = createMerkleInclusionProof({ leafHashes: forgedLeaves, leafIndex: 0 });
+
+  const good = join(dir, "bundle-bound.json");
+  writeFileSync(good, JSON.stringify({ checkpoint, events, proofs: [{ proof: boundProof }] }));
+  assert.equal(await runCli(["bundle", "verify", good, "--platform-key", platformKey.public_key, "--json"], { env }), 0);
+
+  const forged = join(dir, "bundle-forged.json");
+  writeFileSync(forged, JSON.stringify({ checkpoint, proofs: [{ proof: forgedProof }] }));
+  assert.equal(await runCli(["bundle", "verify", forged, "--platform-key", platformKey.public_key, "--json"], { env }), 1);
 });
 
 test("auth login --token stores only limited scopes", async (t) => {

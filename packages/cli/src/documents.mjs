@@ -115,7 +115,7 @@ export function verificationDocToApi(document, { receiptId, runId, contributionS
     implementationRelation: document.implementation_relation,
     dataRelation: document.data_relation,
     modelFamily: document.model_family,
-    findings: (document.findings ?? []).map((finding, index) => ({ findingId: finding.findingId ?? `finding_${index + 1}`, ...finding })),
+    findings: (document.findings ?? []).map((finding, index) => ({ findingId: finding.findingId ?? `${receiptId}_finding_${index + 1}`, ...finding })),
     contributionStatementId,
   };
 }

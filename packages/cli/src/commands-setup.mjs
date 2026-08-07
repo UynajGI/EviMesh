@@ -1,4 +1,4 @@
-import { DEFAULT_API_URL, DEFAULT_CLIENT_ID, saveConfig, createFileStorage, loadConfig } from "./config.mjs";
+import { DEFAULT_API_URL, DEFAULT_CLIENT_ID, saveConfig, createFileStorage, loadConfig, loadStoredToken, requireConfig } from "./config.mjs";
 import { generateIdentity } from "./identity.mjs";
 import { saveLimitedToken, startDeviceLogin, pollDeviceLogin } from "./auth.mjs";
 import { flagString, flagBool } from "./args.mjs";
@@ -40,9 +40,27 @@ export async function authLogin({ flags, output, env = process.env, fetchImpl } 
   return 0;
 }
 
-export async function identityGenerate({ flags, output, env = process.env }) {
+export async function identityGenerate({ flags, output, env = process.env, fetchImpl } = {}) {
+  const json = flagBool(flags, "json");
   const identity = generateIdentity(env);
   const safe = { keyId: identity.keyId, algorithm: identity.algorithm, did: identity.did, publicKey: identity.publicKey, createdAt: identity.createdAt };
-  output.emit({ json: flagBool(flags, "json") }, safe, (data) => `generated ${data.algorithm} identity ${data.keyId}\ndid: ${data.did}\npublic key: ${data.publicKey}`);
+  const token = loadStoredToken(env)?.access_token ?? loadConfig(env)?.token ?? null;
+  if (!token) {
+    output.emit({ json }, { ...safe, registered: false, warning: "no stored token; run `sq auth login`, then register this key before signing submissions" }, (data) =>
+      `generated ${data.algorithm} identity ${data.keyId}\ndid: ${data.did}\npublic key: ${data.publicKey}\nwarning: ${data.warning}`);
+    return 0;
+  }
+  const config = requireConfig(env);
+  const baseUrl = flagString(flags, "api-url", config.apiUrl ?? DEFAULT_API_URL).replace(/\/$/, "");
+  const response = await (fetchImpl ?? fetch)(`${baseUrl}/signing-keys`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+    body: JSON.stringify({ keyId: identity.keyId, publicKey: identity.publicKey }),
+  });
+  const payload = await response.text().then((text) => { try { return JSON.parse(text); } catch { return {}; } });
+  if (!response.ok) {
+    throw new Error(`signing key registration failed: ${payload?.message ?? payload?.code ?? `status ${response.status}`}`);
+  }
+  output.emit({ json }, { ...safe, registered: true }, (data) => `generated ${data.algorithm} identity ${data.keyId} and registered its public key\ndid: ${data.did}\npublic key: ${data.publicKey}`);
   return 0;
 }

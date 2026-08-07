@@ -626,13 +626,14 @@ test("prepares and submits a VerificationReceipt", async () => {
       outcome: "supports", verificationTypes: ["reproduction"], contextMode: "blind", sawExpectedOutputs: false,
       implementationRelation: "independent", dataRelation: "same_input", modelFamily: "none",
       contributionStatementId: "statement-1",
-      findings: [{ findingId: "finding-1", severity: "note", code: "match", details: {} }],
+      findings: [{ findingId: "finding-1", severity: "note", code: "match", details: {} }, { severity: "note", code: "derived" }],
     }),
   }), {});
   assert.equal(submit.status, 201, await submit.clone().text());
   const submitted = await submit.json();
   assert.equal(submitted.receipt.outcome, "supports");
   assert.equal(submitted.contribution.statementId, "statement-1");
+  assert.deepEqual(submitted.findings.map((finding) => finding.findingId), ["finding-1", "receipt-1_finding_2"]);
 });
 
 test("creates and transitions a Challenge", async () => {

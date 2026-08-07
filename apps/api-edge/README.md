@@ -14,7 +14,9 @@ operation ID. The grouped summary:
 
 - `GET /health` — service status and environment marker.
 - `GET /platform/keys` — platform verification keyring.
-- `GET /auth/me` — verifies a Supabase JWT and returns subject/email.
+- `GET /auth/me` — returns subject/email for the authenticated caller.
+  Bearer credentials accept either a Supabase JWT or an `evimesh_...` API
+  token (matched by SHA-256 hash); token claims resolve directly to their actor.
 - Device authorization — `POST /auth/device`, `POST /auth/device/approve`, and
   `POST /auth/device/token` implement the RFC-8628 grant the CLI uses; the
   exchange issues only the limited `profile:read`/`project:read` scopes.

@@ -47,6 +47,7 @@ import { createSingleUploadPlan, UploadSessionError } from '../../../packages/ar
 import { createActorApiToken, ApiTokenError as DeviceTokenError } from '../../../packages/domain/src/api-token.mjs';
 import { approveDeviceAuthorization, CLI_DEVICE_SCOPES, createMemoryDeviceCodeStore, DeviceAuthError, exchangeDeviceToken, startDeviceAuthorization } from './device-auth.mjs';
 import { verifyClientSignatureEnvelope } from './client-signature.mjs';
+import { API_TOKEN_PREFIX, authenticateApiToken } from './api-token-auth.mjs';
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
 
@@ -74,6 +75,16 @@ function knownFailure(error, context, fallback) {
   }
   if (typeof fallback === "number") return context.json(errorBody("command_failed", error.message, context.get("requestId")), fallback);
   return null;
+}
+
+/** Accept either a Supabase JWT or an `evimesh_...` API token as Bearer credentials. */
+async function authenticateRequest(request, env) {
+  const header = request?.headers?.get?.("authorization") ?? "";
+  const match = /^Bearer\s+(.+)$/i.exec(header);
+  if (match && match[1].startsWith(API_TOKEN_PREFIX)) {
+    return authenticateApiToken({ repository, token: match[1] });
+  }
+  return authenticate(request, env);
 }
 
 app.use("*", async (context, next) => {
@@ -119,7 +130,7 @@ app.get('/platform/keys', (context) => {
 
 app.get("/auth/me", async (context) => {
   try {
-    const claims = await authenticate(context.req.raw, context.env);
+    const claims = await authenticateRequest(context.req.raw, context.env);
     return context.json({ subject: claims.sub, email: claims.email ?? null });
   } catch (error) {
     if (error instanceof JwtVerificationError || error instanceof SyntaxError) {
@@ -147,7 +158,7 @@ app.post("/auth/device", async (context) => {
 
 app.post("/auth/device/approve", async (context) => {
   try {
-    const claims = await authenticate(context.req.raw, context.env);
+    const claims = await authenticateRequest(context.req.raw, context.env);
     const actorId = await resolveActorForSupabaseClaims({ repository, claims });
     const body = await context.req.json().catch(() => ({}));
     return context.json(await approveDeviceAuthorization({ store: deviceCodeStore, actorId, userCode: body.user_code }));
@@ -301,7 +312,7 @@ app.post('/projects', async (context) => {
     if (typeof projectEventFactory !== 'function') {
       return context.json(errorBody('PROJECT_CREATION_UNAVAILABLE', 'project creation is not configured', context.get('requestId')), 503);
     }
-    const claims = await authenticate(context.req.raw, context.env);
+    const claims = await authenticateRequest(context.req.raw, context.env);
     const actorId = await resolveActorForSupabaseClaims({ repository, claims });
     const body = await context.req.json();
     return context.json(await createProject({
@@ -326,7 +337,7 @@ app.post('/questions', async (context) => {
     if (typeof questionEventFactory !== 'function' || typeof questionRoleResolver !== 'function') {
       return context.json(errorBody('QUESTION_CREATION_UNAVAILABLE', 'question creation is not configured', context.get('requestId')), 503);
     }
-    const claims = await authenticate(context.req.raw, context.env);
+    const claims = await authenticateRequest(context.req.raw, context.env);
     const actorId = await resolveActorForSupabaseClaims({ repository, claims });
     const body = await context.req.json();
     const actorRole = await questionRoleResolver({ repository, actorId, projectId: body.projectId });
@@ -384,7 +395,7 @@ app.post('/tasks/:taskId/attempts', async (context) => {
     if (typeof attemptEventFactory !== 'function' || typeof attemptRoleResolver !== 'function') {
       return context.json(errorBody('ATTEMPT_CREATION_UNAVAILABLE', 'attempt creation is not configured', context.get('requestId')), 503);
     }
-    const claims = await authenticate(context.req.raw, context.env);
+    const claims = await authenticateRequest(context.req.raw, context.env);
     const actorId = await resolveActorForSupabaseClaims({ repository, claims });
     const body = await context.req.json();
     const actorRole = await attemptRoleResolver({ repository, actorId, taskId: context.req.param('taskId') });
@@ -409,7 +420,7 @@ app.post('/tasks/:taskId/attempts', async (context) => {
 app.post('/tasks/:taskId/lease', async (context) => {
   try {
     if (typeof leaseEventFactory !== 'function' || typeof leaseRoleResolver !== 'function') return context.json(errorBody('LEASE_OPERATION_UNAVAILABLE', 'lease operations are not configured', context.get('requestId')), 503);
-    const claims = await authenticate(context.req.raw, context.env);
+    const claims = await authenticateRequest(context.req.raw, context.env);
     const actorId = await resolveActorForSupabaseClaims({ repository, claims });
     const body = await context.req.json().catch(() => ({}));
     const actorRole = await leaseRoleResolver({ repository, actorId, taskId: context.req.param('taskId') });
@@ -424,7 +435,7 @@ app.post('/tasks/:taskId/lease', async (context) => {
 app.delete('/tasks/:taskId/lease', async (context) => {
   try {
     if (typeof leaseEventFactory !== 'function' || typeof leaseRoleResolver !== 'function') return context.json(errorBody('LEASE_OPERATION_UNAVAILABLE', 'lease operations are not configured', context.get('requestId')), 503);
-    const claims = await authenticate(context.req.raw, context.env);
+    const claims = await authenticateRequest(context.req.raw, context.env);
     const actorId = await resolveActorForSupabaseClaims({ repository, claims });
     const actorRole = await leaseRoleResolver({ repository, actorId, taskId: context.req.param('taskId') });
     return context.json(await releaseTaskLease({ repository, actorId, actorRole, taskId: context.req.param('taskId'), eventFactory: leaseEventFactory }));
@@ -645,7 +656,7 @@ app.get('/projects/:projectId/frontier/diff', async (context) => {
 app.post('/projects/:projectId/revisions', async (context) => {
   try {
     if (typeof projectEventFactory !== 'function') return context.json(errorBody('PROJECT_REVISION_UNAVAILABLE', 'project revision is not configured', context.get('requestId')), 503);
-    const claims = await authenticate(context.req.raw, context.env);
+    const claims = await authenticateRequest(context.req.raw, context.env);
     const actorId = await resolveActorForSupabaseClaims({ repository, claims });
     const projectId = context.req.param('projectId');
     const current = await repository?.getCurrentProjectRevision?.(projectId);
@@ -674,7 +685,7 @@ app.post('/projects/:projectId/revisions', async (context) => {
 app.post('/questions/:questionId/transitions', async (context) => {
   try {
     if (typeof questionEventFactory !== 'function' || typeof questionRoleResolver !== 'function') return context.json(errorBody('QUESTION_TRANSITION_UNAVAILABLE', 'question transition is not configured', context.get('requestId')), 503);
-    const claims = await authenticate(context.req.raw, context.env);
+    const claims = await authenticateRequest(context.req.raw, context.env);
     const actorId = await resolveActorForSupabaseClaims({ repository, claims });
     const questionId = context.req.param('questionId');
     const actorRole = await questionRoleResolver({ repository, actorId, questionId });
@@ -690,7 +701,7 @@ app.post('/questions/:questionId/transitions', async (context) => {
 app.post('/tasks', async (context) => {
   try {
     if (typeof taskEventFactory !== 'function' || typeof taskRoleResolver !== 'function') return context.json(errorBody('TASK_CREATION_UNAVAILABLE', 'task creation is not configured', context.get('requestId')), 503);
-    const claims = await authenticate(context.req.raw, context.env);
+    const claims = await authenticateRequest(context.req.raw, context.env);
     const actorId = await resolveActorForSupabaseClaims({ repository, claims });
     const body = await context.req.json();
     const actorRole = await taskRoleResolver({ repository, actorId, questionId: body.questionId ?? null, projectId: body.projectId ?? null });
@@ -718,7 +729,7 @@ app.post('/tasks', async (context) => {
 app.post('/claims', async (context) => {
   try {
     if (typeof claimEventFactory !== 'function' || typeof claimRoleResolver !== 'function') return context.json(errorBody('CLAIM_CREATION_UNAVAILABLE', 'claim creation is not configured', context.get('requestId')), 503);
-    const claims = await authenticate(context.req.raw, context.env);
+    const claims = await authenticateRequest(context.req.raw, context.env);
     const actorId = await resolveActorForSupabaseClaims({ repository, claims });
     const body = await context.req.json();
     const submission = {
@@ -730,7 +741,11 @@ app.post('/claims', async (context) => {
       falsification: body.falsification,
     };
     if (body.signatureEnvelope !== undefined) {
-      await verifyClientSignatureEnvelope({ repository, actorId, envelope: body.signatureEnvelope, payload: submission, expectedEventType: 'claim.created' });
+      // Verify against the exact sent payload (minus the envelope itself);
+      // defaults are applied only when constructing the domain command.
+      const signedPayload = { ...body };
+      delete signedPayload.signatureEnvelope;
+      await verifyClientSignatureEnvelope({ repository, actorId, envelope: body.signatureEnvelope, payload: signedPayload, expectedEventType: 'claim.created' });
     }
     const actorRole = await claimRoleResolver({ repository, actorId, questionId: body.questionId ?? null, projectId: body.projectId ?? null });
     return context.json(await createClaim({
@@ -750,7 +765,7 @@ app.post('/claims', async (context) => {
 app.post('/claims/:claimId/revisions', async (context) => {
   try {
     if (typeof claimEventFactory !== 'function' || typeof claimRoleResolver !== 'function') return context.json(errorBody('CLAIM_REVISION_UNAVAILABLE', 'claim revision is not configured', context.get('requestId')), 503);
-    const claims = await authenticate(context.req.raw, context.env);
+    const claims = await authenticateRequest(context.req.raw, context.env);
     const actorId = await resolveActorForSupabaseClaims({ repository, claims });
     const claimId = context.req.param('claimId');
     const current = await repository?.getCurrentClaimRevision?.(claimId);
@@ -782,7 +797,7 @@ app.post('/claims/:claimId/revisions', async (context) => {
 app.post('/claims/:claimId/transitions', async (context) => {
   try {
     if (typeof claimEventFactory !== 'function' || typeof claimRoleResolver !== 'function') return context.json(errorBody('CLAIM_TRANSITION_UNAVAILABLE', 'claim transition is not configured', context.get('requestId')), 503);
-    const claims = await authenticate(context.req.raw, context.env);
+    const claims = await authenticateRequest(context.req.raw, context.env);
     const actorId = await resolveActorForSupabaseClaims({ repository, claims });
     const claimId = context.req.param('claimId');
     const current = await repository?.getCurrentClaimRevision?.(claimId);
@@ -810,7 +825,7 @@ app.post('/claims/:claimId/transitions', async (context) => {
 app.post('/attempts/:attemptId/transitions', async (context) => {
   try {
     if (typeof attemptEventFactory !== 'function' || typeof attemptRoleResolver !== 'function') return context.json(errorBody('ATTEMPT_TRANSITION_UNAVAILABLE', 'attempt transition is not configured', context.get('requestId')), 503);
-    const claims = await authenticate(context.req.raw, context.env);
+    const claims = await authenticateRequest(context.req.raw, context.env);
     const actorId = await resolveActorForSupabaseClaims({ repository, claims });
     const attemptId = context.req.param('attemptId');
     const actorRole = await attemptRoleResolver({ repository, actorId, attemptId });
@@ -826,7 +841,7 @@ app.post('/attempts/:attemptId/transitions', async (context) => {
 app.post('/attempts/:attemptId/trace', async (context) => {
   try {
     if (typeof attemptEventFactory !== 'function' || typeof attemptRoleResolver !== 'function') return context.json(errorBody('ATTEMPT_TRACE_UNAVAILABLE', 'attempt trace is not configured', context.get('requestId')), 503);
-    const claims = await authenticate(context.req.raw, context.env);
+    const claims = await authenticateRequest(context.req.raw, context.env);
     const actorId = await resolveActorForSupabaseClaims({ repository, claims });
     const attemptId = context.req.param('attemptId');
     const actorRole = await attemptRoleResolver({ repository, actorId, attemptId });
@@ -854,7 +869,7 @@ app.post('/attempts/:attemptId/trace', async (context) => {
 app.post('/evidence', async (context) => {
   try {
     if (typeof evidenceEventFactory !== 'function' || typeof evidenceRoleResolver !== 'function') return context.json(errorBody('EVIDENCE_CREATION_UNAVAILABLE', 'evidence creation is not configured', context.get('requestId')), 503);
-    const claims = await authenticate(context.req.raw, context.env);
+    const claims = await authenticateRequest(context.req.raw, context.env);
     const actorId = await resolveActorForSupabaseClaims({ repository, claims });
     const body = await context.req.json();
     const actorRole = await evidenceRoleResolver({ repository, actorId, artifactId: body.artifactId ?? null });
@@ -880,7 +895,7 @@ app.post('/evidence', async (context) => {
 app.post('/evidence/:evidenceId/links', async (context) => {
   try {
     if (typeof evidenceEventFactory !== 'function' || typeof evidenceRoleResolver !== 'function') return context.json(errorBody('EVIDENCE_LINK_UNAVAILABLE', 'evidence linking is not configured', context.get('requestId')), 503);
-    const claims = await authenticate(context.req.raw, context.env);
+    const claims = await authenticateRequest(context.req.raw, context.env);
     const actorId = await resolveActorForSupabaseClaims({ repository, claims });
     const evidenceId = context.req.param('evidenceId');
     const actorRole = await evidenceRoleResolver({ repository, actorId, evidenceId });
@@ -905,7 +920,7 @@ app.post('/evidence/:evidenceId/links', async (context) => {
 app.post('/runs', async (context) => {
   try {
     if (typeof runEventFactory !== 'function' || typeof runRoleResolver !== 'function') return context.json(errorBody('RUN_CREATION_UNAVAILABLE', 'run creation is not configured', context.get('requestId')), 503);
-    const claims = await authenticate(context.req.raw, context.env);
+    const claims = await authenticateRequest(context.req.raw, context.env);
     const actorId = await resolveActorForSupabaseClaims({ repository, claims });
     const body = await context.req.json();
     const submission = {
@@ -928,7 +943,9 @@ app.post('/runs', async (context) => {
       outputs: body.outputs ?? [],
     };
     if (body.signatureEnvelope !== undefined) {
-      await verifyClientSignatureEnvelope({ repository, actorId, envelope: body.signatureEnvelope, payload: submission, expectedEventType: 'run.created' });
+      const signedPayload = { ...body };
+      delete signedPayload.signatureEnvelope;
+      await verifyClientSignatureEnvelope({ repository, actorId, envelope: body.signatureEnvelope, payload: signedPayload, expectedEventType: 'run.created' });
     }
     const actorRole = await runRoleResolver({ repository, actorId, taskId: body.taskId ?? null });
     return context.json(await createRun({
@@ -970,7 +987,7 @@ app.post('/artifacts/upload-plan', async (context) => {
 app.post('/artifacts', async (context) => {
   try {
     if (typeof artifactEventFactory !== 'function' || typeof artifactRoleResolver !== 'function') return context.json(errorBody('ARTIFACT_CREATION_UNAVAILABLE', 'artifact creation is not configured', context.get('requestId')), 503);
-    const claims = await authenticate(context.req.raw, context.env);
+    const claims = await authenticateRequest(context.req.raw, context.env);
     const actorId = await resolveActorForSupabaseClaims({ repository, claims });
     const body = await context.req.json();
     const actorRole = await artifactRoleResolver({ repository, actorId });
@@ -999,7 +1016,7 @@ app.post('/artifacts', async (context) => {
 
 app.post('/verifications/prepare', async (context) => {
   try {
-    const claims = await authenticate(context.req.raw, context.env);
+    const claims = await authenticateRequest(context.req.raw, context.env);
     const actorId = await resolveActorForSupabaseClaims({ repository, claims });
     const body = await context.req.json();
     return context.json(await prepareVerification({
@@ -1021,7 +1038,7 @@ app.post('/verifications/prepare', async (context) => {
 app.post('/verifications', async (context) => {
   try {
     if (typeof verificationEventFactory !== 'function' || typeof verificationRoleResolver !== 'function') return context.json(errorBody('VERIFICATION_SUBMIT_UNAVAILABLE', 'verification submission is not configured', context.get('requestId')), 503);
-    const claims = await authenticate(context.req.raw, context.env);
+    const claims = await authenticateRequest(context.req.raw, context.env);
     const actorId = await resolveActorForSupabaseClaims({ repository, claims });
     const body = await context.req.json();
     const submission = {
@@ -1038,11 +1055,13 @@ app.post('/verifications', async (context) => {
       implementationRelation: body.implementationRelation,
       dataRelation: body.dataRelation,
       modelFamily: body.modelFamily,
-      findings: (body.findings ?? []).map((finding, index) => ({ findingId: finding.findingId ?? `finding_${index + 1}`, ...finding })),
+      findings: (body.findings ?? []).map((finding, index) => ({ findingId: finding.findingId ?? `${body.receiptId}_finding_${index + 1}`, ...finding })),
       contributionStatementId: body.contributionStatementId,
     };
     if (body.signatureEnvelope !== undefined) {
-      await verifyClientSignatureEnvelope({ repository, actorId, envelope: body.signatureEnvelope, payload: submission, expectedEventType: 'verification.submitted' });
+      const signedPayload = { ...body };
+      delete signedPayload.signatureEnvelope;
+      await verifyClientSignatureEnvelope({ repository, actorId, envelope: body.signatureEnvelope, payload: signedPayload, expectedEventType: 'verification.submitted' });
     }
     const actorRole = await verificationRoleResolver({ repository, actorId, claimId: body.claimId ?? null });
     return context.json(await submitVerification({
@@ -1062,7 +1081,7 @@ app.post('/verifications', async (context) => {
 app.post('/challenges', async (context) => {
   try {
     if (typeof challengeEventFactory !== 'function' || typeof challengeRoleResolver !== 'function') return context.json(errorBody('CHALLENGE_CREATION_UNAVAILABLE', 'challenge creation is not configured', context.get('requestId')), 503);
-    const claims = await authenticate(context.req.raw, context.env);
+    const claims = await authenticateRequest(context.req.raw, context.env);
     const actorId = await resolveActorForSupabaseClaims({ repository, claims });
     const body = await context.req.json();
     const submission = {
@@ -1074,7 +1093,9 @@ app.post('/challenges', async (context) => {
       proposedResolution: body.proposedResolution ?? null,
     };
     if (body.signatureEnvelope !== undefined) {
-      await verifyClientSignatureEnvelope({ repository, actorId, envelope: body.signatureEnvelope, payload: submission, expectedEventType: 'challenge.created' });
+      const signedPayload = { ...body };
+      delete signedPayload.signatureEnvelope;
+      await verifyClientSignatureEnvelope({ repository, actorId, envelope: body.signatureEnvelope, payload: signedPayload, expectedEventType: 'challenge.created' });
     }
     const actorRole = await challengeRoleResolver({ repository, actorId, targetClaimId: body.targetClaimId ?? null });
     return context.json(await createChallenge({
@@ -1094,7 +1115,7 @@ app.post('/challenges', async (context) => {
 app.post('/challenges/:challengeId/transitions', async (context) => {
   try {
     if (typeof challengeEventFactory !== 'function' || typeof challengeRoleResolver !== 'function') return context.json(errorBody('CHALLENGE_TRANSITION_UNAVAILABLE', 'challenge transition is not configured', context.get('requestId')), 503);
-    const claims = await authenticate(context.req.raw, context.env);
+    const claims = await authenticateRequest(context.req.raw, context.env);
     const actorId = await resolveActorForSupabaseClaims({ repository, claims });
     const challengeId = context.req.param('challengeId');
     const current = await repository?.getCurrentChallengeRevision?.(challengeId);

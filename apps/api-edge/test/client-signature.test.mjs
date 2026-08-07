@@ -69,6 +69,40 @@ test("rejects event type mismatches and malformed envelopes", async () => {
   );
 });
 
+test("verifies the exact sent payload when optional fields are omitted", async () => {
+  const keypair = generateEd25519KeyPair();
+  const insertedClaims = [];
+  const insertedRevisions = [];
+  const insertClaim = async (claim) => { insertedClaims.push(claim); return claim; };
+  const insertClaimRevision = async (revision) => { insertedRevisions.push(revision); return revision; };
+  const appendResearchEvent = async (event) => event;
+  const repository = {
+    findIdentity: async () => ({ actorId: "actor-1" }),
+    findActiveSigningKey: async () => ({ keyId: "key-1", actorId: "actor-1", algorithm: "Ed25519", publicKey: keypair.public_key }),
+    insertClaim,
+    insertClaimRevision,
+    appendResearchEvent,
+    withTransaction: async (callback) => callback({ insertClaim, insertClaimRevision, appendResearchEvent }),
+  };
+  const app = createApp({
+    repository,
+    claimEventFactory: async ({ eventType, payload }) => ({ eventType, payload }),
+    claimRoleResolver: async () => "maintainer",
+    authenticate: async () => ({ sub: "supabase-subject" }),
+  });
+  // The client signs exactly what it sends: no `assumptions`, no `questionId`.
+  const body = { claimId: "claim-1", statement: "minimal", scope: ["s"], falsification: ["f"] };
+  const envelope = await makeEnvelope({ keypair, keyId: "key-1", eventType: "claim.created", payload: body });
+  const response = await app.fetch(new Request("https://api.example.test/claims", {
+    method: "POST",
+    headers: { authorization: "Bearer test-token", "content-type": "application/json" },
+    body: JSON.stringify({ ...body, signatureEnvelope: envelope }),
+  }), {});
+  assert.equal(response.status, 201, await response.clone().text());
+  assert.equal(insertedClaims[0].questionId, null);
+  assert.deepEqual(insertedRevisions[0].assumptions, []);
+});
+
 test("POST /claims accepts a valid signed envelope and rejects a tampered one", async () => {
   const keypair = generateEd25519KeyPair();
   const inserted = [];

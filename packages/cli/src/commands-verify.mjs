@@ -7,6 +7,8 @@ import { readDocument, validateDocument, verificationDocToApi } from "./document
 import { signSubmission, createNonce } from "./signing.mjs";
 import { verifyContextBundleHash } from "../../protocol/src/context-bundle-hash.mjs";
 import { verifyMerkleInclusionProof } from "../../merkle/src/verify-inclusion-proof.mjs";
+import { buildMerkleTree } from "../../merkle/src/merkle-tree.mjs";
+import { hashResearchEventLeaf } from "../../merkle/src/research-event-leaf.mjs";
 import { verifyMerkleCheckpoint } from "../../signatures/src/merkle-checkpoint.mjs";
 import { createObjectId } from "../../protocol/src/uuidv7.mjs";
 
@@ -94,20 +96,54 @@ export async function bundleVerify({ flags, output, positionals }) {
       results.push({ item: "contextBundle", verified: false, reason: error.message });
     }
   }
-  for (const [index, entry] of (bundle.proofs ?? []).entries()) {
-    results.push({ item: `proof[${index}]`, verified: verifyMerkleInclusionProof(entry.proof ?? entry) });
-  }
+  // Verify the checkpoint first so every proof can be bound to its signed root.
+  let checkpointRoot = null;
+  let checkpointVerified = false;
   if (bundle.checkpoint) {
     const publicKey = flagString(flags, "platform-key", null);
-    if (publicKey) {
+    if (!publicKey) {
+      results.push({ item: "checkpoint", verified: false, reason: "no --platform-key provided; signature not checked" });
+    } else {
       try {
-        const ok = await verifyMerkleCheckpoint({ checkpoint: bundle.checkpoint, publicKey });
-        results.push({ item: "checkpoint", verified: ok });
+        checkpointVerified = (await verifyMerkleCheckpoint({ checkpoint: bundle.checkpoint, publicKey })) === true;
+        results.push({ item: "checkpoint", verified: checkpointVerified, reason: checkpointVerified ? undefined : "checkpoint signature did not verify" });
+        if (checkpointVerified) checkpointRoot = bundle.checkpoint.rootHash;
       } catch (error) {
         results.push({ item: "checkpoint", verified: false, reason: error.message });
       }
+    }
+  }
+  if (checkpointVerified && Array.isArray(bundle.events) && bundle.events.length > 0) {
+    try {
+      const leafHashes = bundle.events.map((event) => hashResearchEventLeaf(event.schema === "srp.event.v1" ? event : {
+        schema: "srp.event.v1",
+        event_id: event.eventId ?? event.event_id,
+        event_type: event.eventType ?? event.event_type,
+        payload: event.payload,
+        hash: event.hash,
+        signature: event.signature,
+        parents: event.parents ?? [],
+      }));
+      const reconstructed = buildMerkleTree(leafHashes).root;
+      const eventsMatch = reconstructed === checkpointRoot;
+      results.push({ item: "events", verified: eventsMatch, reason: eventsMatch ? undefined : "event leaves do not reconstruct the checkpoint root" });
+    } catch (error) {
+      results.push({ item: "events", verified: false, reason: error.message });
+    }
+  }
+  for (const [index, entry] of (bundle.proofs ?? []).entries()) {
+    const proof = entry.proof ?? entry;
+    if (!verifyMerkleInclusionProof(proof)) {
+      results.push({ item: `proof[${index}]`, verified: false, reason: "proof does not reconstruct its own root" });
+      continue;
+    }
+    if (bundle.checkpoint) {
+      // A proof only counts when its root is the verified checkpoint root; a
+      // self-consistent proof next to an unrelated checkpoint is a forgery.
+      const bound = checkpointVerified && proof.root === checkpointRoot;
+      results.push({ item: `proof[${index}]`, verified: bound, reason: bound ? undefined : checkpointVerified ? "proof root is not covered by the verified checkpoint" : "checkpoint did not verify; proof cannot be bound" });
     } else {
-      results.push({ item: "checkpoint", verified: false, reason: "no --platform-key provided; signature not checked" });
+      results.push({ item: `proof[${index}]`, verified: true, reason: "self-consistent only (no checkpoint to bind against)" });
     }
   }
   const allVerified = results.length > 0 && results.every((result) => result.verified);

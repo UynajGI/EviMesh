@@ -7,7 +7,7 @@
 ```bash
 sq config init --api-url https://api.evimesh.com
 sq auth login            # device 流程；或 sq auth login --token <api-token>
-sq identity generate     # 生成 Ed25519 签名身份
+sq identity generate     # 生成 Ed25519 签名身份（已登录时自动注册公钥到 /signing-keys）
 sq task list --status open --tag cpu-only --json
 sq task inspect task_...
 sq context pull task_... --mode blind      # 下载并本地校验 ContextBundle hash

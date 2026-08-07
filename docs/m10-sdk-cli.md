@@ -51,16 +51,30 @@ payload with the stored Ed25519 identity and attach the result as
 `signatureEnvelope` (the `srp.client-signature-envelope.v1` protocol object).
 The API verifies any supplied envelope fail-closed in
 `apps/api-edge/src/client-signature.mjs`: the envelope's `payload` must
-canonically equal the request body, `signing_bytes_hash` must match, and the
+canonically equal the exact bytes sent (minus the envelope itself, before any
+server-side defaults are applied), `signing_bytes_hash` must match, and the
 Ed25519 signature must verify against the actor's active registered signing
-key. A mismatched payload, unknown key, or bad signature rejects the write with
-a typed `CLIENT_SIGNATURE_*` error. Unsigned submissions remain accepted so
-the existing web flow keeps working; the CLI always signs.
+key. A mismatched payload, unknown key, or bad signature rejects the write
+with a typed `CLIENT_SIGNATURE_*` error. Unsigned submissions remain accepted
+so the existing web flow keeps working; the CLI always signs.
+
+Authentication accepts both Supabase JWTs and `evimesh_...` API tokens as
+Bearer credentials (`apps/api-edge/src/api-token-auth.mjs`); tokens are
+matched by SHA-256 hash and resolve directly to their actor, so device-login
+tokens work on every protected route. `sq identity generate` registers the
+generated public key via `POST /signing-keys` whenever a stored token exists,
+so signatures verify without a separate registration step. Verification
+findings without an explicit `findingId` derive one from the receipt
+(`<receiptId>_finding_<n>`) to stay globally unique.
 
 Revision-guarded writes (Project/Claim/Challenge) recheck `If-Match` against
 the revision read inside the write transaction, so a concurrent revision
 committed after the caller's pre-read fails with `412` instead of being
 applied on top of stale state. Frontier diffs are scoped to the path project.
+`sq bundle verify` verifies the checkpoint signature first and only accepts a
+proof whose root equals the verified checkpoint root (recomputing event
+leaves when the bundle carries events), so a self-consistent forged proof
+cannot ride along with an unrelated signed checkpoint.
 
 ## @evimesh/cli (`sq`)
 
