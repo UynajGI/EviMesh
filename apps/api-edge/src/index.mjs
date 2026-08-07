@@ -14,13 +14,36 @@ import { ApiTokenError } from '../../../packages/domain/src/api-token.mjs';
 import { getQuestion, listQuestions, QuestionQueryError } from './question-query.mjs';
 import { getClaim, getClaimDownstreamGraph, getClaimRevision, getClaimUpstreamGraph, listClaims, ClaimQueryError } from './claim-query.mjs';
 import { getProject, listProjects, ProjectQueryError } from './project-query.mjs';
-import { getLatestFrontier, listFrontierHistory, FrontierQueryError } from './frontier-query.mjs';
+import { getLatestFrontier, listFrontierHistory, diffFrontiers, FrontierQueryError } from './frontier-query.mjs';
 import { getTask, listTasks, TaskQueryError } from './task-query.mjs';
-import { createProject } from '../../../packages/domain/src/project-command.mjs';
+import { getArtifact, getArtifactRevision, listArtifacts, ArtifactQueryError } from './artifact-query.mjs';
+import { getEvidence, listEvidence, EvidenceQueryError } from './evidence-query.mjs';
+import { getRun, listRuns, RunQueryError } from './run-query.mjs';
+import { getChallenge, ChallengeQueryError } from './challenge-query.mjs';
+import { getAttempt, AttemptQueryError } from './attempt-query.mjs';
+import { getContribution, ContributionQueryError } from './contribution-query.mjs';
+import { listResearchEvents, ResearchEventQueryError } from './research-event-query.mjs';
+import { exportResearchEventRangeNdjson, ResearchEventExportError } from './research-event-export.mjs';
+import { getResearchEventInclusionProof, ResearchEventProofError } from './research-event-proof.mjs';
+import { getMerkleCheckpoint, MerkleCheckpointQueryError } from './merkle-checkpoint-query.mjs';
+import { getMergeProposal, MergeProposalQueryError } from './merge-proposal-query.mjs';
+import { getObjectProvenance, ObjectProvenanceQueryError } from './object-provenance-query.mjs';
+import { getVerificationReceipt, listClaimVerifications, VerificationQueryError } from './verification-query.mjs';
+import { prepareVerification, VerificationPrepareError } from './verification-prepare.mjs';
+import { revisionEtag } from './etag.mjs';
+import { semanticHash } from '../../../packages/protocol/src/hash.mjs';
+import { createProject, reviseProject } from '../../../packages/domain/src/project-command.mjs';
 import { ProjectCommandError } from '../../../packages/domain/src/project-command.mjs';
-import { createQuestion } from '../../../packages/domain/src/question-command.mjs';
+import { createQuestion, transitionQuestion } from '../../../packages/domain/src/question-command.mjs';
 import { QuestionCommandError } from '../../../packages/domain/src/question-command.mjs';
-import { acquireTaskLease, createAttempt, releaseTaskLease, TaskCommandError } from '../../../packages/domain/src/task-command.mjs';
+import { acquireTaskLease, createAttempt, createTask, createTraceEvent, releaseTaskLease, transitionAttempt, TaskCommandError } from '../../../packages/domain/src/task-command.mjs';
+import { createClaim, reviseClaim, transitionClaim, ClaimCommandError } from '../../../packages/domain/src/claim-command.mjs';
+import { createEvidence, linkEvidenceClaim, EvidenceCommandError } from '../../../packages/domain/src/evidence-command.mjs';
+import { createRun, RunCommandError } from '../../../packages/domain/src/run-command.mjs';
+import { createArtifact, ArtifactCommandError } from '../../../packages/domain/src/artifact-command.mjs';
+import { createChallenge, transitionChallenge, ChallengeCommandError } from '../../../packages/domain/src/challenge-command.mjs';
+import { submitVerification, VerificationSubmitError } from '../../../packages/domain/src/verification-submit-command.mjs';
+import { createSingleUploadPlan, UploadSessionError } from '../../../packages/artifact/src/upload-session.mjs';
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
 
@@ -32,8 +55,23 @@ function errorBody(code, message, requestId) {
   return { code, message, request_id: requestId };
 }
 
-export function createApp({ repository = null, projectEventFactory = null, questionEventFactory = null, questionRoleResolver = null, attemptEventFactory = null, attemptRoleResolver = null, leaseEventFactory = null, leaseRoleResolver = null, authenticate = authenticateSupabaseRequest } = {}) {
+export function createApp({ repository = null, projectEventFactory = null, questionEventFactory = null, questionRoleResolver = null, attemptEventFactory = null, attemptRoleResolver = null, leaseEventFactory = null, leaseRoleResolver = null, taskEventFactory = null, taskRoleResolver = null, claimEventFactory = null, claimRoleResolver = null, evidenceEventFactory = null, evidenceRoleResolver = null, runEventFactory = null, runRoleResolver = null, artifactEventFactory = null, artifactRoleResolver = null, challengeEventFactory = null, challengeRoleResolver = null, verificationEventFactory = null, verificationRoleResolver = null, uploadSigner = null, authenticate = authenticateSupabaseRequest } = {}) {
 const app = new Hono();
+
+function revisionEtagFor(objectId, revision) {
+  return revisionEtag({ objectId, revision: revision.revision, contentHash: semanticHash(revision) });
+}
+
+function knownFailure(error, context, fallback) {
+  if (error instanceof JwtVerificationError) return context.json(errorBody("unauthorized", "authentication required", context.get("requestId")), 401);
+  if (error instanceof SyntaxError) return context.json(errorBody("invalid_json", "request body must be valid JSON", context.get("requestId")), 400);
+  if (error instanceof ProjectAuthorizationError) return context.json(errorBody(error.code, error.message, context.get("requestId")), 403);
+  if (error instanceof Error && typeof error.status === "number" && typeof error.code === "string") {
+    return context.json(errorBody(error.code, error.message, context.get("requestId")), error.status);
+  }
+  if (typeof fallback === "number") return context.json(errorBody("command_failed", error.message, context.get("requestId")), fallback);
+  return null;
+}
 
 app.use("*", async (context, next) => {
   const requestId = requestIdFor(context.req.header("x-request-id"));
@@ -134,7 +172,9 @@ app.get('/claims', async (context) => {
 
 app.get('/claims/:claimId', async (context) => {
   try {
-    return context.json(await getClaim({ repository, claimId: context.req.param('claimId') }));
+    const claimId = context.req.param('claimId');
+    const detail = await getClaim({ repository, claimId });
+    return context.json({ ...detail, etag: revisionEtagFor(claimId, detail.currentRevision) });
   } catch (error) {
     if (error instanceof ClaimQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status);
     throw error;
@@ -175,8 +215,11 @@ app.get('/projects', async (context) => {
 });
 
 app.get('/projects/:projectId', async (context) => {
-  try { return context.json(await getProject({ repository, projectId: context.req.param('projectId') })); }
-  catch (error) { if (error instanceof ProjectQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status); throw error; }
+  try {
+    const projectId = context.req.param('projectId');
+    const detail = await getProject({ repository, projectId });
+    return context.json({ ...detail, etag: revisionEtagFor(projectId, detail.currentRevision) });
+  } catch (error) { if (error instanceof ProjectQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status); throw error; }
 });
 
 app.get('/projects/:projectId/frontier/latest', async (context) => {
@@ -272,7 +315,9 @@ app.get('/tasks', async (context) => {
 
 app.get('/tasks/:taskId', async (context) => {
   try {
-    return context.json(await getTask({ repository, taskId: context.req.param('taskId') }));
+    const taskId = context.req.param('taskId');
+    const detail = await getTask({ repository, taskId });
+    return context.json({ ...detail, etag: revisionEtagFor(taskId, detail.currentRevision) });
   } catch (error) {
     if (error instanceof TaskQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status);
     throw error;
@@ -387,6 +432,604 @@ app.get("/tasks/:taskId/context", async (context) => {
     if (error instanceof ContextQueryError) {
       return context.json(errorBody(error.code, error.message, context.get("requestId")), error.status);
     }
+    throw error;
+  }
+});
+
+function pagedLimit(context) {
+  const requestedLimit = context.req.query('limit');
+  return requestedLimit === undefined ? 20 : Number(requestedLimit);
+}
+
+app.get('/artifacts', async (context) => {
+  try {
+    return context.json(await listArtifacts({ repository, artifactType: context.req.query('artifactType') ?? null, createdBy: context.req.query('createdBy') ?? null, limit: pagedLimit(context), cursor: context.req.query('cursor') ?? null }));
+  } catch (error) {
+    if (error instanceof ArtifactQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status);
+    throw error;
+  }
+});
+
+app.get('/artifacts/:artifactId', async (context) => {
+  try { return context.json(await getArtifact({ repository, artifactId: context.req.param('artifactId') })); }
+  catch (error) { if (error instanceof ArtifactQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status); throw error; }
+});
+
+app.get('/artifacts/:artifactId/revisions/:revision', async (context) => {
+  try {
+    return context.json({ artifactRevision: await getArtifactRevision({ repository, artifactId: context.req.param('artifactId'), revision: Number(context.req.param('revision')) }) });
+  } catch (error) {
+    if (error instanceof ArtifactQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status);
+    throw error;
+  }
+});
+
+app.get('/evidence', async (context) => {
+  try {
+    return context.json(await listEvidence({ repository, evidenceType: context.req.query('evidenceType') ?? null, claimId: context.req.query('claimId') ?? null, limit: pagedLimit(context), cursor: context.req.query('cursor') ?? null }));
+  } catch (error) {
+    if (error instanceof EvidenceQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status);
+    throw error;
+  }
+});
+
+app.get('/evidence/:evidenceId', async (context) => {
+  try { return context.json(await getEvidence({ repository, evidenceId: context.req.param('evidenceId') })); }
+  catch (error) { if (error instanceof EvidenceQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status); throw error; }
+});
+
+app.get('/runs', async (context) => {
+  try {
+    return context.json(await listRuns({ repository, taskId: context.req.query('taskId') ?? null, actorId: context.req.query('actorId') ?? null, limit: pagedLimit(context), cursor: context.req.query('cursor') ?? null }));
+  } catch (error) {
+    if (error instanceof RunQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status);
+    throw error;
+  }
+});
+
+app.get('/runs/:runId', async (context) => {
+  try { return context.json(await getRun({ repository, runId: context.req.param('runId') })); }
+  catch (error) { if (error instanceof RunQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status); throw error; }
+});
+
+app.get('/challenges/:challengeId', async (context) => {
+  try {
+    const challengeId = context.req.param('challengeId');
+    const detail = await getChallenge({ repository, challengeId });
+    return context.json({ ...detail, etag: revisionEtagFor(challengeId, detail.currentRevision) });
+  } catch (error) { if (error instanceof ChallengeQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status); throw error; }
+});
+
+app.get('/attempts/:attemptId', async (context) => {
+  try { return context.json(await getAttempt({ repository, attemptId: context.req.param('attemptId') })); }
+  catch (error) { if (error instanceof AttemptQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status); throw error; }
+});
+
+app.get('/actors/:actorId', async (context) => {
+  try { return context.json(await getContribution({ repository, actorId: context.req.param('actorId') })); }
+  catch (error) { if (error instanceof ContributionQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status); throw error; }
+});
+
+app.get('/claims/:claimId/verifications', async (context) => {
+  try {
+    const items = await listClaimVerifications({ repository, claimId: context.req.param('claimId'), outcome: context.req.query('outcome') ?? null, contextMode: context.req.query('contextMode') ?? null, actorId: context.req.query('actorId') ?? null });
+    return context.json({ items });
+  } catch (error) {
+    if (error instanceof VerificationQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status);
+    throw error;
+  }
+});
+
+app.get('/verifications/:receiptId', async (context) => {
+  try { return context.json(await getVerificationReceipt({ repository, receiptId: context.req.param('receiptId') })); }
+  catch (error) { if (error instanceof VerificationQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status); throw error; }
+});
+
+app.get('/events', async (context) => {
+  try {
+    return context.json(await listResearchEvents({
+      repository,
+      objectType: context.req.query('objectType') ?? null,
+      objectId: context.req.query('objectId') ?? null,
+      actorId: context.req.query('actorId') ?? null,
+      eventType: context.req.query('eventType') ?? null,
+      createdAfter: context.req.query('createdAfter') ?? null,
+      createdBefore: context.req.query('createdBefore') ?? null,
+      limit: pagedLimit(context),
+      cursor: context.req.query('cursor') ?? null,
+    }));
+  } catch (error) {
+    if (error instanceof ResearchEventQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status);
+    throw error;
+  }
+});
+
+app.get('/events/export', async (context) => {
+  try {
+    const ndjson = await exportResearchEventRangeNdjson({ repository, firstEventId: context.req.query('firstEventId'), lastEventId: context.req.query('lastEventId') });
+    return context.body(ndjson, 200, { 'content-type': 'application/x-ndjson' });
+  } catch (error) {
+    if (error instanceof ResearchEventExportError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status);
+    throw error;
+  }
+});
+
+app.get('/events/:eventId/proof', async (context) => {
+  try { return context.json(await getResearchEventInclusionProof({ repository, eventId: context.req.param('eventId') })); }
+  catch (error) { if (error instanceof ResearchEventProofError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status); throw error; }
+});
+
+app.get('/checkpoints/:checkpointId', async (context) => {
+  try { return context.json(await getMerkleCheckpoint({ repository, checkpointId: context.req.param('checkpointId') })); }
+  catch (error) { if (error instanceof MerkleCheckpointQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status); throw error; }
+});
+
+app.get('/merge-proposals/:proposalId', async (context) => {
+  try { return context.json(await getMergeProposal({ repository, proposalId: context.req.param('proposalId') })); }
+  catch (error) { if (error instanceof MergeProposalQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status); throw error; }
+});
+
+app.get('/provenance/:objectType/:objectId', async (context) => {
+  try {
+    return context.json(await getObjectProvenance({ repository, objectType: context.req.param('objectType'), objectId: context.req.param('objectId'), objectRevision: Number(context.req.query('revision')) }));
+  } catch (error) {
+    if (error instanceof ObjectProvenanceQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status);
+    throw error;
+  }
+});
+
+app.get('/projects/:projectId/frontier/diff', async (context) => {
+  try {
+    return context.json(await diffFrontiers({ repository, fromSnapshotId: context.req.query('fromSnapshotId'), toSnapshotId: context.req.query('toSnapshotId') }));
+  } catch (error) {
+    if (error instanceof FrontierQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status);
+    throw error;
+  }
+});
+
+app.post('/projects/:projectId/revisions', async (context) => {
+  try {
+    if (typeof projectEventFactory !== 'function') return context.json(errorBody('PROJECT_REVISION_UNAVAILABLE', 'project revision is not configured', context.get('requestId')), 503);
+    const claims = await authenticate(context.req.raw, context.env);
+    const actorId = await resolveActorForSupabaseClaims({ repository, claims });
+    const projectId = context.req.param('projectId');
+    const current = await repository?.getCurrentProjectRevision?.(projectId);
+    if (!current) return context.json(errorBody('PROJECT_REVISION_NOT_FOUND', 'current project revision not found', context.get('requestId')), 404);
+    const body = await context.req.json();
+    return context.json(await reviseProject({
+      repository,
+      actorId,
+      projectId,
+      ifMatch: context.req.header('if-match') ?? null,
+      currentEtag: revisionEtagFor(projectId, current),
+      name: body.name,
+      summary: body.summary,
+      license: body.license,
+      maintainerIds: body.maintainerIds,
+      eventFactory: projectEventFactory,
+    }), 201);
+  } catch (error) {
+    const response = knownFailure(error, context);
+    if (response || error instanceof ProjectCommandError) return response ?? context.json(errorBody(error.code ?? 'project_revision_failed', error.message, context.get('requestId')), error.status ?? 400);
+    throw error;
+  }
+});
+
+app.post('/questions/:questionId/transitions', async (context) => {
+  try {
+    if (typeof questionEventFactory !== 'function' || typeof questionRoleResolver !== 'function') return context.json(errorBody('QUESTION_TRANSITION_UNAVAILABLE', 'question transition is not configured', context.get('requestId')), 503);
+    const claims = await authenticate(context.req.raw, context.env);
+    const actorId = await resolveActorForSupabaseClaims({ repository, claims });
+    const questionId = context.req.param('questionId');
+    const actorRole = await questionRoleResolver({ repository, actorId, questionId });
+    const { toState } = await context.req.json();
+    return context.json(await transitionQuestion({ repository, actorId, actorRole, questionId, toState, eventFactory: questionEventFactory }), 201);
+  } catch (error) {
+    const response = knownFailure(error, context);
+    if (response || error instanceof QuestionCommandError) return response ?? context.json(errorBody(error.code ?? 'question_transition_failed', error.message, context.get('requestId')), error.status ?? 400);
+    throw error;
+  }
+});
+
+app.post('/tasks', async (context) => {
+  try {
+    if (typeof taskEventFactory !== 'function' || typeof taskRoleResolver !== 'function') return context.json(errorBody('TASK_CREATION_UNAVAILABLE', 'task creation is not configured', context.get('requestId')), 503);
+    const claims = await authenticate(context.req.raw, context.env);
+    const actorId = await resolveActorForSupabaseClaims({ repository, claims });
+    const body = await context.req.json();
+    const actorRole = await taskRoleResolver({ repository, actorId, questionId: body.questionId ?? null, projectId: body.projectId ?? null });
+    return context.json(await createTask({
+      repository,
+      actorId,
+      actorRole,
+      taskId: body.taskId,
+      questionId: body.questionId ?? null,
+      title: body.title,
+      description: body.description,
+      inputs: body.inputs ?? [],
+      outputs: body.outputs,
+      acceptance: body.acceptance,
+      contextMode: body.contextMode,
+      eventFactory: taskEventFactory,
+    }), 201);
+  } catch (error) {
+    const response = knownFailure(error, context);
+    if (response || error instanceof TaskCommandError) return response ?? context.json(errorBody(error.code ?? 'task_creation_failed', error.message, context.get('requestId')), error.status ?? 400);
+    throw error;
+  }
+});
+
+app.post('/claims', async (context) => {
+  try {
+    if (typeof claimEventFactory !== 'function' || typeof claimRoleResolver !== 'function') return context.json(errorBody('CLAIM_CREATION_UNAVAILABLE', 'claim creation is not configured', context.get('requestId')), 503);
+    const claims = await authenticate(context.req.raw, context.env);
+    const actorId = await resolveActorForSupabaseClaims({ repository, claims });
+    const body = await context.req.json();
+    const actorRole = await claimRoleResolver({ repository, actorId, questionId: body.questionId ?? null, projectId: body.projectId ?? null });
+    return context.json(await createClaim({
+      repository,
+      actorId,
+      actorRole,
+      claimId: body.claimId,
+      questionId: body.questionId ?? null,
+      statement: body.statement,
+      scope: body.scope,
+      assumptions: body.assumptions ?? [],
+      falsification: body.falsification,
+      eventFactory: claimEventFactory,
+    }), 201);
+  } catch (error) {
+    const response = knownFailure(error, context);
+    if (response || error instanceof ClaimCommandError) return response ?? context.json(errorBody(error.code ?? 'claim_creation_failed', error.message, context.get('requestId')), error.status ?? 400);
+    throw error;
+  }
+});
+
+app.post('/claims/:claimId/revisions', async (context) => {
+  try {
+    if (typeof claimEventFactory !== 'function' || typeof claimRoleResolver !== 'function') return context.json(errorBody('CLAIM_REVISION_UNAVAILABLE', 'claim revision is not configured', context.get('requestId')), 503);
+    const claims = await authenticate(context.req.raw, context.env);
+    const actorId = await resolveActorForSupabaseClaims({ repository, claims });
+    const claimId = context.req.param('claimId');
+    const current = await repository?.getCurrentClaimRevision?.(claimId);
+    if (!current) return context.json(errorBody('CLAIM_REVISION_NOT_FOUND', 'current claim revision not found', context.get('requestId')), 404);
+    const actorRole = await claimRoleResolver({ repository, actorId, claimId });
+    const body = await context.req.json();
+    return context.json(await reviseClaim({
+      repository,
+      actorId,
+      actorRole,
+      claimId,
+      ifMatch: context.req.header('if-match') ?? null,
+      currentEtag: revisionEtagFor(claimId, current),
+      questionId: body.questionId,
+      statement: body.statement,
+      scope: body.scope,
+      assumptions: body.assumptions,
+      falsification: body.falsification,
+      eventFactory: claimEventFactory,
+    }), 201);
+  } catch (error) {
+    const response = knownFailure(error, context);
+    if (response || error instanceof ClaimCommandError) return response ?? context.json(errorBody(error.code ?? 'claim_revision_failed', error.message, context.get('requestId')), error.status ?? 400);
+    throw error;
+  }
+});
+
+app.post('/claims/:claimId/transitions', async (context) => {
+  try {
+    if (typeof claimEventFactory !== 'function' || typeof claimRoleResolver !== 'function') return context.json(errorBody('CLAIM_TRANSITION_UNAVAILABLE', 'claim transition is not configured', context.get('requestId')), 503);
+    const claims = await authenticate(context.req.raw, context.env);
+    const actorId = await resolveActorForSupabaseClaims({ repository, claims });
+    const claimId = context.req.param('claimId');
+    const current = await repository?.getCurrentClaimRevision?.(claimId);
+    if (!current) return context.json(errorBody('CLAIM_REVISION_NOT_FOUND', 'current claim revision not found', context.get('requestId')), 404);
+    const actorRole = await claimRoleResolver({ repository, actorId, claimId });
+    const { toState } = await context.req.json();
+    return context.json(await transitionClaim({
+      repository,
+      actorId,
+      actorRole,
+      claimId,
+      toState,
+      ifMatch: context.req.header('if-match') ?? null,
+      currentEtag: revisionEtagFor(claimId, current),
+      eventFactory: claimEventFactory,
+    }), 201);
+  } catch (error) {
+    const response = knownFailure(error, context);
+    if (response || error instanceof ClaimCommandError) return response ?? context.json(errorBody(error.code ?? 'claim_transition_failed', error.message, context.get('requestId')), error.status ?? 400);
+    throw error;
+  }
+});
+
+app.post('/attempts/:attemptId/transitions', async (context) => {
+  try {
+    if (typeof attemptEventFactory !== 'function' || typeof attemptRoleResolver !== 'function') return context.json(errorBody('ATTEMPT_TRANSITION_UNAVAILABLE', 'attempt transition is not configured', context.get('requestId')), 503);
+    const claims = await authenticate(context.req.raw, context.env);
+    const actorId = await resolveActorForSupabaseClaims({ repository, claims });
+    const attemptId = context.req.param('attemptId');
+    const actorRole = await attemptRoleResolver({ repository, actorId, attemptId });
+    const { toState } = await context.req.json();
+    return context.json(await transitionAttempt({ repository, actorId, actorRole, attemptId, toState, eventFactory: attemptEventFactory }), 201);
+  } catch (error) {
+    const response = knownFailure(error, context);
+    if (response || error instanceof TaskCommandError) return response ?? context.json(errorBody(error.code ?? 'attempt_transition_failed', error.message, context.get('requestId')), error.status ?? 400);
+    throw error;
+  }
+});
+
+app.post('/attempts/:attemptId/trace', async (context) => {
+  try {
+    if (typeof attemptEventFactory !== 'function' || typeof attemptRoleResolver !== 'function') return context.json(errorBody('ATTEMPT_TRACE_UNAVAILABLE', 'attempt trace is not configured', context.get('requestId')), 503);
+    const claims = await authenticate(context.req.raw, context.env);
+    const actorId = await resolveActorForSupabaseClaims({ repository, claims });
+    const attemptId = context.req.param('attemptId');
+    const actorRole = await attemptRoleResolver({ repository, actorId, attemptId });
+    const body = await context.req.json();
+    return context.json(await createTraceEvent({
+      repository,
+      actorId,
+      actorRole,
+      eventId: body.eventId,
+      attemptId,
+      eventType: body.eventType,
+      payload: body.payload,
+      hash: body.hash,
+      signature: body.signature,
+      parents: body.parents ?? [],
+      eventFactory: attemptEventFactory,
+    }), 201);
+  } catch (error) {
+    const response = knownFailure(error, context);
+    if (response || error instanceof TaskCommandError) return response ?? context.json(errorBody(error.code ?? 'attempt_trace_failed', error.message, context.get('requestId')), error.status ?? 400);
+    throw error;
+  }
+});
+
+app.post('/evidence', async (context) => {
+  try {
+    if (typeof evidenceEventFactory !== 'function' || typeof evidenceRoleResolver !== 'function') return context.json(errorBody('EVIDENCE_CREATION_UNAVAILABLE', 'evidence creation is not configured', context.get('requestId')), 503);
+    const claims = await authenticate(context.req.raw, context.env);
+    const actorId = await resolveActorForSupabaseClaims({ repository, claims });
+    const body = await context.req.json();
+    const actorRole = await evidenceRoleResolver({ repository, actorId, artifactId: body.artifactId ?? null });
+    return context.json(await createEvidence({
+      repository,
+      actorId,
+      actorRole,
+      evidenceId: body.evidenceId,
+      evidenceType: body.evidenceType,
+      artifactId: body.artifactId,
+      artifactRevision: body.artifactRevision,
+      runId: body.runId ?? null,
+      links: body.links ?? [],
+      eventFactory: evidenceEventFactory,
+    }), 201);
+  } catch (error) {
+    const response = knownFailure(error, context);
+    if (response || error instanceof EvidenceCommandError) return response ?? context.json(errorBody(error.code ?? 'evidence_creation_failed', error.message, context.get('requestId')), error.status ?? 400);
+    throw error;
+  }
+});
+
+app.post('/evidence/:evidenceId/links', async (context) => {
+  try {
+    if (typeof evidenceEventFactory !== 'function' || typeof evidenceRoleResolver !== 'function') return context.json(errorBody('EVIDENCE_LINK_UNAVAILABLE', 'evidence linking is not configured', context.get('requestId')), 503);
+    const claims = await authenticate(context.req.raw, context.env);
+    const actorId = await resolveActorForSupabaseClaims({ repository, claims });
+    const evidenceId = context.req.param('evidenceId');
+    const actorRole = await evidenceRoleResolver({ repository, actorId, evidenceId });
+    const body = await context.req.json();
+    return context.json(await linkEvidenceClaim({
+      repository,
+      actorId,
+      actorRole,
+      evidenceId,
+      claimId: body.claimId,
+      claimRevision: body.claimRevision,
+      relationType: body.relationType,
+      eventFactory: evidenceEventFactory,
+    }), 201);
+  } catch (error) {
+    const response = knownFailure(error, context);
+    if (response || error instanceof EvidenceCommandError) return response ?? context.json(errorBody(error.code ?? 'evidence_link_failed', error.message, context.get('requestId')), error.status ?? 400);
+    throw error;
+  }
+});
+
+app.post('/runs', async (context) => {
+  try {
+    if (typeof runEventFactory !== 'function' || typeof runRoleResolver !== 'function') return context.json(errorBody('RUN_CREATION_UNAVAILABLE', 'run creation is not configured', context.get('requestId')), 503);
+    const claims = await authenticate(context.req.raw, context.env);
+    const actorId = await resolveActorForSupabaseClaims({ repository, claims });
+    const body = await context.req.json();
+    const actorRole = await runRoleResolver({ repository, actorId, taskId: body.taskId ?? null });
+    return context.json(await createRun({
+      repository,
+      actorId,
+      actorRole,
+      runId: body.runId,
+      taskId: body.taskId,
+      contextBundleId: body.contextBundleId,
+      sourceCode: body.sourceCode,
+      container: body.container,
+      command: body.command,
+      args: body.args ?? [],
+      environment: body.environment,
+      hardware: body.hardware,
+      randomSeed: body.randomSeed,
+      startedAt: body.startedAt === undefined ? undefined : new Date(body.startedAt),
+      endedAt: body.endedAt === undefined ? undefined : new Date(body.endedAt),
+      networkAccess: body.networkAccess ?? false,
+      exitCode: body.exitCode,
+      signature: body.signature,
+      inputs: body.inputs ?? [],
+      outputs: body.outputs ?? [],
+      eventFactory: runEventFactory,
+    }), 201);
+  } catch (error) {
+    const response = knownFailure(error, context);
+    if (response || error instanceof RunCommandError) return response ?? context.json(errorBody(error.code ?? 'run_creation_failed', error.message, context.get('requestId')), error.status ?? 400);
+    throw error;
+  }
+});
+
+app.post('/artifacts/upload-plan', async (context) => {
+  try {
+    if (typeof uploadSigner !== 'function') return context.json(errorBody('UPLOAD_UNAVAILABLE', 'artifact upload is not configured', context.get('requestId')), 503);
+    const body = await context.req.json();
+    const plan = await createSingleUploadPlan({
+      artifactId: body.artifactId,
+      revision: Number(body.revision),
+      rawHash: body.rawHash,
+      sizeBytes: body.sizeBytes,
+      mediaType: body.mediaType,
+      signer: uploadSigner,
+    });
+    return context.json(plan, 201);
+  } catch (error) {
+    const response = knownFailure(error, context);
+    if (response || error instanceof UploadSessionError) return response ?? context.json(errorBody(error.code ?? 'upload_plan_failed', error.message, context.get('requestId')), error.status ?? 400);
+    throw error;
+  }
+});
+
+app.post('/artifacts', async (context) => {
+  try {
+    if (typeof artifactEventFactory !== 'function' || typeof artifactRoleResolver !== 'function') return context.json(errorBody('ARTIFACT_CREATION_UNAVAILABLE', 'artifact creation is not configured', context.get('requestId')), 503);
+    const claims = await authenticate(context.req.raw, context.env);
+    const actorId = await resolveActorForSupabaseClaims({ repository, claims });
+    const body = await context.req.json();
+    const actorRole = await artifactRoleResolver({ repository, actorId });
+    return context.json(await createArtifact({
+      repository,
+      actorId,
+      actorRole,
+      artifactId: body.artifactId,
+      artifactType: body.artifactType,
+      rawHash: body.rawHash,
+      semanticHash: body.semanticHash ?? null,
+      sizeBytes: body.sizeBytes,
+      mediaType: body.mediaType,
+      license: body.license,
+      description: body.description ?? null,
+      locationId: body.locationId,
+      location: body.location,
+      eventFactory: artifactEventFactory,
+    }), 201);
+  } catch (error) {
+    const response = knownFailure(error, context);
+    if (response || error instanceof ArtifactCommandError) return response ?? context.json(errorBody(error.code ?? 'artifact_creation_failed', error.message, context.get('requestId')), error.status ?? 400);
+    throw error;
+  }
+});
+
+app.post('/verifications/prepare', async (context) => {
+  try {
+    const claims = await authenticate(context.req.raw, context.env);
+    const actorId = await resolveActorForSupabaseClaims({ repository, claims });
+    const body = await context.req.json();
+    return context.json(await prepareVerification({
+      repository,
+      actorId,
+      claimId: body.claimId,
+      claimRevision: body.claimRevision,
+      contractId: body.contractId,
+      contractRevision: body.contractRevision,
+      nonce: body.nonce,
+    }));
+  } catch (error) {
+    const response = knownFailure(error, context);
+    if (response || error instanceof VerificationPrepareError) return response ?? context.json(errorBody(error.code ?? 'verification_prepare_failed', error.message, context.get('requestId')), error.status ?? 400);
+    throw error;
+  }
+});
+
+app.post('/verifications', async (context) => {
+  try {
+    if (typeof verificationEventFactory !== 'function' || typeof verificationRoleResolver !== 'function') return context.json(errorBody('VERIFICATION_SUBMIT_UNAVAILABLE', 'verification submission is not configured', context.get('requestId')), 503);
+    const claims = await authenticate(context.req.raw, context.env);
+    const actorId = await resolveActorForSupabaseClaims({ repository, claims });
+    const body = await context.req.json();
+    const actorRole = await verificationRoleResolver({ repository, actorId, claimId: body.claimId ?? null });
+    return context.json(await submitVerification({
+      repository,
+      actorId,
+      actorRole,
+      receiptId: body.receiptId,
+      runId: body.runId,
+      claimId: body.claimId,
+      claimRevision: body.claimRevision,
+      contractId: body.contractId,
+      contractRevision: body.contractRevision,
+      outcome: body.outcome,
+      verificationTypes: body.verificationTypes,
+      contextMode: body.contextMode,
+      sawExpectedOutputs: body.sawExpectedOutputs,
+      implementationRelation: body.implementationRelation,
+      dataRelation: body.dataRelation,
+      modelFamily: body.modelFamily,
+      findings: body.findings ?? [],
+      contributionStatementId: body.contributionStatementId,
+      eventFactory: verificationEventFactory,
+    }), 201);
+  } catch (error) {
+    const response = knownFailure(error, context);
+    if (response || error instanceof VerificationSubmitError) return response ?? context.json(errorBody(error.code ?? 'verification_submit_failed', error.message, context.get('requestId')), error.status ?? 400);
+    throw error;
+  }
+});
+
+app.post('/challenges', async (context) => {
+  try {
+    if (typeof challengeEventFactory !== 'function' || typeof challengeRoleResolver !== 'function') return context.json(errorBody('CHALLENGE_CREATION_UNAVAILABLE', 'challenge creation is not configured', context.get('requestId')), 503);
+    const claims = await authenticate(context.req.raw, context.env);
+    const actorId = await resolveActorForSupabaseClaims({ repository, claims });
+    const body = await context.req.json();
+    const actorRole = await challengeRoleResolver({ repository, actorId, targetClaimId: body.targetClaimId ?? null });
+    return context.json(await createChallenge({
+      repository,
+      actorId,
+      actorRole,
+      challengeId: body.challengeId,
+      targetClaimId: body.targetClaimId,
+      targetClaimRevision: body.targetClaimRevision,
+      reason: body.reason,
+      impact: body.impact,
+      proposedResolution: body.proposedResolution ?? null,
+      eventFactory: challengeEventFactory,
+    }), 201);
+  } catch (error) {
+    const response = knownFailure(error, context);
+    if (response || error instanceof ChallengeCommandError) return response ?? context.json(errorBody(error.code ?? 'challenge_creation_failed', error.message, context.get('requestId')), error.status ?? 400);
+    throw error;
+  }
+});
+
+app.post('/challenges/:challengeId/transitions', async (context) => {
+  try {
+    if (typeof challengeEventFactory !== 'function' || typeof challengeRoleResolver !== 'function') return context.json(errorBody('CHALLENGE_TRANSITION_UNAVAILABLE', 'challenge transition is not configured', context.get('requestId')), 503);
+    const claims = await authenticate(context.req.raw, context.env);
+    const actorId = await resolveActorForSupabaseClaims({ repository, claims });
+    const challengeId = context.req.param('challengeId');
+    const current = await repository?.getCurrentChallengeRevision?.(challengeId);
+    if (!current) return context.json(errorBody('CHALLENGE_REVISION_NOT_FOUND', 'current challenge revision not found', context.get('requestId')), 404);
+    const actorRole = await challengeRoleResolver({ repository, actorId, challengeId });
+    const { toState } = await context.req.json();
+    return context.json(await transitionChallenge({
+      repository,
+      actorId,
+      actorRole,
+      challengeId,
+      toState,
+      ifMatch: context.req.header('if-match') ?? null,
+      currentEtag: revisionEtagFor(challengeId, current),
+      eventFactory: challengeEventFactory,
+    }), 201);
+  } catch (error) {
+    const response = knownFailure(error, context);
+    if (response || error instanceof ChallengeCommandError) return response ?? context.json(errorBody(error.code ?? 'challenge_transition_failed', error.message, context.get('requestId')), error.status ?? 400);
     throw error;
   }
 });

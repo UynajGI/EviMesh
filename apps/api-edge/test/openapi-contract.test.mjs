@@ -10,7 +10,61 @@ test("publishes the current API route contract", () => {
   assert.equal(document.openapi, "3.1.0");
   assert.equal(document.info.title, "EviMesh API Edge");
   assert.equal(document.info.version, "0.3.0");
-  assert.deepEqual(Object.keys(document.paths).sort(), ["/auth/me", "/health", "/platform/keys", "/tasks/{taskId}/context"]);
+  assert.deepEqual(Object.keys(document.paths).sort(), [
+    "/actors/{actorId}",
+    "/api-tokens",
+    "/api-tokens/{tokenId}",
+    "/artifacts",
+    "/artifacts/upload-plan",
+    "/artifacts/{artifactId}",
+    "/artifacts/{artifactId}/revisions/{revision}",
+    "/attempts/{attemptId}",
+    "/attempts/{attemptId}/trace",
+    "/attempts/{attemptId}/transitions",
+    "/auth/me",
+    "/challenges",
+    "/challenges/{challengeId}",
+    "/challenges/{challengeId}/transitions",
+    "/checkpoints/{checkpointId}",
+    "/claims",
+    "/claims/{claimId}",
+    "/claims/{claimId}/graph",
+    "/claims/{claimId}/revisions",
+    "/claims/{claimId}/revisions/{revision}",
+    "/claims/{claimId}/transitions",
+    "/claims/{claimId}/verifications",
+    "/events",
+    "/events/export",
+    "/events/{eventId}/proof",
+    "/evidence",
+    "/evidence/{evidenceId}",
+    "/evidence/{evidenceId}/links",
+    "/health",
+    "/merge-proposals/{proposalId}",
+    "/platform/keys",
+    "/profile",
+    "/projects",
+    "/projects/{projectId}",
+    "/projects/{projectId}/frontier/diff",
+    "/projects/{projectId}/frontier/history",
+    "/projects/{projectId}/frontier/latest",
+    "/projects/{projectId}/revisions",
+    "/provenance/{objectType}/{objectId}",
+    "/questions",
+    "/questions/{questionId}",
+    "/questions/{questionId}/transitions",
+    "/runs",
+    "/runs/{runId}",
+    "/signing-keys",
+    "/tasks",
+    "/tasks/{taskId}",
+    "/tasks/{taskId}/attempts",
+    "/tasks/{taskId}/context",
+    "/tasks/{taskId}/lease",
+    "/verifications",
+    "/verifications/prepare",
+    "/verifications/{receiptId}",
+  ]);
   assert.deepEqual(Object.keys(document.paths["/health"]).sort(), ["get"]);
   assert.deepEqual(Object.keys(document.paths["/auth/me"]).sort(), ["get"]);
   assert.deepEqual(Object.keys(document.paths["/tasks/{taskId}/context"]).sort(), ["get"]);
@@ -33,4 +87,24 @@ test("keeps the stable response shapes in the contract", () => {
   assert.deepEqual(document.components.schemas.ErrorResponse.required, ["code", "message", "request_id"]);
   assert.equal(document.components.schemas.HealthResponse.properties.service.const, "evimesh-api-edge");
   assert.equal(document.components.schemas.HealthResponse.properties.status.const, "ok");
+});
+
+test("gives every operation a stable id and guards all write operations with bearer auth", () => {
+  // The browser upload panel requests signed upload plans before sign-in exists on that page;
+  // plans are bounded by expiry and content-addressed keys, so this stays the one open write.
+  const publicWrites = new Set(["post /artifacts/upload-plan"]);
+  const operationIds = new Set();
+  for (const [path, operations] of Object.entries(document.paths)) {
+    for (const [method, operation] of Object.entries(operations)) {
+      if (method === "parameters") continue;
+      assert.equal(typeof operation.operationId, "string", `${method.toUpperCase()} ${path} needs an operationId`);
+      assert.ok(operation.operationId.length > 0, `${method.toUpperCase()} ${path} needs a non-empty operationId`);
+      assert.ok(!operationIds.has(operation.operationId), `duplicate operationId: ${operation.operationId}`);
+      operationIds.add(operation.operationId);
+      if (["post", "patch", "put", "delete"].includes(method) && !publicWrites.has(`${method} ${path}`)) {
+        assert.deepEqual(operation.security, [{ bearerAuth: [] }], `${method.toUpperCase()} ${path} must require bearer auth`);
+      }
+    }
+  }
+  assert.ok(operationIds.size >= 50);
 });
