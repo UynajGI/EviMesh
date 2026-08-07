@@ -2,8 +2,12 @@
   "name": "@evimesh/cli",
   "private": true,
   "version": "0.3.0",
+  "description": "sq — EviMesh research network CLI",
+  "bin": {
+    "sq": "bin/sq.mjs"
+  },
   "scripts": {
     "lint": "node ../../scripts/check-package.mjs",
-    "test": "node --test"
+    "test": "node --test test/*.test.mjs"
   }
 }

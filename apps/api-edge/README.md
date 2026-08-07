@@ -9,10 +9,30 @@ the immutable ContextBundle metadata for exactly that Task and mode. It returns
 the derived content hash and storage URI but does not construct a fresh context
 from current projections.
 
-Routes currently include:
+Routes cover the full research surface; `openapi.json` lists every path and
+operation ID. The grouped summary:
 
 - `GET /health` — service status and environment marker.
-- `GET /auth/me` — verifies an ES256 Supabase JWT and returns subject/email.
+- `GET /platform/keys` — platform verification keyring.
+- `GET /auth/me` — returns subject/email for the authenticated caller.
+  Bearer credentials accept either a Supabase JWT or an `evimesh_...` API
+  token (matched by SHA-256 hash); token claims resolve directly to their actor.
+- Device authorization — `POST /auth/device`, `POST /auth/device/approve`, and
+  `POST /auth/device/token` implement the RFC-8628 grant the CLI uses; the
+  exchange issues only the limited `profile:read`/`project:read` scopes.
+- Profile, signing keys, API tokens — `/profile`, `/signing-keys`, `/api-tokens`.
+- Projects — list/detail/revise plus latest Frontier, history, and diff.
+- Questions — list/detail/create/transition.
+- Tasks — list/detail/create, Context endpoint, Attempts, and leases.
+- Attempts — detail, transition, and public trace events.
+- Claims — list/detail/create/revise/transition, graph, fixed revisions, and verification listing.
+- Artifacts — list/detail/fixed revision, creation, and signed upload plans.
+- Evidence — list/detail/create and ClaimRevision links.
+- Runs — list/detail/create.
+- Verifications — prepare signing bytes, submit receipts, and receipt detail.
+- Challenges — create/detail/transition.
+- Events — listing, NDJSON export, inclusion proofs, and Merkle checkpoints.
+- Contributions and provenance — `/actors/{actorId}`, `/provenance/{objectType}/{objectId}`, merge proposals.
 
 The current public route contract is versioned in `openapi.json`; the contract
 snapshot test fails when these route or response-shape guarantees drift.
@@ -30,6 +50,10 @@ The API foundation also provides stable cursor pagination by createdAt and id,
 revision ETags for If-Match checks, and an `Idempotency-Key` middleware. The
 middleware replays the original HTTP response only when the same key is used
 with the same request payload; reuse with a different payload returns `409`.
+If-Match is rechecked against the revision read inside the write transaction,
+and Claim/Run/Challenge/Verification writes verify any supplied
+`signatureEnvelope` fail-closed against the actor's active signing key
+(`src/client-signature.mjs`).
 Project query services expose stable paginated lists and detail results that
 include the current immutable revision.
 Question queries add project/state filters and resolve the referenced Contract

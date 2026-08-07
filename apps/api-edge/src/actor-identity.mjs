@@ -4,6 +4,10 @@ export class ActorIdentityError extends Error {
 
 /** Resolve an authenticated Supabase subject through the stable identity binding. */
 export async function resolveActorForSupabaseClaims({ repository, claims } = {}) {
+  // API-token claims already carry the resolved actor; no identity lookup needed.
+  if (claims?.kind === 'api_token' && typeof claims.actorId === 'string' && claims.actorId.trim()) {
+    return claims.actorId.trim();
+  }
   if (!repository || typeof repository.findIdentity !== 'function') throw new ActorIdentityError('repository findIdentity is required', 'ACTOR_IDENTITY_REPOSITORY_INVALID', 500);
   const subject = claims?.sub;
   if (typeof subject !== 'string' || !subject.trim()) throw new ActorIdentityError('authenticated subject is required');

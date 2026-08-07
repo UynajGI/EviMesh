@@ -5,7 +5,7 @@
   "context_bundle_id": "context_01",
   "input_artifact_ids": ["evidence_01"],
   "source_code": "git:0123456789abcdef",
-  "container": "ghcr.io/evimesh/research@sha256:abc",
+  "container": "ghcr.io/evimesh/research@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
   "command": "python",
   "args": ["run.py"],
   "environment": { "python": "3.12.4" },

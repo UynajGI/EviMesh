@@ -91,6 +91,7 @@ export async function reviseClaim({
   claimId,
   ifMatch,
   currentEtag,
+  etagForRevision = null,
   questionId,
   statement,
   scope,
@@ -111,7 +112,8 @@ export async function reviseClaim({
   return repository.withTransaction(async (transaction) => {
     const current = await transaction.getCurrentClaimRevision(claimId);
     if (!current) throw new ClaimCommandError("current claim revision not found", "CLAIM_REVISION_NOT_FOUND", 404);
-    assertIfMatch(ifMatch, currentEtag);
+    // Recheck If-Match against the transactional read to close the pre-read race.
+    assertIfMatch(ifMatch, typeof etagForRevision === "function" ? etagForRevision(current) : currentEtag);
 
     const nextQuestionId = questionId === undefined ? (current.questionId ?? null) : questionId === null ? null : requiredText(questionId, "question id");
     const next = {
@@ -151,6 +153,7 @@ export async function transitionClaim({
   toState,
   ifMatch,
   currentEtag,
+  etagForRevision = null,
   eventFactory,
 } = {}) {
   if (!repository || typeof repository.withTransaction !== "function") throw new ClaimCommandError("repository withTransaction is required");
@@ -166,7 +169,7 @@ export async function transitionClaim({
   return repository.withTransaction(async (transaction) => {
     const current = await transaction.getCurrentClaimRevision(claimId);
     if (!current) throw new ClaimCommandError("current claim revision not found", "CLAIM_REVISION_NOT_FOUND", 404);
-    assertIfMatch(ifMatch, currentEtag);
+    assertIfMatch(ifMatch, typeof etagForRevision === "function" ? etagForRevision(current) : currentEtag);
     try {
       assertClaimTransition(current.state, toState);
     } catch (error) {

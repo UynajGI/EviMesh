@@ -51,12 +51,15 @@ function memberMap(members) {
 }
 
 /** Compare two immutable Frontier snapshots by Claim membership and status. */
-export async function diffFrontiers({ repository, fromSnapshotId, toSnapshotId } = {}) {
+export async function diffFrontiers({ repository, projectId = null, fromSnapshotId, toSnapshotId } = {}) {
   const methods = ['getFrontierSnapshot', 'listFrontierMembers'];
   if (!repository || methods.some((method) => typeof repository[method] !== 'function')) throw new FrontierQueryError('repository frontier diff methods are required');
   fromSnapshotId = snapshotId(fromSnapshotId, 'from snapshot id'); toSnapshotId = snapshotId(toSnapshotId, 'to snapshot id');
   const [fromSnapshot, toSnapshot, fromMembers, toMembers] = await Promise.all([repository.getFrontierSnapshot(fromSnapshotId), repository.getFrontierSnapshot(toSnapshotId), repository.listFrontierMembers(fromSnapshotId), repository.listFrontierMembers(toSnapshotId)]);
   if (!fromSnapshot || !toSnapshot) throw new FrontierQueryError('frontier snapshot not found', 'FRONTIER_SNAPSHOT_NOT_FOUND', 404);
+  if (projectId !== null && (fromSnapshot.projectId !== projectId || toSnapshot.projectId !== projectId)) {
+    throw new FrontierQueryError('frontier snapshot not found for this project', 'FRONTIER_SNAPSHOT_NOT_FOUND', 404);
+  }
   if (fromSnapshot.projectId !== toSnapshot.projectId) throw new FrontierQueryError('Frontier snapshots must belong to one project', 'FRONTIER_PROJECT_MISMATCH', 409);
   const from = memberMap(fromMembers); const to = memberMap(toMembers);
   const added = [...to.keys()].filter((claimId) => !from.has(claimId)).sort().map((claimId) => to.get(claimId));
