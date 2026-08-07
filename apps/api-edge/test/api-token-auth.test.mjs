@@ -54,6 +54,29 @@ test("protected routes accept API tokens end to end", async () => {
   assert.equal((await me.json()).subject, "actor-1");
 });
 
+test("signing-key registration works with API tokens", async () => {
+  const { token, records } = await issueToken();
+  const keys = [];
+  const repository = {
+    ...repositoryOver(records),
+    findActiveSigningKey: async () => keys.find((key) => key.actorId === "actor-1") ?? null,
+    insertSigningKey: async (key) => { keys.push(key); return key; },
+    withTransaction: async (callback) => callback({
+      findActiveSigningKey: async () => keys.find((key) => key.actorId === "actor-1") ?? null,
+      insertSigningKey: async (key) => { keys.push(key); return key; },
+    }),
+  };
+  const app = createApp({ repository });
+  const response = await app.fetch(new Request("https://api.example.test/signing-keys", {
+    method: "POST",
+    headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+    body: JSON.stringify({ keyId: "key-1", publicKey: "pubkey-bytes" }),
+  }), {});
+  assert.equal(response.status, 201, await response.clone().text());
+  assert.equal(keys[0].actorId, "actor-1");
+  assert.equal(keys[0].keyId, "key-1");
+});
+
 test("device-login tokens authenticate subsequent API calls", async () => {
   const records = new Map();
   const repository = {

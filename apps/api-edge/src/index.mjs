@@ -448,7 +448,7 @@ app.delete('/tasks/:taskId/lease', async (context) => {
 
 app.get('/profile', async (context) => {
   try {
-    const claims = await authenticateSupabaseRequest(context.req.raw, context.env);
+    const claims = await authenticateRequest(context.req.raw, context.env);
     const actorId = await resolveActorForSupabaseClaims({ repository, claims });
     return context.json(await getOwnProfile({ repository, actorId }));
   } catch (error) {
@@ -460,7 +460,7 @@ app.get('/profile', async (context) => {
 
 app.patch('/profile', async (context) => {
   try {
-    const claims = await authenticateSupabaseRequest(context.req.raw, context.env);
+    const claims = await authenticateRequest(context.req.raw, context.env);
     const actorId = await resolveActorForSupabaseClaims({ repository, claims });
     const patch = await context.req.json();
     return context.json(await patchOwnProfile({ repository, actorId, patch }));
@@ -473,7 +473,7 @@ app.patch('/profile', async (context) => {
 
 app.post('/signing-keys', async (context) => {
   try {
-    const claims = await authenticateSupabaseRequest(context.req.raw, context.env);
+    const claims = await authenticateRequest(context.req.raw, context.env);
     const actorId = await resolveActorForSupabaseClaims({ repository, claims });
     const { keyId, publicKey } = await context.req.json();
     return context.json(await registerOwnSigningKey({ repository, actorId, keyId, publicKey }), 201);
@@ -484,7 +484,7 @@ app.post('/signing-keys', async (context) => {
   }
 });
 
-async function actorFor(context) { return resolveActorForSupabaseClaims({ repository, claims: await authenticateSupabaseRequest(context.req.raw, context.env) }); }
+async function actorFor(context) { return resolveActorForSupabaseClaims({ repository, claims: await authenticateRequest(context.req.raw, context.env) }); }
 function tokenFailure(error, context) { const status = error instanceof JwtVerificationError ? 401 : error instanceof ActorIdentityError ? error.status : error instanceof ApiTokenError ? 400 : error.status; return status ? context.json(errorBody(error.code ?? 'api_token_unavailable', error.message, context.get('requestId')), status) : null; }
 app.get('/api-tokens', async (context) => { try { return context.json(await listOwnTokens({ repository, actorId: await actorFor(context) })); } catch (error) { const response = tokenFailure(error, context); if (response) return response; throw error; } });
 app.post('/api-tokens', async (context) => { try { const { scopes = [], expiresAt = null } = await context.req.json(); return context.json(await createOwnToken({ repository, actorId: await actorFor(context), scopes, expiresAt }), 201); } catch (error) { const response = tokenFailure(error, context); if (response) return response; throw error; } });
