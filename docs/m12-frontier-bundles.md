@@ -8,16 +8,22 @@
 ## Frontier Bundle（M12-01..14）
 
 - **目录规范与清单**（`spec.mjs`/`manifest.mjs`）：bundle 是内容寻址目录，
-  `manifest.json` 为每个文件记录 `sha256`/`sizeBytes`/`role`。
+  `manifest.json` 为每个文件记录 `sha256`/`sizeBytes`/`role`；另有
+  `prerequisites.json` 收录空实例导入所需的引用行（project/project revision、
+  被引用 actors、Evidence 背后的 artifacts/artifact revisions、Receipt 引用的
+  verification contracts/contract revisions/runs）。
 - **导出器**（`exporter.mjs`）：从一个已发布 FrontierSnapshot 导出固定 Claim
-  revision、引用 Evidence、依赖 VerificationReceipt、贡献图、Event NDJSON、
+  revision、引用 Evidence（含对每个成员的**全部** claim 链接及其
+  relationType/createdBy）、依赖 VerificationReceipt、贡献图、Event NDJSON、
   Merkle checkpoint 与 inclusion proof、checksums.txt、report.md，并可产出
   ZIP（`zip.mjs`，stored 格式自实现）。
-- **离线验证**（`verify.mjs`）：断网校验 hash/清单/checksums，并强制
-  proof 根等于已验证 checkpoint 根（防"自洽但无关"的伪造 proof）。
+- **离线验证**（`verify.mjs`，async）：断网校验 hash/清单/checksums；强制
+  proof 根等于已验证 checkpoint 根、proof 叶哈希等于导出 event 的叶哈希、
+  且每个 frontier 成员都有对应 claim 文档（防"自洽但无关"的伪造）。
 - **导入**（`importer.mjs`）：`precheckBundleImport` 不写库输出冲突报告；
-  `importFrontierBundle` 预检通过后事务写入。DR 演练（M12-26）证明
-  "导出 → 空实例导入 → 再导出" 字节级一致。
+  `importFrontierBundle` 预检通过后按拓扑顺序先写入 prerequisites，再写入
+  claims/evidence/receipts/贡献/事件/checkpoint/frontier。DR 演练（M12-26）
+  证明 "导出 → 空实例导入 → 再导出" 一致且 prerequisites 可往返。
 
 ## 公共镜像（M12-15..21）
 
@@ -26,8 +32,11 @@
 - **Release 客户端**（`github-release.mjs`）：REST API 创建 Release、上传 asset；
   token 只发往 api.github.com / uploads.github.com。
 - **Worker 任务**（`apps/worker/src/mirror-release-worker.mjs`）：从 outbox 事件
-  解析已发布 Frontier → 导出 ZIP → 镜像；成功 ack，失败按指数退避重排
-  （`retryOutboxJob`），超限进入 dead-letter（M12-20）。
+  解析已发布 Frontier → 导出 ZIP → 镜像；成功 ack，失败（含事件/快照解析失败）
+  按指数退避重排（`retryOutboxJob`），超限进入 dead-letter（M12-20）。
+  `mirror-queue.mjs` 跑一次 outbox pass（认领到期任务、镜像
+  `frontier.published`、其余重新入队），`index.mjs` 的 `createMirrorWorker`
+  提供 scheduled/queue 入口并从 wrangler 变量构造镜像客户端（M12-20 wiring）。
 - **配置**（M12-16）：`GITHUB_MIRROR_OWNER`/`GITHUB_MIRROR_REPO` 为 wrangler
   vars，`GITHUB_MIRROR_TOKEN` 为 wrangler secret（仅 Worker 环境，未入库）。
   当前 dev 使用 gh CLI OAuth token；生产建议换成仅对镜像仓库开放
