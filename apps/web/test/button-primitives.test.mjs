@@ -12,7 +12,7 @@ test("Button defines all six semantic variants", () => {
 });
 
 test("Button variants are built from semantic tokens, not hardcoded colors", () => {
-  assert.doesNotMatch(buttonSource, /indigo|slate|#[0-9a-f]{6}/i, "button must not hardcode colors");
+  assert.doesNotMatch(buttonSource, /\b(indigo|slate)\b|#[0-9a-f]{6}/i, "button must not hardcode colors");
   assert.match(buttonSource, /bg-primary/);
   assert.match(buttonSource, /bg-secondary/);
   assert.match(buttonSource, /bg-destructive/);

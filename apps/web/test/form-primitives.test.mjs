@@ -14,7 +14,7 @@ test("form primitives export Label, Help, Error, and FieldGroup", () => {
 
 test("form primitives use semantic tokens, not hardcoded colors", () => {
   for (const source of [formSource, inputSource]) {
-    assert.doesNotMatch(source, /indigo|slate|#[0-9a-f]{6}/i, "form primitives must not hardcode colors");
+    assert.doesNotMatch(source, /\b(indigo|slate)\b|#[0-9a-f]{6}/i, "form primitives must not hardcode colors");
     assert.match(source, /border-border/);
     assert.match(source, /bg-card/);
     assert.match(source, /ring-focus/);
