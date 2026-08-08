@@ -42,6 +42,24 @@ test("does not allow browser requests from an unconfigured origin", async () => 
   assert.equal(response.headers.get("vary"), "Origin");
 });
 
+test("does not authorize CORS preflight requests from an unconfigured origin", async () => {
+  const response = await worker.fetch(new Request("https://api.example.test/health", {
+    method: "OPTIONS",
+    headers: {
+      origin: "https://attacker.example",
+      "access-control-request-method": "GET",
+    },
+  }), {
+    EVIMESH_ENV: "production",
+    CORS_ALLOWED_ORIGINS: "https://evimesh.com",
+  });
+
+  assert.equal(response.status, 204);
+  assert.equal(response.headers.get("access-control-allow-origin"), null);
+  assert.equal(response.headers.get("access-control-allow-credentials"), null);
+  assert.equal(response.headers.get("vary"), "Origin");
+});
+
 test("answers CORS preflight requests for a configured web origin", async () => {
   const response = await worker.fetch(new Request("https://api.example.test/questions?limit=20", {
     method: "OPTIONS",
