@@ -1052,6 +1052,7 @@ app.post('/artifacts/upload-plan', async (context) => {
       rawHash: body.rawHash,
       sizeBytes: body.sizeBytes,
       mediaType: body.mediaType,
+      fileName: body.fileName,
       signer: uploadSigner,
     });
     return context.json(plan, 201);

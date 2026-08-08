@@ -37,7 +37,7 @@ export function ArtifactUploadPanel() {
       setStatus('hashing'); setProgress(0);
       const rawHash = await sha256(file); setHash(rawHash); setProgress(100);
       setStatus('preparing');
-      const planResponse = await fetch(`${API}/artifacts/upload-plan`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ artifactId, revision: Number(revision), rawHash, sizeBytes: file.size, mediaType: file.type || 'application/octet-stream' }) });
+      const planResponse = await fetch(`${API}/artifacts/upload-plan`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ artifactId, revision: Number(revision), rawHash, sizeBytes: file.size, mediaType: file.type || 'application/octet-stream', fileName: file.name }) });
       const plan = await planResponse.json();
       if (!planResponse.ok) throw new Error(plan.message ?? 'Upload plan is unavailable.');
       setStatus('uploading'); setProgress(0);

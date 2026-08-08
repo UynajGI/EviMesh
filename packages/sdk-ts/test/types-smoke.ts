@@ -14,9 +14,12 @@ import type {
   PagedResponse,
   SubmitVerificationRequest,
   UploadPlanResponse,
+  UploadPlanRequest,
 } from "../src/generated/types.d.ts";
 
 const health: HealthResponse = { service: "evimesh-api-edge", status: "ok", environment: "test" };
+
+const uploadPlanRequest: UploadPlanRequest = { artifactId: "artifact-1", revision: 1, rawHash: `sha256:${"a".repeat(64)}`, sizeBytes: 10, mediaType: "text/plain", fileName: "evidence.txt" };
 
 const me: AuthMeResponse = { subject: "actor-1", email: null };
 
