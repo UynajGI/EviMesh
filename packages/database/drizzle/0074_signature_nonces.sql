@@ -9,3 +9,11 @@ CREATE TABLE "signature_nonces" (
 ALTER TABLE "signature_nonces" ADD CONSTRAINT "signature_nonces_actor_fk" FOREIGN KEY ("actor_id") REFERENCES "public"."actors"("actor_id") ON DELETE cascade ON UPDATE no action;
 --> statement-breakpoint
 ALTER TABLE "signature_nonces" ADD CONSTRAINT "signature_nonces_key_fk" FOREIGN KEY ("key_id") REFERENCES "public"."signing_keys"("key_id") ON DELETE cascade ON UPDATE no action;
+--> statement-breakpoint
+ALTER TABLE "signature_nonces" ENABLE ROW LEVEL SECURITY;
+--> statement-breakpoint
+REVOKE ALL ON TABLE "public"."signature_nonces" FROM PUBLIC;
+--> statement-breakpoint
+REVOKE ALL ON TABLE "public"."signature_nonces" FROM "anon", "authenticated";
+--> statement-breakpoint
+GRANT INSERT, SELECT ON TABLE "public"."signature_nonces" TO "service_role";

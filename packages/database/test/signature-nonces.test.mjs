@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { getTableColumns } from 'drizzle-orm';
 import { getTableConfig } from 'drizzle-orm/pg-core';
+import { readFile } from 'node:fs/promises';
 import { claimSignatureNonce, signatureNonces } from '../src/signature-nonces.mjs';
 
 test('signature_nonces makes actor/key/nonce persistence unique', () => {
@@ -39,4 +40,12 @@ test('claimSignatureNonce reports whether the atomic insert won the uniqueness r
   assert.equal(await claimSignatureNonce({ db: makeDatabase(true), actorId: 'actor-1', keyId: 'key-1', nonce: 'nonce-0123456789abcdef' }), true);
   assert.equal(await claimSignatureNonce({ db: makeDatabase(false), actorId: 'actor-1', keyId: 'key-1', nonce: 'nonce-0123456789abcdef' }), false);
   assert.deepEqual(calls[1].target, ['actor_id', 'key_id', 'nonce']);
+});
+
+test('migration enables RLS and restricts Data API access to service_role', async () => {
+  const sql = await readFile(new URL('../drizzle/0074_signature_nonces.sql', import.meta.url), 'utf8');
+  assert.match(sql, /ENABLE ROW LEVEL SECURITY/);
+  assert.match(sql, /REVOKE ALL ON TABLE "public"\."signature_nonces" FROM "anon", "authenticated"/);
+  assert.match(sql, /GRANT INSERT, SELECT ON TABLE "public"\."signature_nonces" TO "service_role"/);
+  assert.doesNotMatch(sql, /SECURITY DEFINER/);
 });

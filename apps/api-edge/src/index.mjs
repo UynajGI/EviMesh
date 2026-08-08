@@ -51,6 +51,7 @@ import { verifyClientSignatureEnvelope } from './client-signature.mjs';
 import { API_TOKEN_PREFIX, authenticateApiToken } from './api-token-auth.mjs';
 import { importWitnessReceipt, WitnessError } from '../../../packages/frontier-bundle/src/witness.mjs';
 import { createRateLimiter, rateLimitSettings } from './rate-limit.mjs';
+import { createSupabaseNonceStore } from './supabase-nonce-store.mjs';
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
 const authenticatedRequestClaims = new WeakMap();
@@ -70,8 +71,14 @@ function errorBody(code, message, requestId) {
   return { code, message, request_id: requestId };
 }
 
-export function createApp({ repository = null, projectEventFactory = null, questionEventFactory = null, questionRoleResolver = null, questionRiskResolver = null, attemptEventFactory = null, attemptRoleResolver = null, leaseEventFactory = null, leaseRoleResolver = null, taskEventFactory = null, taskRoleResolver = null, claimEventFactory = null, claimRoleResolver = null, evidenceEventFactory = null, evidenceRoleResolver = null, runEventFactory = null, runRoleResolver = null, artifactEventFactory = null, artifactRoleResolver = null, challengeEventFactory = null, challengeRoleResolver = null, verificationEventFactory = null, verificationRoleResolver = null, uploadSigner = null, deviceCodeStore = createMemoryDeviceCodeStore(), authenticate = authenticateSupabaseRequest, rateLimiter = createRateLimiter() } = {}) {
+export function createApp({ repository = null, signatureNonceStore = null, projectEventFactory = null, questionEventFactory = null, questionRoleResolver = null, questionRiskResolver = null, attemptEventFactory = null, attemptRoleResolver = null, leaseEventFactory = null, leaseRoleResolver = null, taskEventFactory = null, taskRoleResolver = null, claimEventFactory = null, claimRoleResolver = null, evidenceEventFactory = null, evidenceRoleResolver = null, runEventFactory = null, runRoleResolver = null, artifactEventFactory = null, artifactRoleResolver = null, challengeEventFactory = null, challengeRoleResolver = null, verificationEventFactory = null, verificationRoleResolver = null, uploadSigner = null, deviceCodeStore = createMemoryDeviceCodeStore(), authenticate = authenticateSupabaseRequest, rateLimiter = createRateLimiter() } = {}) {
 const app = new Hono();
+
+function nonceStoreFor(context) {
+  if (typeof signatureNonceStore?.claimSignatureNonce === 'function') return signatureNonceStore;
+  if (typeof repository?.claimSignatureNonce === 'function') return repository;
+  return createSupabaseNonceStore({ env: context.env });
+}
 
 function revisionEtagFor(objectId, revision) {
   return revisionEtag({ objectId, revision: revision.revision, contentHash: semanticHash(revision) });
@@ -823,7 +830,7 @@ app.post('/claims', async (context) => {
       // defaults are applied only when constructing the domain command.
       const signedPayload = { ...body };
       delete signedPayload.signatureEnvelope;
-      await verifyClientSignatureEnvelope({ repository, actorId, envelope: body.signatureEnvelope, payload: signedPayload, expectedEventType: 'claim.created' });
+      await verifyClientSignatureEnvelope({ repository, signatureNonceStore: nonceStoreFor(context), actorId, envelope: body.signatureEnvelope, payload: signedPayload, expectedEventType: 'claim.created' });
     }
     const actorRole = await claimRoleResolver({ repository, actorId, questionId: body.questionId ?? null, projectId: body.projectId ?? null });
     return context.json(await createClaim({
@@ -1023,7 +1030,7 @@ app.post('/runs', async (context) => {
     if (body.signatureEnvelope !== undefined) {
       const signedPayload = { ...body };
       delete signedPayload.signatureEnvelope;
-      await verifyClientSignatureEnvelope({ repository, actorId, envelope: body.signatureEnvelope, payload: signedPayload, expectedEventType: 'run.created' });
+      await verifyClientSignatureEnvelope({ repository, signatureNonceStore: nonceStoreFor(context), actorId, envelope: body.signatureEnvelope, payload: signedPayload, expectedEventType: 'run.created' });
     }
     const actorRole = await runRoleResolver({ repository, actorId, taskId: body.taskId ?? null });
     return context.json(await createRun({
@@ -1140,7 +1147,7 @@ app.post('/verifications', async (context) => {
     if (body.signatureEnvelope !== undefined) {
       const signedPayload = { ...body };
       delete signedPayload.signatureEnvelope;
-      await verifyClientSignatureEnvelope({ repository, actorId, envelope: body.signatureEnvelope, payload: signedPayload, expectedEventType: 'verification.submitted' });
+      await verifyClientSignatureEnvelope({ repository, signatureNonceStore: nonceStoreFor(context), actorId, envelope: body.signatureEnvelope, payload: signedPayload, expectedEventType: 'verification.submitted' });
     }
     const actorRole = await verificationRoleResolver({ repository, actorId, claimId: body.claimId ?? null });
     return context.json(await submitVerification({
@@ -1174,7 +1181,7 @@ app.post('/challenges', async (context) => {
     if (body.signatureEnvelope !== undefined) {
       const signedPayload = { ...body };
       delete signedPayload.signatureEnvelope;
-      await verifyClientSignatureEnvelope({ repository, actorId, envelope: body.signatureEnvelope, payload: signedPayload, expectedEventType: 'challenge.created' });
+      await verifyClientSignatureEnvelope({ repository, signatureNonceStore: nonceStoreFor(context), actorId, envelope: body.signatureEnvelope, payload: signedPayload, expectedEventType: 'challenge.created' });
     }
     const actorRole = await challengeRoleResolver({ repository, actorId, targetClaimId: body.targetClaimId ?? null });
     return context.json(await createChallenge({
