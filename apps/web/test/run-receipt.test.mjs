@@ -20,7 +20,7 @@ test("run receipt validates required fields and time ordering", () => {
   assert.match(source, /are required\./);
   assert.match(source, /End time must be after start time\./);
   assert.match(source, /JSON\.parse/);
-  assert.match(source, /role="alert"/);
+  assert.match(source, /Alert variant="destructive"/);
 });
 
 test("run receipt drafts locally and restores on refresh", () => {
