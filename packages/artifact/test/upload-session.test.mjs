@@ -23,6 +23,21 @@ test('rejects invalid single upload plan inputs', async () => {
   await assert.rejects(() => createSingleUploadPlan({ ...base, expiresInSeconds: 60.5 }), UploadSessionError);
 });
 
+test('rejects malicious upload metadata and quota excess before calling the signer', async () => {
+  let signerCalls = 0;
+  const signer = async () => { signerCalls += 1; return { url: 'https://upload.example/object' }; };
+  const base = { artifactId: 'artifact_1', revision: 1, rawHash: hash, sizeBytes: 12, mediaType: 'application/octet-stream', now, signer };
+  await assert.rejects(
+    () => createSingleUploadPlan({ ...base, fileName: 'malware.exe' }),
+    (error) => error.code === 'UPLOAD_MEDIA_TYPE_DENIED',
+  );
+  await assert.rejects(
+    () => createSingleUploadPlan({ ...base, maxSizeBytes: 11 }),
+    (error) => error.code === 'UPLOAD_SIZE_QUOTA_EXCEEDED',
+  );
+  assert.equal(signerCalls, 0);
+});
+
 test('starts, completes, and aborts a multipart session', async () => {
   const calls = [];
   const upload = { uploadId: 'upload_1', complete: async (parts) => { calls.push(['complete', parts]); return { etag: 'final' }; }, abort: async () => { calls.push(['abort']); } };
