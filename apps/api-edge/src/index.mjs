@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { cors } from "hono/cors";
 import { authenticateSupabaseRequest, JwtVerificationError } from "./jwt.mjs";
 import { ContextQueryError, getTaskContext } from "./context-query.mjs";
 import { RequestValidationError } from "./validation.mjs";
@@ -51,6 +52,13 @@ import { API_TOKEN_PREFIX, authenticateApiToken } from './api-token-auth.mjs';
 import { importWitnessReceipt, WitnessError } from '../../../packages/frontier-bundle/src/witness.mjs';
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
+
+function configuredCorsOrigins(env) {
+  return String(env?.CORS_ALLOWED_ORIGINS ?? "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+}
 
 function requestIdFor(value) {
   return typeof value === "string" && REQUEST_ID_PATTERN.test(value) ? value : crypto.randomUUID();
@@ -110,6 +118,12 @@ app.use("*", async (context, next) => {
     }));
   }
 });
+
+app.use("*", cors({
+  origin: (origin, context) => configuredCorsOrigins(context.env).includes(origin) ? origin : null,
+  exposeHeaders: ["ETag", "Location", "X-Request-ID"],
+  maxAge: 600,
+}));
 
 app.get("/health", (context) => context.json({
   service: "evimesh-api-edge",

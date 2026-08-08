@@ -16,6 +16,54 @@ test("returns a healthy JSON response", async () => {
   });
 });
 
+test("allows browser requests from a configured web origin", async () => {
+  const response = await worker.fetch(new Request("https://api.example.test/health", {
+    headers: { origin: "https://evimesh.com" },
+  }), {
+    EVIMESH_ENV: "production",
+    CORS_ALLOWED_ORIGINS: "https://evimesh.com",
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("access-control-allow-origin"), "https://evimesh.com");
+  assert.equal(response.headers.get("vary"), "Origin");
+});
+
+test("does not allow browser requests from an unconfigured origin", async () => {
+  const response = await worker.fetch(new Request("https://api.example.test/health", {
+    headers: { origin: "https://attacker.example" },
+  }), {
+    EVIMESH_ENV: "production",
+    CORS_ALLOWED_ORIGINS: "https://evimesh.com",
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("access-control-allow-origin"), null);
+  assert.equal(response.headers.get("vary"), "Origin");
+});
+
+test("answers CORS preflight requests for a configured web origin", async () => {
+  const response = await worker.fetch(new Request("https://api.example.test/questions?limit=20", {
+    method: "OPTIONS",
+    headers: {
+      origin: "https://evimesh.com",
+      "access-control-request-method": "GET",
+      "access-control-request-headers": "authorization,x-request-id",
+    },
+  }), {
+    EVIMESH_ENV: "production",
+    CORS_ALLOWED_ORIGINS: "https://evimesh.com",
+  });
+
+  assert.equal(response.status, 204);
+  assert.equal(response.headers.get("access-control-allow-origin"), "https://evimesh.com");
+  assert.match(response.headers.get("access-control-allow-methods"), /(?:^|,)GET(?:,|$)/);
+  assert.equal(response.headers.get("access-control-allow-headers"), "authorization,x-request-id");
+  assert.equal(response.headers.get("access-control-max-age"), "600");
+  assert.match(response.headers.get("vary"), /Origin/);
+  assert.match(response.headers.get("vary"), /Access-Control-Request-Headers/);
+});
+
 test("writes structured request logs without authorization data", async () => {
   const originalLog = console.log;
   const lines = [];
