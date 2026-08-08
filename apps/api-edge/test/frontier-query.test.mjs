@@ -15,15 +15,17 @@ test('returns null before a project has a genesis Frontier and fails closed for 
 });
 
 test('pages immutable Frontier history with a stable opaque cursor', async () => {
+  const memberReads = [];
   const repository = { listFrontierSnapshots: async () => [
     { snapshotId: 'frontier-3', sequence: 3, createdAt: '2026-01-03T00:00:00.000Z' },
     { snapshotId: 'frontier-1', sequence: 1, createdAt: '2026-01-01T00:00:00.000Z' },
     { snapshotId: 'frontier-2', sequence: 2, createdAt: '2026-01-02T00:00:00.000Z' },
-  ] };
+  ], listFrontierMembers: async (snapshotId) => { memberReads.push(snapshotId); return []; } };
   const first = await listFrontierHistory({ repository, projectId: 'project-1', limit: 2 });
   const second = await listFrontierHistory({ repository, projectId: 'project-1', limit: 2, cursor: first.nextCursor });
   assert.deepEqual(first.items.map((snapshot) => snapshot.sequence), [1, 2]);
   assert.deepEqual(second.items.map((snapshot) => snapshot.sequence), [3]);
+  assert.deepEqual(memberReads, ['frontier-1', 'frontier-2', 'frontier-3']);
   assert.equal(second.nextCursor, null);
 });
 

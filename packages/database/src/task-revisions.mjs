@@ -27,6 +27,8 @@ export const taskRevisions = pgTable(
     inputs: jsonb('inputs').notNull().default([]),
     outputs: jsonb('outputs').notNull(),
     acceptance: jsonb('acceptance').notNull(),
+    taskType: text('task_type').notNull().default('general'),
+    tags: text('tags').array().notNull().default(sql`'{}'::text[]`),
     contextMode: contextMode('context_mode').notNull(),
     questionId: text('question_id').references(() => questions.questionId, { onDelete: 'restrict' }),
     createdBy: text('created_by').notNull().references(() => actors.actorId, { onDelete: 'restrict' }),

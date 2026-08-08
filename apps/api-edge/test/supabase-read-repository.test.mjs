@@ -37,8 +37,8 @@ test("backs task filters with question and current-revision metadata", async () 
       requests.push(request);
       if (request.pathname.endsWith("/tasks")) return Response.json([{ task_id: "task-1", question_id: "question-1", state: "open", created_at: "2026-08-08T00:00:00.000Z", deleted_at: null }]);
       if (request.pathname.endsWith("/task_revisions")) return Response.json([
-        { task_id: "task-1", revision: 1, outputs: { taskType: "obsolete", tags: [] }, created_at: "2026-08-08T00:00:00.000Z" },
-        { task_id: "task-1", revision: 2, outputs: { taskType: "verification", tags: ["cpu-only"] }, created_at: "2026-08-08T01:00:00.000Z" },
+        { task_id: "task-1", revision: 1, task_type: "obsolete", tags: [], created_at: "2026-08-08T00:00:00.000Z" },
+        { task_id: "task-1", revision: 2, task_type: "verification", tags: ["cpu-only"], created_at: "2026-08-08T01:00:00.000Z" },
       ]);
       if (request.pathname.endsWith("/questions")) return Response.json([{ question_id: "question-1", project_id: "project-1", deleted_at: null }]);
       return Response.json([]);
@@ -71,6 +71,29 @@ test("supplies project detail and frontier read methods", async () => {
   assert.equal((await repository.getCurrentProjectRevision("project-1")).revision, 2);
   assert.equal((await repository.listFrontierSnapshots({ projectId: "project-1" }))[0].snapshotId, "snapshot-1");
   assert.equal((await repository.listFrontierMembers("snapshot-1"))[0].claimId, "claim-1");
+});
+
+test("supplies linked task and claim detail methods", async () => {
+  const repository = createSupabaseReadRepository({
+    ...CONFIG,
+    fetchImpl: async (url) => {
+      const request = new URL(url);
+      if (request.pathname.endsWith("/tasks")) return Response.json([{ task_id: "task-1", state: "open", deleted_at: null }]);
+      if (request.pathname.endsWith("/task_revisions")) return Response.json([{ task_id: "task-1", revision: 2 }]);
+      if (request.pathname.endsWith("/task_dependencies")) return Response.json([{ source_task_id: "task-1", target_task_id: "task-2", deleted_at: null }]);
+      if (request.pathname.endsWith("/task_leases")) return Response.json([{ task_id: "task-1", holder_actor_id: "actor-1", deleted_at: null }]);
+      if (request.pathname.endsWith("/claims")) return Response.json([{ claim_id: "claim-1", state: "candidate", deleted_at: null }]);
+      if (request.pathname.endsWith("/claim_revisions")) return Response.json([{ claim_id: "claim-1", revision: 3 }]);
+      return Response.json([]);
+    },
+  });
+
+  assert.equal((await repository.getTask("task-1")).taskId, "task-1");
+  assert.equal((await repository.getCurrentTaskRevision("task-1")).revision, 2);
+  assert.equal((await repository.listTaskDependencies("task-1"))[0].targetTaskId, "task-2");
+  assert.equal((await repository.listCurrentTaskLeases("task-1"))[0].holderActorId, "actor-1");
+  assert.equal((await repository.getClaim("claim-1")).claimId, "claim-1");
+  assert.equal((await repository.getCurrentClaimRevision("claim-1")).revision, 3);
 });
 
 test("continues Data API reads past the project row cap", async () => {

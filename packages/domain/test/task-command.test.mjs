@@ -26,6 +26,8 @@ test("creates a Task revision with context and acceptance metadata", async () =>
     inputs: [{ artifactId: "artifact-1" }],
     outputs: [{ type: "report" }],
     acceptance: { checks: ["reproducible"] },
+    taskType: "verification",
+    tags: ["cpu-only", "cpu-only"],
     contextMode: "blind",
     eventFactory: async ({ eventType, payload }) => ({ eventId: "event-6", eventType, payload }),
   });
@@ -33,6 +35,8 @@ test("creates a Task revision with context and acceptance metadata", async () =>
   assert.equal(result.task.state, "draft");
   assert.equal(result.revision.revision, 1);
   assert.equal(result.revision.contextMode, "blind");
+  assert.equal(result.revision.taskType, "verification");
+  assert.deepEqual(result.revision.tags, ["cpu-only"]);
   assert.deepEqual(result.revision.acceptance, { checks: ["reproducible"] });
   assert.equal(result.event.eventType, "task.created");
 });

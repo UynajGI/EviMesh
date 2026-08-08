@@ -519,6 +519,13 @@
       "when": 1786015800000,
       "tag": "0073_frontier_bundle_receipts",
       "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1786200000000,
+      "tag": "0074_task_discovery_metadata",
+      "breakpoints": true
     }
   ]
 }

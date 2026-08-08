@@ -746,6 +746,8 @@ app.post('/tasks', async (context) => {
       inputs: body.inputs ?? [],
       outputs: body.outputs,
       acceptance: body.acceptance,
+      taskType: body.taskType ?? "general",
+      tags: body.tags ?? [],
       contextMode: body.contextMode,
       eventFactory: taskEventFactory,
     }), 201);

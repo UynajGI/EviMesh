@@ -1,15 +1,31 @@
 const TABLES = Object.freeze({
   claims: "claims",
+  claimRevisions: "claim_revisions",
   frontierMembers: "frontier_members",
   frontierSnapshots: "frontier_snapshots",
   projectRevisions: "project_revisions",
   projects: "projects",
   questions: "questions",
+  taskDependencies: "task_dependencies",
+  taskLeases: "task_leases",
   taskRevisions: "task_revisions",
   tasks: "tasks",
 });
 
 const DATA_API_PAGE_SIZE = 1_000;
+const TABLE_ORDERS = Object.freeze({
+  claims: "created_at.asc,claim_id.asc",
+  claimRevisions: "revision.asc,claim_id.asc",
+  frontierMembers: "created_at.asc,snapshot_id.asc,claim_id.asc,claim_revision.asc",
+  frontierSnapshots: "created_at.asc,snapshot_id.asc",
+  projectRevisions: "revision.asc,project_id.asc",
+  projects: "created_at.asc,project_id.asc",
+  questions: "created_at.asc,question_id.asc",
+  taskDependencies: "created_at.asc,source_task_id.asc,target_task_id.asc",
+  taskLeases: "created_at.asc,task_id.asc,holder_actor_id.asc",
+  taskRevisions: "revision.asc,task_id.asc",
+  tasks: "created_at.asc,task_id.asc",
+});
 
 export class SupabaseReadRepositoryError extends Error {
   constructor(message, code = "SUPABASE_READ_UNAVAILABLE", status = 503) {
@@ -54,29 +70,14 @@ function currentRevisionById(rows, idField) {
   return current;
 }
 
-function metadataObjects(revision) {
-  return [revision, revision?.inputs, revision?.outputs, revision?.acceptance]
-    .flatMap((value) => Array.isArray(value) ? value : [value])
-    .filter((value) => value && typeof value === "object");
-}
-
 function taskTypeFor(revision) {
-  for (const metadata of metadataObjects(revision)) {
-    const value = metadata.taskType ?? metadata.type;
-    if (typeof value === "string" && value.trim()) return value.trim();
-  }
-  return null;
+  return typeof revision?.taskType === "string" && revision.taskType.trim() ? revision.taskType.trim() : null;
 }
 
 function taskTagsFor(revision) {
-  const tags = new Set();
-  for (const metadata of metadataObjects(revision)) {
-    const values = metadata.tags ?? metadata.tag;
-    for (const value of Array.isArray(values) ? values : [values]) {
-      if (typeof value === "string" && value.trim()) tags.add(value.trim());
-    }
-  }
-  return [...tags];
+  return Array.isArray(revision?.tags)
+    ? [...new Set(revision.tags.filter((tag) => typeof tag === "string" && tag.trim()).map((tag) => tag.trim()))]
+    : [];
 }
 
 export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = fetch } = {}) {
@@ -84,7 +85,7 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
   const apiKey = requiredString(publishableKey, "Supabase publishable key");
   if (typeof fetchImpl !== "function") throw new TypeError("fetch implementation is required");
 
-  async function list(table, filters = {}, { softDelete = true, order = "created_at.asc" } = {}) {
+  async function list(table, filters = {}, { softDelete = true, order = TABLE_ORDERS[table] } = {}) {
     const rows = [];
     for (let offset = 0; ; offset += DATA_API_PAGE_SIZE) {
       const endpoint = new URL(`${baseUrl}/rest/v1/${TABLES[table]}`);
@@ -127,6 +128,14 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
     listFrontierSnapshots: ({ projectId } = {}) => list("frontierSnapshots", { project_id: projectId }, { softDelete: false }),
     listFrontierMembers: (snapshotId) => list("frontierMembers", { snapshot_id: snapshotId }, { softDelete: false }),
     listQuestions: ({ projectId = null, state = null } = {}) => list("questions", { project_id: projectId, state }),
+    async getTask(taskId) {
+      return (await list("tasks", { task_id: taskId }))[0] ?? null;
+    },
+    async getCurrentTaskRevision(taskId) {
+      return (await list("taskRevisions", { task_id: taskId }, { softDelete: false, order: "revision.desc" }))[0] ?? null;
+    },
+    listTaskDependencies: (taskId) => list("taskDependencies", { source_task_id: taskId }),
+    listCurrentTaskLeases: (taskId) => list("taskLeases", { task_id: taskId }),
     async listTasks({ projectId = null, status = null, type = null, tag = null } = {}) {
       const [rows, revisions, questions] = await Promise.all([
         list("tasks", { state: status }),
@@ -149,6 +158,12 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
       }).filter((row) => matchesOptional(row.projectId, projectId)
         && matchesOptional(row.type, type)
         && includesTag(row, tag));
+    },
+    async getClaim(claimId) {
+      return (await list("claims", { claim_id: claimId }))[0] ?? null;
+    },
+    async getCurrentClaimRevision(claimId) {
+      return (await list("claimRevisions", { claim_id: claimId }, { softDelete: false, order: "revision.desc" }))[0] ?? null;
     },
     async listClaims({ projectId = null, status = null, tag = null } = {}) {
       const rows = await list("claims", { state: status });
