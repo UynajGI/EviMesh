@@ -50,6 +50,8 @@ export { researchEvents } from './research-events.mjs';
 export { researchEventParents } from './research-event-parents.mjs';
 export { eventOutbox, eventOutboxStatus } from './event-outbox.mjs';
 export { merkleCheckpoints } from './merkle-checkpoints.mjs';
+export { mirrorReceipts } from './mirror-receipts.mjs';
+export { witnessReceipts } from './witness-receipts.mjs';
 export { notifications } from './notifications.mjs';
 export { signingKeys } from './signing-keys.mjs';
 export { schema } from './schema.mjs';

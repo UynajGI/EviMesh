@@ -512,6 +512,13 @@
       "when": 1786012200000,
       "tag": "0072_published_frontier_immutable",
       "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1786015800000,
+      "tag": "0073_frontier_bundle_receipts",
+      "breakpoints": true
     }
   ]
 }

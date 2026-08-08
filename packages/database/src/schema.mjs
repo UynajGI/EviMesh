@@ -49,6 +49,8 @@ import { researchEvents } from './research-events.mjs';
 import { researchEventParents } from './research-event-parents.mjs';
 import { eventOutbox, eventOutboxStatus } from './event-outbox.mjs';
 import { merkleCheckpoints } from './merkle-checkpoints.mjs';
+import { mirrorReceipts } from './mirror-receipts.mjs';
+import { witnessReceipts } from './witness-receipts.mjs';
 import { notifications } from './notifications.mjs';
 
 export { actorProfiles } from './actor-profiles.mjs';
@@ -101,6 +103,8 @@ export { researchEvents } from './research-events.mjs';
 export { researchEventParents } from './research-event-parents.mjs';
 export { eventOutbox, eventOutboxStatus } from './event-outbox.mjs';
 export { merkleCheckpoints } from './merkle-checkpoints.mjs';
+export { mirrorReceipts } from './mirror-receipts.mjs';
+export { witnessReceipts } from './witness-receipts.mjs';
 export { notifications } from './notifications.mjs';
 export { signingKeys } from './signing-keys.mjs';
 
@@ -156,6 +160,8 @@ export const schema = {
   researchEventParents,
   eventOutbox,
   merkleCheckpoints,
+  mirrorReceipts,
+  witnessReceipts,
   notifications,
 };
 
