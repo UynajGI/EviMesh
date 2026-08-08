@@ -1,0 +1,11 @@
+{
+  "name": "@evimesh/frontier-bundle",
+  "private": true,
+  "version": "0.3.0",
+  "description": "Frontier Bundle export, offline verification, and import for EviMesh",
+  "main": "src/index.mjs",
+  "scripts": {
+    "lint": "node ../../scripts/check-package.mjs",
+    "test": "node --test test/*.test.mjs"
+  }
+}
