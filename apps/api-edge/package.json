@@ -15,6 +15,6 @@
     "wrangler": "4.118.0"
   },
   "dependencies": {
-    "hono": "4.8.0"
+    "hono": "4.13.1"
   }
 }
