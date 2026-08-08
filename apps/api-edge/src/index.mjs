@@ -70,7 +70,7 @@ function errorBody(code, message, requestId) {
   return { code, message, request_id: requestId };
 }
 
-export function createApp({ repository = null, projectEventFactory = null, questionEventFactory = null, questionRoleResolver = null, attemptEventFactory = null, attemptRoleResolver = null, leaseEventFactory = null, leaseRoleResolver = null, taskEventFactory = null, taskRoleResolver = null, claimEventFactory = null, claimRoleResolver = null, evidenceEventFactory = null, evidenceRoleResolver = null, runEventFactory = null, runRoleResolver = null, artifactEventFactory = null, artifactRoleResolver = null, challengeEventFactory = null, challengeRoleResolver = null, verificationEventFactory = null, verificationRoleResolver = null, uploadSigner = null, deviceCodeStore = createMemoryDeviceCodeStore(), authenticate = authenticateSupabaseRequest, rateLimiter = createRateLimiter() } = {}) {
+export function createApp({ repository = null, projectEventFactory = null, questionEventFactory = null, questionRoleResolver = null, questionRiskResolver = null, attemptEventFactory = null, attemptRoleResolver = null, leaseEventFactory = null, leaseRoleResolver = null, taskEventFactory = null, taskRoleResolver = null, claimEventFactory = null, claimRoleResolver = null, evidenceEventFactory = null, evidenceRoleResolver = null, runEventFactory = null, runRoleResolver = null, artifactEventFactory = null, artifactRoleResolver = null, challengeEventFactory = null, challengeRoleResolver = null, verificationEventFactory = null, verificationRoleResolver = null, uploadSigner = null, deviceCodeStore = createMemoryDeviceCodeStore(), authenticate = authenticateSupabaseRequest, rateLimiter = createRateLimiter() } = {}) {
 const app = new Hono();
 
 function revisionEtagFor(objectId, revision) {
@@ -761,8 +761,14 @@ app.post('/questions/:questionId/transitions', async (context) => {
     const actorId = await resolveActorForSupabaseClaims({ repository, claims });
     const questionId = context.req.param('questionId');
     const actorRole = await questionRoleResolver({ repository, actorId, questionId });
-    const { toState } = await context.req.json();
-    return context.json(await transitionQuestion({ repository, actorId, actorRole, questionId, toState, eventFactory: questionEventFactory }), 201);
+    const { toState, automaticPublication = false } = await context.req.json();
+    if (automaticPublication && typeof questionRiskResolver !== 'function') {
+      return context.json(errorBody('QUESTION_RISK_RESOLVER_UNAVAILABLE', 'question risk resolver is not configured', context.get('requestId')), 503);
+    }
+    const riskSignals = automaticPublication
+      ? await questionRiskResolver({ repository, actorId, questionId, toState, claims })
+      : undefined;
+    return context.json(await transitionQuestion({ repository, actorId, actorRole, questionId, toState, automaticPublication, riskSignals, eventFactory: questionEventFactory }), 201);
   } catch (error) {
     const response = knownFailure(error, context);
     if (response || error instanceof QuestionCommandError) return response ?? context.json(errorBody(error.code ?? 'question_transition_failed', error.message, context.get('requestId')), error.status ?? 400);
