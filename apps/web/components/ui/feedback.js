@@ -33,12 +33,13 @@ export function Empty({ title, description, action, className }) {
   );
 }
 
-/** Recoverable error state: message + retry action. */
-export function ErrorState({ title = 'Something went wrong', message, onRetry, retryLabel = 'Try again', className }) {
+/** Recoverable error state: message + retry action, with an optional traceable request ID. */
+export function ErrorState({ title = 'Something went wrong', message, requestId, onRetry, retryLabel = 'Try again', className }) {
   return (
     <div className={cn('rounded-md border border-destructive/40 bg-card px-6 py-8 text-center', className)} role="alert">
       <p className="text-sm font-medium text-destructive">{title}</p>
       {message ? <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">{message}</p> : null}
+      {requestId ? <p className="mx-auto mt-3 max-w-md font-mono text-xs tabular-nums text-muted-foreground">request_id: {requestId}</p> : null}
       {onRetry ? (
         <button className="mt-4 rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90" onClick={onRetry} type="button">
           {retryLabel}

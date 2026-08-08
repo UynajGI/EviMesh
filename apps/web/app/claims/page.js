@@ -7,6 +7,7 @@ import { Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
 import { Input, Label } from '@/components/ui/form';
 import { PageContainer, PageHeader } from '@/components/ui/page';
 import { Select } from '@/components/ui/selection';
+import { apiFetch } from '@/lib/api-client';
 
 const API = process.env.NEXT_PUBLIC_EVIMESH_API_URL;
 const CLAIM_STATES = ['hypothesis', 'candidate', 'under_verification', 'provisionally_accepted', 'accepted', 'contested', 'refuted', 'superseded', 'retracted', 'dependency_tainted'];
@@ -44,20 +45,21 @@ export default function ClaimsPage() {
   const [claims, setClaims] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [requestId, setRequestId] = useState(null);
   const [filters, setFilters] = useState({ status: '', tag: '' });
 
   async function load() {
     setLoading(true);
     setError(null);
+    setRequestId(null);
     try {
       const query = new URLSearchParams({ limit: '100' });
       for (const key of ['status', 'tag']) if (filters[key]) query.set(key, filters[key]);
-      const response = await fetch(`${API}/claims?${query.toString()}`);
-      const body = await response.json();
-      if (!response.ok) throw new Error(body.message ?? 'Claims are unavailable.');
+      const body = await apiFetch(`/claims?${query.toString()}`);
       setClaims(body.items ?? []);
     } catch (reason) {
       setError(reason.message);
+      setRequestId(reason.requestId ?? null);
     } finally {
       setLoading(false);
     }
@@ -75,7 +77,7 @@ export default function ClaimsPage() {
   );
 
   if (error) {
-    return <PageContainer><PageHeader eyebrow="Evidence graph" title="Claims" description="Browse research claims by protocol status and tag before opening their immutable revision history." /><ErrorState className="mt-8" message={error} onRetry={load} /></PageContainer>;
+    return <PageContainer><PageHeader eyebrow="Evidence graph" title="Claims" description="Browse research claims by protocol status and tag before opening their immutable revision history." /><ErrorState className="mt-8" message={error} requestId={requestId} onRetry={load} /></PageContainer>;
   }
 
   return (
