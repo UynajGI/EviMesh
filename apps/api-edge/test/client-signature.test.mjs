@@ -19,7 +19,10 @@ function makeEnvelope({ keypair, keyId, eventType, payload, nonce = "nonce-01234
 }
 
 function keyRepository(keypair, keyId) {
-  return { findActiveSigningKey: async () => ({ keyId, actorId: "actor-1", algorithm: "Ed25519", publicKey: keypair.public_key }) };
+  return {
+    findActiveSigningKey: async () => ({ keyId, actorId: "actor-1", algorithm: "Ed25519", publicKey: keypair.public_key }),
+    claimSignatureNonce: async () => true,
+  };
 }
 
 test("verifies a well-formed envelope against the actor's active signing key", async () => {
@@ -69,6 +72,30 @@ test("rejects event type mismatches and malformed envelopes", async () => {
   );
 });
 
+test("rejects a replay but permits the same nonce for another actor", async () => {
+  const keypair = generateEd25519KeyPair();
+  const payload = { claimId: "claim-1" };
+  const envelope = await makeEnvelope({ keypair, keyId: "key-1", eventType: "claim.created", payload });
+  const claimed = new Set();
+  const repository = {
+    findActiveSigningKey: async (actorId) => ({ keyId: "key-1", actorId, algorithm: "Ed25519", publicKey: keypair.public_key }),
+    claimSignatureNonce: async ({ actorId, keyId, nonce }) => {
+      const value = `${actorId}:${keyId}:${nonce}`;
+      if (claimed.has(value)) return false;
+      claimed.add(value);
+      return true;
+    },
+  };
+  await verifyClientSignatureEnvelope({ repository, actorId: "actor-1", envelope, payload, expectedEventType: "claim.created" });
+  await assert.rejects(
+    verifyClientSignatureEnvelope({ repository, actorId: "actor-1", envelope, payload, expectedEventType: "claim.created" }),
+    (error) => error.code === "CLIENT_SIGNATURE_REPLAYED" && error.status === 409,
+  );
+  await assert.doesNotReject(
+    verifyClientSignatureEnvelope({ repository, actorId: "actor-2", envelope, payload, expectedEventType: "claim.created" }),
+  );
+});
+
 test("verifies the exact sent payload when optional fields are omitted", async () => {
   const keypair = generateEd25519KeyPair();
   const insertedClaims = [];
@@ -79,6 +106,7 @@ test("verifies the exact sent payload when optional fields are omitted", async (
   const repository = {
     findIdentity: async () => ({ actorId: "actor-1" }),
     findActiveSigningKey: async () => ({ keyId: "key-1", actorId: "actor-1", algorithm: "Ed25519", publicKey: keypair.public_key }),
+    claimSignatureNonce: async () => true,
     insertClaim,
     insertClaimRevision,
     appendResearchEvent,
@@ -112,6 +140,7 @@ test("POST /claims accepts a valid signed envelope and rejects a tampered one", 
   const repository = {
     findIdentity: async () => ({ actorId: "actor-1" }),
     findActiveSigningKey: async () => ({ keyId: "key-1", actorId: "actor-1", algorithm: "Ed25519", publicKey: keypair.public_key }),
+    claimSignatureNonce: async () => true,
     insertClaim,
     insertClaimRevision,
     appendResearchEvent,

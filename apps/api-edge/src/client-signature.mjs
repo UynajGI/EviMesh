@@ -74,5 +74,16 @@ export async function verifyClientSignatureEnvelope({ repository, actorId, envel
   if (verified !== true) {
     throw new ClientSignatureError('signature verification failed', 'CLIENT_SIGNATURE_MISMATCH');
   }
+  if (typeof repository.claimSignatureNonce !== 'function') {
+    throw new ClientSignatureError('signature replay protection is not configured', 'CLIENT_SIGNATURE_UNAVAILABLE', 503);
+  }
+  const claimed = await repository.claimSignatureNonce({
+    actorId: actorId.trim(),
+    keyId: signingKey.keyId,
+    nonce: envelope.nonce,
+  });
+  if (claimed !== true) {
+    throw new ClientSignatureError('signature nonce has already been used', 'CLIENT_SIGNATURE_REPLAYED', 409);
+  }
   return Object.freeze({ verified: true, keyId: signingKey.keyId });
 }

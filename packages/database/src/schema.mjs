@@ -12,6 +12,7 @@ import { questionRevisions } from './question-revisions.mjs';
 import { researchContracts } from './research-contracts.mjs';
 import { researchContractRevisions } from './research-contract-revisions.mjs';
 import { signingKeys } from './signing-keys.mjs';
+import { signatureNonces } from './signature-nonces.mjs';
 import { tasks } from './tasks.mjs';
 import { contextMode, taskRevisions } from './task-revisions.mjs';
 import { taskDependencies } from './task-dependencies.mjs';
@@ -113,6 +114,7 @@ export const schema = {
   actorProfiles,
   identities,
   signingKeys,
+  signatureNonces,
   apiTokens,
   organizations,
   organizationMembers,
