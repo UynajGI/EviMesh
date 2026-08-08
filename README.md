@@ -190,6 +190,16 @@ provenance, proof checks) to any MCP-capable agent. Write tools require an
 explicit `confirm: true`. The server boundary and tool surface are documented
 in [`docs/m11-mcp-server.md`](docs/m11-mcp-server.md).
 
+M12 adds Frontier Bundles in `packages/frontier-bundle`: each published
+frontier can be exported as a content-addressed, offline-verifiable bundle
+(claims, evidence, verification receipts, contribution graph, events, Merkle
+checkpoints and inclusion proofs, checksums, and a report), mirrored as a
+GitHub Release to the public `UynajGI/EviMesh-frontiers` repository, and
+re-imported into an empty instance. A worker job mirrors published frontiers
+with outbox retry, and third-party witnesses can co-sign checkpoint roots via
+`POST /witness-receipts`. The bundle/mirror/witness boundary is documented in
+[`docs/m12-frontier-bundles.md`](docs/m12-frontier-bundles.md).
+
 The Web preview workflow in [`.github/workflows/web-preview.yml`](.github/workflows/web-preview.yml)
 deploys `apps/web/public` to the `evimesh-web-dev` Cloudflare Pages project for
 same-repository pull requests. It requires `CLOUDFLARE_API_TOKEN` and
