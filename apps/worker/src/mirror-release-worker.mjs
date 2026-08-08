@@ -62,22 +62,26 @@ export async function processFrontierMirrorJob({
   eventId = requiredText(eventId, 'event id');
   if (!Number.isInteger(attempts) || attempts < 0) throw new MirrorReleaseError('attempts must be a non-negative integer');
 
-  const snapshot = await resolveFrontierSnapshotForEvent({ repository, eventId });
-  const fileName = `${snapshot.snapshotId}.zip`;
-
+  let snapshotId = null;
   try {
-    const { zip } = await exportFrontierBundle({ repository, snapshotId: snapshot.snapshotId, zip: true, createdAt: now.toISOString() });
+    // Resolution lives inside the guarded block so a missing event, malformed
+    // payload, or vanished snapshot is retried / dead-lettered rather than
+    // leaving the claimed job stuck in processing.
+    const snapshot = await resolveFrontierSnapshotForEvent({ repository, eventId });
+    snapshotId = snapshot.snapshotId;
+    const fileName = `${snapshotId}.zip`;
+    const { zip } = await exportFrontierBundle({ repository, snapshotId, zip: true, createdAt: now.toISOString() });
     const result = await mirrorFrontierBundle({ client: mirrorClient, repository, snapshot, zipBytes: zip, fileName });
     await acknowledgeOutboxJob({ repository, outboxId, processedAt: now.toISOString() });
-    return Object.freeze({ mirrored: true, outboxId, snapshotId: snapshot.snapshotId, releaseUrl: result.releaseUrl, assetUrl: result.assetUrl });
+    return Object.freeze({ mirrored: true, outboxId, snapshotId, releaseUrl: result.releaseUrl, assetUrl: result.assetUrl });
   } catch (error) {
     const nextAttempts = attempts + 1;
     const lastError = error?.message ?? String(error);
     if (nextAttempts >= maxAttempts) {
       await deadLetterOutboxJob({ repository, outboxId, attempts, maxAttempts, lastError });
-      return Object.freeze({ mirrored: false, outboxId, snapshotId: snapshot.snapshotId, deadLettered: true, error: lastError });
+      return Object.freeze({ mirrored: false, outboxId, snapshotId, deadLettered: true, error: lastError });
     }
     await retryOutboxJob({ repository, outboxId, attempts, lastError, failedAt: now.toISOString() });
-    return Object.freeze({ mirrored: false, outboxId, snapshotId: snapshot.snapshotId, retryScheduled: true, attempts: nextAttempts, error: lastError });
+    return Object.freeze({ mirrored: false, outboxId, snapshotId, retryScheduled: true, attempts: nextAttempts, error: lastError });
   }
 }

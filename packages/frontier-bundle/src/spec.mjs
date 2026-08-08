@@ -16,6 +16,8 @@
  *   events.ndjson                      research events for the exported objects
  *   checkpoints/<checkpointId>.json    Merkle checkpoints (+ OTS proof)
  *   proofs/<eventId>.json              Merkle inclusion proofs per event
+ *   prerequisites.json                 reference rows (project/actors/artifacts/…)
+ *                                      needed to import into an empty instance
  */
 
 export const BUNDLE_SCHEMA = "evimesh.frontier-bundle.v1";
@@ -28,6 +30,7 @@ export const BUNDLE_FILES = Object.freeze({
   contributions: "contributions.json",
   events: "events.ndjson",
   artifactsManifest: "artifacts-manifest.json",
+  prerequisites: "prerequisites.json",
 });
 
 export const BUNDLE_DIRECTORIES = Object.freeze({
@@ -51,6 +54,7 @@ export const FILE_ROLES = Object.freeze([
   "events",
   "checkpoint",
   "proof",
+  "prerequisites",
 ]);
 
 export function claimFilePath(claimId) {
@@ -81,6 +85,7 @@ export function roleForPath(path) {
   if (path === BUNDLE_FILES.contributions) return "contributions";
   if (path === BUNDLE_FILES.events) return "events";
   if (path === BUNDLE_FILES.artifactsManifest) return "artifacts-manifest";
+  if (path === BUNDLE_FILES.prerequisites) return "prerequisites";
   if (path.startsWith(`${BUNDLE_DIRECTORIES.claims}/`)) return "claim";
   if (path.startsWith(`${BUNDLE_DIRECTORIES.evidence}/`)) return "evidence";
   if (path.startsWith(`${BUNDLE_DIRECTORIES.verificationReceipts}/`)) return "verification-receipt";

@@ -31,7 +31,7 @@ export function makeCheckpoint(events) {
 export function createSourceRepository() {
   const events = [makeEvent("event-1", "claim_1", "2026-08-01T00:00:00.000Z"), makeEvent("event-2", "claim_2", "2026-08-02T00:00:00.000Z")];
   const checkpoint = makeCheckpoint(events);
-  const snapshot = { snapshotId: "frontier_1", projectId: "project_1", sequence: 3, createdAt: "2026-08-03T00:00:00.000Z" };
+  const snapshot = { snapshotId: "frontier_1", projectId: "project_1", sequence: 3, projectRevision: 1, createdBy: "actor_1", createdAt: "2026-08-03T00:00:00.000Z" };
   const members = [
     { claimId: "claim_1", claimRevision: 2, membershipType: "core", status: "accepted" },
     { claimId: "claim_2", claimRevision: 1, membershipType: "core", status: "contested" },
@@ -41,15 +41,39 @@ export function createSourceRepository() {
     "claim_2@1": { claimId: "claim_2", revision: 1, state: "contested", statement: "s2", questionId: "question_1", createdBy: "actor_2" },
   };
   const evidence = {
-    evidence_1: { evidenceId: "evidence_1", evidenceType: "dataset", artifactId: "artifact_1", artifactRevision: 1 },
+    evidence_1: { evidenceId: "evidence_1", evidenceType: "dataset", artifactId: "artifact_1", artifactRevision: 1, createdBy: "actor_2" },
+  };
+  const artifacts = {
+    artifact_1: { artifactId: "artifact_1", artifactType: "dataset", createdBy: "actor_2" },
   };
   const artifactRevisions = {
     "artifact_1@1": { artifactId: "artifact_1", revision: 1, rawHash: `sha256:${"a".repeat(64)}`, sizeBytes: 128, mediaType: "text/csv" },
   };
   const receipts = [
-    { receiptId: "receipt_1", claimId: "claim_1", claimRevision: 2, runId: "run_1", outcome: "supports", actorId: "actor_3" },
-    { receiptId: "receipt_2", claimId: "claim_1", claimRevision: 1, runId: "run_2", outcome: "supports", actorId: "actor_3" },
+    { receiptId: "receipt_1", claimId: "claim_1", claimRevision: 2, runId: "run_1", contractId: "contract_1", contractRevision: 1, outcome: "supports", actorId: "actor_3" },
+    { receiptId: "receipt_2", claimId: "claim_1", claimRevision: 1, runId: "run_2", contractId: "contract_1", contractRevision: 1, outcome: "supports", actorId: "actor_3" },
   ];
+  const runs = {
+    run_1: { runId: "run_1", taskId: "task_1", actorId: "actor_3" },
+    run_2: { runId: "run_2", taskId: "task_1", actorId: "actor_3" },
+  };
+  const contracts = {
+    contract_1: { contractId: "contract_1", questionId: "question_1" },
+  };
+  const contractRevisions = {
+    "contract_1@1": { contractId: "contract_1", revision: 1 },
+  };
+  const actors = {
+    actor_1: { actorId: "actor_1" },
+    actor_2: { actorId: "actor_2" },
+    actor_3: { actorId: "actor_3" },
+  };
+  const projects = {
+    project_1: { projectId: "project_1", state: "active" },
+  };
+  const projectRevisions = {
+    "project_1@1": { projectId: "project_1", revision: 1, name: "p1" },
+  };
   const findings = { receipt_1: [{ findingId: "finding_1", receiptId: "receipt_1", severity: "note", code: "match" }] };
   const edges = [
     { statementId: "statement_1", objectType: "claim", objectId: "claim_1", edgeType: "produced" },
@@ -67,9 +91,16 @@ export function createSourceRepository() {
     getFrontierSnapshot: async (snapshotId) => (snapshotId === snapshot.snapshotId ? snapshot : null),
     listFrontierMembers: async (snapshotId) => (snapshotId === snapshot.snapshotId ? members : []),
     getClaimRevision: async (claimId, revision) => claimRevisions[`${claimId}@${revision}`] ?? null,
-    listEvidenceForClaimRevision: async (claimId, revision) => (claimId === "claim_1" && revision === 2 ? [{ evidenceId: "evidence_1" }] : []),
+    listEvidenceForClaimRevision: async (claimId, revision) => (claimId === "claim_1" && revision === 2 ? [{ evidenceId: "evidence_1", relationType: "supports", createdBy: "actor_2" }] : []),
     getEvidence: async (evidenceId) => evidence[evidenceId] ?? null,
+    getArtifact: async (artifactId) => artifacts[artifactId] ?? null,
     getArtifactRevision: async (artifactId, revision) => artifactRevisions[`${artifactId}@${revision}`] ?? null,
+    getVerificationContract: async (contractId) => contracts[contractId] ?? null,
+    getVerificationContractRevision: async (contractId, revision) => contractRevisions[`${contractId}@${revision}`] ?? null,
+    getRun: async (runId) => runs[runId] ?? null,
+    getActor: async (actorId) => actors[actorId] ?? null,
+    getProject: async (projectId) => projects[projectId] ?? null,
+    getProjectRevision: async (projectId, revision) => projectRevisions[`${projectId}@${revision}`] ?? null,
     listVerificationReceipts: async ({ claimId }) => receipts.filter((receipt) => receipt.claimId === claimId),
     getVerificationReceipt: async (receiptId) => receipts.find((receipt) => receipt.receiptId === receiptId) ?? null,
     listVerificationFindings: async (receiptId) => findings[receiptId] ?? [],
@@ -102,6 +133,14 @@ export function createTargetRepository() {
     edges: [],
     events: [],
     checkpoints: new Map(),
+    actors: new Map(),
+    projects: new Map(),
+    projectRevisions: new Map(),
+    artifacts: new Map(),
+    artifactRevisions: new Map(),
+    verificationContracts: new Map(),
+    verificationContractRevisions: new Map(),
+    runs: new Map(),
   };
   return {
     state,
@@ -110,6 +149,14 @@ export function createTargetRepository() {
     getEvidence: async (id) => state.evidence.get(id) ?? null,
     getVerificationReceipt: async (id) => state.receipts.get(id) ?? null,
     withTransaction: async (callback) => callback({
+      insertActor: async (actor) => { state.actors.set(actor.actorId, actor); return actor; },
+      insertProject: async (project) => { state.projects.set(project.projectId, project); return project; },
+      insertProjectRevision: async (revision) => { state.projectRevisions.set(`${revision.projectId}@${revision.revision}`, revision); return revision; },
+      insertArtifact: async (artifact) => { state.artifacts.set(artifact.artifactId, artifact); return artifact; },
+      insertArtifactRevision: async (revision) => { state.artifactRevisions.set(`${revision.artifactId}@${revision.revision}`, revision); return revision; },
+      insertVerificationContract: async (contract) => { state.verificationContracts.set(contract.contractId, contract); return contract; },
+      insertVerificationContractRevision: async (revision) => { state.verificationContractRevisions.set(`${revision.contractId}@${revision.revision}`, revision); return revision; },
+      insertRun: async (run) => { state.runs.set(run.runId, run); return run; },
       insertClaim: async (claim) => { state.claims.set(claim.claimId, claim); return claim; },
       insertClaimRevision: async (revision) => { state.claimRevisions.set(`${revision.claimId}@${revision.revision}`, revision); return revision; },
       insertEvidence: async (evidence) => { state.evidence.set(evidence.evidenceId, evidence); return evidence; },

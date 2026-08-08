@@ -1,8 +1,9 @@
 import { parseManifest, sha256Hex } from "./manifest.mjs";
 import { parseChecksums } from "./checksums.mjs";
-import { BUNDLE_FILES, roleForPath } from "./spec.mjs";
+import { BUNDLE_FILES, claimFilePath, roleForPath } from "./spec.mjs";
 import { verifyMerkleInclusionProof } from "../../merkle/src/verify-inclusion-proof.mjs";
 import { verifyMerkleCheckpoint } from "../../signatures/src/merkle-checkpoint.mjs";
+import { hashResearchEventLeaf } from "../../merkle/src/research-event-leaf.mjs";
 
 export class BundleVerifyError extends Error {
   constructor(message, code = "BUNDLE_VERIFY_FAILED") {
@@ -16,21 +17,53 @@ function toBytes(content) {
   return typeof content === "string" ? new TextEncoder().encode(content) : content;
 }
 
+function toText(content) {
+  return typeof content === "string" ? content : new TextDecoder().decode(content);
+}
+
 function parseJson(files, path) {
   try {
-    return JSON.parse(files[path]);
+    return JSON.parse(toText(files[path]));
   } catch (error) {
     throw new BundleVerifyError(`bundle file ${path} is not valid JSON: ${error.message}`);
   }
 }
 
+function formalEvent(event) {
+  if (event && event.schema === "srp.event.v1") return event;
+  return {
+    schema: "srp.event.v1",
+    event_id: event.eventId ?? event.event_id,
+    event_type: event.eventType ?? event.event_type,
+    payload: event.payload,
+    hash: event.hash,
+    signature: event.signature,
+    parents: event.parents ?? [],
+  };
+}
+
+function parseEventsNdjson(files) {
+  const events = new Map();
+  const raw = files[BUNDLE_FILES.events];
+  if (raw === undefined) return events;
+  for (const line of toText(raw).split("\n")) {
+    const trimmed = line.trim();
+    if (trimmed.length === 0) continue;
+    const event = JSON.parse(trimmed);
+    const eventId = event.eventId ?? event.event_id;
+    if (typeof eventId === "string") events.set(eventId, event);
+  }
+  return events;
+}
+
 /**
  * Offline-verify a frontier bundle (M12-12). Works without network access.
- * `files` maps bundle-relative paths to string or Uint8Array contents.
- * Options: platformKey (verify checkpoint signatures), requireProofs (every
- * exported event must carry an inclusion proof bound to a checkpoint).
+ * `files` maps bundle-relative paths to string or Uint8Array contents (e.g.
+ * the direct output of `readZip`). Options: `platformKey` verifies checkpoint
+ * signatures; each inclusion proof is additionally bound to the exported
+ * event whose leaf it claims.
  */
-export function verifyFrontierBundle(files, { platformKey = null } = {}) {
+export async function verifyFrontierBundle(files, { platformKey = null } = {}) {
   if (!files || typeof files !== "object") throw new BundleVerifyError("files map is required");
   const findings = [];
   const fail = (message) => findings.push(message);
@@ -40,9 +73,7 @@ export function verifyFrontierBundle(files, { platformKey = null } = {}) {
   const manifest = parseManifest(parseJson(files, BUNDLE_FILES.manifest));
 
   // Manifest hashes and sizes must match actual file bytes.
-  const manifestPaths = new Set();
   for (const entry of manifest.files) {
-    manifestPaths.add(entry.path);
     const content = files[entry.path];
     if (content === undefined) {
       fail(`manifest file missing from bundle: ${entry.path}`);
@@ -56,7 +87,7 @@ export function verifyFrontierBundle(files, { platformKey = null } = {}) {
   }
 
   // checksums.txt must agree with every file present.
-  const checksums = parseChecksums(files[BUNDLE_FILES.checksums]);
+  const checksums = parseChecksums(toText(files[BUNDLE_FILES.checksums]));
   for (const [path, content] of Object.entries(files)) {
     if (path === BUNDLE_FILES.checksums) continue;
     const expected = checksums.get(path);
@@ -70,7 +101,8 @@ export function verifyFrontierBundle(files, { platformKey = null } = {}) {
     if (!(path in files)) fail(`checksums.txt lists missing file: ${path}`);
   }
 
-  // Cross-document consistency.
+  // Cross-document consistency: claim files reference frontier members AND
+  // every frontier member has a claim document.
   const frontier = parseJson(files, BUNDLE_FILES.frontier);
   const memberRefs = new Set((frontier.members ?? []).map((member) => `${member.claimId}@${member.claimRevision}`));
   for (const entry of manifest.files) {
@@ -82,10 +114,22 @@ export function verifyFrontierBundle(files, { platformKey = null } = {}) {
     if (claimFile.claimRevision?.claimId !== member?.claimId) fail(`claim revision does not match member in ${entry.path}`);
     if (claimFile.claimRevision?.revision !== member?.claimRevision) fail(`claim revision number does not match member in ${entry.path}`);
   }
+  for (const member of frontier.members ?? []) {
+    const path = claimFilePath(member.claimId);
+    if (!(path in files)) fail(`frontier member has no claim document: ${member.claimId}@${member.claimRevision}`);
+  }
   if (frontier.snapshot?.snapshotId !== manifest.frontierSnapshotId) fail("frontier snapshot id does not match manifest");
   if (frontier.snapshot?.sequence !== manifest.sequence) fail("frontier sequence does not match manifest");
 
-  // Checkpoints and proofs must bind to each other.
+  // Exported events, keyed by id, for binding inclusion proofs.
+  let events = new Map();
+  try {
+    events = parseEventsNdjson(files);
+  } catch (error) {
+    fail(`events.ndjson is not valid NDJSON: ${error.message}`);
+  }
+
+  // Checkpoints and proofs must bind to each other and to the exported events.
   const checkpoints = new Map();
   for (const entry of manifest.files) {
     if (entry.role !== "checkpoint") continue;
@@ -96,7 +140,7 @@ export function verifyFrontierBundle(files, { platformKey = null } = {}) {
       continue;
     }
     if (platformKey) {
-      const ok = verifyMerkleCheckpoint({ checkpoint, publicKey: platformKey });
+      const ok = await verifyMerkleCheckpoint({ checkpoint, publicKey: platformKey });
       if (ok !== true) fail(`checkpoint signature did not verify: ${checkpoint.checkpointId}`);
     }
     checkpoints.set(checkpoint.checkpointId, checkpoint);
@@ -115,6 +159,21 @@ export function verifyFrontierBundle(files, { platformKey = null } = {}) {
     const checkpoint = checkpoints.get(proofDoc.checkpointId);
     if (!checkpoint) fail(`proof references missing checkpoint: ${proofDoc.checkpointId}`);
     else if (proofDoc.proof.root !== checkpoint.rootHash) fail(`proof root not covered by checkpoint ${proofDoc.checkpointId}`);
+    // Bind the proof leaf to the exported event it claims.
+    const event = events.get(proofDoc.eventId);
+    if (!event) {
+      fail(`proof references event missing from events.ndjson: ${proofDoc.eventId}`);
+    } else {
+      let leafHash = null;
+      try {
+        leafHash = hashResearchEventLeaf(formalEvent(event));
+      } catch (error) {
+        fail(`event ${proofDoc.eventId} cannot form a Merkle leaf: ${error.message}`);
+      }
+      if (leafHash !== null && leafHash !== proofDoc.proof.leafHash) {
+        fail(`proof leaf does not match exported event: ${proofDoc.eventId}`);
+      }
+    }
   }
 
   return Object.freeze({ valid: findings.length === 0, manifest, findings });

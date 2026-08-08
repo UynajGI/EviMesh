@@ -101,15 +101,20 @@ test("dead-letters the job at the attempt ceiling", async () => {
   assert.equal(repository.outboxState.retried.length, 0);
 });
 
-test("requires a mirror client and a valid event", async () => {
+test("requires a mirror client and retries a missing event instead of throwing", async () => {
   const repository = mirrorRepository();
   await assert.rejects(
     processFrontierMirrorJob({ repository, outboxId: "o", eventId: "event-frontier", attempts: 0 }),
     (e) => e.code === "MIRROR_RELEASE_CLIENT_INVALID",
   );
-  await assert.rejects(
-    processFrontierMirrorJob({ repository, outboxId: "o", eventId: "missing-event", attempts: 0, mirrorClient: makeMirrorClient(repository) }),
-    (e) => e.code === "MIRROR_RELEASE_EVENT_NOT_FOUND",
-  );
+  // A missing event is a resolution failure: it must be requeued, not thrown,
+  // so the claimed job does not stay stuck in processing.
+  const retried = await processFrontierMirrorJob({ repository, outboxId: "o", eventId: "missing-event", attempts: 1, maxAttempts: 10, mirrorClient: makeMirrorClient(repository) });
+  assert.equal(retried.mirrored, false);
+  assert.equal(retried.retryScheduled, true);
+  assert.equal(retried.snapshotId, null);
+  assert.equal(repository.outboxState.retried.length, 1);
+  const deadLettered = await processFrontierMirrorJob({ repository, outboxId: "o2", eventId: "missing-event", attempts: 9, maxAttempts: 10, mirrorClient: makeMirrorClient(repository) });
+  assert.equal(deadLettered.deadLettered, true);
   assert.ok(MirrorReleaseError);
 });

@@ -77,9 +77,18 @@ test("disaster recovery: frontier recovered from bundle re-exports identically",
       .filter((m) => m.snapshotId === snapshotId)
       .map(({ snapshotId: _ignored, ...member }) => member),
     getClaimRevision: recovered.getClaimRevision,
-    listEvidenceForClaimRevision: async (claimId, revision) => recovered.state.evidenceLinks.filter((l) => l.claimId === claimId && l.claimRevision === revision).map((l) => ({ evidenceId: l.evidenceId })),
+    listEvidenceForClaimRevision: async (claimId, revision) => recovered.state.evidenceLinks
+      .filter((l) => l.claimId === claimId && l.claimRevision === revision)
+      .map((l) => ({ evidenceId: l.evidenceId, relationType: l.relationType, createdBy: l.createdBy })),
     getEvidence: recovered.getEvidence,
-    getArtifactRevision: async () => ({ artifactId: "artifact_1", revision: 1, rawHash: `sha256:${"a".repeat(64)}`, sizeBytes: 128, mediaType: "text/csv" }),
+    getArtifact: async (artifactId) => recovered.state.artifacts.get(artifactId) ?? null,
+    getArtifactRevision: async (artifactId, revision) => recovered.state.artifactRevisions.get(`${artifactId}@${revision}`) ?? null,
+    getVerificationContract: async (contractId) => recovered.state.verificationContracts.get(contractId) ?? null,
+    getVerificationContractRevision: async (contractId, revision) => recovered.state.verificationContractRevisions.get(`${contractId}@${revision}`) ?? null,
+    getRun: async (runId) => recovered.state.runs.get(runId) ?? null,
+    getActor: async (actorId) => recovered.state.actors.get(actorId) ?? null,
+    getProject: async (projectId) => recovered.state.projects.get(projectId) ?? null,
+    getProjectRevision: async (projectId, revision) => recovered.state.projectRevisions.get(`${projectId}@${revision}`) ?? null,
     listVerificationReceipts: async ({ claimId }) => [...recovered.state.receipts.values()].filter((r) => r.claimId === claimId),
     getVerificationReceipt: recovered.getVerificationReceipt,
     listVerificationFindings: async (receiptId) => recovered.state.findings.filter((f) => f.receiptId === receiptId),
@@ -97,7 +106,7 @@ test("disaster recovery: frontier recovered from bundle re-exports identically",
   };
 
   const reexport = await exportFrontierBundle({ repository: restored, snapshotId: "frontier_1" });
-  const verification = verifyFrontierBundle(reexport.files);
+  const verification = await verifyFrontierBundle(reexport.files);
   assert.equal(verification.valid, true, verification.findings.join("; "));
   assert.equal(reexport.manifest.projectId, "project_1");
   assert.equal(reexport.manifest.sequence, 3);
@@ -105,4 +114,11 @@ test("disaster recovery: frontier recovered from bundle re-exports identically",
     reexport.files["claims/claim_1.json"],
     files["claims/claim_1.json"],
   );
+  // Prerequisites survive the round-trip so an empty instance can be restored.
+  const reexportedPrereqs = JSON.parse(reexport.files["prerequisites.json"]);
+  assert.equal(reexportedPrereqs.project.projectId, "project_1");
+  assert.equal(reexportedPrereqs.projectRevision.revision, 1);
+  assert.ok(reexportedPrereqs.actors.length >= 3);
+  assert.equal(reexportedPrereqs.artifacts[0].artifactId, "artifact_1");
+  assert.equal(reexportedPrereqs.runs.length, 1);
 });

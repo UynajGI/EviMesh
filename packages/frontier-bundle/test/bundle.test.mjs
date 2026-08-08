@@ -47,7 +47,7 @@ test("exports a complete frontier bundle with manifest, checksums, and report", 
 test("the exported bundle verifies offline and the report lists blockers", async () => {
   const repository = createSourceRepository();
   const { files, report } = await exportFrontierBundle({ repository, snapshotId: "frontier_1" });
-  const verification = verifyFrontierBundle(files);
+  const verification = await verifyFrontierBundle(files);
   assert.equal(verification.valid, true, verification.findings.join("; "));
   assert.match(report, /Open blockers/);
   assert.match(report, /claim_2@1/);
@@ -62,14 +62,14 @@ test("offline verification catches tampered files and missing proofs", async () 
   const claim = JSON.parse(tampered["claims/claim_1.json"]);
   claim.claimRevision.statement = "tampered statement";
   tampered["claims/claim_1.json"] = JSON.stringify(claim);
-  const result = verifyFrontierBundle(tampered);
+  const result = await verifyFrontierBundle(tampered);
   assert.equal(result.valid, false);
   assert.ok(result.findings.some((finding) => finding.includes("claims/claim_1.json")));
 
   const missingProof = { ...files };
   delete missingProof["proofs/event-1.json"];
   // Manifest still lists the proof → manifest file-missing finding.
-  const missingResult = verifyFrontierBundle(missingProof);
+  const missingResult = await verifyFrontierBundle(missingProof);
   assert.equal(missingResult.valid, false);
 });
 
@@ -79,7 +79,8 @@ test("zip bundle round-trips through the stored ZIP format", async () => {
   assert.ok(zip instanceof Uint8Array);
   const unzipped = readZip(zip);
   assert.deepEqual(Object.keys(unzipped).sort(), Object.keys(files).sort());
-  const verification = verifyFrontierBundle(Object.fromEntries(Object.entries(unzipped).map(([path, bytes]) => [path, new TextDecoder().decode(bytes)])));
+  // verifyFrontierBundle accepts readZip's Uint8Array entries directly.
+  const verification = await verifyFrontierBundle(unzipped);
   assert.equal(verification.valid, true, verification.findings.join("; "));
 });
 
@@ -99,4 +100,46 @@ test("export rejects unknown snapshots and empty frontiers", async () => {
 test("manifest parsing validates structure", () => {
   assert.throws(() => parseManifest({ schema: "wrong" }), /schema must be/);
   assert.throws(() => parseManifest(null), /manifest must be an object/);
+});
+
+test("preserves every evidence-claim link with relationType and createdBy", async () => {
+  const repository = createSourceRepository();
+  // evidence_1 is linked to BOTH frontier claims with different relations.
+  repository.listEvidenceForClaimRevision = async (claimId, revision) => {
+    if (claimId === "claim_1" && revision === 2) return [{ evidenceId: "evidence_1", relationType: "supports", createdBy: "actor_2" }];
+    if (claimId === "claim_2" && revision === 1) return [{ evidenceId: "evidence_1", relationType: "qualifies", createdBy: "actor_3" }];
+    return [];
+  };
+  const { files } = await exportFrontierBundle({ repository, snapshotId: "frontier_1" });
+  const evidenceDoc = JSON.parse(files["evidence/evidence_1.json"]);
+  assert.equal(evidenceDoc.links.length, 2);
+  const byClaim = Object.fromEntries(evidenceDoc.links.map((link) => [link.claimId, link]));
+  assert.equal(byClaim.claim_1.relationType, "supports");
+  assert.equal(byClaim.claim_1.createdBy, "actor_2");
+  assert.equal(byClaim.claim_2.relationType, "qualifies");
+  assert.equal(byClaim.claim_2.createdBy, "actor_3");
+});
+
+test("flags a frontier member that has no claim document", async () => {
+  const repository = createSourceRepository();
+  const { files } = await exportFrontierBundle({ repository, snapshotId: "frontier_1" });
+  const withoutClaim = { ...files };
+  delete withoutClaim["claims/claim_2.json"];
+  const result = await verifyFrontierBundle(withoutClaim);
+  assert.equal(result.valid, false);
+  assert.ok(result.findings.some((finding) => finding.includes("frontier member has no claim document")));
+});
+
+test("flags a proof whose leaf does not match the exported event", async () => {
+  const repository = createSourceRepository();
+  const { files } = await exportFrontierBundle({ repository, snapshotId: "frontier_1" });
+  const tamperedEvent = { ...files };
+  const eventLines = tamperedEvent[BUNDLE_FILES.events].trim().split("\n");
+  const firstEvent = JSON.parse(eventLines[0]);
+  firstEvent.payload = { claim_id: "claim_1", tampered: true };
+  eventLines[0] = JSON.stringify(firstEvent);
+  tamperedEvent[BUNDLE_FILES.events] = `${eventLines.join("\n")}\n`;
+  const result = await verifyFrontierBundle(tamperedEvent);
+  assert.equal(result.valid, false);
+  assert.ok(result.findings.some((finding) => finding.includes("proof leaf does not match exported event")));
 });
