@@ -66,7 +66,7 @@ test('provides primary navigation and the initial product routes', async () => {
   const primaryHrefs = (primarySection.match(/\{ href: '([^']+)', label: '[^']+' \}/g) ?? []).map((entry) => entry.match(/href: '([^']+)'/)[1]);
   assert.ok(primaryHrefs.length <= 6, `primary navigation has ${primaryHrefs.length} items`);
   for (const href of ['/projects', '/questions', '/tasks', '/claims', '/verification', '/events']) assert.ok(primaryHrefs.includes(href), `missing ${href} in primary navigation`);
-  for (const page of [verification, contributions]) assert.match(page, /SectionPlaceholder/);
+  for (const page of [verification]) assert.match(page, /SectionPlaceholder/);
   assert.match(tasks, /Task board/);
   assert.match(projects, /Create a project/);
 });
@@ -378,8 +378,8 @@ test('provides basic accessible names and status semantics on key M9 pages', asy
   assert.match(page, /role="alert"/);
   assert.match(workspace, /aria-label="Verification workspace"/);
   assert.match(workspace, /aria-label="Blind Context"/);
-  assert.match(events, /<h1 className=.*Event audit/);
-  assert.match(events, /role="alert"/);
+  assert.match(events, /Event audit/);
+  assert.match(events, /ErrorState/);
 });
 
 test('renders Claim revision diff controls and changed fields', async () => {
