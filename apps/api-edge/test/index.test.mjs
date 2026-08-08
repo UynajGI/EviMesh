@@ -36,6 +36,17 @@ test("wires the hosted Supabase read repository from Worker environment bindings
   assert.deepEqual((await response.json()).items.map((question) => question.questionId), ["question-1"]);
 });
 
+test("returns a retryable hosted-read error when Supabase is unavailable", async () => {
+  const hostedWorker = createWorker({ fetchImpl: async () => new Response("unavailable", { status: 503 }) });
+  const response = await hostedWorker.fetch(new Request("https://api.example.test/questions?limit=20"), {
+    SUPABASE_URL: "https://project.supabase.co",
+    SUPABASE_PUBLISHABLE_KEY: "sb_publishable_test",
+  });
+
+  assert.equal(response.status, 503);
+  assert.equal((await response.json()).code, "SUPABASE_READ_UNAVAILABLE");
+});
+
 test("allows browser requests from a configured web origin", async () => {
   const response = await worker.fetch(new Request("https://api.example.test/health", {
     headers: { origin: "https://evimesh.com" },

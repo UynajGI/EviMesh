@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { createSupabaseReadRepository } from "./supabase-read-repository.mjs";
+import { createSupabaseReadRepository, SupabaseReadRepositoryError } from "./supabase-read-repository.mjs";
 import { authenticateSupabaseRequest, JwtVerificationError } from "./jwt.mjs";
 import { ContextQueryError, getTaskContext } from "./context-query.mjs";
 import { RequestValidationError } from "./validation.mjs";
@@ -1178,6 +1178,9 @@ app.onError((error, context) => {
       ...errorBody(error.code, error.message, context.get("requestId")),
       issues: error.issues,
     }, 400);
+  }
+  if (error instanceof SupabaseReadRepositoryError) {
+    return context.json(errorBody(error.code, error.message, context.get("requestId")), error.status);
   }
   console.error("api request failed", error);
   return context.json(errorBody("internal_error", "internal server error", context.get("requestId")), 500);
