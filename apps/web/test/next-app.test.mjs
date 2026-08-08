@@ -17,7 +17,9 @@ test('initializes the Next App Router shell', async () => {
   assert.match(config, /turbopack: \{ root: workspaceRoot \}/);
   assert.match(globals, /@import "tailwindcss"/);
   assert.match(postcss, /'@tailwindcss\/postcss': \{\}/);
-  assert.match(page, /className="mx-auto max-w-6xl/);
+  assert.match(page, /<PageContainer>/);
+  const pageTemplate = await read('../components/ui/page.js');
+  assert.match(pageTemplate, /max-w-6xl/);
 });
 
 test('configures OpenNext for Cloudflare Workers deployment', async () => {
