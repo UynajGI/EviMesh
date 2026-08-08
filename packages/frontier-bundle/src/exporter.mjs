@@ -108,12 +108,23 @@ async function collectPrerequisites({ repository, snapshot, claimRevisions, evid
   const contracts = new Map();
   const contractRevisions = new Map();
   const runs = new Map();
+  const tasks = new Map();
+  const questions = new Map();
   for (const { receiptId } of receiptEntries) {
     const receipt = await fetchOrNull(repository, "getVerificationReceipt", receiptId);
     if (!receipt) continue;
     await noteActor(receipt.actorId);
     if (receipt.runId && !runs.has(receipt.runId)) {
-      runs.set(receipt.runId, await fetchOrNull(repository, "getRun", receipt.runId));
+      const run = await fetchOrNull(repository, "getRun", receipt.runId);
+      runs.set(receipt.runId, run);
+      if (run?.taskId && !tasks.has(run.taskId)) {
+        const task = await fetchOrNull(repository, "getTask", run.taskId);
+        tasks.set(run.taskId, task);
+        if (task?.createdBy) await noteActor(task.createdBy);
+        if (task?.questionId && !questions.has(task.questionId)) {
+          questions.set(task.questionId, await fetchOrNull(repository, "getQuestion", task.questionId));
+        }
+      }
     }
     if (receipt.contractId && !contracts.has(receipt.contractId)) {
       contracts.set(receipt.contractId, await fetchOrNull(repository, "getVerificationContract", receipt.contractId));
@@ -133,6 +144,8 @@ async function collectPrerequisites({ repository, snapshot, claimRevisions, evid
     artifactRevisions: dropNulls(artifactRevisions),
     verificationContracts: dropNulls(contracts),
     verificationContractRevisions: dropNulls(contractRevisions),
+    questions: dropNulls(questions),
+    tasks: dropNulls(tasks),
     runs: dropNulls(runs),
   };
 }

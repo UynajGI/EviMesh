@@ -74,6 +74,12 @@ export function createSourceRepository() {
   const projectRevisions = {
     "project_1@1": { projectId: "project_1", revision: 1, name: "p1" },
   };
+  const questions = {
+    question_1: { questionId: "question_1", projectId: "project_1" },
+  };
+  const tasks = {
+    task_1: { taskId: "task_1", questionId: "question_1", state: "open", createdBy: "actor_1" },
+  };
   const findings = { receipt_1: [{ findingId: "finding_1", receiptId: "receipt_1", severity: "note", code: "match" }] };
   const edges = [
     { statementId: "statement_1", objectType: "claim", objectId: "claim_1", edgeType: "produced" },
@@ -101,6 +107,8 @@ export function createSourceRepository() {
     getActor: async (actorId) => actors[actorId] ?? null,
     getProject: async (projectId) => projects[projectId] ?? null,
     getProjectRevision: async (projectId, revision) => projectRevisions[`${projectId}@${revision}`] ?? null,
+    getQuestion: async (questionId) => questions[questionId] ?? null,
+    getTask: async (taskId) => tasks[taskId] ?? null,
     listVerificationReceipts: async ({ claimId }) => receipts.filter((receipt) => receipt.claimId === claimId),
     getVerificationReceipt: async (receiptId) => receipts.find((receipt) => receipt.receiptId === receiptId) ?? null,
     listVerificationFindings: async (receiptId) => findings[receiptId] ?? [],
@@ -140,6 +148,8 @@ export function createTargetRepository() {
     artifactRevisions: new Map(),
     verificationContracts: new Map(),
     verificationContractRevisions: new Map(),
+    questions: new Map(),
+    tasks: new Map(),
     runs: new Map(),
   };
   return {
@@ -156,6 +166,8 @@ export function createTargetRepository() {
       insertArtifactRevision: async (revision) => { state.artifactRevisions.set(`${revision.artifactId}@${revision.revision}`, revision); return revision; },
       insertVerificationContract: async (contract) => { state.verificationContracts.set(contract.contractId, contract); return contract; },
       insertVerificationContractRevision: async (revision) => { state.verificationContractRevisions.set(`${revision.contractId}@${revision.revision}`, revision); return revision; },
+      insertQuestion: async (question) => { state.questions.set(question.questionId, question); return question; },
+      insertTask: async (task) => { state.tasks.set(task.taskId, task); return task; },
       insertRun: async (run) => { state.runs.set(run.runId, run); return run; },
       insertClaim: async (claim) => { state.claims.set(claim.claimId, claim); return claim; },
       insertClaimRevision: async (revision) => { state.claimRevisions.set(`${revision.claimId}@${revision.revision}`, revision); return revision; },

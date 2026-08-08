@@ -50,8 +50,11 @@ export async function runMirrorQueuePass({
   for (const job of jobs) {
     const event = typeof repository.getResearchEvent === "function" ? await repository.getResearchEvent(job.eventId) : null;
     const eventType = event?.eventType ?? event?.event_type;
-    if (eventType !== FRONTIER_PUBLISHED_EVENT_TYPE) {
-      // Not a mirror job; requeue so the owning processor can still run it.
+    if (event && eventType !== FRONTIER_PUBLISHED_EVENT_TYPE) {
+      // A genuinely non-frontier event: requeue so the owning processor can
+      // still run it. A MISSING event is not requeued here; it falls through
+      // to processFrontierMirrorJob, whose guarded resolution retries it with
+      // bounded backoff and eventually dead-letters it.
       await repository.rescheduleOutboxJob?.({ outboxId: job.outboxId, attempts: job.attempts, lastError: job.lastError ?? null, availableAt: now.toISOString() });
       results.push({ outboxId: job.outboxId, skipped: true });
       continue;

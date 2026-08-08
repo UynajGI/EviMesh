@@ -94,3 +94,28 @@ test("createMirrorWorker requires a claim-capable repository and runs a pass", a
   assert.equal(typeof worker.scheduled, "function");
   assert.equal(typeof worker.queue, "function");
 });
+
+test("a missing event is routed through bounded retry, not requeued as non-frontier", async () => {
+  const repository = queueRepository();
+  // Override the claim to return a job whose event does not exist.
+  repository.claimPendingOutboxJobs = async () => ([
+    { outboxId: "outbox-missing", eventId: "event-does-not-exist", status: "processing", attempts: 1, lockedAt: new Date().toISOString() },
+  ]);
+  const result = await runMirrorQueuePass({ repository, mirrorClient: makeMirrorClient(repository), workerId: "w3", limit: 10 });
+  const job = result.results.find((r) => r.outboxId === "outbox-missing");
+  // Missing events fall through to processFrontierMirrorJob, which retries them.
+  assert.equal(job.mirrored, false);
+  assert.equal(job.retryScheduled, true);
+  assert.notEqual(job.skipped, true);
+  assert.equal(repository.outboxState.retried.length, 1);
+});
+
+test("default worker handler reports 503 until the repository is wired", async () => {
+  const { createMirrorWorkerHandler } = await import("../src/index.mjs");
+  const handler = createMirrorWorkerHandler();
+  const response = await handler.fetch(new Request("https://mirror.example.test/"), {});
+  assert.equal(response.status, 503);
+  const wired = createMirrorWorkerHandler({ repositoryFactory: () => queueRepository() });
+  const wiredResponse = await wired.fetch(new Request("https://mirror.example.test/"), { GITHUB_MIRROR_TOKEN: "token" });
+  assert.equal(wiredResponse.status, 200);
+});

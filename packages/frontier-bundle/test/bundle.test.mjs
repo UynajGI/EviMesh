@@ -71,6 +71,9 @@ test("offline verification catches tampered files and missing proofs", async () 
   // Manifest still lists the proof → manifest file-missing finding.
   const missingResult = await verifyFrontierBundle(missingProof);
   assert.equal(missingResult.valid, false);
+  // The exported event left without a proof must also be flagged, so a producer
+  // cannot drop a proof and pass by regenerating manifest/checksums.
+  assert.ok(missingResult.findings.some((finding) => finding.includes("exported event has no inclusion proof")));
 });
 
 test("zip bundle round-trips through the stored ZIP format", async () => {

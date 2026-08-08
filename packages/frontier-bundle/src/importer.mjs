@@ -14,6 +14,10 @@ function parseJson(files, path) {
   return JSON.parse(typeof files[path] === "string" ? files[path] : new TextDecoder().decode(files[path]));
 }
 
+function toText(content) {
+  return typeof content === "string" ? content : new TextDecoder().decode(content);
+}
+
 function collectBundleDocuments(files) {
   const claims = [];
   const evidence = [];
@@ -26,8 +30,8 @@ function collectBundleDocuments(files) {
     else if (path.startsWith(`${BUNDLE_DIRECTORIES.verificationReceipts}/`)) receipts.push({ path, document: parseJson(files, path) });
     else if (path.startsWith(`${BUNDLE_DIRECTORIES.checkpoints}/`)) checkpoints.push({ path, document: parseJson(files, path) });
   }
-  if (BUNDLE_FILES.events in files && String(files[BUNDLE_FILES.events]).trim().length > 0) {
-    for (const line of String(files[BUNDLE_FILES.events]).trim().split("\n")) {
+  if (BUNDLE_FILES.events in files && toText(files[BUNDLE_FILES.events]).trim().length > 0) {
+    for (const line of toText(files[BUNDLE_FILES.events]).trim().split("\n")) {
       if (line.trim().length > 0) events.push(JSON.parse(line));
     }
   }
@@ -118,6 +122,8 @@ export async function importFrontierBundle({ repository, files, platformKey = nu
       for (const artifactRevision of prerequisites.artifactRevisions ?? []) await optionalInsert("insertArtifactRevision", artifactRevision);
       for (const contract of prerequisites.verificationContracts ?? []) await optionalInsert("insertVerificationContract", contract);
       for (const contractRevision of prerequisites.verificationContractRevisions ?? []) await optionalInsert("insertVerificationContractRevision", contractRevision);
+      for (const question of prerequisites.questions ?? []) await optionalInsert("insertQuestion", question);
+      for (const task of prerequisites.tasks ?? []) await optionalInsert("insertTask", task);
       for (const run of prerequisites.runs ?? []) await optionalInsert("insertRun", run);
     }
 
@@ -141,9 +147,11 @@ export async function importFrontierBundle({ repository, files, platformKey = nu
       await transaction.insertVerificationReceipt(document.receipt);
       for (const finding of document.findings ?? []) await transaction.insertVerificationFinding(finding);
     }
+    // Research events are appended before contribution statements/edges and
+    // Merkle checkpoints, all of which reference event rows by foreign key.
+    for (const event of events) await transaction.appendResearchEvent(event);
     for (const statement of contributions.statements ?? []) await transaction.insertContributionStatement(statement);
     for (const edge of contributions.edges ?? []) await transaction.insertContributionEdge(edge);
-    for (const event of events) await transaction.appendResearchEvent(event);
     for (const { document } of checkpoints) await transaction.insertMerkleCheckpoint(document.checkpoint);
     await transaction.insertFrontierSnapshot(frontier.snapshot);
     for (const member of frontier.members) await transaction.insertFrontierMember({ ...member, snapshotId: frontier.snapshot.snapshotId });

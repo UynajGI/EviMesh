@@ -148,6 +148,7 @@ export async function verifyFrontierBundle(files, { platformKey = null } = {}) {
       fail(`OTS proof root does not match checkpoint ${checkpoint.checkpointId}`);
     }
   }
+  const coveredEventIds = new Set();
   for (const entry of manifest.files) {
     if (entry.role !== "proof") continue;
     if (files[entry.path] === undefined) continue; // already reported as missing above
@@ -172,7 +173,18 @@ export async function verifyFrontierBundle(files, { platformKey = null } = {}) {
       }
       if (leafHash !== null && leafHash !== proofDoc.proof.leafHash) {
         fail(`proof leaf does not match exported event: ${proofDoc.eventId}`);
+      } else if (leafHash !== null) {
+        coveredEventIds.add(proofDoc.eventId);
       }
+    }
+  }
+
+  // Every exported event must be covered by a checkpoint-backed inclusion
+  // proof; a producer that drops a proof cannot pass by regenerating the
+  // manifest and checksums.
+  for (const eventId of events.keys()) {
+    if (!coveredEventIds.has(eventId)) {
+      fail(`exported event has no inclusion proof: ${eventId}`);
     }
   }
 
