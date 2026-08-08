@@ -13,7 +13,8 @@
     "CORS_ALLOWED_ORIGINS": "http://localhost:3000,http://127.0.0.1:3000,https://dev.evimesh.com",
     "EVIMESH_ENV": "development",
     "GITHUB_MIRROR_OWNER": "UynajGI",
-    "GITHUB_MIRROR_REPO": "EviMesh-frontiers"
+    "GITHUB_MIRROR_REPO": "EviMesh-frontiers",
+    "SUPABASE_URL": "http://127.0.0.1:54321"
   },
   "env": {
     "staging": {
@@ -28,7 +29,8 @@
         "CORS_ALLOWED_ORIGINS": "https://dev.evimesh.com",
         "EVIMESH_ENV": "staging",
         "GITHUB_MIRROR_OWNER": "UynajGI",
-        "GITHUB_MIRROR_REPO": "EviMesh-frontiers"
+        "GITHUB_MIRROR_REPO": "EviMesh-frontiers",
+        "SUPABASE_URL": "https://qotwxdhzpoubniqdhskl.supabase.co"
       }
     },
     "production": {
@@ -43,7 +45,8 @@
         "CORS_ALLOWED_ORIGINS": "https://evimesh.com",
         "EVIMESH_ENV": "production",
         "GITHUB_MIRROR_OWNER": "UynajGI",
-        "GITHUB_MIRROR_REPO": "EviMesh-frontiers"
+        "GITHUB_MIRROR_REPO": "EviMesh-frontiers",
+        "SUPABASE_URL": "https://rruhruccjnuffodfbkuh.supabase.co"
       }
     }
   }
