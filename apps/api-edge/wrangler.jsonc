@@ -12,6 +12,9 @@
   "vars": {
     "CORS_ALLOWED_ORIGINS": "http://localhost:3000,http://127.0.0.1:3000,https://dev.evimesh.com",
     "EVIMESH_ENV": "development",
+    "ACTOR_RATE_LIMIT_MAX": "120",
+    "API_TOKEN_RATE_LIMIT_MAX": "60",
+    "RATE_LIMIT_WINDOW_SECONDS": "60",
     "GITHUB_MIRROR_OWNER": "UynajGI",
     "GITHUB_MIRROR_REPO": "EviMesh-frontiers"
   },
@@ -27,6 +30,9 @@
       "vars": {
         "CORS_ALLOWED_ORIGINS": "https://dev.evimesh.com",
         "EVIMESH_ENV": "staging",
+        "ACTOR_RATE_LIMIT_MAX": "120",
+        "API_TOKEN_RATE_LIMIT_MAX": "60",
+        "RATE_LIMIT_WINDOW_SECONDS": "60",
         "GITHUB_MIRROR_OWNER": "UynajGI",
         "GITHUB_MIRROR_REPO": "EviMesh-frontiers"
       }
@@ -42,6 +48,9 @@
       "vars": {
         "CORS_ALLOWED_ORIGINS": "https://evimesh.com",
         "EVIMESH_ENV": "production",
+        "ACTOR_RATE_LIMIT_MAX": "120",
+        "API_TOKEN_RATE_LIMIT_MAX": "60",
+        "RATE_LIMIT_WINDOW_SECONDS": "60",
         "GITHUB_MIRROR_OWNER": "UynajGI",
         "GITHUB_MIRROR_REPO": "EviMesh-frontiers"
       }

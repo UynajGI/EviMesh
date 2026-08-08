@@ -50,8 +50,10 @@ import { approveDeviceAuthorization, CLI_DEVICE_SCOPES, createMemoryDeviceCodeSt
 import { verifyClientSignatureEnvelope } from './client-signature.mjs';
 import { API_TOKEN_PREFIX, authenticateApiToken } from './api-token-auth.mjs';
 import { importWitnessReceipt, WitnessError } from '../../../packages/frontier-bundle/src/witness.mjs';
+import { createRateLimiter, rateLimitSettings } from './rate-limit.mjs';
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
+const authenticatedRequestClaims = new WeakMap();
 
 function configuredCorsOrigins(env) {
   return String(env?.CORS_ALLOWED_ORIGINS ?? "")
@@ -68,7 +70,7 @@ function errorBody(code, message, requestId) {
   return { code, message, request_id: requestId };
 }
 
-export function createApp({ repository = null, projectEventFactory = null, questionEventFactory = null, questionRoleResolver = null, attemptEventFactory = null, attemptRoleResolver = null, leaseEventFactory = null, leaseRoleResolver = null, taskEventFactory = null, taskRoleResolver = null, claimEventFactory = null, claimRoleResolver = null, evidenceEventFactory = null, evidenceRoleResolver = null, runEventFactory = null, runRoleResolver = null, artifactEventFactory = null, artifactRoleResolver = null, challengeEventFactory = null, challengeRoleResolver = null, verificationEventFactory = null, verificationRoleResolver = null, uploadSigner = null, deviceCodeStore = createMemoryDeviceCodeStore(), authenticate = authenticateSupabaseRequest } = {}) {
+export function createApp({ repository = null, projectEventFactory = null, questionEventFactory = null, questionRoleResolver = null, attemptEventFactory = null, attemptRoleResolver = null, leaseEventFactory = null, leaseRoleResolver = null, taskEventFactory = null, taskRoleResolver = null, claimEventFactory = null, claimRoleResolver = null, evidenceEventFactory = null, evidenceRoleResolver = null, runEventFactory = null, runRoleResolver = null, artifactEventFactory = null, artifactRoleResolver = null, challengeEventFactory = null, challengeRoleResolver = null, verificationEventFactory = null, verificationRoleResolver = null, uploadSigner = null, deviceCodeStore = createMemoryDeviceCodeStore(), authenticate = authenticateSupabaseRequest, rateLimiter = createRateLimiter() } = {}) {
 const app = new Hono();
 
 function revisionEtagFor(objectId, revision) {
@@ -88,12 +90,18 @@ function knownFailure(error, context, fallback) {
 
 /** Accept either a Supabase JWT or an `evimesh_...` API token as Bearer credentials. */
 async function authenticateRequest(request, env) {
+  const cachedClaims = request && authenticatedRequestClaims.get(request);
+  if (cachedClaims) return cachedClaims;
   const header = request?.headers?.get?.("authorization") ?? "";
   const match = /^Bearer\s+(.+)$/i.exec(header);
+  let claims;
   if (match && match[1].startsWith(API_TOKEN_PREFIX)) {
-    return authenticateApiToken({ repository, token: match[1] });
+    claims = await authenticateApiToken({ repository, token: match[1] });
+  } else {
+    claims = await authenticate(request, env);
   }
-  return authenticate(request, env);
+  if (request && claims) authenticatedRequestClaims.set(request, claims);
+  return claims;
 }
 
 app.use("*", async (context, next) => {
@@ -101,6 +109,41 @@ app.use("*", async (context, next) => {
   context.set("requestId", requestId);
   context.header("x-request-id", requestId);
   await next();
+});
+
+app.use("*", async (context, next) => {
+  // Preserve anonymous public-route behavior: only valid Bearer credentials
+  // enter an identity bucket. Protected handlers still authenticate themselves.
+  if (!/^Bearer\s+/i.test(context.req.header('authorization') ?? '')) return next();
+
+  let claims;
+  let actorId;
+  try {
+    claims = await authenticateRequest(context.req.raw, context.env);
+    actorId = await resolveActorForSupabaseClaims({ repository, claims });
+  } catch {
+    return next();
+  }
+
+  const settings = rateLimitSettings(context.env);
+  const actorResult = rateLimiter.consume({
+    scope: 'actor', key: actorId, limit: settings.actorLimit, windowMs: settings.windowMs,
+  });
+  if (!actorResult.allowed) {
+    context.header('retry-after', String(actorResult.retryAfterSeconds));
+    return context.json(errorBody('RATE_LIMITED', 'request rate limit exceeded', context.get('requestId')), 429);
+  }
+
+  if (claims.kind === 'api_token' && typeof claims.tokenId === 'string' && claims.tokenId) {
+    const tokenResult = rateLimiter.consume({
+      scope: 'api_token', key: claims.tokenId, limit: settings.apiTokenLimit, windowMs: settings.windowMs,
+    });
+    if (!tokenResult.allowed) {
+      context.header('retry-after', String(tokenResult.retryAfterSeconds));
+      return context.json(errorBody('RATE_LIMITED', 'request rate limit exceeded', context.get('requestId')), 429);
+    }
+  }
+  return next();
 });
 
 app.use("*", async (context, next) => {
