@@ -67,6 +67,7 @@ test("publishes the current API route contract", () => {
     "/verifications",
     "/verifications/prepare",
     "/verifications/{receiptId}",
+    "/witness-receipts",
   ]);
   assert.deepEqual(Object.keys(document.paths["/health"]).sort(), ["get"]);
   assert.deepEqual(Object.keys(document.paths["/auth/me"]).sort(), ["get"]);
@@ -97,7 +98,9 @@ test("gives every operation a stable id and guards all write operations with bea
   // plans are bounded by expiry and content-addressed keys, so this stays the one open write.
   // The RFC-8628 device grant start/poll endpoints are public by design; only approval
   // and the issued limited-scope token require authentication.
-  const publicWrites = new Set(["post /artifacts/upload-plan", "post /auth/device", "post /auth/device/token"]);
+  // Witness receipts are submitted by third parties and authenticate via their
+  // own Ed25519 signature over the checkpoint root, not a bearer token.
+  const publicWrites = new Set(["post /artifacts/upload-plan", "post /auth/device", "post /auth/device/token", "post /witness-receipts"]);
   const operationIds = new Set();
   for (const [path, operations] of Object.entries(document.paths)) {
     for (const [method, operation] of Object.entries(operations)) {

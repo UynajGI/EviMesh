@@ -48,6 +48,7 @@ import { createActorApiToken, ApiTokenError as DeviceTokenError } from '../../..
 import { approveDeviceAuthorization, CLI_DEVICE_SCOPES, createMemoryDeviceCodeStore, DeviceAuthError, exchangeDeviceToken, startDeviceAuthorization } from './device-auth.mjs';
 import { verifyClientSignatureEnvelope } from './client-signature.mjs';
 import { API_TOKEN_PREFIX, authenticateApiToken } from './api-token-auth.mjs';
+import { importWitnessReceipt, WitnessError } from '../../../packages/frontier-bundle/src/witness.mjs';
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
 
@@ -189,6 +190,20 @@ app.post("/auth/device/token", async (context) => {
     return context.json(await exchangeDeviceToken({ store: deviceCodeStore, deviceCode: body.device_code, issueToken }));
   } catch (error) {
     return deviceFailure(error, context) ?? deviceFailure(new DeviceAuthError(error.message, "INVALID_REQUEST"), context);
+  }
+});
+
+app.post('/witness-receipts', async (context) => {
+  try {
+    const body = await context.req.json().catch(() => ({}));
+    const stored = await importWitnessReceipt({ repository, receipt: body.receipt ?? body, publicKey: body.publicKey });
+    return context.json({ witnessReceiptId: stored.witnessReceiptId, checkpointId: stored.checkpointId, witnessId: stored.witnessId }, 201);
+  } catch (error) {
+    if (error instanceof WitnessError) {
+      const status = error.code === 'WITNESS_CHECKPOINT_NOT_FOUND' ? 404 : error.code === 'WITNESS_IMPORT_UNAVAILABLE' ? 503 : 400;
+      return context.json(errorBody(error.code, error.message, context.get('requestId')), status);
+    }
+    throw error;
   }
 });
 

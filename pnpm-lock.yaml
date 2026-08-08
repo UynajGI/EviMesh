@@ -104,6 +104,8 @@ importers:
 
   packages/domain: {}
 
+  packages/frontier-bundle: {}
+
   packages/merkle: {}
 
   packages/policy-engine: {}

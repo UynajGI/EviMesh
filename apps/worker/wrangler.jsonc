@@ -1,28 +1,19 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "evimesh-api-edge-dev",
+  "name": "evimesh-mirror-worker-dev",
   "main": "src/index.mjs",
   "compatibility_date": "2026-08-04",
-  "r2_buckets": [
-    {
-      "binding": "ARTIFACTS",
-      "bucket_name": "evimesh-dev"
-    }
-  ],
   "vars": {
     "EVIMESH_ENV": "development",
     "GITHUB_MIRROR_OWNER": "UynajGI",
     "GITHUB_MIRROR_REPO": "EviMesh-frontiers"
   },
+  "triggers": {
+    "crons": ["*/5 * * * *"]
+  },
   "env": {
     "staging": {
-      "name": "evimesh-api-edge-staging",
-      "r2_buckets": [
-        {
-          "binding": "ARTIFACTS",
-          "bucket_name": "evimesh-staging"
-        }
-      ],
+      "name": "evimesh-mirror-worker-staging",
       "vars": {
         "EVIMESH_ENV": "staging",
         "GITHUB_MIRROR_OWNER": "UynajGI",
@@ -30,13 +21,7 @@
       }
     },
     "production": {
-      "name": "evimesh-api-edge",
-      "r2_buckets": [
-        {
-          "binding": "ARTIFACTS",
-          "bucket_name": "evimesh-production"
-        }
-      ],
+      "name": "evimesh-mirror-worker",
       "vars": {
         "EVIMESH_ENV": "production",
         "GITHUB_MIRROR_OWNER": "UynajGI",

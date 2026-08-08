@@ -35,6 +35,18 @@
         }
       }
     },
+    "/witness-receipts": {
+      "post": {
+        "operationId": "importWitnessReceipt",
+        "summary": "Import a third-party witness receipt signing a checkpoint root",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/WitnessReceiptRequest" } } } },
+        "responses": {
+          "201": { "description": "Witness receipt stored.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ObjectResponse" } } } },
+          "400": { "description": "Receipt is invalid or the signature did not verify.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "404": { "description": "Checkpoint not found.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
     "/auth/me": {
       "get": {
         "operationId": "getAuthenticatedActor",
@@ -1006,6 +1018,33 @@
               "value": { "type": "string", "minLength": 1 }
             }
           }
+        }
+      },
+      "WitnessReceiptRequest": {
+        "type": "object",
+        "required": ["receipt", "publicKey"],
+        "properties": {
+          "receipt": {
+            "type": "object",
+            "required": ["schema", "checkpointId", "rootHash", "witnessId", "signedAt", "signature"],
+            "properties": {
+              "schema": { "const": "evimesh.witness-checkpoint.v1" },
+              "checkpointId": { "type": "string", "minLength": 1 },
+              "rootHash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+              "witnessId": { "type": "string", "minLength": 1 },
+              "signedAt": { "type": "string", "format": "date-time" },
+              "signature": {
+                "type": "object",
+                "required": ["algorithm", "key_id", "value"],
+                "properties": {
+                  "algorithm": { "const": "Ed25519" },
+                  "key_id": { "type": "string", "minLength": 1 },
+                  "value": { "type": "string", "minLength": 1 }
+                }
+              }
+            }
+          },
+          "publicKey": { "type": "string", "minLength": 1 }
         }
       },
       "PagedResponse": {
