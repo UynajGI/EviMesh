@@ -33,6 +33,8 @@ export type ErrorResponse = { code: string; message: string; request_id: string;
 
 export type ClientSignatureEnvelope = { schema: "srp.client-signature-envelope.v1"; event_type: string; payload: Record<string, unknown>; nonce: string; signing_bytes_hash: string; signature: { algorithm: "Ed25519"; key_id: string; value: string; }; };
 
+export type WitnessReceiptRequest = { receipt: { schema: "evimesh.witness-checkpoint.v1"; checkpointId: string; rootHash: string; witnessId: string; signedAt: string; signature: { algorithm: "Ed25519"; key_id: string; value: string; }; }; publicKey: string; };
+
 export type PagedResponse = { items: Record<string, unknown>[]; nextCursor?: string | null; };
 
 export type ObjectResponse = Record<string, unknown>;
@@ -82,6 +84,8 @@ export interface EviMeshOperations {
   getHealth: { method: "GET"; path: "/health" };
   /** GET /platform/keys */
   getPlatformPublicKeys: { method: "GET"; path: "/platform/keys" };
+  /** POST /witness-receipts */
+  importWitnessReceipt: { method: "POST"; path: "/witness-receipts" };
   /** GET /auth/me (bearer auth) */
   getAuthenticatedActor: { method: "GET"; path: "/auth/me" };
   /** POST /auth/device */
