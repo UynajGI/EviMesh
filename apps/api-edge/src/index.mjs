@@ -51,7 +51,9 @@ import { verifyClientSignatureEnvelope } from './client-signature.mjs';
 import { API_TOKEN_PREFIX, authenticateApiToken } from './api-token-auth.mjs';
 import { importWitnessReceipt, WitnessError } from '../../../packages/frontier-bundle/src/witness.mjs';
 import { createRateLimiter, rateLimitSettings } from './rate-limit.mjs';
+import { createDurableObjectRateLimiter } from './rate-limit-binding.mjs';
 import { createSupabaseNonceStore } from './supabase-nonce-store.mjs';
+
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
 const authenticatedRequestClaims = new WeakMap();
@@ -73,6 +75,12 @@ function errorBody(code, message, requestId) {
 
 export function createApp({ repository = null, signatureNonceStore = null, projectEventFactory = null, questionEventFactory = null, questionRoleResolver = null, questionRiskResolver = null, attemptEventFactory = null, attemptRoleResolver = null, leaseEventFactory = null, leaseRoleResolver = null, taskEventFactory = null, taskRoleResolver = null, claimEventFactory = null, claimRoleResolver = null, evidenceEventFactory = null, evidenceRoleResolver = null, runEventFactory = null, runRoleResolver = null, artifactEventFactory = null, artifactRoleResolver = null, challengeEventFactory = null, challengeRoleResolver = null, verificationEventFactory = null, verificationRoleResolver = null, uploadSigner = null, deviceCodeStore = createMemoryDeviceCodeStore(), authenticate = authenticateSupabaseRequest, rateLimiter = createRateLimiter() } = {}) {
 const app = new Hono();
+
+function rateLimiterFor(context) {
+  return context.env?.RATE_LIMITER
+    ? createDurableObjectRateLimiter(context.env.RATE_LIMITER)
+    : rateLimiter;
+}
 
 function nonceStoreFor(context) {
   if (typeof signatureNonceStore?.claimSignatureNonce === 'function') return signatureNonceStore;
@@ -133,7 +141,8 @@ app.use("*", async (context, next) => {
   }
 
   const settings = rateLimitSettings(context.env);
-  const actorResult = rateLimiter.consume({
+  const activeRateLimiter = rateLimiterFor(context);
+  const actorResult = await activeRateLimiter.consume({
     scope: 'actor', key: actorId, limit: settings.actorLimit, windowMs: settings.windowMs,
   });
   if (!actorResult.allowed) {
@@ -142,7 +151,7 @@ app.use("*", async (context, next) => {
   }
 
   if (claims.kind === 'api_token' && typeof claims.tokenId === 'string' && claims.tokenId) {
-    const tokenResult = rateLimiter.consume({
+    const tokenResult = await activeRateLimiter.consume({
       scope: 'api_token', key: claims.tokenId, limit: settings.apiTokenLimit, windowMs: settings.windowMs,
     });
     if (!tokenResult.allowed) {

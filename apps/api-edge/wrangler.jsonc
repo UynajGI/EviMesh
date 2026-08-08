@@ -1,13 +1,22 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "evimesh-api-edge-dev",
-  "main": "src/index.mjs",
+  "main": "src/worker.mjs",
   "compatibility_date": "2026-08-04",
+  "compatibility_flags": ["nodejs_compat"],
   "r2_buckets": [
     {
       "binding": "ARTIFACTS",
       "bucket_name": "evimesh-dev"
     }
+  ],
+  "durable_objects": {
+    "bindings": [
+      { "name": "RATE_LIMITER", "class_name": "RateLimitDurableObject" }
+    ]
+  },
+  "migrations": [
+    { "tag": "m13-rate-limit-v1", "new_sqlite_classes": ["RateLimitDurableObject"] }
   ],
   "vars": {
     "CORS_ALLOWED_ORIGINS": "http://localhost:3000,http://127.0.0.1:3000,https://dev.evimesh.com",
@@ -21,6 +30,11 @@
   "env": {
     "staging": {
       "name": "evimesh-api-edge-staging",
+      "durable_objects": {
+        "bindings": [
+          { "name": "RATE_LIMITER", "class_name": "RateLimitDurableObject" }
+        ]
+      },
       "r2_buckets": [
         {
           "binding": "ARTIFACTS",
@@ -39,6 +53,11 @@
     },
     "production": {
       "name": "evimesh-api-edge",
+      "durable_objects": {
+        "bindings": [
+          { "name": "RATE_LIMITER", "class_name": "RateLimitDurableObject" }
+        ]
+      },
       "r2_buckets": [
         {
           "binding": "ARTIFACTS",
