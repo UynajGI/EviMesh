@@ -355,7 +355,7 @@ test('imports validated JSON and stored ZIP draft bundles into the Claim editor'
 test('keeps the Claim editor responsive at mobile and desktop breakpoints', async () => {
   const page = await read('../app/claims/new/page.js');
   const nav = await read('../components/site-nav.js');
-  assert.match(page, /mx-auto max-w-5xl px-6/);
+  assert.match(page, /PageContainer/);
   assert.match(page, /flex flex-wrap gap-3/);
   assert.match(page, /overflow-x-auto/);
   // The shell collapses to a toggle below md instead of wrapping the nav row.
@@ -372,8 +372,8 @@ test('provides basic accessible names and status semantics on key M9 pages', asy
     read('../app/events/page.js'),
   ]);
   assert.match(nav, /aria-label="Primary navigation"/);
-  assert.match(page, /<h1 className=.*Draft a Claim/);
-  assert.match(page, /<label className=.*Statement/);
+  assert.match(page, /Draft a Claim/);
+  assert.match(page, /Label htmlFor="claim-statement">Statement/);
   assert.match(page, /role="status"/);
   assert.match(page, /role="alert"/);
   assert.match(workspace, /aria-label="Verification workspace"/);
