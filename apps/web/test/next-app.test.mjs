@@ -214,8 +214,8 @@ test('renders Question details with Contract, state, and Task summaries', async 
   const page = await read('../app/questions/[questionId]/page.js');
   assert.match(page, /\/questions\/\$\{questionId\}/);
   assert.match(page, /Research Contract/);
-  assert.match(page, /data\.question\.state/);
-  assert.match(page, /data\.tasks/);
+  assert.match(page, /question\.state/);
+  assert.match(page, /tasks\.length/);
 });
 
 test('renders the Task board with every protocol status lane', async () => {
