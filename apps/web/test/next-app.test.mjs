@@ -169,7 +169,7 @@ test('renders the project list and creation form', async () => {
 
 test('renders the first Question submission step for question and value', async () => {
   const page = await read('../app/questions/new/page.js');
-  assert.match(page, /Step 1 of 4/);
+  assert.match(page, /Step \$\{step\} of 4/);
   assert.match(page, /Question statement/);
   assert.match(page, /Question value/);
   assert.match(page, /Continue to scope/);
@@ -180,7 +180,7 @@ test('supports the second Question submission step for scope and exclusions', as
   assert.match(page, /Question scope/);
   assert.match(page, /Question exclusions/);
   assert.match(page, /Continue to progress/);
-  assert.match(page, /setStep\(2\)/);
+  assert.match(page, /advance\(event, 2\)/);
 });
 
 test('supports the third Question submission step for progress and falsification', async () => {
@@ -188,7 +188,7 @@ test('supports the third Question submission step for progress and falsification
   assert.match(page, /Question progress/);
   assert.match(page, /Question falsification conditions/);
   assert.match(page, /Continue to permissions/);
-  assert.match(page, /setStep\(3\)/);
+  assert.match(page, /advance\(event, 3\)/);
 });
 
 test('supports the fourth Question submission step for license and risks', async () => {
@@ -196,7 +196,7 @@ test('supports the fourth Question submission step for license and risks', async
   assert.match(page, /Question license/);
   assert.match(page, /Question risks/);
   assert.match(page, /Review question/);
-  assert.match(page, /setStep\(4\)/);
+  assert.match(page, /advance\(event, 4\)/);
 });
 
 test('renders a normalized Question preview before submission', async () => {
