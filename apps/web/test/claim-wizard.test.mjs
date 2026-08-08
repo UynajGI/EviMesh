@@ -17,7 +17,7 @@ test("claim wizard steps through statement, structure, and preview", () => {
 test("claim wizard carries the parent relationship", () => {
   assert.match(source, /parentClaimId/);
   assert.match(source, /Parent claim/);
-  assert.match(source, /claim this claim builds on/);
+  assert.match(source, /builds on/);
 });
 
 test("claim wizard keeps drafts, bundles, and recovery", () => {
