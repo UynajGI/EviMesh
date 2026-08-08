@@ -98,9 +98,10 @@ test("artifact client plans uploads and uploads bytes to the signed URL", async 
   });
   const putFetch = async (url, options) => { uploads.push({ url, options }); return { ok: true, status: 200 }; };
   const client = createClient({ baseUrl: "https://api.example.test", fetchImpl });
-  const receivedPlan = await client.artifacts.uploadPlan({ artifactId: "artifact-1", revision: 1, rawHash: `sha256:${"a".repeat(64)}`, sizeBytes: 4, mediaType: "text/plain" });
+  const receivedPlan = await client.artifacts.uploadPlan({ artifactId: "artifact-1", revision: 1, rawHash: `sha256:${"a".repeat(64)}`, sizeBytes: 4, mediaType: "text/plain", fileName: "evidence.txt" });
   const result = await client.artifacts.upload(receivedPlan, "data", { fetchImpl: putFetch });
   assert.equal(calls[0].url, "https://api.example.test/artifacts/upload-plan");
+  assert.deepEqual(JSON.parse(calls[0].options.body), { artifactId: "artifact-1", revision: 1, rawHash: `sha256:${"a".repeat(64)}`, sizeBytes: 4, mediaType: "text/plain", fileName: "evidence.txt" });
   assert.equal(result.key, plan.key);
   assert.equal(uploads[0].url, "https://r2.example.test/signed");
   assert.equal(uploads[0].options.method, "PUT");

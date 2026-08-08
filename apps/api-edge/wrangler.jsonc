@@ -1,23 +1,40 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "evimesh-api-edge-dev",
-  "main": "src/index.mjs",
+  "main": "src/worker.mjs",
   "compatibility_date": "2026-08-04",
+  "compatibility_flags": ["nodejs_compat"],
   "r2_buckets": [
     {
       "binding": "ARTIFACTS",
       "bucket_name": "evimesh-dev"
     }
   ],
+  "durable_objects": {
+    "bindings": [
+      { "name": "RATE_LIMITER", "class_name": "RateLimitDurableObject" }
+    ]
+  },
+  "migrations": [
+    { "tag": "m13-rate-limit-v1", "new_sqlite_classes": ["RateLimitDurableObject"] }
+  ],
   "vars": {
     "CORS_ALLOWED_ORIGINS": "http://localhost:3000,http://127.0.0.1:3000,https://dev.evimesh.com",
     "EVIMESH_ENV": "development",
+    "ACTOR_RATE_LIMIT_MAX": "120",
+    "API_TOKEN_RATE_LIMIT_MAX": "60",
+    "RATE_LIMIT_WINDOW_SECONDS": "60",
     "GITHUB_MIRROR_OWNER": "UynajGI",
     "GITHUB_MIRROR_REPO": "EviMesh-frontiers"
   },
   "env": {
     "staging": {
       "name": "evimesh-api-edge-staging",
+      "durable_objects": {
+        "bindings": [
+          { "name": "RATE_LIMITER", "class_name": "RateLimitDurableObject" }
+        ]
+      },
       "r2_buckets": [
         {
           "binding": "ARTIFACTS",
@@ -27,12 +44,20 @@
       "vars": {
         "CORS_ALLOWED_ORIGINS": "https://dev.evimesh.com",
         "EVIMESH_ENV": "staging",
+        "ACTOR_RATE_LIMIT_MAX": "120",
+        "API_TOKEN_RATE_LIMIT_MAX": "60",
+        "RATE_LIMIT_WINDOW_SECONDS": "60",
         "GITHUB_MIRROR_OWNER": "UynajGI",
         "GITHUB_MIRROR_REPO": "EviMesh-frontiers"
       }
     },
     "production": {
       "name": "evimesh-api-edge",
+      "durable_objects": {
+        "bindings": [
+          { "name": "RATE_LIMITER", "class_name": "RateLimitDurableObject" }
+        ]
+      },
       "r2_buckets": [
         {
           "binding": "ARTIFACTS",
@@ -42,6 +67,9 @@
       "vars": {
         "CORS_ALLOWED_ORIGINS": "https://evimesh.com",
         "EVIMESH_ENV": "production",
+        "ACTOR_RATE_LIMIT_MAX": "120",
+        "API_TOKEN_RATE_LIMIT_MAX": "60",
+        "RATE_LIMIT_WINDOW_SECONDS": "60",
         "GITHUB_MIRROR_OWNER": "UynajGI",
         "GITHUB_MIRROR_REPO": "EviMesh-frontiers"
       }

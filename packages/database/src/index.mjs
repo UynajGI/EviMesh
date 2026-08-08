@@ -54,4 +54,5 @@ export { mirrorReceipts } from './mirror-receipts.mjs';
 export { witnessReceipts } from './witness-receipts.mjs';
 export { notifications } from './notifications.mjs';
 export { signingKeys } from './signing-keys.mjs';
+export { claimSignatureNonce, signatureNonces } from './signature-nonces.mjs';
 export { schema } from './schema.mjs';

@@ -387,6 +387,7 @@ test('renders direct R2 evidence upload with hash and progress', async () => {
   const page = await read('../app/artifacts/upload/page.js');
   assert.match(panel, /crypto\.subtle\.digest/);
   assert.match(panel, /artifacts\/upload-plan/);
+  assert.match(panel, /fileName: file\.name/);
   assert.match(panel, /XMLHttpRequest/);
   assert.match(panel, /onprogress/);
   assert.match(panel, /SHA-256/);

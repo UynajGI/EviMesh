@@ -99,3 +99,48 @@ test("rejects an invalid Question transition with STATE_TRANSITION_INVALID", asy
     (error) => error.code === "STATE_TRANSITION_INVALID" && error.status === 409,
   );
 });
+
+test("allows an open Question to transition through an automatic publication path", async () => {
+  const { repository } = repositoryFixture();
+  repository.getQuestionState = async () => ({ questionId: "question-1", state: "draft" });
+  repository.updateQuestion = async (questionId, value) => ({ questionId, ...value });
+
+  const result = await transitionQuestion({
+    repository,
+    actorId: "actor-1",
+    actorRole: "maintainer",
+    questionId: "question-1",
+    toState: "proposed",
+    automaticPublication: true,
+    riskSignals: [],
+    eventFactory: async ({ eventType, payload }) => ({ eventId: "event-5", eventType, payload }),
+  });
+
+  assert.equal(result.question.state, "proposed");
+});
+
+for (const [risk, signals, code] of [
+  ["moderated", ["missing_evidence"], "QUESTION_RISK_REVIEW_REQUIRED"],
+  ["restricted", ["personal_data"], "QUESTION_RISK_RESTRICTED"],
+  ["prohibited", ["malicious_file"], "QUESTION_RISK_PROHIBITED"],
+]) {
+  test(`blocks automatic publication for a ${risk} Question`, async () => {
+    const { repository } = repositoryFixture();
+    repository.getQuestionState = async () => { throw new Error("must not read state"); };
+    repository.updateQuestion = async () => { throw new Error("must not update question"); };
+
+    await assert.rejects(
+      transitionQuestion({
+        repository,
+        actorId: "actor-1",
+        actorRole: "maintainer",
+        questionId: "question-1",
+        toState: "proposed",
+        automaticPublication: true,
+        riskSignals: signals,
+        eventFactory: () => ({ eventId: "event-6" }),
+      }),
+      (error) => error.code === code && error.status === 409,
+    );
+  });
+}

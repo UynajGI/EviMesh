@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import worker, { createApp } from "../src/index.mjs";
+import { createRateLimiter } from '../src/rate-limit.mjs';
 
 test("returns a healthy JSON response", async () => {
   const response = await worker.fetch(new Request("https://api.example.test/health"), {
@@ -105,6 +106,47 @@ test("preserves a valid request ID", async () => {
   }), {});
 
   assert.equal(response.headers.get("x-request-id"), "test-request-1");
+});
+
+test('limits authenticated Actors with the standard 429 response shape', async () => {
+  const app = createApp({
+    repository: { findIdentity: async () => ({ actorId: 'actor-1' }) },
+    authenticate: async () => ({ sub: 'subject-1' }),
+    rateLimiter: createRateLimiter(),
+  });
+  const request = () => new Request('https://api.example.test/auth/me', {
+    headers: { authorization: 'Bearer jwt-token', 'x-request-id': 'actor-rate-limit' },
+  });
+  const env = { ACTOR_RATE_LIMIT_MAX: '1', API_TOKEN_RATE_LIMIT_MAX: '10', RATE_LIMIT_WINDOW_SECONDS: '60' };
+
+  assert.equal((await app.fetch(request(), env)).status, 200);
+  const limited = await app.fetch(request(), env);
+  assert.equal(limited.status, 429);
+  assert.deepEqual(await limited.json(), {
+    code: 'RATE_LIMITED', message: 'request rate limit exceeded', request_id: 'actor-rate-limit',
+  });
+  assert.match(limited.headers.get('retry-after'), /^\d+$/);
+});
+
+test('limits each API Token independently from its Actor bucket', async () => {
+  const app = createApp({
+    authenticate: async (request) => ({
+      kind: 'api_token', sub: 'actor-1', actorId: 'actor-1', tokenId: request.headers.get('authorization').replace('Bearer ', ''),
+    }),
+    rateLimiter: createRateLimiter(),
+  });
+  const env = { ACTOR_RATE_LIMIT_MAX: '10', API_TOKEN_RATE_LIMIT_MAX: '1', RATE_LIMIT_WINDOW_SECONDS: '60' };
+  const request = (token) => new Request('https://api.example.test/auth/me', {
+    headers: { authorization: `Bearer ${token}`, 'x-request-id': `token-${token}` },
+  });
+
+  assert.equal((await app.fetch(request('token-a'), env)).status, 200);
+  const repeatedToken = await app.fetch(request('token-a'), env);
+  assert.equal(repeatedToken.status, 429);
+  assert.deepEqual(await repeatedToken.json(), {
+    code: 'RATE_LIMITED', message: 'request rate limit exceeded', request_id: 'token-token-a',
+  });
+  assert.equal((await app.fetch(request('token-b'), env)).status, 200);
 });
 
 test("returns 404 for unknown routes", async () => {
