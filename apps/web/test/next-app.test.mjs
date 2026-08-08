@@ -53,13 +53,17 @@ test('defines light and dark design tokens for the web product', async () => {
   assert.match(globals, /@media \(prefers-color-scheme: dark\) \{[\s\S]*--evimesh-background:/);
 });
 
-test('provides primary navigation and the five initial product routes', async () => {
+test('provides primary navigation and the initial product routes', async () => {
   const [layout, nav, projects, tasks, verification, contributions] = await Promise.all([
     read('../app/layout.js'), read('../components/site-nav.js'), read('../app/projects/page.js'), read('../app/tasks/page.js'), read('../app/verification/page.js'), read('../app/contributions/page.js'),
   ]);
   assert.match(layout, /<SiteNav \/>/);
   assert.match(nav, /aria-label="Primary navigation"/);
-  for (const href of ['/', '/projects', '/tasks', '/verification', '/contributions']) assert.match(nav, new RegExp(`href: '${href.replace('/', '\\/')}'`));
+  // First-level navigation is capped at six items; overflow actions still exist.
+  const primarySection = nav.slice(0, nav.indexOf('const overflowLinks'));
+  const primaryHrefs = (primarySection.match(/\{ href: '([^']+)', label: '[^']+' \}/g) ?? []).map((entry) => entry.match(/href: '([^']+)'/)[1]);
+  assert.ok(primaryHrefs.length <= 6, `primary navigation has ${primaryHrefs.length} items`);
+  for (const href of ['/projects', '/questions', '/tasks', '/claims', '/verification', '/events']) assert.ok(primaryHrefs.includes(href), `missing ${href} in primary navigation`);
   for (const page of [verification, contributions]) assert.match(page, /SectionPlaceholder/);
   assert.match(tasks, /Task board/);
   assert.match(projects, /Create a project/);
@@ -352,7 +356,9 @@ test('keeps the Claim editor responsive at mobile and desktop breakpoints', asyn
   assert.match(page, /mx-auto max-w-5xl px-6/);
   assert.match(page, /flex flex-wrap gap-3/);
   assert.match(page, /overflow-x-auto/);
-  assert.match(nav, /flex-wrap/);
+  // The shell collapses to a toggle below md instead of wrapping the nav row.
+  assert.match(nav, /md:hidden/);
+  assert.match(nav, /aria-expanded/);
   assert.match(nav, /gap-/);
 });
 

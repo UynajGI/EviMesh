@@ -200,6 +200,19 @@ with outbox retry, and third-party witnesses can co-sign checkpoint roots via
 `POST /witness-receipts`. The bundle/mirror/witness boundary is documented in
 [`docs/m12-frontier-bundles.md`](docs/m12-frontier-bundles.md).
 
+M13 adds security, observability, and reliability hardening: risk-policy
+guards on automatic Question publication, artifact upload policy and quotas,
+actor/API-token rate limits (coordinated via Durable Objects), rejection of
+replayed client signatures with a persistent nonce store, a dependency-audit
+CI gate, and ops/security runbooks.
+
+M13.5 establishes the design foundation for the UI/UX refactor: a complete
+semantic color token set (contrast-verified to WCAG 2.2 AA in light and dark
+themes), typography/radius tokens, a quiet research-first visual direction, a
+desktop/mobile shell with at most six primary navigation items, and a polished
+home page. The visual direction and token reference are documented in
+[`docs/m13.5-design-system.md`](docs/m13.5-design-system.md).
+
 The Web preview workflow in [`.github/workflows/web-preview.yml`](.github/workflows/web-preview.yml)
 deploys `apps/web/public` to the `evimesh-web-dev` Cloudflare Pages project for
 same-repository pull requests. It requires `CLOUDFLARE_API_TOKEN` and
