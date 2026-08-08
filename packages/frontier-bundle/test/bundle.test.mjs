@@ -133,6 +133,18 @@ test("flags a frontier member that has no claim document", async () => {
   assert.ok(result.findings.some((finding) => finding.includes("frontier member has no claim document")));
 });
 
+test("flags an extra file that is not listed in the manifest", async () => {
+  const repository = createSourceRepository();
+  const { files } = await exportFrontierBundle({ repository, snapshotId: "frontier_1" });
+  const { generateChecksums } = await import("../src/checksums.mjs");
+  const withExtra = { ...files, "claims/claim_extra.json": JSON.stringify({ injected: true }) };
+  // Regenerate only checksums.txt; the manifest still lacks the extra file.
+  withExtra[BUNDLE_FILES.checksums] = generateChecksums(withExtra);
+  const result = await verifyFrontierBundle(withExtra);
+  assert.equal(result.valid, false);
+  assert.ok(result.findings.some((finding) => finding.includes("not listed in manifest.json")));
+});
+
 test("flags a proof whose leaf does not match the exported event", async () => {
   const repository = createSourceRepository();
   const { files } = await exportFrontierBundle({ repository, snapshotId: "frontier_1" });

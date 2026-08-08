@@ -86,10 +86,16 @@ export async function verifyFrontierBundle(files, { platformKey = null } = {}) {
     if (role !== entry.role) fail(`role mismatch for ${entry.path}: expected ${role}, got ${entry.role}`);
   }
 
-  // checksums.txt must agree with every file present.
+  // Every file present must appear in BOTH the manifest and checksums.txt, so
+  // an attacker cannot add an unmanifested file and pass by regenerating only
+  // checksums.txt.
+  const manifestPathSet = new Set(manifest.files.map((entry) => entry.path));
   const checksums = parseChecksums(toText(files[BUNDLE_FILES.checksums]));
   for (const [path, content] of Object.entries(files)) {
-    if (path === BUNDLE_FILES.checksums) continue;
+    if (path === BUNDLE_FILES.checksums || path === BUNDLE_FILES.manifest) continue;
+    if (!manifestPathSet.has(path)) {
+      fail(`file not listed in manifest.json: ${path}`);
+    }
     const expected = checksums.get(path);
     if (expected === undefined) {
       fail(`file not listed in checksums.txt: ${path}`);
