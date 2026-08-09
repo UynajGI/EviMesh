@@ -7,7 +7,7 @@
 - Claim→Claim 的 14 个关系连接两个 Claim（按实际协议上下文显示各自的 Claim revision）。它们表达论证、依赖、方法或数据等有类型的有向边。
 - Evidence→immutable Claim revision 的 4 个关系连接 Evidence 到不可变的 `claimRevisionId`。Evidence 的 `supports` 只表示该证据与该 revision 的支持关系，不等同于 Claim→Claim 的 `supports`，也不等同于“已证明为真”。
 - `source` 与 `target` 是协议字段，不随反向阅读改变；反向阅读只是换一个阅读入口。
-- 计数校正：旧文案中的“11 项 Claim 关系”遗漏了 `implements`、`verifies`、`challenges`；此前出现的“15 项”是算术错误。本文件按协议冻结的 14 + 4 = 18 行记录。
+- 固定枚举：本文件按协议冻结的 14 项 Claim→Claim 关系和 4 项 Evidence→immutable-Claim-revision 关系阅读；两组关系分别保留各自的 source→target 语义。
 
 ## 关系文案表
 

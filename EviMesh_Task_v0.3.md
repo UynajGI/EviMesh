@@ -787,7 +787,7 @@ Artifact     ← 交付物
 | M13.6-A06 | content | 定义 Claim 与 Evidence 关系文案 | relation copy map | 所有协议 relation type 均有自然语言、方向、图例和反向阅读文案 | M13.6-A03 | P0 | M |
 | M13.6-A07 | events | 定义变化等级与解释规则 | change taxonomy | critical、attention、update、quiet 只表达注意优先级且可追溯到 ResearchEvent | M13.6-A04 | P0 | M |
 | M13.6-A08 | permalink | 定义对象永久链接契约 | permalink contract | revision、snapshot、view、selection、expansion 可编码，URL 不含凭据 | M13.6-A02 | P0 | M |
-| M13.6-A09 | prototype | 制作协议忠实的状态阅读原型 | clickable prototype | Question、Claim、change feed、handoff 四个场景可点击且不出现虚构分数 | M13.6-A04:M13.6-A08 | P0 | L |
+| M13.6-A09 | prototype | 制作协议忠实的状态阅读原型 | clickable prototype | Question、Claim、change feed、handoff 四个场景可点击且不出现虚构分数；仅使用本地 fixture，不连接产品集成，也不是生产发布 | M13.6-A04:M13.6-A08 | P0 | L |
 
 **M13.6-A 任务数：9；退出门槛：协议、文案、状态摘要、变化等级和永久链接契约冻结。**
 
@@ -818,7 +818,7 @@ Artifact     ← 交付物
 | M13.6-C05 | evidence | 按关系与 revision 展示 Evidence | evidence lens | supports、refutes、qualifies、reproduces 分组且每条可追溯 Artifact、Run 和 Claim revision | M13.6-C04 | P0 | L |
 | M13.6-C06 | verification | 展示 Verification outcome 与独立性 | verification lens | outcome、implementation relation、data relation、Contract/Policy revision 可见 | M13.6-C04 | P0 | L |
 | M13.6-C07 | finding | 展示 Finding 与 Challenge 影响 | trust impact panel | severity、位置、状态影响、下游污染和解决状态可追溯 | M13.6-C06,M8-29 | P0 | L |
-| M13.6-C08 | graph | 实现 Argument 多关系过滤 | argument lens | 11 种 Claim relation 可筛选、解释方向并聚焦邻域 | M13.6-A06,M13.6-C04 | P0 | XL |
+| M13.6-C08 | graph | 实现 Argument 多关系过滤 | argument lens | 14 种 Claim relation 可筛选、解释方向并聚焦邻域 | M13.6-A06,M13.6-C04 | P0 | XL |
 | M13.6-C09 | frontier | 实现 Frontier 视角与时间旅行 | frontier lens | snapshot 成员、加入/移除/替换原因和最新状态清晰 | M13.6-C03,M8-05 | P0 | XL |
 | M13.6-C10 | accessibility | 为图形视图实现等价列表 | graph list alternative | 键盘和屏幕阅读器可访问相同节点、边、过滤和详情 | M13.6-C08:M13.6-C09 | P0 | L |
 | M13.6-C11 | navigation | 保留阅读上下文的深链接 | contextual deep links | 刷新或分享后恢复 revision、view、selection、filter 和 expansion | M13.6-A08,M13.6-C05:M13.6-C10 | P0 | L |

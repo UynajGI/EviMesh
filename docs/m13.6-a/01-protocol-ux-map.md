@@ -85,7 +85,6 @@ Claim”：
 
 ## 范围校正
 
-此前规划文档中的“11 项 Claim 关系”是计数遗漏：缺少 `implements`、
-`verifies`、`challenges`。本映射以协议测试所定义的 **14** 项 Claim→Claim
-关系及 4 项 Evidence→immutable-Claim-revision 关系为准；此处仅校正文档
-理解，不修改协议、任务、路线图或规划文件。
+本映射以协议测试所定义的 **14** 项 Claim→Claim 关系和 **4** 项
+Evidence→immutable-Claim-revision 关系为准。任务、路线图和后续阅读视角必须
+使用相同的固定枚举；本映射不修改协议实现。
