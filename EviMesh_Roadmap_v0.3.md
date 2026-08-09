@@ -1329,6 +1329,120 @@ Frontier v24 · 12 Accepted · 3 Contested · 8 Open Tasks
 
 不做单一总分榜。
 
+### 16.8 M13.5：产品可用性与 UI/UX 重构
+
+M13 完成安全与生产运维后，不直接进入真实科研 Pilot。当前 Web 已有 26 个页面路由，但只有 3 个基础 UI 原语，主导航同时暴露 18 个入口；生产首页、任务页等还会把仓储层错误原文直接显示给用户。功能数量已经超过现有交互架构的承载能力，因此在 M13 与 M14 之间插入独立里程碑 M13.5。
+
+M13.5 的目标不是“换皮”，而是让首次访问者能够理解产品，让研究者能够完成核心工作，让错误、空状态和加载状态都可恢复，并为 M14 的真实 Pilot 建立可量化的体验门禁。
+
+#### M13.5-A：体验定义与信息架构
+
+- 审计生产站桌面端与移动端；
+- 明确研究者、验证者、维护者和 Agent 操作者的核心任务；
+- 将 18 个平级入口重组为不超过 6 个一级入口；
+- 建立路由、状态、权限和空/错/加载状态矩阵；
+- 统一科研对象、动作和状态的产品语言；
+- 用高保真原型验证首页、Project、Task、Claim 和 Verification 五条关键路径。
+
+#### M13.5-B：设计系统与应用骨架
+
+- 建立颜色、排版、间距、圆角、阴影、层级和响应式 Token；
+- 补齐表单、选择、反馈、数据展示和 Overlay 等 UI 原语；
+- 重构桌面与移动端应用 Shell、导航、面包屑和页面标题区；
+- 建立统一的列表、详情、工作区、向导和设置页面模板；
+- 建立可视化组件目录、键盘操作规范和视觉回归基线。
+
+#### M13.5-C：发现、阅读与理解路径
+
+- 重做首页、Projects、Questions、Tasks、Claims 等发现页面；
+- 重做 Project、Question、Task、Claim 的详情与上下文导航；
+- 提升 revision diff、Claim DAG、Frontier、Verification、Event 和 Contribution 的可读性；
+- 为所有页面补齐 skeleton、empty、error、permission denied 和 retry 状态；
+- 保证科研状态颜色不成为唯一信息载体。
+
+#### M13.5-D：贡献路径与发布门禁
+
+- 重做登录与首次使用引导；
+- 将 Question、Claim、Artifact、Run、Evidence、Verification 和 Challenge 变为分步、可保存、可恢复的工作流；
+- 重做 Keys/Tokens 设置，明确敏感操作和撤销反馈；
+- 建立桌面/移动端 E2E、无障碍、性能和生产可用性验收；
+- 用真实参与者完成 Pilot 前可用性测试并分阶段上线。
+
+M13.5 退出门槛：
+
+1. 5 条关键用户路径在桌面和 390px 移动端均可完成，自动化 E2E 全绿；
+2. 一级导航不超过 6 项，所有页面具有明确标题、主动作和返回上下文；
+3. 不向用户显示内部异常、repository 名称、堆栈或原始 API 错误；
+4. WCAG 2.2 AA 自动检查无阻断项，完整键盘路径可用；
+5. 生产站 Core Web Vitals 达到 Good 目标，关键页面无横向溢出和明显布局跳动；
+6. 至少 5 名目标用户完成可用性测试，关键任务成功率不低于 80%，无 Severity 1 问题；
+7. M13.5-D 发布门禁通过后，才允许启动 M14 真实科研闭环。
+
+### 16.9 M13.6：Agent-first Web 与论证状态感知
+
+M13.5 解决了视觉系统、响应式布局、错误恢复和基础任务可用性。M13.6 进一步校正 Web 的产品角色：CLI、MCP、SDK 和用户自己的 Agent 负责深度交互与结构化写入；Web 负责状态感知、论证阅读、来源追溯、Agent handoff 和不可变分享。
+
+M13.6 不采用通用“支持度条”。EviMesh 没有跨领域有效的标量真理分数，也不采用多数投票。Claim 的快速摘要由协议事实组成：Claim state、Frontier membership、Evidence relation、Verification outcome、独立性、Finding severity、Challenge impact、Policy revision 和最近 ResearchEvent。
+
+M13.6 也不把系统压缩为 Question、Claim、Evidence 单棵树。Web 提供四个相互一致的阅读视角：
+
+- Argument：Claim revision 与有类型的 Claim relation；
+- Evidence：Artifact、Run、Evidence 与具体 Claim revision 的关系；
+- Verification：Receipt、independence、Finding、Challenge 与状态影响；
+- Frontier：当前可用 Claim revision、历史 snapshot 与变化原因。
+
+#### M13.6-A：协议忠实的体验模型
+
+- 冻结 Agent-first Web 职责边界；
+- 建立自然语言与协议对象的双层术语；
+- 定义可追溯状态摘要，不产生通用支持率；
+- 定义变化等级、关系文案和永久链接语义；
+- 用真实协议 fixture 验证用户能正确理解 Claim 状态。
+
+#### M13.6-B：关注与变化感知
+
+- 建立 Project、Question、Claim 的关注订阅；
+- 将 ResearchEvent 投影为可解释的变化记录；
+- 首页优先展示关注对象的状态变化；
+- 支持已读、稍后提醒、静音和取消关注；
+- 变化等级表示注意优先级，不表示真伪。
+
+#### M13.6-C：渐进式论证浏览
+
+- Question 首屏展示 Contract、Frontier、争议和阻塞摘要；
+- Claim 默认折叠 Evidence、Verification、Finding 和 Challenge；
+- 支持 Argument、Evidence、Verification 和 Frontier 四种视角；
+- 图形视图提供完整列表替代和键盘操作；
+- 深链接保留 revision、视角、选中对象和展开上下文。
+
+#### M13.6-D：Agent handoff 与传播
+
+- Web 主动作生成 provider-neutral handoff；
+- 提供自然语言任务、CLI 命令、MCP resource/tool 和结构化 JSON；
+- handoff 不携带凭据，CLI/MCP 使用各自安全上下文；
+- 复杂 Web 表单降级为“手动提交”回退入口；
+- 为公开对象和不可变 revision 生成可复制链接与 Open Graph 摘要。
+
+#### M13.6-E：理解度与生产门禁
+
+- 使用真实协议 fixture 建立状态摘要契约测试；
+- 验证 watch 到 change feed 到 detail 的完整路径；
+- 验证 Web handoff 能在 CLI/MCP 中恢复同一上下文；
+- 执行移动端、键盘、屏幕阅读器和图形性能测试；
+- 通过真实科研用户理解度测试后才进入 M14。
+
+详细产品约束见 `docs/m13.6-agent-first-web.md`。
+
+M13.6 退出门槛：
+
+1. 用户可在 60 秒内说明 Question 当前阶段、主要争议和 Frontier 状态；
+2. 界面不出现无 Policy 来源的支持率、真理分数或百分比；
+3. 每个状态摘要均可追溯到 revision、Receipt、Finding、Challenge 或 ResearchEvent；
+4. 至少一种 CLI 路径和一种 MCP 路径可消费同一 handoff；
+5. 公开永久链接在权限允许时可由未登录用户读取，并明确 revision 是否为最新；
+6. 390px、键盘和屏幕阅读器路径无阻断问题；
+7. M13.6-E 发布门禁通过后，才允许启动 M14。
+
 ---
 
 ## 17. 参与机制
@@ -1867,6 +1981,28 @@ RTO：8 小时以内
 - Contribution。
 
 交付：两个独立参与者完成一次可验证合并。
+
+### Phase 2.5：产品可用性与 UI/UX 重构（M13.5）
+
+- 体验审计与信息架构；
+- 设计 Token、组件系统与响应式应用 Shell；
+- 发现、阅读、贡献和设置路径重构；
+- 空、错、加载、权限和离线恢复状态；
+- 无障碍、性能、视觉回归和关键路径 E2E；
+- 真实参与者可用性测试与分阶段上线。
+
+交付：首次用户能够理解 EviMesh，研究者能够在桌面和移动端独立完成从发现任务到提交验证的关键路径；M14 Pilot 不再依赖开发者现场解释或手工绕过界面。
+
+### Phase 2.6：Agent-first Web 与状态感知（M13.6）
+
+- 协议忠实的状态摘要与多视角研究图；
+- Project、Question、Claim 关注与 ResearchEvent 变化流；
+- 渐进式 Argument、Evidence、Verification、Frontier 浏览；
+- Web 到 CLI/MCP/Agent 的安全 handoff；
+- 不可变分享链接、revision 提示和公开 Open Graph 摘要；
+- 理解度、无障碍、移动端和生产证据门禁。
+
+交付：研究者可用 Web 快速理解当前论证状态，并在需要贡献时把准确上下文交给自己的 Agent、CLI 或 MCP 客户端继续处理。
 
 ### Phase 3：CLI、MCP 与公共 Alpha
 
