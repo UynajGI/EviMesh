@@ -41,7 +41,7 @@
 
 **自然语言层**：对研究对象或结果作出的可检验陈述。用户看到的“当前主张”只是某个 Claim revision 的当前呈现，不代表历史版本消失。
 
-**协议层**：`Claim` 对象及其不可变 `ClaimRevision`；关系始终指向具体 revision。新的 revision 可以 supersede 前一 revision，但不能原地编辑旧内容。
+**协议层**：`Claim` 对象及其不可变 `ClaimRevision`；`Claim -> Claim` 关系是 Claim 层边，只记录 `sourceClaimId`、`targetClaimId` 与 `relationType`，不绑定到任一旧 revision。读者在展示关系时分别选择 source 与 target 的 revision 作为上下文；新的 revision 可以 supersede 前一 revision，但不能原地编辑旧内容，也不会改写该 Claim 层边。
 
 **技术详情标签**：稳定 ID `claimId`；不可变 revision `claimRevisionId`；当前状态 `currentState`（例如待验证、已接受或受质疑）；Policy `policyId` + `policyRevision`；完整性 `hash`；来源 `signature`。
 
@@ -57,17 +57,17 @@
 
 **自然语言层**：一次验证活动留下的可复查收据，说明依据什么规则、在什么上下文中、对哪个主张修订版得到什么结果。回执不是把复杂判断压成一个分数。
 
-**协议层**：`VerificationReceipt` 对象；冻结目标 Claim revision 与 Contract/Policy revision，并可关联 Finding、Run 与独立性信息。
+**协议层**：`VerificationReceipt` 对象；`receiptId` 本身是不可变回执身份，记录目标 `claimId + claimRevision` 与 `contractId + contractRevision`，并可关联 Finding、Run 与独立性信息。Policy 不属于 receipt 的直接绑定；只有实际存在的 `PolicyEvaluation` 才能为某项结论提供 Policy 上下文。
 
-**技术详情标签**：稳定 ID `receiptId`；不可变 revision `receiptRevisionId`；当前状态 `currentState`；Policy `policyId` + `policyRevision`；完整性 `hash`；来源 `signature`。
+**技术详情标签**：`receiptId`；记录的 `claimId` + `claimRevision`、`contractId` + `contractRevision`、`outcome`、验证类型、独立性分类、`runId`（如有）、`createdBy` 与 `createdAt`。不得编造 `receiptRevisionId`、`currentState` 或 receipt 直接的 Policy 绑定；若实际引用 `PolicyEvaluation`，另列其 `evaluationId` + `policyId` + `policyRevision`。
 
 ### Finding｜发现
 
 **自然语言层**：验证或研究过程中发现的具体观察、限制、风险或问题。发现应能回到相关证据和验证回执，而不是只保留一句摘要。
 
-**协议层**：`Finding` 对象；它通常由 `VerificationReceipt` 定位，并保留严重性、代码、位置、来源片段等可解释信息。
+**协议层**：`Finding` 是由 `VerificationReceipt` 定位的 receipt-bound observation，并保留严重性、代码、详情与创建时间等可解释信息。目前协议没有 Finding resolution 或 lifecycle 状态；不得用启发式把它称为“未解决”或“已解决”。
 
-**技术详情标签**：稳定 ID `findingId`；不可变 revision `findingRevisionId`；当前状态 `currentState`；Policy `policyId` + `policyRevision`；完整性 `hash`；来源 `signature`。
+**技术详情标签**：`findingId`、`receiptId`、`severity`、`code`、`details` 与 `createdAt`。目前没有 `findingRevisionId`、`currentState` 或直接 Policy 字段。
 
 ### Challenge｜质疑
 

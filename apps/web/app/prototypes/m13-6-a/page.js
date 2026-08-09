@@ -126,15 +126,15 @@ function SceneTabs({ scene, onChange }) {
   );
 }
 
-function Panel({ scene, children }) {
+function Panel({ scene, hidden, children }) {
   const slug = scene.replaceAll(' ', '-').toLowerCase();
-  return <section aria-labelledby={`tab-${slug}`} className="mt-8" id={`scene-${slug}`} role="tabpanel">{children}</section>;
+  return <section aria-labelledby={`tab-${slug}`} className="mt-8" hidden={hidden} id={`scene-${slug}`} role="tabpanel">{children}</section>;
 }
 
-function QuestionScene() {
+function QuestionScene({ hidden }) {
   const { question, claim } = FIXTURE_RESEARCH;
   return (
-    <Panel scene="Question">
+    <Panel hidden={hidden} scene="Question">
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(17rem,0.8fr)]">
         <div>
           <p className="font-mono text-xs text-muted-foreground">{question.id}</p>
@@ -154,10 +154,10 @@ function QuestionScene() {
   );
 }
 
-function ClaimScene() {
+function ClaimScene({ hidden }) {
   const { claim } = FIXTURE_RESEARCH;
   return (
-    <Panel scene="Claim">
+    <Panel hidden={hidden} scene="Claim">
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1.5fr)_minmax(18rem,0.85fr)]">
         <div className="space-y-8">
           <div>
@@ -227,10 +227,10 @@ function ClaimScene() {
   );
 }
 
-function ChangeFeedScene() {
+function ChangeFeedScene({ hidden }) {
   const { changes } = FIXTURE_RESEARCH;
   return (
-    <Panel scene="Change feed">
+    <Panel hidden={hidden} scene="Change feed">
       <div className="max-w-4xl">
         <h2 className="text-2xl font-semibold tracking-tight">Changes to inspect</h2>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">Attention priority directs the next reading action. It is based on record relationships and event provenance, not on a claim’s truth.</p>
@@ -254,10 +254,10 @@ function ChangeFeedScene() {
   );
 }
 
-function HandoffScene() {
+function HandoffScene({ hidden }) {
   const { handoff } = FIXTURE_RESEARCH;
   return (
-    <Panel scene="Handoff">
+    <Panel hidden={hidden} scene="Handoff">
       <div className="max-w-4xl">
         <h2 className="text-2xl font-semibold tracking-tight">Context for a follow-up agent</h2>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">Explanatory preview only. These copyable context blocks show how a person could carry the current research record into an agent, CLI, or MCP workflow.</p>
@@ -293,10 +293,10 @@ export default function M136AgentFirstPrototypePage() {
         action={<Button onClick={() => setScene('Handoff')} variant="outline">Preview handoff</Button>}
       />
       <SceneTabs scene={scene} onChange={setScene} />
-      {scene === 'Question' ? <QuestionScene /> : null}
-      {scene === 'Claim' ? <ClaimScene /> : null}
-      {scene === 'Change feed' ? <ChangeFeedScene /> : null}
-      {scene === 'Handoff' ? <HandoffScene /> : null}
+      <QuestionScene hidden={scene !== 'Question'} />
+      <ClaimScene hidden={scene !== 'Claim'} />
+      <ChangeFeedScene hidden={scene !== 'Change feed'} />
+      <HandoffScene hidden={scene !== 'Handoff'} />
     </PageContainer>
   );
 }
