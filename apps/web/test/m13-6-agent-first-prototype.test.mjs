@@ -19,10 +19,11 @@ test('prototype relies on local fixtures and does not invoke product integration
   assert.doesNotMatch(source, /<form|<a\s|next\/link/i);
 });
 
-test('claim view presents provenance and relation buckets instead of scalar judgment', () => {
-  for (const wording of ['Immutable revision', 'Source references', 'Evidence relations', 'Supports the claim', 'Constrains the claim', 'Challenges the claim', 'Verification', 'Finding', 'Challenge', 'Latest event']) {
+test('claim view presents provenance and all four Evidence relation buckets instead of scalar judgment', () => {
+  for (const wording of ['Immutable revision', 'Source references', 'Evidence relations', 'Supports the claim', 'Refutes the claim', 'Qualifies the claim', 'Reproduces the claim', 'Verification', 'Finding', 'Challenge', 'Latest event']) {
     assert.match(source, new RegExp(wording), `missing ${wording}`);
   }
+  assert.doesNotMatch(source, /Challenges the claim/);
   assert.doesNotMatch(source, /support score|truth score|confidence|percentage|progress bar/i);
 });
 

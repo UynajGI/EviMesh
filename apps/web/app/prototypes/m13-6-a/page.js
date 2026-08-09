@@ -36,12 +36,16 @@ const FIXTURE_RESEARCH = {
         detail: 'S-114 records the stated control sequence and the reported observation.',
       },
       {
-        label: 'Constrains the claim',
+        label: 'Refutes the claim',
+        detail: 'S-127 records an unresolved calibration discrepancy for one replicate.',
+      },
+      {
+        label: 'Qualifies the claim',
         detail: 'S-091 limits the conclusion to the specified temperature and timing window.',
       },
       {
-        label: 'Challenges the claim',
-        detail: 'S-127 identifies an unresolved calibration record for one replicate.',
+        label: 'Reproduces the claim',
+        detail: 'No reproducing Evidence is linked to this revision as of 2026-08-09.',
       },
     ],
     facts: [
