@@ -43,10 +43,10 @@ importers:
     dependencies:
       '@opennextjs/cloudflare':
         specifier: ^1.20.2
-        version: 1.20.2(next@15.5.23(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(supports-color@10.0.0)(wrangler@4.118.0)
+        version: 1.20.2(next@15.5.23(react-dom@19.2.8(react@19.2.3))(react@19.2.3))(supports-color@10.0.0)(wrangler@4.118.0)
       '@radix-ui/react-dialog':
         specifier: 1.1.15
-        version: 1.1.15(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+        version: 1.1.15(react-dom@19.2.8(react@19.2.3))(react@19.2.3)
       '@supabase/supabase-js':
         specifier: ^2.112.1
         version: 2.112.1
@@ -64,13 +64,13 @@ importers:
         version: 0.468.0(react@19.2.3)
       next:
         specifier: 15.5.23
-        version: 15.5.23(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+        version: 15.5.23(react-dom@19.2.8(react@19.2.3))(react@19.2.3)
       react:
         specifier: 19.2.3
         version: 19.2.3
       react-dom:
-        specifier: 19.2.3
-        version: 19.2.3(react@19.2.3)
+        specifier: 19.2.8
+        version: 19.2.8(react@19.2.3)
       styled-jsx:
         specifier: 5.1.6
         version: 5.1.6(react@19.2.3)
@@ -2692,10 +2692,10 @@ packages:
     resolution: {integrity: sha512-K5zQjDllxWkf7Z5xJdV0/B0WTNqx6vxG70zJE4N0kBs4LovmEYWJzQGxC9bS9RAKu3bgM40lrd5zoLJ12MQ5BA==}
     engines: {node: '>= 0.10'}
 
-  react-dom@19.2.3:
-    resolution: {integrity: sha512-yELu4WmLPw5Mr/lmeEpox5rw3RETacE++JgHqQzd2dg+YbJuat3jH4ingc+WPZhxaoFzdv9y33G+F7Nl5O0GBg==}
+  react-dom@19.2.8:
+    resolution: {integrity: sha512-rVprimfGBG3DR+Tq0IQG2DT5PxKth1WIGDmj5yPmlzr4YBe7uyE+Du4oVqTDXZSHGGGXRtTJEGSSePyQCMBglQ==}
     peerDependencies:
-      react: ^19.2.3
+      react: ^19.2.8
 
   react-remove-scroll-bar@2.3.8:
     resolution: {integrity: sha512-9r+yi9+mgU33AKcj6IbT9oRCO78WriSj6t/cF8DWBZJ9aOGPOTEDvdUDz1FwKim7QXWwmHqtdHnRJfhAxEG46Q==}
@@ -4058,7 +4058,7 @@ snapshots:
     dependencies:
       gzip-size: 6.0.0
 
-  '@opennextjs/aws@4.1.0(next@15.5.23(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(supports-color@10.0.0)':
+  '@opennextjs/aws@4.1.0(next@15.5.23(react-dom@19.2.8(react@19.2.3))(react@19.2.3))(supports-color@10.0.0)':
     dependencies:
       '@ast-grep/napi': 0.40.5
       '@aws-sdk/client-cloudfront': 3.984.0
@@ -4074,24 +4074,24 @@ snapshots:
       cookie: 1.0.2
       esbuild: 0.25.4
       express: 5.2.1(supports-color@10.0.0)
-      next: 15.5.23(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      next: 15.5.23(react-dom@19.2.8(react@19.2.3))(react@19.2.3)
       path-to-regexp: 6.3.0
       urlpattern-polyfill: 10.1.0
       yaml: 2.9.0
     transitivePeerDependencies:
       - supports-color
 
-  '@opennextjs/cloudflare@1.20.2(next@15.5.23(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(supports-color@10.0.0)(wrangler@4.118.0)':
+  '@opennextjs/cloudflare@1.20.2(next@15.5.23(react-dom@19.2.8(react@19.2.3))(react@19.2.3))(supports-color@10.0.0)(wrangler@4.118.0)':
     dependencies:
       '@ast-grep/napi': 0.40.5
       '@dotenvx/dotenvx': 1.31.0
-      '@opennextjs/aws': 4.1.0(next@15.5.23(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(supports-color@10.0.0)
+      '@opennextjs/aws': 4.1.0(next@15.5.23(react-dom@19.2.8(react@19.2.3))(react@19.2.3))(supports-color@10.0.0)
       ci-info: 4.4.0
       cloudflare: 4.4.1
       comment-json: 4.6.2
       enquirer: 2.4.1
       glob: 12.0.0
-      next: 15.5.23(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      next: 15.5.23(react-dom@19.2.8(react@19.2.3))(react@19.2.3)
       ts-tqdm: 0.8.6
       wrangler: 4.118.0
       yargs: 18.1.0
@@ -4121,71 +4121,71 @@ snapshots:
     dependencies:
       react: 19.2.3
 
-  '@radix-ui/react-dialog@1.1.15(react-dom@19.2.3(react@19.2.3))(react@19.2.3)':
+  '@radix-ui/react-dialog@1.1.15(react-dom@19.2.8(react@19.2.3))(react@19.2.3)':
     dependencies:
       '@radix-ui/primitive': 1.1.3
       '@radix-ui/react-compose-refs': 1.1.2(react@19.2.3)
       '@radix-ui/react-context': 1.1.2(react@19.2.3)
-      '@radix-ui/react-dismissable-layer': 1.1.11(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      '@radix-ui/react-dismissable-layer': 1.1.11(react-dom@19.2.8(react@19.2.3))(react@19.2.3)
       '@radix-ui/react-focus-guards': 1.1.3(react@19.2.3)
-      '@radix-ui/react-focus-scope': 1.1.7(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      '@radix-ui/react-focus-scope': 1.1.7(react-dom@19.2.8(react@19.2.3))(react@19.2.3)
       '@radix-ui/react-id': 1.1.1(react@19.2.3)
-      '@radix-ui/react-portal': 1.1.9(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
-      '@radix-ui/react-presence': 1.1.5(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
-      '@radix-ui/react-primitive': 2.1.3(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      '@radix-ui/react-portal': 1.1.9(react-dom@19.2.8(react@19.2.3))(react@19.2.3)
+      '@radix-ui/react-presence': 1.1.5(react-dom@19.2.8(react@19.2.3))(react@19.2.3)
+      '@radix-ui/react-primitive': 2.1.3(react-dom@19.2.8(react@19.2.3))(react@19.2.3)
       '@radix-ui/react-slot': 1.2.3(react@19.2.3)
       '@radix-ui/react-use-controllable-state': 1.2.2(react@19.2.3)
       aria-hidden: 1.2.6
       react: 19.2.3
-      react-dom: 19.2.3(react@19.2.3)
+      react-dom: 19.2.8(react@19.2.3)
       react-remove-scroll: 2.7.2(react@19.2.3)
 
-  '@radix-ui/react-dismissable-layer@1.1.11(react-dom@19.2.3(react@19.2.3))(react@19.2.3)':
+  '@radix-ui/react-dismissable-layer@1.1.11(react-dom@19.2.8(react@19.2.3))(react@19.2.3)':
     dependencies:
       '@radix-ui/primitive': 1.1.3
       '@radix-ui/react-compose-refs': 1.1.2(react@19.2.3)
-      '@radix-ui/react-primitive': 2.1.3(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      '@radix-ui/react-primitive': 2.1.3(react-dom@19.2.8(react@19.2.3))(react@19.2.3)
       '@radix-ui/react-use-callback-ref': 1.1.1(react@19.2.3)
       '@radix-ui/react-use-escape-keydown': 1.1.1(react@19.2.3)
       react: 19.2.3
-      react-dom: 19.2.3(react@19.2.3)
+      react-dom: 19.2.8(react@19.2.3)
 
   '@radix-ui/react-focus-guards@1.1.3(react@19.2.3)':
     dependencies:
       react: 19.2.3
 
-  '@radix-ui/react-focus-scope@1.1.7(react-dom@19.2.3(react@19.2.3))(react@19.2.3)':
+  '@radix-ui/react-focus-scope@1.1.7(react-dom@19.2.8(react@19.2.3))(react@19.2.3)':
     dependencies:
       '@radix-ui/react-compose-refs': 1.1.2(react@19.2.3)
-      '@radix-ui/react-primitive': 2.1.3(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      '@radix-ui/react-primitive': 2.1.3(react-dom@19.2.8(react@19.2.3))(react@19.2.3)
       '@radix-ui/react-use-callback-ref': 1.1.1(react@19.2.3)
       react: 19.2.3
-      react-dom: 19.2.3(react@19.2.3)
+      react-dom: 19.2.8(react@19.2.3)
 
   '@radix-ui/react-id@1.1.1(react@19.2.3)':
     dependencies:
       '@radix-ui/react-use-layout-effect': 1.1.1(react@19.2.3)
       react: 19.2.3
 
-  '@radix-ui/react-portal@1.1.9(react-dom@19.2.3(react@19.2.3))(react@19.2.3)':
+  '@radix-ui/react-portal@1.1.9(react-dom@19.2.8(react@19.2.3))(react@19.2.3)':
     dependencies:
-      '@radix-ui/react-primitive': 2.1.3(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      '@radix-ui/react-primitive': 2.1.3(react-dom@19.2.8(react@19.2.3))(react@19.2.3)
       '@radix-ui/react-use-layout-effect': 1.1.1(react@19.2.3)
       react: 19.2.3
-      react-dom: 19.2.3(react@19.2.3)
+      react-dom: 19.2.8(react@19.2.3)
 
-  '@radix-ui/react-presence@1.1.5(react-dom@19.2.3(react@19.2.3))(react@19.2.3)':
+  '@radix-ui/react-presence@1.1.5(react-dom@19.2.8(react@19.2.3))(react@19.2.3)':
     dependencies:
       '@radix-ui/react-compose-refs': 1.1.2(react@19.2.3)
       '@radix-ui/react-use-layout-effect': 1.1.1(react@19.2.3)
       react: 19.2.3
-      react-dom: 19.2.3(react@19.2.3)
+      react-dom: 19.2.8(react@19.2.3)
 
-  '@radix-ui/react-primitive@2.1.3(react-dom@19.2.3(react@19.2.3))(react@19.2.3)':
+  '@radix-ui/react-primitive@2.1.3(react-dom@19.2.8(react@19.2.3))(react@19.2.3)':
     dependencies:
       '@radix-ui/react-slot': 1.2.3(react@19.2.3)
       react: 19.2.3
-      react-dom: 19.2.3(react@19.2.3)
+      react-dom: 19.2.8(react@19.2.3)
 
   '@radix-ui/react-slot@1.2.3(react@19.2.3)':
     dependencies:
@@ -5279,14 +5279,14 @@ snapshots:
 
   negotiator@1.0.0: {}
 
-  next@15.5.23(react-dom@19.2.3(react@19.2.3))(react@19.2.3):
+  next@15.5.23(react-dom@19.2.8(react@19.2.3))(react@19.2.3):
     dependencies:
       '@next/env': 15.5.23
       '@swc/helpers': 0.5.15
       caniuse-lite: 1.0.30001806
       postcss: 8.5.26
       react: 19.2.3
-      react-dom: 19.2.3(react@19.2.3)
+      react-dom: 19.2.8(react@19.2.3)
       styled-jsx: 5.1.6(react@19.2.3)
     optionalDependencies:
       '@next/swc-darwin-arm64': 15.5.23
@@ -5383,7 +5383,7 @@ snapshots:
       iconv-lite: 0.7.3
       unpipe: 1.0.0
 
-  react-dom@19.2.3(react@19.2.3):
+  react-dom@19.2.8(react@19.2.3):
     dependencies:
       react: 19.2.3
       scheduler: 0.27.0
