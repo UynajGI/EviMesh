@@ -24,5 +24,7 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Check database schema snapshot
         run: pnpm --filter @evimesh/database db:check
+      - name: Verify npm CLI and MCP tarballs
+        run: pnpm package:test
       - name: Check whitespace errors
         run: git diff --check "$(git hash-object -t tree /dev/null)" HEAD

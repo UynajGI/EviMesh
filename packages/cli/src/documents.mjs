@@ -1,10 +1,16 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { schemaFileForDocument, validateAgainstSchema } from "../../schemas/src/validator.mjs";
 
-const packageRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
-export const schemaDir = join(packageRoot, "..", "schemas");
+const moduleDir = dirname(fileURLToPath(import.meta.url));
+const packagedSchemaDir = join(moduleDir, "schemas");
+const sourceSchemaDir = join(moduleDir, "..", "..", "schemas");
+
+// Source execution reads the repository schemas package. The published bundle
+// copies these assets beside its executable, keeping document validation fully
+// self-contained after `npm install`.
+export const schemaDir = existsSync(packagedSchemaDir) ? packagedSchemaDir : sourceSchemaDir;
 
 export class CliDocumentError extends Error {
   constructor(message, code = "CLI_DOCUMENT_INVALID", findings = []) {
