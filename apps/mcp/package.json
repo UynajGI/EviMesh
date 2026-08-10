@@ -1,12 +1,22 @@
 {
   "name": "@evimesh/mcp",
-  "private": true,
+  "private": false,
   "version": "0.3.0",
+  "engines": { "node": ">=22" },
   "description": "EviMesh MCP server: research resources and tools for any MCP-capable agent",
   "bin": {
-    "evimesh-mcp": "bin/evimesh-mcp.mjs"
+    "evimesh-mcp": "dist/evimesh-mcp.mjs"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
+    "build": "node ../../scripts/build-npm-distributions.mjs mcp",
+    "prepack": "npm run build",
     "lint": "node ../../scripts/check-package.mjs",
     "test": "node --test test/*.test.mjs"
   }

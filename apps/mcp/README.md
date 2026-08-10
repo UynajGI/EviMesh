@@ -1,5 +1,15 @@
 # @evimesh/mcp
 
+## Install / run
+
+```bash
+npx --yes @evimesh/mcp
+```
+
+Register that command as a stdio MCP server in a compatible Agent host. The
+published package is self-contained and uses the limited token saved by
+`sq auth login` when `EVIMESH_API_TOKEN` is not supplied.
+
 Model Context Protocol 服务器：以科研语义向任意支持 MCP 的 Agent 暴露上下文与工具（M11）。
 
 ## 运行
