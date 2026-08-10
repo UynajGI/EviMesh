@@ -1468,6 +1468,8 @@ M13.7 只采用一套产品设计系统。应用壳以 Primer React 和 Primer �
 - 完成 Primer 采用 ADR 与 ORCID/Supabase 技术 ADR；
 - 用完整产品壳原型和目标用户测试冻结方向。
 
+> **2026-08-10 状态：** 审计、契约和说明性原型材料已提交；`/prototypes/m13-7-a` 仅使用本地 fixture，不能登录、保存、连接 Agent 或访问真实研究。M13.7-A 尚未完成：A07 仍等待获授权的 ORCID Sandbox 与隔离 Supabase 证据；A10 仍等待至少五位已同意的目标用户会话，不能据此声明研究结论。
+
 #### M13.7-B：登录、账户与科研身份
 
 - 修复并门禁生产 Supabase Auth 公共配置；
