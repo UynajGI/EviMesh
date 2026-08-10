@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import worker, { createApp } from "../src/index.mjs";
+import worker, { createApp, createWorker } from "../src/index.mjs";
 import { createRateLimiter } from '../src/rate-limit.mjs';
 
 test("returns a healthy JSON response", async () => {
@@ -15,6 +15,27 @@ test("returns a healthy JSON response", async () => {
     status: "ok",
     environment: "test",
   });
+});
+
+test("wires hosted discovery reads from Worker environment bindings", async () => {
+  const upstreamRequests = [];
+  const hostedWorker = createWorker({
+    fetchImpl: async (url, options) => {
+      upstreamRequests.push({ url: new URL(url), options });
+      return Response.json([{ question_id: "question-1", project_id: "project-1", state: "active", created_at: "2026-08-08T00:00:00.000Z", deleted_at: null }]);
+    },
+  });
+
+  const response = await hostedWorker.fetch(new Request("https://api.example.test/questions?limit=20"), {
+    SUPABASE_URL: "https://project.supabase.co",
+    SUPABASE_PUBLISHABLE_KEY: "sb_publishable_test",
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(upstreamRequests.length, 1);
+  assert.equal(upstreamRequests[0].url.pathname, "/rest/v1/questions");
+  assert.equal(upstreamRequests[0].options.headers.apikey, "sb_publishable_test");
+  assert.deepEqual((await response.json()).items.map((question) => question.questionId), ["question-1"]);
 });
 
 test("allows browser requests from a configured web origin", async () => {
