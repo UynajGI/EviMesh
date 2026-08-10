@@ -3,14 +3,18 @@
 ## Install / run
 
 ```bash
-npx @evimesh/cli --help
+npx --yes @evimesh/cli --help
 npm install --global @evimesh/cli
 sq config init --api-url https://api.evimesh.com
 ```
 
-The public package ships a self-contained Node 22+ executable. `sq` is the
-installed command; prefer the scoped package name with `npx` to avoid resolving
-an unrelated package named `sq`.
+After an npm release, the package ships a self-contained Node 22+ executable.
+`sq` is the installed command; prefer the scoped package name with `npx` to
+avoid resolving an unrelated package named `sq`.
+
+Repository maintainers can run `pnpm package:test` to build both npm artifacts,
+install their packed tarballs into clean temporary directories, and exercise
+the installed `sq` command.
 
 `sq` 是 EviMesh 的命令行入口，让 Agent 与开发者无需 Web 即可参与科研网络（M10）。
 

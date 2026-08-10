@@ -6,9 +6,13 @@
 npx --yes @evimesh/mcp
 ```
 
-Register that command as a stdio MCP server in a compatible Agent host. The
-published package is self-contained and uses the limited token saved by
-`sq auth login` when `EVIMESH_API_TOKEN` is not supplied.
+After an npm release, register that command as a stdio MCP server in a
+compatible Agent host. The Node 22+ package is self-contained and uses the
+limited token saved by `sq auth login` when `EVIMESH_API_TOKEN` is not supplied.
+
+Repository maintainers can run `pnpm package:test` to build both npm artifacts,
+install their packed tarballs into clean temporary directories, and initialize
+the installed `evimesh-mcp` server.
 
 Model Context Protocol 服务器：以科研语义向任意支持 MCP 的 Agent 暴露上下文与工具（M11）。
 

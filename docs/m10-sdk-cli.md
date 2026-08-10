@@ -102,8 +102,12 @@ the shared subset validator in `@evimesh/schemas`
 Configuration lives in `~/.evimesh` (`config.json`, `state.json`), overridable
 via `EVIMESH_CONFIG_DIR` for tests.
 
-## Boundary
+## Distribution and boundary
 
 SDK and CLI target the HTTP contract only; neither reads the database nor
-depends on GitHub. The npm release tasks (M10-41/42) remain gated on registry
-credentials and are not part of this branch.
+depends on GitHub. `@evimesh/cli` is built as a self-contained Node 22+ npm
+artifact with the `sq` executable. After publication, run
+`npx --yes @evimesh/cli --help`; use `sq` after a global install. From the
+repository root, `pnpm package:test` builds both npm artifacts, installs their
+packed tarballs into clean temporary directories, and validates the installed
+CLI. Registry credentials are still required to publish the M10-42 release.
