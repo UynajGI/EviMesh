@@ -13,6 +13,7 @@ test('task_revisions preserve immutable Task content and context mode', () => {
     ['taskId', 'task_id'], ['revision', 'revision'], ['supersedes', 'supersedes'],
     ['state', 'state'], ['title', 'title'], ['description', 'description'],
     ['inputs', 'inputs'], ['outputs', 'outputs'], ['acceptance', 'acceptance'],
+    ['taskType', 'task_type'], ['tags', 'tags'],
     ['contextMode', 'context_mode'], ['questionId', 'question_id'],
     ['createdBy', 'created_by'], ['createdAt', 'created_at'],
   ]) assert.equal(columns[property].name, name);

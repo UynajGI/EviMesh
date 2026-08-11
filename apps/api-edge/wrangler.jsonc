@@ -25,7 +25,8 @@
     "API_TOKEN_RATE_LIMIT_MAX": "60",
     "RATE_LIMIT_WINDOW_SECONDS": "60",
     "GITHUB_MIRROR_OWNER": "UynajGI",
-    "GITHUB_MIRROR_REPO": "EviMesh-frontiers"
+    "GITHUB_MIRROR_REPO": "EviMesh-frontiers",
+    "SUPABASE_URL": "http://127.0.0.1:54321"
   },
   "env": {
     "staging": {
@@ -48,7 +49,8 @@
         "API_TOKEN_RATE_LIMIT_MAX": "60",
         "RATE_LIMIT_WINDOW_SECONDS": "60",
         "GITHUB_MIRROR_OWNER": "UynajGI",
-        "GITHUB_MIRROR_REPO": "EviMesh-frontiers"
+        "GITHUB_MIRROR_REPO": "EviMesh-frontiers",
+        "SUPABASE_URL": "https://qotwxdhzpoubniqdhskl.supabase.co"
       }
     },
     "production": {
@@ -71,7 +73,8 @@
         "API_TOKEN_RATE_LIMIT_MAX": "60",
         "RATE_LIMIT_WINDOW_SECONDS": "60",
         "GITHUB_MIRROR_OWNER": "UynajGI",
-        "GITHUB_MIRROR_REPO": "EviMesh-frontiers"
+        "GITHUB_MIRROR_REPO": "EviMesh-frontiers",
+        "SUPABASE_URL": "https://rruhruccjnuffodfbkuh.supabase.co"
       }
     }
   }

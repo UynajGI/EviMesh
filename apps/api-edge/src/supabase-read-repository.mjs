@@ -1,5 +1,6 @@
 const TABLES = Object.freeze({
   claims: "claims",
+  claimRelations: "claim_relations",
   projects: "projects",
   questions: "questions",
   tasks: "tasks",
@@ -30,7 +31,13 @@ function mapRow(row) {
 }
 
 const PAGE_SIZE = 1000;
-const PRIMARY_KEYS = Object.freeze({ claims: "claim_id", projects: "project_id", questions: "question_id", tasks: "task_id" });
+const TABLE_ORDERS = Object.freeze({
+  claims: "created_at.desc,claim_id.desc",
+  claimRelations: "created_at.asc,source_claim_id.asc,target_claim_id.asc,relation_type.asc",
+  projects: "created_at.desc,project_id.desc",
+  questions: "created_at.desc,question_id.desc",
+  tasks: "created_at.desc,task_id.desc",
+});
 
 export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = fetch } = {}) {
   const baseUrl = requiredString(url, "Supabase URL").replace(/\/$/, "");
@@ -41,7 +48,7 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
     const endpoint = new URL(`${baseUrl}/rest/v1/${TABLES[table]}`);
     endpoint.searchParams.set("select", "*");
     endpoint.searchParams.set("deleted_at", "is.null");
-    endpoint.searchParams.set("order", `created_at.desc,${PRIMARY_KEYS[table]}.desc`);
+    endpoint.searchParams.set("order", TABLE_ORDERS[table]);
     for (const [column, value] of Object.entries(filters)) {
       if (value !== null && value !== undefined) endpoint.searchParams.set(column, `eq.${value}`);
     }
@@ -74,6 +81,37 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
     throw new SupabaseReadRepositoryError(`${name} filtering is not available in the hosted discovery read model`, "SUPABASE_READ_FILTER_UNSUPPORTED", 400);
   }
 
+  async function claimGraph({ claimId, maxDepth, direction }) {
+    const [relations, claims] = await Promise.all([
+      list("claimRelations", { relation_type: "depends_on" }),
+      list("claims"),
+    ]);
+    const neighbours = new Map();
+    for (const relation of relations) {
+      const from = direction === "upstream" ? relation.sourceClaimId : relation.targetClaimId;
+      const to = direction === "upstream" ? relation.targetClaimId : relation.sourceClaimId;
+      const values = neighbours.get(from) ?? [];
+      values.push(to);
+      neighbours.set(from, values);
+    }
+    const claimById = new Map(claims.map((claim) => [claim.claimId, claim]));
+    const visited = new Set([claimId]);
+    const queue = [{ claimId, depth: 0, path: [claimId] }];
+    const nodes = [];
+    for (let cursor = 0; cursor < queue.length; cursor += 1) {
+      const current = queue[cursor];
+      if (current.depth >= maxDepth) continue;
+      for (const nextId of neighbours.get(current.claimId) ?? []) {
+        if (visited.has(nextId)) continue;
+        visited.add(nextId);
+        const next = { claimId: nextId, depth: current.depth + 1, path: [...current.path, nextId] };
+        queue.push(next);
+        nodes.push({ ...(claimById.get(nextId) ?? {}), ...next });
+      }
+    }
+    return nodes;
+  }
+
   return Object.freeze({
     listProjects: ({ state = null } = {}) => list("projects", { state }),
     listQuestions: ({ projectId = null, state = null } = {}) => list("questions", { project_id: projectId, state }),
@@ -90,5 +128,7 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
       const questionIds = await questionIdsForProject(projectId);
       return questionIds === null ? rows : rows.filter((row) => questionIds.has(row.questionId));
     },
+    getClaimUpstreamGraph: ({ claimId, maxDepth }) => claimGraph({ claimId, maxDepth, direction: "upstream" }),
+    getClaimDownstreamGraph: ({ claimId, maxDepth }) => claimGraph({ claimId, maxDepth, direction: "downstream" }),
   });
 }

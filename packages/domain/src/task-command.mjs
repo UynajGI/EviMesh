@@ -25,6 +25,13 @@ function requiredJson(value, field) {
   return value;
 }
 
+function taskTags(value) {
+  if (!Array.isArray(value) || value.some((tag) => typeof tag !== "string" || tag.trim().length === 0)) {
+    throw new TaskCommandError("task tags must be an array of non-empty strings");
+  }
+  return [...new Set(value.map((tag) => tag.trim()))];
+}
+
 /** Create a Task and its first immutable revision in one transaction. */
 export async function createTask({
   repository,
@@ -37,6 +44,8 @@ export async function createTask({
   inputs = [],
   outputs,
   acceptance,
+  taskType = "general",
+  tags = [],
   contextMode,
   eventFactory,
 } = {}) {
@@ -52,6 +61,8 @@ export async function createTask({
   inputs = requiredJson(inputs, "task inputs");
   outputs = requiredJson(outputs, "task outputs");
   acceptance = requiredJson(acceptance, "task acceptance");
+  taskType = requiredText(taskType, "task type");
+  tags = taskTags(tags);
   if (!CONTEXT_MODES.has(contextMode)) throw new TaskCommandError(`unsupported context mode: ${String(contextMode)}`);
   if (typeof eventFactory !== "function") throw new TaskCommandError("eventFactory is required");
   assertProjectRoleForAction({ actorRole, requiredRole: "maintainer" });
@@ -67,6 +78,8 @@ export async function createTask({
     inputs,
     outputs,
     acceptance,
+    taskType,
+    tags,
     contextMode,
     questionId,
     createdBy: actorId,
@@ -105,6 +118,8 @@ export async function reviseTask({
   inputs,
   outputs,
   acceptance,
+  taskType,
+  tags,
   contextMode,
   eventFactory,
 } = {}) {
@@ -134,6 +149,8 @@ export async function reviseTask({
       inputs: inputs === undefined ? current.inputs : requiredJson(inputs, "task inputs"),
       outputs: outputs === undefined ? current.outputs : requiredJson(outputs, "task outputs"),
       acceptance: acceptance === undefined ? current.acceptance : requiredJson(acceptance, "task acceptance"),
+      taskType: taskType === undefined ? (current.taskType ?? "general") : requiredText(taskType, "task type"),
+      tags: tags === undefined ? (current.tags ?? []) : taskTags(tags),
       contextMode: contextMode === undefined ? current.contextMode : contextMode,
       questionId: nextQuestionId,
       createdBy: actorId,

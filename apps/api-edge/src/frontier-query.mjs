@@ -25,13 +25,14 @@ export async function listFrontierHistory({ repository, projectId: value, limit 
   if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new FrontierQueryError('limit must be an integer between 1 and 100');
   if (cursor !== null && cursor !== undefined && (typeof cursor !== 'string' || !cursor)) throw new FrontierQueryError('cursor must be a non-empty string or null');
   const snapshots = await repository.listFrontierSnapshots({ projectId: projectId(value) });
-  const enriched = typeof repository.listFrontierMembers === 'function'
-    ? await Promise.all((Array.isArray(snapshots) ? snapshots : []).map(async (snapshot) => ({
+  const page = paginate(snapshots, { limit, cursor: cursor ?? null, getKey: (snapshot) => ({ createdAt: snapshot.createdAt, id: snapshot.snapshotId }) });
+  const items = typeof repository.listFrontierMembers === 'function'
+    ? await Promise.all(page.items.map(async (snapshot) => ({
       ...snapshot,
       members: await repository.listFrontierMembers(snapshot.snapshotId),
     })))
-    : snapshots;
-  return paginate(enriched, { limit, cursor: cursor ?? null, getKey: (snapshot) => ({ createdAt: snapshot.createdAt, id: snapshot.snapshotId }) });
+    : page.items;
+  return { ...page, items };
 }
 
 function snapshotId(value, field) {

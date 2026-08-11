@@ -15,6 +15,8 @@ const validTask = {
   inputs: [{ name: 'dataset', description: 'Pinned input dataset', type: 'dataset', required: true }],
   outputs: [{ name: 'reproduction-report', description: 'Report with hashes and results', type: 'report', required: true }],
   acceptance: ['All commands and versions are recorded', 'Independent result matches tolerance'],
+  task_type: 'verification',
+  tags: ['cpu-only', 'under-60-min'],
   context_mode: 'frontier',
   question_id: 'question_018f0f4a-5c00-4000-8000-000000000001',
   created_at: '2026-08-04T06:00:00.000Z',
@@ -34,6 +36,8 @@ function validateTask(value) {
     if (!artifact || typeof artifact.name !== 'string' || artifact.name.length < 1 || typeof artifact.description !== 'string' || artifact.description.length < 1) return 'artifact spec';
   }
   if (!Array.isArray(value.acceptance) || value.acceptance.length < 1 || value.acceptance.some((item) => typeof item !== 'string' || item.length < 1)) return 'acceptance';
+  if (value.task_type !== undefined && (typeof value.task_type !== 'string' || value.task_type.length < 1)) return 'task_type';
+  if (value.tags !== undefined && (!Array.isArray(value.tags) || value.tags.some((tag) => typeof tag !== 'string' || tag.length < 1) || new Set(value.tags).size !== value.tags.length)) return 'tags';
   if (!schema.properties.context_mode.enum.includes(value.context_mode)) return 'context_mode';
   return Number.isNaN(Date.parse(value.created_at)) ? 'created_at' : null;
 }
@@ -41,6 +45,7 @@ function validateTask(value) {
 test('defines Task inputs, outputs, acceptance, and context mode', () => {
   assert.equal(schema.$id, 'https://evimesh.org/schema/task.schema.json');
   assert.equal(schema.properties.outputs.minItems, 1);
+  assert.equal(schema.properties.tags.uniqueItems, true);
   assert.deepEqual(schema.properties.context_mode.enum, ['frontier', 'full_trace', 'adversarial', 'blind']);
   assert.equal(validateTask(validTask), null);
 });
