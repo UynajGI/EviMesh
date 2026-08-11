@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { createSupabaseReadRepository } from "./supabase-read-repository.mjs";
 import { authenticateSupabaseRequest, JwtVerificationError } from "./jwt.mjs";
 import { ContextQueryError, getTaskContext } from "./context-query.mjs";
 import { RequestValidationError } from "./validation.mjs";
@@ -1251,4 +1252,23 @@ app.onError((error, context) => {
 return app;
 }
 
-export default createApp();
+export function createWorker({ fetchImpl = fetch } = {}) {
+  const unconfiguredApp = createApp();
+  const hostedApps = new Map();
+  return Object.freeze({
+    fetch(request, env = {}, executionContext) {
+      const publishableKey = env.SUPABASE_PUBLISHABLE_KEY ?? env.SUPABASE_ANON_KEY;
+      if (!env.SUPABASE_URL || !publishableKey) {
+        return unconfiguredApp.fetch(request, env, executionContext);
+      }
+      const key = `${env.SUPABASE_URL}\u0000${publishableKey}`;
+      if (!hostedApps.has(key)) hostedApps.set(key, createApp({
+        repository: createSupabaseReadRepository({ url: env.SUPABASE_URL, publishableKey, fetchImpl }),
+      }));
+      return hostedApps.get(key).fetch(request, env, executionContext);
+    },
+    request: unconfiguredApp.request.bind(unconfiguredApp),
+  });
+}
+
+export default createWorker();
