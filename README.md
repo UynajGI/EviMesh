@@ -213,6 +213,15 @@ desktop/mobile shell with at most six primary navigation items, and a polished
 home page. The visual direction and token reference are documented in
 [`docs/m13.5-design-system.md`](docs/m13.5-design-system.md).
 
+M13.7-A now has its audit, product-contract, and test-planning records plus
+an illustrative, fixture-only prototype at `/prototypes/m13-7-a`. It is not a
+live product and cannot sign in, save data, connect an Agent, or access real
+research. The milestone remains open: [A07](docs/m13.7-a/07-orcid-supabase-spike-adr.md)
+is blocked pending authorized ORCID Sandbox and isolated Supabase evidence,
+and [A10](docs/m13.7-a/10-concept-navigation-test-report.md) awaits real,
+consented target-user sessions. See the [M13.7 design record](docs/m13.7-mature-product-identity-agent-onboarding.md)
+for the delivery boundary and supporting contracts.
+
 The Web preview workflow in [`.github/workflows/web-preview.yml`](.github/workflows/web-preview.yml)
 deploys `apps/web/public` to the `evimesh-web-dev` Cloudflare Pages project for
 same-repository pull requests. It requires `CLOUDFLARE_API_TOKEN` and

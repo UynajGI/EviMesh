@@ -1333,7 +1333,7 @@ Frontier v24 · 12 Accepted · 3 Contested · 8 Open Tasks
 
 M13 完成安全与生产运维后，不直接进入真实科研 Pilot。当前 Web 已有 26 个页面路由，但只有 3 个基础 UI 原语，主导航同时暴露 18 个入口；生产首页、任务页等还会把仓储层错误原文直接显示给用户。功能数量已经超过现有交互架构的承载能力，因此在 M13 与 M14 之间插入独立里程碑 M13.5。
 
-M13.5 的目标不是“换皮”，而是让首次访问者能够理解产品，让研究者能够完成核心工作，让错误、空状态和加载状态都可恢复，并为 M14 的真实 Pilot 建立可量化的体验门禁。
+M13.5 的目标不是“换皮”，而是让首次访问者能够理解产品，让研究者能够完成核心工作，让错误、空状态和加载状态都可恢复，并为后续 Agent-first 状态阅读和成熟产品壳建立可量化的体验基础。
 
 #### M13.5-A：体验定义与信息架构
 
@@ -1376,7 +1376,7 @@ M13.5 退出门槛：
 4. WCAG 2.2 AA 自动检查无阻断项，完整键盘路径可用；
 5. 生产站 Core Web Vitals 达到 Good 目标，关键页面无横向溢出和明显布局跳动；
 6. 至少 5 名目标用户完成可用性测试，关键任务成功率不低于 80%，无 Severity 1 问题；
-7. M13.5-D 发布门禁通过后，才允许启动 M14 真实科研闭环。
+7. M13.5-D 发布门禁通过后，才允许启动 M13.6。
 
 ### 16.9 M13.6：Agent-first Web 与论证状态感知
 
@@ -1441,7 +1441,90 @@ M13.6 退出门槛：
 4. 至少一种 CLI 路径和一种 MCP 路径可消费同一 handoff；
 5. 公开永久链接在权限允许时可由未登录用户读取，并明确 revision 是否为最新；
 6. 390px、键盘和屏幕阅读器路径无阻断问题；
-7. M13.6-E 发布门禁通过后，才允许启动 M14。
+7. M13.6-E 发布门禁通过后，才允许启动 M13.7。
+
+### 16.10 M13.7：成熟产品壳、科研身份与 Agent 接入闭环
+
+M13.6 冻结了协议忠实的状态阅读、关注变化和 Agent handoff，但成熟网站不能只由科研对象详情页组成。M13.7 补齐身份、账户、全局导航、搜索、个人工作、Agent 接入、文档和生产质量这些产品基础，并把研究者从“先理解数据模型”中解放出来。
+
+M13.7 采用任务型一级导航：
+
+- Home：关注变化、待处理工作、最近访问和 Agent 状态；
+- Explore：统一发现 Questions、Projects、Topics 和 People；
+- Work：我的 Task、验证队列、Challenge、草稿和贡献；
+- Agent：MCP、CLI、SDK、Token、连接状态和 Agent 阅读指南；
+- Docs：人类 Quickstart、协议概念、接入和安全参考；
+- Account：Profile、Connected identities、Tokens、Security 和 Notifications。
+
+Projects、Questions、Claims、Verification 和 Events 不再作为一级数据库对象导航，而是作为 Explore 筛选、搜索结果类型和研究工作区中的上下文视图。
+
+M13.7 只采用一套产品设计系统。应用壳以 Primer React 和 Primer 导航模式为实现基线，通过 EviMesh 适配组件承载品牌 Token 和科研语义；不混用多套组件库，也不复制 GitHub 品牌或仓库概念。
+
+#### M13.7-A：研究审计与产品契约
+
+- 审计匿名、登录、空、错、移动端和桌面生产路径；
+- 研究 Primer/GitHub、ORCID、Token 安全和 MCP 接入的成熟模式；
+- 冻结研究者任务模型、全局 IA 和路由兼容契约；
+- 完成 Primer 采用 ADR 与 ORCID/Supabase 技术 ADR；
+- 用完整产品壳原型和目标用户测试冻结方向。
+
+> **2026-08-10 状态：** 审计、契约和说明性原型材料已提交；`/prototypes/m13-7-a` 仅使用本地 fixture，不能登录、保存、连接 Agent 或访问真实研究。M13.7-A 尚未完成：A07 仍等待获授权的 ORCID Sandbox 与隔离 Supabase 证据；A10 仍等待至少五位已同意的目标用户会话，不能据此声明研究结论。
+
+#### M13.7-B：登录、账户与科研身份
+
+- 修复并门禁生产 Supabase Auth 公共配置；
+- 提供 ORCID、GitHub 和 Email 三种可恢复登录路径；
+- ORCID iD 只通过 OAuth/OIDC 认证，不允许手填后标记已验证；
+- 支持多身份安全关联、解除、碰撞恢复和审计；
+- 建立研究者资料、公开个人页、个人链接和字段可见性。
+
+#### M13.7-C：成熟应用壳与任务型信息架构
+
+- 建立 Primer 适配层、品牌 Token 和统一页面状态；
+- 实现认证感知 Header、任务型导航和账户菜单；
+- 实现上下文 NavList、PageHeader、breadcrumb 和稳定动作区；
+- 建立全局搜索、命令面板和旧路由兼容；
+- 保证移动端具有与桌面端等价的入口和操作。
+
+#### M13.7-D：Agent、CLI 与 MCP 接入中心
+
+- 建立从选择客户端到第一次可信读取的 Connection Center；
+- CLI/MCP 优先使用浏览器或设备授权，Token 作为高级回退；
+- Personal access token 支持名称、最小 scope、资源限制、过期、最后使用和撤销；
+- 提供 Codex、Claude、Cursor、CLI 和 Generic MCP 配置卡；
+- 建立 Agent 阅读指南和从 schema 生成的 resource/tool 目录。
+
+#### M13.7-E：研究者中心页面重构
+
+- 区分匿名 Landing 与登录后的 Watchlist Home；
+- 建立统一 Explore 和个人 Work 中心；
+- 把 Project/Question 重构为研究工作区，不以对象列表为主轴；
+- 接入 M13.6 的 Argument、Evidence、Verification、Frontier 渐进阅读；
+- 在研究内容中展示可信贡献者身份并提供上下文 Agent handoff。
+
+#### M13.7-F：迁移、质量与生产门禁
+
+- 完成旧路由、旧应用壳和重复 UI 原语迁移；
+- 对 Auth、ORCID、Token、MCP、RLS 和凭据泄露执行安全审计；
+- 覆盖 390px、768px、1440px、系统深色模式和完整视觉回归；
+- 通过 WCAG 2.2 AA、Core Web Vitals 和生产配置门禁；
+- 使用真实用户任务和生产 canary 形成 M13.7 证据包。
+
+详细产品约束见 `docs/m13.7-mature-product-identity-agent-onboarding.md`。
+
+M13.7 退出门槛：
+
+1. 匿名用户能在 45 秒内说明 EviMesh 的用途和可信来源机制；
+2. 用户能在 2 分钟内通过 GitHub 或 ORCID 登录，并找到身份和安全设置；
+3. ORCID 只通过认证流程显示为已验证，身份关联冲突有安全恢复路径；
+4. 用户能在 3 分钟内连接 CLI 或 MCP 并完成第一次只读调用；
+5. Token 具备最小 scope、过期、最后使用、一次展示和即时撤销；
+6. 用户能在 60 秒内说明 Question 阶段、主要争议、验证阻塞和 Frontier；
+7. 一级导航不要求用户理解数据库表，旧永久链接保持兼容；
+8. 390px、键盘、屏幕阅读器和系统深色模式无阻断问题；
+9. 生产公共配置缺失时部署失败，而不是把错误暴露给最终用户；
+10. 至少 5 名目标用户关键任务成功率不低于 80%，无未解决 Severity 1/2 问题；
+11. M13.7-F 发布门禁通过后，才允许启动 M14。
 
 ---
 
@@ -2003,6 +2086,16 @@ RTO：8 小时以内
 - 理解度、无障碍、移动端和生产证据门禁。
 
 交付：研究者可用 Web 快速理解当前论证状态，并在需要贡献时把准确上下文交给自己的 Agent、CLI 或 MCP 客户端继续处理。
+
+### Phase 2.7：成熟产品壳、科研身份与 Agent 接入（M13.7）
+
+- GitHub、ORCID、Email 登录与可信科研身份关联；
+- Primer 产品壳、任务型全局导航、搜索和账户设置；
+- 匿名 Landing、Watchlist Home、Explore、Work 与研究工作区；
+- Personal access token、CLI/MCP 连接向导和 Agent 阅读指南；
+- 旧路由迁移、生产配置、安全、无障碍、性能和真实用户门禁。
+
+交付：新用户无需开发者解释即可理解 EviMesh、登录并找到研究内容；研究者可管理可信身份和个人授权，并在 3 分钟内让自己的 CLI 或 MCP 完成第一次可追溯读取。
 
 ### Phase 3：CLI、MCP 与公共 Alpha
 
