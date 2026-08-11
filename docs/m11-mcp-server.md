@@ -51,8 +51,12 @@ sign it with the shared `~/.evimesh` Ed25519 identity as a
 - `test/audit.test.mjs` asserts tool names, argument keys, and resource URIs
   contain no GitHub/PR/branch/commit semantics (M11-25).
 
-## Boundary
+## Distribution and boundary
 
 The server only reaches the research network through the HTTP API via the SDK;
-it never reads the database. M11-26 (npm alpha release) is gated on registry
-credentials and is not part of this branch.
+it never reads the database. `@evimesh/mcp` is built as a self-contained Node
+22+ npm artifact with the `evimesh-mcp` executable. After publication, register
+`npx --yes @evimesh/mcp` as a stdio server. From the repository root,
+`pnpm package:test` builds both npm artifacts, installs their packed tarballs
+into clean temporary directories, and initializes the installed MCP server.
+Registry credentials are still required to publish the M11-26 release.

@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Input, Label } from '@/components/ui/form';
+import { PageContainer } from '@/components/ui/page';
 import { createBrowserSupabaseClient } from '@/lib/supabase-browser';
 
 export default function SignInPage() {
@@ -28,5 +29,5 @@ export default function SignInPage() {
     } catch (error) { setMessage(error.message); setPending(false); }
   }
 
-  return <main className="mx-auto flex min-h-[70vh] max-w-md items-center px-6 py-16"><section className="w-full rounded-2xl border border-border bg-card p-8 shadow-sm"><p className="text-sm font-bold uppercase tracking-[0.18em] text-primary">Welcome back</p><h1 className="mt-3 text-3xl font-semibold text-card-foreground">Sign in to EviMesh</h1><form className="mt-7 space-y-4" onSubmit={signInWithEmail}><label className="block text-sm font-medium" htmlFor="email">Email</label><Input id="email" name="email" required type="email" /><label className="block text-sm font-medium" htmlFor="password">Password</label><Input id="password" name="password" required type="password" /><Button className="w-full" disabled={pending} type="submit">{pending ? 'Signing in…' : 'Sign in with email'}</Button></form><div className="my-6 border-t border-border" /><Button className="w-full" disabled={pending} onClick={signInWithGitHub} type="button" variant="outline">Continue with GitHub</Button>{message && <p aria-live="polite" className="mt-5 text-sm text-muted-foreground">{message}</p>}</section></main>;
+  return <PageContainer><div className="mx-auto flex min-h-[70vh] max-w-md items-center"><section className="w-full rounded-lg border border-border bg-card p-8" aria-labelledby="sign-in-heading"><p className="text-sm font-medium text-secondary-foreground">Welcome back</p><h1 id="sign-in-heading" className="mt-3 text-3xl font-semibold tracking-tight">Sign in to EviMesh</h1><p className="mt-3 text-sm text-muted-foreground">You will return to the page you were viewing after signing in.</p><form className="mt-7 space-y-4" onSubmit={signInWithEmail}><div className="grid gap-2"><Label htmlFor="email">Email</Label><Input id="email" name="email" required type="email" autoComplete="email" /></div><div className="grid gap-2"><Label htmlFor="password">Password</Label><Input id="password" name="password" required type="password" autoComplete="current-password" /></div><Button className="w-full" loading={pending} type="submit">{pending ? 'Signing in…' : 'Sign in with email'}</Button></form><div className="my-6 border-t border-border" role="separator" /><Button className="w-full" disabled={pending} onClick={signInWithGitHub} type="button" variant="outline">Continue with GitHub</Button><p className="mt-5 text-xs leading-5 text-muted-foreground">Your credentials are handled by Supabase Auth. EviMesh never stores your password or GitHub token.</p>{message && <p role={message === 'Signed in successfully.' ? 'status' : 'alert'} aria-live="polite" className={`mt-5 text-sm ${message === 'Signed in successfully.' ? 'text-success' : 'text-destructive'}`}>{message}</p>}</section></div></PageContainer>;
 }

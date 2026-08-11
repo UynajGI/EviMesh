@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { createSupabaseReadRepository, SupabaseReadRepositoryError } from "./supabase-read-repository.mjs";
+import { createSupabaseReadRepository } from "./supabase-read-repository.mjs";
 import { authenticateSupabaseRequest, JwtVerificationError } from "./jwt.mjs";
 import { ContextQueryError, getTaskContext } from "./context-query.mjs";
 import { RequestValidationError } from "./validation.mjs";
@@ -51,8 +51,13 @@ import { approveDeviceAuthorization, CLI_DEVICE_SCOPES, createMemoryDeviceCodeSt
 import { verifyClientSignatureEnvelope } from './client-signature.mjs';
 import { API_TOKEN_PREFIX, authenticateApiToken } from './api-token-auth.mjs';
 import { importWitnessReceipt, WitnessError } from '../../../packages/frontier-bundle/src/witness.mjs';
+import { createRateLimiter, rateLimitSettings } from './rate-limit.mjs';
+import { createDurableObjectRateLimiter } from './rate-limit-binding.mjs';
+import { createSupabaseNonceStore } from './supabase-nonce-store.mjs';
+
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
+const authenticatedRequestClaims = new WeakMap();
 
 function configuredCorsOrigins(env) {
   return String(env?.CORS_ALLOWED_ORIGINS ?? "")
@@ -69,8 +74,20 @@ function errorBody(code, message, requestId) {
   return { code, message, request_id: requestId };
 }
 
-export function createApp({ repository = null, projectEventFactory = null, questionEventFactory = null, questionRoleResolver = null, attemptEventFactory = null, attemptRoleResolver = null, leaseEventFactory = null, leaseRoleResolver = null, taskEventFactory = null, taskRoleResolver = null, claimEventFactory = null, claimRoleResolver = null, evidenceEventFactory = null, evidenceRoleResolver = null, runEventFactory = null, runRoleResolver = null, artifactEventFactory = null, artifactRoleResolver = null, challengeEventFactory = null, challengeRoleResolver = null, verificationEventFactory = null, verificationRoleResolver = null, uploadSigner = null, deviceCodeStore = createMemoryDeviceCodeStore(), authenticate = authenticateSupabaseRequest } = {}) {
+export function createApp({ repository = null, signatureNonceStore = null, projectEventFactory = null, questionEventFactory = null, questionRoleResolver = null, questionRiskResolver = null, attemptEventFactory = null, attemptRoleResolver = null, leaseEventFactory = null, leaseRoleResolver = null, taskEventFactory = null, taskRoleResolver = null, claimEventFactory = null, claimRoleResolver = null, evidenceEventFactory = null, evidenceRoleResolver = null, runEventFactory = null, runRoleResolver = null, artifactEventFactory = null, artifactRoleResolver = null, challengeEventFactory = null, challengeRoleResolver = null, verificationEventFactory = null, verificationRoleResolver = null, uploadSigner = null, deviceCodeStore = createMemoryDeviceCodeStore(), authenticate = authenticateSupabaseRequest, rateLimiter = createRateLimiter() } = {}) {
 const app = new Hono();
+
+function rateLimiterFor(context) {
+  return context.env?.RATE_LIMITER
+    ? createDurableObjectRateLimiter(context.env.RATE_LIMITER)
+    : rateLimiter;
+}
+
+function nonceStoreFor(context) {
+  if (typeof signatureNonceStore?.claimSignatureNonce === 'function') return signatureNonceStore;
+  if (typeof repository?.claimSignatureNonce === 'function') return repository;
+  return createSupabaseNonceStore({ env: context.env });
+}
 
 function revisionEtagFor(objectId, revision) {
   return revisionEtag({ objectId, revision: revision.revision, contentHash: semanticHash(revision) });
@@ -89,12 +106,18 @@ function knownFailure(error, context, fallback) {
 
 /** Accept either a Supabase JWT or an `evimesh_...` API token as Bearer credentials. */
 async function authenticateRequest(request, env) {
+  const cachedClaims = request && authenticatedRequestClaims.get(request);
+  if (cachedClaims) return cachedClaims;
   const header = request?.headers?.get?.("authorization") ?? "";
   const match = /^Bearer\s+(.+)$/i.exec(header);
+  let claims;
   if (match && match[1].startsWith(API_TOKEN_PREFIX)) {
-    return authenticateApiToken({ repository, token: match[1] });
+    claims = await authenticateApiToken({ repository, token: match[1] });
+  } else {
+    claims = await authenticate(request, env);
   }
-  return authenticate(request, env);
+  if (request && claims) authenticatedRequestClaims.set(request, claims);
+  return claims;
 }
 
 app.use("*", async (context, next) => {
@@ -102,6 +125,42 @@ app.use("*", async (context, next) => {
   context.set("requestId", requestId);
   context.header("x-request-id", requestId);
   await next();
+});
+
+app.use("*", async (context, next) => {
+  // Preserve anonymous public-route behavior: only valid Bearer credentials
+  // enter an identity bucket. Protected handlers still authenticate themselves.
+  if (!/^Bearer\s+/i.test(context.req.header('authorization') ?? '')) return next();
+
+  let claims;
+  let actorId;
+  try {
+    claims = await authenticateRequest(context.req.raw, context.env);
+    actorId = await resolveActorForSupabaseClaims({ repository, claims });
+  } catch {
+    return next();
+  }
+
+  const settings = rateLimitSettings(context.env);
+  const activeRateLimiter = rateLimiterFor(context);
+  const actorResult = await activeRateLimiter.consume({
+    scope: 'actor', key: actorId, limit: settings.actorLimit, windowMs: settings.windowMs,
+  });
+  if (!actorResult.allowed) {
+    context.header('retry-after', String(actorResult.retryAfterSeconds));
+    return context.json(errorBody('RATE_LIMITED', 'request rate limit exceeded', context.get('requestId')), 429);
+  }
+
+  if (claims.kind === 'api_token' && typeof claims.tokenId === 'string' && claims.tokenId) {
+    const tokenResult = await activeRateLimiter.consume({
+      scope: 'api_token', key: claims.tokenId, limit: settings.apiTokenLimit, windowMs: settings.windowMs,
+    });
+    if (!tokenResult.allowed) {
+      context.header('retry-after', String(tokenResult.retryAfterSeconds));
+      return context.json(errorBody('RATE_LIMITED', 'request rate limit exceeded', context.get('requestId')), 429);
+    }
+  }
+  return next();
 });
 
 app.use("*", async (context, next) => {
@@ -719,8 +778,14 @@ app.post('/questions/:questionId/transitions', async (context) => {
     const actorId = await resolveActorForSupabaseClaims({ repository, claims });
     const questionId = context.req.param('questionId');
     const actorRole = await questionRoleResolver({ repository, actorId, questionId });
-    const { toState } = await context.req.json();
-    return context.json(await transitionQuestion({ repository, actorId, actorRole, questionId, toState, eventFactory: questionEventFactory }), 201);
+    const { toState, automaticPublication = false } = await context.req.json();
+    if (automaticPublication && typeof questionRiskResolver !== 'function') {
+      return context.json(errorBody('QUESTION_RISK_RESOLVER_UNAVAILABLE', 'question risk resolver is not configured', context.get('requestId')), 503);
+    }
+    const riskSignals = automaticPublication
+      ? await questionRiskResolver({ repository, actorId, questionId, toState, claims })
+      : undefined;
+    return context.json(await transitionQuestion({ repository, actorId, actorRole, questionId, toState, automaticPublication, riskSignals, eventFactory: questionEventFactory }), 201);
   } catch (error) {
     const response = knownFailure(error, context);
     if (response || error instanceof QuestionCommandError) return response ?? context.json(errorBody(error.code ?? 'question_transition_failed', error.message, context.get('requestId')), error.status ?? 400);
@@ -746,8 +811,6 @@ app.post('/tasks', async (context) => {
       inputs: body.inputs ?? [],
       outputs: body.outputs,
       acceptance: body.acceptance,
-      taskType: body.taskType ?? "general",
-      tags: body.tags ?? [],
       contextMode: body.contextMode,
       eventFactory: taskEventFactory,
     }), 201);
@@ -777,7 +840,7 @@ app.post('/claims', async (context) => {
       // defaults are applied only when constructing the domain command.
       const signedPayload = { ...body };
       delete signedPayload.signatureEnvelope;
-      await verifyClientSignatureEnvelope({ repository, actorId, envelope: body.signatureEnvelope, payload: signedPayload, expectedEventType: 'claim.created' });
+      await verifyClientSignatureEnvelope({ repository, signatureNonceStore: nonceStoreFor(context), actorId, envelope: body.signatureEnvelope, payload: signedPayload, expectedEventType: 'claim.created' });
     }
     const actorRole = await claimRoleResolver({ repository, actorId, questionId: body.questionId ?? null, projectId: body.projectId ?? null });
     return context.json(await createClaim({
@@ -977,7 +1040,7 @@ app.post('/runs', async (context) => {
     if (body.signatureEnvelope !== undefined) {
       const signedPayload = { ...body };
       delete signedPayload.signatureEnvelope;
-      await verifyClientSignatureEnvelope({ repository, actorId, envelope: body.signatureEnvelope, payload: signedPayload, expectedEventType: 'run.created' });
+      await verifyClientSignatureEnvelope({ repository, signatureNonceStore: nonceStoreFor(context), actorId, envelope: body.signatureEnvelope, payload: signedPayload, expectedEventType: 'run.created' });
     }
     const actorRole = await runRoleResolver({ repository, actorId, taskId: body.taskId ?? null });
     return context.json(await createRun({
@@ -1006,6 +1069,7 @@ app.post('/artifacts/upload-plan', async (context) => {
       rawHash: body.rawHash,
       sizeBytes: body.sizeBytes,
       mediaType: body.mediaType,
+      fileName: body.fileName,
       signer: uploadSigner,
     });
     return context.json(plan, 201);
@@ -1093,7 +1157,7 @@ app.post('/verifications', async (context) => {
     if (body.signatureEnvelope !== undefined) {
       const signedPayload = { ...body };
       delete signedPayload.signatureEnvelope;
-      await verifyClientSignatureEnvelope({ repository, actorId, envelope: body.signatureEnvelope, payload: signedPayload, expectedEventType: 'verification.submitted' });
+      await verifyClientSignatureEnvelope({ repository, signatureNonceStore: nonceStoreFor(context), actorId, envelope: body.signatureEnvelope, payload: signedPayload, expectedEventType: 'verification.submitted' });
     }
     const actorRole = await verificationRoleResolver({ repository, actorId, claimId: body.claimId ?? null });
     return context.json(await submitVerification({
@@ -1127,7 +1191,7 @@ app.post('/challenges', async (context) => {
     if (body.signatureEnvelope !== undefined) {
       const signedPayload = { ...body };
       delete signedPayload.signatureEnvelope;
-      await verifyClientSignatureEnvelope({ repository, actorId, envelope: body.signatureEnvelope, payload: signedPayload, expectedEventType: 'challenge.created' });
+      await verifyClientSignatureEnvelope({ repository, signatureNonceStore: nonceStoreFor(context), actorId, envelope: body.signatureEnvelope, payload: signedPayload, expectedEventType: 'challenge.created' });
     }
     const actorRole = await challengeRoleResolver({ repository, actorId, targetClaimId: body.targetClaimId ?? null });
     return context.json(await createChallenge({
@@ -1181,9 +1245,6 @@ app.onError((error, context) => {
       issues: error.issues,
     }, 400);
   }
-  if (error instanceof SupabaseReadRepositoryError) {
-    return context.json(errorBody(error.code, error.message, context.get("requestId")), error.status);
-  }
   console.error("api request failed", error);
   return context.json(errorBody("internal_error", "internal server error", context.get("requestId")), 500);
 });
@@ -1193,17 +1254,18 @@ return app;
 
 export function createWorker({ fetchImpl = fetch } = {}) {
   const unconfiguredApp = createApp();
-  let hostedApp = null;
+  const hostedApps = new Map();
   return Object.freeze({
     fetch(request, env = {}, executionContext) {
       const publishableKey = env.SUPABASE_PUBLISHABLE_KEY ?? env.SUPABASE_ANON_KEY;
       if (!env.SUPABASE_URL || !publishableKey) {
         return unconfiguredApp.fetch(request, env, executionContext);
       }
-      hostedApp ??= createApp({
+      const key = `${env.SUPABASE_URL}\u0000${publishableKey}`;
+      if (!hostedApps.has(key)) hostedApps.set(key, createApp({
         repository: createSupabaseReadRepository({ url: env.SUPABASE_URL, publishableKey, fetchImpl }),
-      });
-      return hostedApp.fetch(request, env, executionContext);
+      }));
+      return hostedApps.get(key).fetch(request, env, executionContext);
     },
     request: unconfiguredApp.request.bind(unconfiguredApp),
   });

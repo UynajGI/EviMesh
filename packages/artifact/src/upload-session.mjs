@@ -1,4 +1,5 @@
 import { artifactObjectKey } from './hash.mjs';
+import { assertUploadPolicy, UploadPolicyError } from './upload-policy.mjs';
 
 const DEFAULT_EXPIRY_SECONDS = 900;
 const MAX_EXPIRY_SECONDS = 3600;
@@ -41,13 +42,21 @@ function assertUploadMethod(session, method) {
   }
 }
 
+function assertSingleUploadPolicy(input) {
+  try {
+    return assertUploadPolicy(input);
+  } catch (error) {
+    if (error instanceof UploadPolicyError) throw new UploadSessionError(error.message, error.code);
+    throw error;
+  }
+}
+
 /** Build a signed single-object upload plan without exposing storage credentials. */
-export async function createSingleUploadPlan({ artifactId, revision, rawHash, sizeBytes, mediaType, signer, expiresInSeconds = DEFAULT_EXPIRY_SECONDS, now = new Date() } = {}) {
-  if (!Number.isInteger(sizeBytes) || sizeBytes < 0) throw new UploadSessionError('size bytes must be a non-negative integer');
-  if (typeof mediaType !== 'string' || mediaType.trim().length === 0) throw new UploadSessionError('media type is required');
+export async function createSingleUploadPlan({ artifactId, revision, rawHash, sizeBytes, mediaType, fileName, maxSizeBytes, signer, expiresInSeconds = DEFAULT_EXPIRY_SECONDS, now = new Date() } = {}) {
   if (typeof signer !== 'function') throw new UploadSessionError('upload signer is required');
+  const policy = assertSingleUploadPolicy({ sizeBytes, mediaType, fileName, maxSizeBytes });
   const fields = sessionFields({ artifactId, revision, rawHash, expiresInSeconds, now });
-  const signed = await signer({ key: fields.key, method: 'PUT', sizeBytes, mediaType: mediaType.trim(), expiresAt: fields.expiresAt });
+  const signed = await signer({ key: fields.key, method: 'PUT', sizeBytes: policy.sizeBytes, mediaType: policy.mediaType, expiresAt: fields.expiresAt });
   let url;
   try {
     url = new URL(signed?.url);
@@ -55,7 +64,7 @@ export async function createSingleUploadPlan({ artifactId, revision, rawHash, si
     throw new UploadSessionError('upload signer returned an invalid URL');
   }
   if (!['http:', 'https:'].includes(url.protocol)) throw new UploadSessionError('upload signer returned an invalid URL');
-  return Object.freeze({ uploadType: 'single', key: fields.key, sizeBytes, mediaType: mediaType.trim(), issuedAt: fields.issuedAt, expiresAt: fields.expiresAt, url: signed.url });
+  return Object.freeze({ uploadType: 'single', key: fields.key, sizeBytes: policy.sizeBytes, mediaType: policy.mediaType, issuedAt: fields.issuedAt, expiresAt: fields.expiresAt, url: signed.url });
 }
 
 /** Start an R2 multipart upload for a content-addressed Artifact revision. */

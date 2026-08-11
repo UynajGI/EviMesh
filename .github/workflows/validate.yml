@@ -12,11 +12,11 @@ jobs:
   repository:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
         with:
           version: 11.17.0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
           cache: pnpm
@@ -24,5 +24,7 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Check database schema snapshot
         run: pnpm --filter @evimesh/database db:check
+      - name: Verify npm CLI and MCP tarballs
+        run: pnpm package:test
       - name: Check whitespace errors
         run: git diff --check "$(git hash-object -t tree /dev/null)" HEAD

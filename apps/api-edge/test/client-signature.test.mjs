@@ -19,7 +19,10 @@ function makeEnvelope({ keypair, keyId, eventType, payload, nonce = "nonce-01234
 }
 
 function keyRepository(keypair, keyId) {
-  return { findActiveSigningKey: async () => ({ keyId, actorId: "actor-1", algorithm: "Ed25519", publicKey: keypair.public_key }) };
+  return {
+    findActiveSigningKey: async () => ({ keyId, actorId: "actor-1", algorithm: "Ed25519", publicKey: keypair.public_key }),
+    claimSignatureNonce: async () => true,
+  };
 }
 
 test("verifies a well-formed envelope against the actor's active signing key", async () => {
@@ -69,6 +72,30 @@ test("rejects event type mismatches and malformed envelopes", async () => {
   );
 });
 
+test("rejects a replay but permits the same nonce for another actor", async () => {
+  const keypair = generateEd25519KeyPair();
+  const payload = { claimId: "claim-1" };
+  const envelope = await makeEnvelope({ keypair, keyId: "key-1", eventType: "claim.created", payload });
+  const claimed = new Set();
+  const repository = {
+    findActiveSigningKey: async (actorId) => ({ keyId: "key-1", actorId, algorithm: "Ed25519", publicKey: keypair.public_key }),
+    claimSignatureNonce: async ({ actorId, keyId, nonce }) => {
+      const value = `${actorId}:${keyId}:${nonce}`;
+      if (claimed.has(value)) return false;
+      claimed.add(value);
+      return true;
+    },
+  };
+  await verifyClientSignatureEnvelope({ repository, actorId: "actor-1", envelope, payload, expectedEventType: "claim.created" });
+  await assert.rejects(
+    verifyClientSignatureEnvelope({ repository, actorId: "actor-1", envelope, payload, expectedEventType: "claim.created" }),
+    (error) => error.code === "CLIENT_SIGNATURE_REPLAYED" && error.status === 409,
+  );
+  await assert.doesNotReject(
+    verifyClientSignatureEnvelope({ repository, actorId: "actor-2", envelope, payload, expectedEventType: "claim.created" }),
+  );
+});
+
 test("verifies the exact sent payload when optional fields are omitted", async () => {
   const keypair = generateEd25519KeyPair();
   const insertedClaims = [];
@@ -79,6 +106,7 @@ test("verifies the exact sent payload when optional fields are omitted", async (
   const repository = {
     findIdentity: async () => ({ actorId: "actor-1" }),
     findActiveSigningKey: async () => ({ keyId: "key-1", actorId: "actor-1", algorithm: "Ed25519", publicKey: keypair.public_key }),
+    claimSignatureNonce: async () => true,
     insertClaim,
     insertClaimRevision,
     appendResearchEvent,
@@ -112,6 +140,7 @@ test("POST /claims accepts a valid signed envelope and rejects a tampered one", 
   const repository = {
     findIdentity: async () => ({ actorId: "actor-1" }),
     findActiveSigningKey: async () => ({ keyId: "key-1", actorId: "actor-1", algorithm: "Ed25519", publicKey: keypair.public_key }),
+    claimSignatureNonce: async () => true,
     insertClaim,
     insertClaimRevision,
     appendResearchEvent,
@@ -141,4 +170,60 @@ test("POST /claims accepts a valid signed envelope and rejects a tampered one", 
   }), {});
   assert.equal(rejected.status, 400);
   assert.equal((await rejected.json()).code, "CLIENT_SIGNATURE_PAYLOAD_MISMATCH");
+});
+
+test('signed routes use the injected persistent nonce store, reject a duplicate, and permit another actor', async () => {
+  const keypair = generateEd25519KeyPair();
+  const claimed = new Set();
+  const repository = {
+    findIdentity: async (_provider, subject) => ({ actorId: subject }),
+    findActiveSigningKey: async (actorId) => ({ keyId: 'key-1', actorId, algorithm: 'Ed25519', publicKey: keypair.public_key }),
+    insertClaim: async (claim) => claim,
+    insertClaimRevision: async (revision) => revision,
+    appendResearchEvent: async (event) => event,
+    withTransaction: async (callback) => callback(repository),
+  };
+  const signatureNonceStore = {
+    claimSignatureNonce: async ({ actorId, keyId, nonce }) => {
+      const value = `${actorId}:${keyId}:${nonce}`;
+      if (claimed.has(value)) return false;
+      claimed.add(value);
+      return true;
+    },
+  };
+  const app = createApp({
+    repository,
+    signatureNonceStore,
+    claimEventFactory: async ({ eventType, payload }) => ({ eventType, payload }),
+    claimRoleResolver: async () => 'maintainer',
+    authenticate: async (request) => ({ sub: request.headers.get('x-actor') }),
+  });
+  const body = { claimId: 'claim-1', statement: 'signed claim', scope: ['s'], falsification: ['f'] };
+  const envelope = await makeEnvelope({ keypair, keyId: 'key-1', eventType: 'claim.created', payload: body });
+  const requestFor = (actor) => new Request('https://api.example.test/claims', {
+    method: 'POST', headers: { authorization: 'Bearer test-token', 'content-type': 'application/json', 'x-actor': actor }, body: JSON.stringify({ ...body, signatureEnvelope: envelope }),
+  });
+  assert.equal((await app.fetch(requestFor('actor-1'), {})).status, 201);
+  const replay = await app.fetch(requestFor('actor-1'), {});
+  assert.equal(replay.status, 409);
+  assert.equal((await replay.json()).code, 'CLIENT_SIGNATURE_REPLAYED');
+  assert.equal((await app.fetch(requestFor('actor-2'), {})).status, 201);
+});
+
+test('signed routes fail closed when no repository nonce method or Supabase configuration exists', async () => {
+  const keypair = generateEd25519KeyPair();
+  const repository = {
+    findIdentity: async () => ({ actorId: 'actor-1' }),
+    findActiveSigningKey: async () => ({ keyId: 'key-1', actorId: 'actor-1', algorithm: 'Ed25519', publicKey: keypair.public_key }),
+    insertClaim: async (claim) => claim,
+    insertClaimRevision: async (revision) => revision,
+    appendResearchEvent: async (event) => event,
+    withTransaction: async (callback) => callback(repository),
+  };
+  const app = createApp({ repository, claimEventFactory: async ({ eventType, payload }) => ({ eventType, payload }), claimRoleResolver: async () => 'maintainer', authenticate: async () => ({ sub: 'subject-1' }) });
+  const body = { claimId: 'claim-1', statement: 'signed claim', scope: ['s'], falsification: ['f'] };
+  const envelope = await makeEnvelope({ keypair, keyId: 'key-1', eventType: 'claim.created', payload: body });
+  const response = await app.fetch(new Request('https://api.example.test/claims', { method: 'POST', headers: { authorization: 'Bearer test-token', 'content-type': 'application/json' }, body: JSON.stringify({ ...body, signatureEnvelope: envelope }) }), {});
+  assert.equal(response.status, 503);
+  assert.equal((await response.json()).code, 'CLIENT_SIGNATURE_UNAVAILABLE');
 });

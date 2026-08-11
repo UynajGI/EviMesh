@@ -1329,6 +1329,203 @@ Frontier v24 · 12 Accepted · 3 Contested · 8 Open Tasks
 
 不做单一总分榜。
 
+### 16.8 M13.5：产品可用性与 UI/UX 重构
+
+M13 完成安全与生产运维后，不直接进入真实科研 Pilot。当前 Web 已有 26 个页面路由，但只有 3 个基础 UI 原语，主导航同时暴露 18 个入口；生产首页、任务页等还会把仓储层错误原文直接显示给用户。功能数量已经超过现有交互架构的承载能力，因此在 M13 与 M14 之间插入独立里程碑 M13.5。
+
+M13.5 的目标不是“换皮”，而是让首次访问者能够理解产品，让研究者能够完成核心工作，让错误、空状态和加载状态都可恢复，并为后续 Agent-first 状态阅读和成熟产品壳建立可量化的体验基础。
+
+#### M13.5-A：体验定义与信息架构
+
+- 审计生产站桌面端与移动端；
+- 明确研究者、验证者、维护者和 Agent 操作者的核心任务；
+- 将 18 个平级入口重组为不超过 6 个一级入口；
+- 建立路由、状态、权限和空/错/加载状态矩阵；
+- 统一科研对象、动作和状态的产品语言；
+- 用高保真原型验证首页、Project、Task、Claim 和 Verification 五条关键路径。
+
+#### M13.5-B：设计系统与应用骨架
+
+- 建立颜色、排版、间距、圆角、阴影、层级和响应式 Token；
+- 补齐表单、选择、反馈、数据展示和 Overlay 等 UI 原语；
+- 重构桌面与移动端应用 Shell、导航、面包屑和页面标题区；
+- 建立统一的列表、详情、工作区、向导和设置页面模板；
+- 建立可视化组件目录、键盘操作规范和视觉回归基线。
+
+#### M13.5-C：发现、阅读与理解路径
+
+- 重做首页、Projects、Questions、Tasks、Claims 等发现页面；
+- 重做 Project、Question、Task、Claim 的详情与上下文导航；
+- 提升 revision diff、Claim DAG、Frontier、Verification、Event 和 Contribution 的可读性；
+- 为所有页面补齐 skeleton、empty、error、permission denied 和 retry 状态；
+- 保证科研状态颜色不成为唯一信息载体。
+
+#### M13.5-D：贡献路径与发布门禁
+
+- 重做登录与首次使用引导；
+- 将 Question、Claim、Artifact、Run、Evidence、Verification 和 Challenge 变为分步、可保存、可恢复的工作流；
+- 重做 Keys/Tokens 设置，明确敏感操作和撤销反馈；
+- 建立桌面/移动端 E2E、无障碍、性能和生产可用性验收；
+- 用真实参与者完成 Pilot 前可用性测试并分阶段上线。
+
+M13.5 退出门槛：
+
+1. 5 条关键用户路径在桌面和 390px 移动端均可完成，自动化 E2E 全绿；
+2. 一级导航不超过 6 项，所有页面具有明确标题、主动作和返回上下文；
+3. 不向用户显示内部异常、repository 名称、堆栈或原始 API 错误；
+4. WCAG 2.2 AA 自动检查无阻断项，完整键盘路径可用；
+5. 生产站 Core Web Vitals 达到 Good 目标，关键页面无横向溢出和明显布局跳动；
+6. 至少 5 名目标用户完成可用性测试，关键任务成功率不低于 80%，无 Severity 1 问题；
+7. M13.5-D 发布门禁通过后，才允许启动 M13.6。
+
+### 16.9 M13.6：Agent-first Web 与论证状态感知
+
+M13.5 解决了视觉系统、响应式布局、错误恢复和基础任务可用性。M13.6 进一步校正 Web 的产品角色：CLI、MCP、SDK 和用户自己的 Agent 负责深度交互与结构化写入；Web 负责状态感知、论证阅读、来源追溯、Agent handoff 和不可变分享。
+
+M13.6 不采用通用“支持度条”。EviMesh 没有跨领域有效的标量真理分数，也不采用多数投票。Claim 的快速摘要由协议事实组成：Claim state、Frontier membership、Evidence relation、Verification outcome、独立性、Finding severity、Challenge impact、Policy revision 和最近 ResearchEvent。
+
+M13.6 也不把系统压缩为 Question、Claim、Evidence 单棵树。Web 提供四个相互一致的阅读视角：
+
+- Argument：Claim revision 与有类型的 Claim relation；
+- Evidence：Artifact、Run、Evidence 与具体 Claim revision 的关系；
+- Verification：Receipt、independence、Finding、Challenge 与状态影响；
+- Frontier：当前可用 Claim revision、历史 snapshot 与变化原因。
+
+#### M13.6-A：协议忠实的体验模型
+
+- 冻结 Agent-first Web 职责边界；
+- 建立自然语言与协议对象的双层术语；
+- 定义可追溯状态摘要，不产生通用支持率；
+- 定义变化等级、关系文案和永久链接语义；
+- 用真实协议 fixture 验证用户能正确理解 Claim 状态。
+
+#### M13.6-B：关注与变化感知
+
+- 建立 Project、Question、Claim 的关注订阅；
+- 将 ResearchEvent 投影为可解释的变化记录；
+- 首页优先展示关注对象的状态变化；
+- 支持已读、稍后提醒、静音和取消关注；
+- 变化等级表示注意优先级，不表示真伪。
+
+#### M13.6-C：渐进式论证浏览
+
+- Question 首屏展示 Contract、Frontier、争议和阻塞摘要；
+- Claim 默认折叠 Evidence、Verification、Finding 和 Challenge；
+- 支持 Argument、Evidence、Verification 和 Frontier 四种视角；
+- 图形视图提供完整列表替代和键盘操作；
+- 深链接保留 revision、视角、选中对象和展开上下文。
+
+#### M13.6-D：Agent handoff 与传播
+
+- Web 主动作生成 provider-neutral handoff；
+- 提供自然语言任务、CLI 命令、MCP resource/tool 和结构化 JSON；
+- handoff 不携带凭据，CLI/MCP 使用各自安全上下文；
+- 复杂 Web 表单降级为“手动提交”回退入口；
+- 为公开对象和不可变 revision 生成可复制链接与 Open Graph 摘要。
+
+#### M13.6-E：理解度与生产门禁
+
+- 使用真实协议 fixture 建立状态摘要契约测试；
+- 验证 watch 到 change feed 到 detail 的完整路径；
+- 验证 Web handoff 能在 CLI/MCP 中恢复同一上下文；
+- 执行移动端、键盘、屏幕阅读器和图形性能测试；
+- 通过真实科研用户理解度测试后才进入 M14。
+
+详细产品约束见 `docs/m13.6-agent-first-web.md`。
+
+M13.6 退出门槛：
+
+1. 用户可在 60 秒内说明 Question 当前阶段、主要争议和 Frontier 状态；
+2. 界面不出现无 Policy 来源的支持率、真理分数或百分比；
+3. 每个状态摘要均可追溯到 revision、Receipt、Finding、Challenge 或 ResearchEvent；
+4. 至少一种 CLI 路径和一种 MCP 路径可消费同一 handoff；
+5. 公开永久链接在权限允许时可由未登录用户读取，并明确 revision 是否为最新；
+6. 390px、键盘和屏幕阅读器路径无阻断问题；
+7. M13.6-E 发布门禁通过后，才允许启动 M13.7。
+
+### 16.10 M13.7：成熟产品壳、科研身份与 Agent 接入闭环
+
+M13.6 冻结了协议忠实的状态阅读、关注变化和 Agent handoff，但成熟网站不能只由科研对象详情页组成。M13.7 补齐身份、账户、全局导航、搜索、个人工作、Agent 接入、文档和生产质量这些产品基础，并把研究者从“先理解数据模型”中解放出来。
+
+M13.7 采用任务型一级导航：
+
+- Home：关注变化、待处理工作、最近访问和 Agent 状态；
+- Explore：统一发现 Questions、Projects、Topics 和 People；
+- Work：我的 Task、验证队列、Challenge、草稿和贡献；
+- Agent：MCP、CLI、SDK、Token、连接状态和 Agent 阅读指南；
+- Docs：人类 Quickstart、协议概念、接入和安全参考；
+- Account：Profile、Connected identities、Tokens、Security 和 Notifications。
+
+Projects、Questions、Claims、Verification 和 Events 不再作为一级数据库对象导航，而是作为 Explore 筛选、搜索结果类型和研究工作区中的上下文视图。
+
+M13.7 只采用一套产品设计系统。应用壳以 Primer React 和 Primer 导航模式为实现基线，通过 EviMesh 适配组件承载品牌 Token 和科研语义；不混用多套组件库，也不复制 GitHub 品牌或仓库概念。
+
+#### M13.7-A：研究审计与产品契约
+
+- 审计匿名、登录、空、错、移动端和桌面生产路径；
+- 研究 Primer/GitHub、ORCID、Token 安全和 MCP 接入的成熟模式；
+- 冻结研究者任务模型、全局 IA 和路由兼容契约；
+- 完成 Primer 采用 ADR 与 ORCID/Supabase 技术 ADR；
+- 用完整产品壳原型和目标用户测试冻结方向。
+
+> **2026-08-10 状态：** 审计、契约和说明性原型材料已提交；`/prototypes/m13-7-a` 仅使用本地 fixture，不能登录、保存、连接 Agent 或访问真实研究。M13.7-A 尚未完成：A07 仍等待获授权的 ORCID Sandbox 与隔离 Supabase 证据；A10 仍等待至少五位已同意的目标用户会话，不能据此声明研究结论。
+
+#### M13.7-B：登录、账户与科研身份
+
+- 修复并门禁生产 Supabase Auth 公共配置；
+- 提供 ORCID、GitHub 和 Email 三种可恢复登录路径；
+- ORCID iD 只通过 OAuth/OIDC 认证，不允许手填后标记已验证；
+- 支持多身份安全关联、解除、碰撞恢复和审计；
+- 建立研究者资料、公开个人页、个人链接和字段可见性。
+
+#### M13.7-C：成熟应用壳与任务型信息架构
+
+- 建立 Primer 适配层、品牌 Token 和统一页面状态；
+- 实现认证感知 Header、任务型导航和账户菜单；
+- 实现上下文 NavList、PageHeader、breadcrumb 和稳定动作区；
+- 建立全局搜索、命令面板和旧路由兼容；
+- 保证移动端具有与桌面端等价的入口和操作。
+
+#### M13.7-D：Agent、CLI 与 MCP 接入中心
+
+- 建立从选择客户端到第一次可信读取的 Connection Center；
+- CLI/MCP 优先使用浏览器或设备授权，Token 作为高级回退；
+- Personal access token 支持名称、最小 scope、资源限制、过期、最后使用和撤销；
+- 提供 Codex、Claude、Cursor、CLI 和 Generic MCP 配置卡；
+- 建立 Agent 阅读指南和从 schema 生成的 resource/tool 目录。
+
+#### M13.7-E：研究者中心页面重构
+
+- 区分匿名 Landing 与登录后的 Watchlist Home；
+- 建立统一 Explore 和个人 Work 中心；
+- 把 Project/Question 重构为研究工作区，不以对象列表为主轴；
+- 接入 M13.6 的 Argument、Evidence、Verification、Frontier 渐进阅读；
+- 在研究内容中展示可信贡献者身份并提供上下文 Agent handoff。
+
+#### M13.7-F：迁移、质量与生产门禁
+
+- 完成旧路由、旧应用壳和重复 UI 原语迁移；
+- 对 Auth、ORCID、Token、MCP、RLS 和凭据泄露执行安全审计；
+- 覆盖 390px、768px、1440px、系统深色模式和完整视觉回归；
+- 通过 WCAG 2.2 AA、Core Web Vitals 和生产配置门禁；
+- 使用真实用户任务和生产 canary 形成 M13.7 证据包。
+
+详细产品约束见 `docs/m13.7-mature-product-identity-agent-onboarding.md`。
+
+M13.7 退出门槛：
+
+1. 匿名用户能在 45 秒内说明 EviMesh 的用途和可信来源机制；
+2. 用户能在 2 分钟内通过 GitHub 或 ORCID 登录，并找到身份和安全设置；
+3. ORCID 只通过认证流程显示为已验证，身份关联冲突有安全恢复路径；
+4. 用户能在 3 分钟内连接 CLI 或 MCP 并完成第一次只读调用；
+5. Token 具备最小 scope、过期、最后使用、一次展示和即时撤销；
+6. 用户能在 60 秒内说明 Question 阶段、主要争议、验证阻塞和 Frontier；
+7. 一级导航不要求用户理解数据库表，旧永久链接保持兼容；
+8. 390px、键盘、屏幕阅读器和系统深色模式无阻断问题；
+9. 生产公共配置缺失时部署失败，而不是把错误暴露给最终用户；
+10. 至少 5 名目标用户关键任务成功率不低于 80%，无未解决 Severity 1/2 问题；
+11. M13.7-F 发布门禁通过后，才允许启动 M14。
+
 ---
 
 ## 17. 参与机制
@@ -1867,6 +2064,38 @@ RTO：8 小时以内
 - Contribution。
 
 交付：两个独立参与者完成一次可验证合并。
+
+### Phase 2.5：产品可用性与 UI/UX 重构（M13.5）
+
+- 体验审计与信息架构；
+- 设计 Token、组件系统与响应式应用 Shell；
+- 发现、阅读、贡献和设置路径重构；
+- 空、错、加载、权限和离线恢复状态；
+- 无障碍、性能、视觉回归和关键路径 E2E；
+- 真实参与者可用性测试与分阶段上线。
+
+交付：首次用户能够理解 EviMesh，研究者能够在桌面和移动端独立完成从发现任务到提交验证的关键路径；M14 Pilot 不再依赖开发者现场解释或手工绕过界面。
+
+### Phase 2.6：Agent-first Web 与状态感知（M13.6）
+
+- 协议忠实的状态摘要与多视角研究图；
+- Project、Question、Claim 关注与 ResearchEvent 变化流；
+- 渐进式 Argument、Evidence、Verification、Frontier 浏览；
+- Web 到 CLI/MCP/Agent 的安全 handoff；
+- 不可变分享链接、revision 提示和公开 Open Graph 摘要；
+- 理解度、无障碍、移动端和生产证据门禁。
+
+交付：研究者可用 Web 快速理解当前论证状态，并在需要贡献时把准确上下文交给自己的 Agent、CLI 或 MCP 客户端继续处理。
+
+### Phase 2.7：成熟产品壳、科研身份与 Agent 接入（M13.7）
+
+- GitHub、ORCID、Email 登录与可信科研身份关联；
+- Primer 产品壳、任务型全局导航、搜索和账户设置；
+- 匿名 Landing、Watchlist Home、Explore、Work 与研究工作区；
+- Personal access token、CLI/MCP 连接向导和 Agent 阅读指南；
+- 旧路由迁移、生产配置、安全、无障碍、性能和真实用户门禁。
+
+交付：新用户无需开发者解释即可理解 EviMesh、登录并找到研究内容；研究者可管理可信身份和个人授权，并在 3 分钟内让自己的 CLI 或 MCP 完成第一次可追溯读取。
 
 ### Phase 3：CLI、MCP 与公共 Alpha
 

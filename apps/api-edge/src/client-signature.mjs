@@ -25,7 +25,7 @@ function canonicalOrThrow(value, field) {
  * Fail-closed: any structural, key, payload, or cryptographic mismatch rejects
  * the submission.
  */
-export async function verifyClientSignatureEnvelope({ repository, actorId, envelope, payload, expectedEventType } = {}) {
+export async function verifyClientSignatureEnvelope({ repository, signatureNonceStore = null, actorId, envelope, payload, expectedEventType } = {}) {
   if (!envelope || typeof envelope !== 'object' || Array.isArray(envelope)) {
     throw new ClientSignatureError('signature envelope is required');
   }
@@ -73,6 +73,27 @@ export async function verifyClientSignatureEnvelope({ repository, actorId, envel
   const verified = await verifyEd25519Payload({ signingBytes: new Uint8Array(signingBytes), signature: signature.value, publicKey: signingKey.publicKey });
   if (verified !== true) {
     throw new ClientSignatureError('signature verification failed', 'CLIENT_SIGNATURE_MISMATCH');
+  }
+  const nonceStore = typeof signatureNonceStore?.claimSignatureNonce === 'function'
+    ? signatureNonceStore
+    : typeof repository?.claimSignatureNonce === 'function'
+      ? repository
+      : null;
+  if (!nonceStore) {
+    throw new ClientSignatureError('signature replay protection is not configured', 'CLIENT_SIGNATURE_UNAVAILABLE', 503);
+  }
+  let claimed;
+  try {
+    claimed = await nonceStore.claimSignatureNonce({
+      actorId: actorId.trim(),
+      keyId: signingKey.keyId,
+      nonce: envelope.nonce,
+    });
+  } catch {
+    throw new ClientSignatureError('signature replay protection is unavailable', 'CLIENT_SIGNATURE_UNAVAILABLE', 503);
+  }
+  if (claimed !== true) {
+    throw new ClientSignatureError('signature nonce has already been used', 'CLIENT_SIGNATURE_REPLAYED', 409);
   }
   return Object.freeze({ verified: true, keyId: signingKey.keyId });
 }

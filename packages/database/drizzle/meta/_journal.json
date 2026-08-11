@@ -523,8 +523,15 @@
     {
       "idx": 74,
       "version": "7",
-      "when": 1786200000000,
-      "tag": "0074_task_discovery_metadata",
+      "when": 1786019400000,
+      "tag": "0074_signature_nonces",
+      "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1786023000000,
+      "tag": "0075_task_discovery_metadata",
       "breakpoints": true
     }
   ]

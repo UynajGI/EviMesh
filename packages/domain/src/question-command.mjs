@@ -1,5 +1,6 @@
 import { assertProjectRoleForAction } from "./project-authorization.mjs";
 import { assertQuestionTransition } from "../../protocol/src/question-state.mjs";
+import { canAutoPublishQuestion, classifyQuestionRisk } from "./risk-policy.mjs";
 
 export class QuestionCommandError extends Error {
   constructor(message, code = "QUESTION_INVALID", status = 400) {
@@ -26,6 +27,22 @@ function normalizeContractReference(reference) {
     throw new QuestionCommandError("research contract revision must be positive");
   }
   return { contractId, revision: reference.revision };
+}
+
+function assertAutomaticPublicationAllowed({ riskSignals } = {}) {
+  const classification = classifyQuestionRisk({ signals: riskSignals });
+  if (canAutoPublishQuestion(classification)) return classification;
+
+  const code = classification.risk === "prohibited"
+    ? "QUESTION_RISK_PROHIBITED"
+    : classification.risk === "restricted"
+      ? "QUESTION_RISK_RESTRICTED"
+      : "QUESTION_RISK_REVIEW_REQUIRED";
+  throw new QuestionCommandError(
+    `Question with ${classification.risk} risk cannot be automatically published`,
+    code,
+    409,
+  );
 }
 
 /** Create a Question and its first revision, referencing an immutable Contract revision. */
@@ -97,6 +114,8 @@ export async function transitionQuestion({
   actorRole,
   questionId,
   toState,
+  automaticPublication = false,
+  riskSignals,
   eventFactory,
 } = {}) {
   if (!repository || typeof repository.withTransaction !== "function") {
@@ -108,8 +127,12 @@ export async function transitionQuestion({
   actorId = requiredText(actorId, "actor id");
   questionId = requiredText(questionId, "question id");
   toState = requiredText(toState, "question state");
+  if (typeof automaticPublication !== "boolean") {
+    throw new QuestionCommandError("automatic publication must be a boolean");
+  }
   if (typeof eventFactory !== "function") throw new QuestionCommandError("eventFactory is required");
   assertProjectRoleForAction({ actorRole, requiredRole: "maintainer" });
+  if (automaticPublication) assertAutomaticPublicationAllowed({ riskSignals });
 
   return repository.withTransaction(async (transaction) => {
     const current = await transaction.getQuestionState(questionId);

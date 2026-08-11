@@ -693,13 +693,291 @@ Artifact     ← 交付物
 
 **本里程碑任务数：36**
 
+## M13.5：产品可用性与 UI/UX 重构
+
+**里程碑目标：** 在真实科研 Pilot 前，把已有功能从“页面存在”提升到“首次用户可理解、核心路径可完成、错误可恢复、桌面与移动端可用”。本里程碑按 A→B→C→D 四个 Part 独立开发、测试和验收，每个 Part 一个 PR；M13.5-D 通过后才允许开始 M13.6。
+
+### M13.5-A：体验定义与信息架构
+
+| ID | Area | 原子任务 | 单一交付物 | 验收标准 | 依赖 | Priority | Size |
+|---|---|---|---|---|---|---|---|
+| M13.5-A01 | ux-audit | 审计生产站桌面关键页面 | desktop audit | 首页、登录、Projects、Tasks、Claims 均有截图、问题和 Severity | M13-02 | P0 | M |
+| M13.5-A02 | ux-audit | 审计生产站 390px 移动端 | mobile audit | 无法完成的路径、横向溢出和触控问题均记录 | M13.5-A01 | P0 | M |
+| M13.5-A03 | ux-research | 定义四类核心用户与首要任务 | role/JTBD matrix | researcher、verifier、maintainer、Agent operator 均有目标和阻碍 | M13.5-A01 | P0 | M |
+| M13.5-A04 | ux-flow | 绘制五条关键端到端路径 | journey map | 发现 Task、理解 Claim、上传 Evidence、提交 Verification、处理 Challenge 均覆盖 | M13.5-A03 | P0 | M |
+| M13.5-A05 | ia | 建立路由与页面状态清单 | route-state matrix | 26 个现有页面均标记角色、主动作、数据源和 loading/empty/error/denied 状态 | M13.5-A01 | P0 | M |
+| M13.5-A06 | ia | 重构全局信息架构 | sitemap | 一级导航不超过 6 项且 26 个页面均有唯一归属 | M13.5-A04:M13.5-A05 | P0 | M |
+| M13.5-A07 | content | 统一科研对象、动作与状态文案 | content lexicon | 同一状态无多种叫法，危险动作和不可逆后果明确 | M13.5-A05 | P1 | M |
+| M13.5-A08 | visual | 确定视觉方向与设计原则 | visual direction board | 体现干净、安静、研究优先，包含颜色、排版、密度和图形示例 | M13.5-A03 | P0 | M |
+| M13.5-A09 | prototype | 制作五个关键页面高保真原型 | clickable prototype | 首页、Project、Task、Claim、Verification 在桌面和移动端可点击串联 | M13.5-A06:M13.5-A08 | P0 | L |
+| M13.5-A10 | ux-test | 对原型执行可用性测试 | prototype test report | 至少 5 名目标用户，关键任务成功率≥80%，无 Severity 1 问题 | M13.5-A09 | P0 | M |
+
+**M13.5-A 任务数：10；退出门槛：信息架构与五条关键路径经测试确认，视觉方向冻结。**
+
+### M13.5-B：设计系统与应用骨架
+
+| ID | Area | 原子任务 | 单一交付物 | 验收标准 | 依赖 | Priority | Size |
+|---|---|---|---|---|---|---|---|
+| M13.5-B01 | design-system | 实现语义颜色 Token | color tokens | light 状态下文本、边框、背景、状态和危险色均通过对比度检查 | M13.5-A08 | P0 | M |
+| M13.5-B02 | design-system | 实现排版、间距与布局 Token | layout tokens | 字号、行高、间距、宽度和断点在 Web 中统一引用 | M13.5-A08 | P0 | M |
+| M13.5-B03 | ui | 重构 Button 与 Link | action primitives | 主要、次要、幽灵、危险、loading、disabled 和 focus 状态完整 | M13.5-B01:M13.5-B02 | P0 | M |
+| M13.5-B04 | ui | 补齐文本表单原语 | text form primitives | Input、Textarea、Label、Help、Error 和 FieldGroup 可组合且可访问 | M13.5-B01:M13.5-B02 | P0 | M |
+| M13.5-B05 | ui | 补齐选择表单原语 | selection primitives | Select、Combobox、Checkbox、Radio 和 Switch 支持键盘操作 | M13.5-B04 | P0 | L |
+| M13.5-B06 | ui | 补齐反馈状态原语 | feedback primitives | Alert、Toast、Progress、Skeleton、Empty、Error 和 Retry 状态统一 | M13.5-B01:M13.5-B03 | P0 | L |
+| M13.5-B07 | ui | 补齐数据展示原语 | data primitives | Card、Badge、Table、Tabs、Metadata、Pagination 和 Timeline 可复用 | M13.5-B01:M13.5-B02 | P0 | L |
+| M13.5-B08 | ui | 补齐浮层原语 | overlay primitives | Dialog、Drawer、Dropdown、Tooltip 和 Confirm 支持焦点管理 | M13.5-B03:M13.5-B05 | P0 | L |
+| M13.5-B09 | shell | 重构桌面应用 Shell | desktop shell | 一级导航≤6、当前项、面包屑、账户菜单和全局动作清晰 | M13.5-A06,M13.5-B03:M13.5-B08 | P0 | L |
+| M13.5-B10 | shell | 实现移动端应用 Shell | mobile shell | 390px 无横向溢出，导航可收起，触控目标≥44px | M13.5-B09 | P0 | L |
+| M13.5-B11 | template | 建立五类页面模板 | page templates | list、detail、workspace、wizard、settings 均有标题、主动作和状态区域 | M13.5-B09:M13.5-B10 | P0 | L |
+| M13.5-B12 | quality | 建立组件目录与视觉回归基线 | component catalog | 所有原语状态可浏览，桌面/移动截图进入自动回归 | M13.5-B03:M13.5-B11 | P1 | L |
+
+**M13.5-B 任务数：12；退出门槛：新页面不得绕过 Token 和基础原语，Shell 与模板通过桌面/移动视觉回归。**
+
+### M13.5-C：发现、阅读与理解路径
+
+| ID | Area | 原子任务 | 单一交付物 | 验收标准 | 依赖 | Priority | Size |
+|---|---|---|---|---|---|---|---|
+| M13.5-C01 | home | 重做首页信息层级 | home page | 首屏说明产品价值并提供一个主 CTA，真实数据失败时可恢复 | M13.5-B11 | P0 | L |
+| M13.5-C02 | projects | 重做 Project 列表 | project list | 搜索、筛选、状态、活跃度和空状态可用 | M13.5-B07:M13.5-B11 | P0 | M |
+| M13.5-C03 | projects | 重做 Project 详情工作区 | project workspace | 概览、Frontier、Tasks、Claims、Evidence 和贡献可在上下文内切换 | M13.5-C02 | P0 | L |
+| M13.5-C04 | questions | 重做 Question 列表 | question list | 风险、状态、领域和下一步动作可扫描 | M13.5-B07:M13.5-B11 | P1 | M |
+| M13.5-C05 | questions | 重做 Question 详情 | question detail | ResearchContract、状态历史、Tasks 和 Frontier 关系可理解 | M13.5-C04 | P0 | L |
+| M13.5-C06 | tasks | 重做 Task 列表 | task list | 可按可参与性、领域、状态和工作量筛选 | M13.5-B07:M13.5-B11 | P0 | M |
+| M13.5-C07 | tasks | 重做 Task 详情 | task detail | 输入、输出、验收、上下文、依赖和参与动作同屏明确 | M13.5-C06 | P0 | L |
+| M13.5-C08 | claims | 重做 Claim 列表 | claim list | 状态、证据强度、验证和争议可扫描且非仅颜色编码 | M13.5-B07:M13.5-B11 | P0 | M |
+| M13.5-C09 | claims | 重做 Claim 详情 | claim detail | statement、assumptions、falsification、evidence、verification 和 challenge 有稳定层级 | M13.5-C08 | P0 | L |
+| M13.5-C10 | claims | 重做 Claim revision diff | revision diff | 字段级变化、作者、时间和原因清晰，支持长文本 | M13.5-C09 | P1 | M |
+| M13.5-C11 | graph | 重做 Claim DAG 与 Frontier 时间线 | research graph | 支持键盘/列表替代视图、过滤、图例、选中上下文和失败分支 | M13.5-C03:M13.5-C09 | P0 | XL |
+| M13.5-C12 | trust | 重做 Verification、Event 与 Contribution 阅读页 | trust pages | Receipt、事件因果和贡献来源可追溯，内部 ID 有人类可读标签 | M13.5-B11,M13.5-C09 | P1 | L |
+
+**M13.5-C 任务数：12；退出门槛：所有发现与详情页具备 loading/empty/error/denied/retry 状态，内部错误不得直接暴露。**
+
+### M13.5-D：贡献路径与发布门禁
+
+| ID | Area | 原子任务 | 单一交付物 | 验收标准 | 依赖 | Priority | Size |
+|---|---|---|---|---|---|---|---|
+| M13.5-D01 | auth | 重做登录页 | sign-in page | Email/GitHub 入口、错误、loading、返回地址和隐私说明完整 | M13.5-B11 | P0 | M |
+| M13.5-D02 | onboarding | 实现首次使用引导 | onboarding flow | 用户可选择角色并在 3 步内到达首个相关任务 | M13.5-D01,M13.5-A03 | P0 | L |
+| M13.5-D03 | question | 重做提出 Question 工作流 | question wizard | 分步校验、草稿保存、风险提示、预览和提交恢复完整 | M13.5-B11,M13.5-C05 | P0 | L |
+| M13.5-D04 | claim | 重做创建 Claim 工作流 | claim wizard | statement、scope、assumptions、falsification 和父关系分步完成 | M13.5-B11,M13.5-C09 | P0 | L |
+| M13.5-D05 | artifact | 重做 Artifact 上传工作流 | upload flow | 进度、hash、许可、取消、重试和失败清理可见 | M13.5-B06,M13.5-B11 | P0 | L |
+| M13.5-D06 | evidence | 重做 Run 与 Evidence 工作流 | run/evidence flow | Run Receipt 与 Evidence 关联明确，草稿和失败可恢复 | M13.5-D05,M13.5-C09 | P0 | XL |
+| M13.5-D07 | verification | 重做 Verification 提交流程 | verification flow | Blind Context、Finding、签名、预览和最终确认均可理解 | M13.5-D06,M13.5-C12 | P0 | XL |
+| M13.5-D08 | challenge | 重做 Challenge 提交流程 | challenge flow | 目标、依据、影响范围、风险提示和提交结果明确 | M13.5-D07 | P0 | L |
+| M13.5-D09 | settings | 重做 Keys 与 Tokens 设置 | security settings | 创建时只显示一次、scope 可读、复制/撤销有确认和反馈 | M13.5-B11,M7-29 | P0 | L |
+| M13.5-D10 | resilience | 建立统一前端错误恢复边界 | recovery layer | repository、stack、原始 API 错误不外露，超时/离线/401/403/404/5xx 均可恢复 | M13.5-B06,M13.5-C01:M13.5-D09 | P0 | L |
+| M13.5-D11 | quality | 建立体验自动化门禁 | UX CI gate | 五条关键路径在桌面和 390px E2E 全绿，WCAG 2.2 AA 无阻断项 | M13.5-D02:M13.5-D10 | P0 | XL |
+| M13.5-D12 | release | 执行生产可用性测试与分阶段发布 | UX release report | ≥5 名目标用户任务成功率≥80%、无 Severity 1、Core Web Vitals 达 Good 后全量 | M13.5-D11,M13-30 | P0 | L |
+
+**M13.5-D 任务数：12；本里程碑任务总数：46；退出门槛：M13.5-D12 通过并形成生产证据包。**
+
+## M13.6：Agent-first Web 与论证状态感知
+
+**里程碑目标：** 在 M13.5 可用界面上明确通道分工：CLI/MCP/SDK/Agent 是主要写入通道，Web 是状态感知、渐进阅读、追溯、handoff 和分享通道。不得引入无 Policy 来源的支持率或真理分数。本里程碑按 A→B→C→D→E 五个 Part 独立开发、测试和验收，每个 Part 一个 PR。
+
+### M13.6-A：协议忠实的体验模型
+
+| ID | Area | 原子任务 | 单一交付物 | 验收标准 | 依赖 | Priority | Size |
+|---|---|---|---|---|---|---|---|
+| M13.6-A01 | product | 冻结 Agent-first Web 职责边界 | product charter | 明确 Web 主职责、写入回退和非目标，并链接详细方案 | M13.5-D12 | P0 | S |
+| M13.6-A02 | protocol-ux | 绘制真实研究对象关系图 | protocol UX map | Project、Question、Task、Attempt、Claim revision、Evidence、Verification、Challenge、Frontier 均有关系和来源 | M13.6-A01 | P0 | M |
+| M13.6-A03 | content | 建立自然语言与协议术语双层词典 | protocol lexicon | 主界面使用自然语言，技术详情保留稳定 ID、revision、Policy 和签名 | M13.6-A02 | P0 | M |
+| M13.6-A04 | status | 定义 Claim 状态摘要契约 | status summary contract | 覆盖 state、Frontier、Evidence relation、Verification、independence、Finding、Challenge 和最近事件 | M13.6-A02 | P0 | L |
+| M13.6-A05 | governance | 编写无标量支持率 ADR | ADR | 禁止用 Evidence 数量生成百分比，派生评估必须携带算法、Policy revision 和输入来源 | M13.6-A04 | P0 | M |
+| M13.6-A06 | content | 定义 Claim 与 Evidence 关系文案 | relation copy map | 所有协议 relation type 均有自然语言、方向、图例和反向阅读文案 | M13.6-A03 | P0 | M |
+| M13.6-A07 | events | 定义变化等级与解释规则 | change taxonomy | critical、attention、update、quiet 只表达注意优先级且可追溯到 ResearchEvent | M13.6-A04 | P0 | M |
+| M13.6-A08 | permalink | 定义对象永久链接契约 | permalink contract | revision、snapshot、view、selection、expansion 可编码，URL 不含凭据 | M13.6-A02 | P0 | M |
+| M13.6-A09 | prototype | 制作协议忠实的状态阅读原型 | clickable prototype | Question、Claim、change feed、handoff 四个场景可点击且不出现虚构分数；仅使用本地 fixture，不连接产品集成，也不是生产发布 | M13.6-A04:M13.6-A08 | P0 | L |
+
+**M13.6-A 任务数：9；退出门槛：协议、文案、状态摘要、变化等级和永久链接契约冻结。**
+
+### M13.6-B：关注与变化感知
+
+| ID | Area | 原子任务 | 单一交付物 | 验收标准 | 依赖 | Priority | Size |
+|---|---|---|---|---|---|---|---|
+| M13.6-B01 | database | 创建关注订阅表 | migration | Actor 可关注 Project、Question 或 Claim，唯一约束和时间字段完整 | M13.6-A07 | P0 | M |
+| M13.6-B02 | security | 为关注订阅配置 RLS | RLS policy | 用户只能读取和修改自己的订阅，服务角色可投影通知 | M13.6-B01 | P0 | M |
+| M13.6-B03 | api | 实现关注与取消关注 API | API endpoints | 三类对象均支持幂等 watch/unwatch 和权限错误 | M13.6-B02 | P0 | M |
+| M13.6-B04 | projection | 将 ResearchEvent 投影为变化记录 | change projector | state、relation、Evidence、Verification、Finding、Challenge、Frontier 事件生成 before/after 摘要 | M13.6-A07,M13.6-B01 | P0 | XL |
+| M13.6-B05 | notification | 聚合并去重关注通知 | notification aggregator | 同一对象短窗口事件可聚合，critical 事件不被静默吞并 | M13.6-B04,M3-54 | P0 | L |
+| M13.6-B06 | api | 实现关注变化流 API | watched changes endpoint | 支持 cursor、时间窗、等级、对象类型和 unread 筛选 | M13.6-B05 | P0 | L |
+| M13.6-B07 | home | 将登录首页改为我的关注变化 | watched home | 每条记录回答发生了什么、为什么重要、依据在哪里 | M13.6-B06,M13.6-A09 | P0 | L |
+| M13.6-B08 | web | 为 Project、Question、Claim 添加关注控件 | watch controls | 状态即时反馈、匿名用户引导登录、键盘可操作 | M13.6-B03,M13.6-B07 | P0 | M |
+| M13.6-B09 | inbox | 实现已读、稍后提醒、静音和取消关注 | attention controls | 操作持久化且可撤销，critical 事件的静音范围明确 | M13.6-B05:M13.6-B08 | P1 | L |
+
+**M13.6-B 任务数：9；退出门槛：关注对象的协议变化能稳定投影、解释、筛选和管理。**
+
+### M13.6-C：渐进式论证浏览
+
+| ID | Area | 原子任务 | 单一交付物 | 验收标准 | 依赖 | Priority | Size |
+|---|---|---|---|---|---|---|---|
+| M13.6-C01 | read-model | 实现 Claim 状态摘要读模型 | status summary query | 单次查询返回 A04 契约全部字段并保留来源 ID/revision | M13.6-A04,M13.6-B04 | P0 | XL |
+| M13.6-C02 | ui | 实现 Claim 状态摘要组件 | claim status summary | 文本和图标呈现 state、Frontier、关系计数、验证、Finding 和 Challenge，不使用进度条 | M13.6-C01 | P0 | L |
+| M13.6-C03 | question | 重做 Question 论证概览 | question argument brief | 首屏展示 Contract、Frontier、争议、最近变化和验证阻塞 | M13.6-C02,M13.6-B06 | P0 | XL |
+| M13.6-C04 | claim | 实现 Claim 渐进展开 | progressive claim reader | 默认只显示 statement 与摘要，按需展开关系、Evidence、Verification、Challenge 和 revision | M13.6-C02 | P0 | L |
+| M13.6-C05 | evidence | 按关系与 revision 展示 Evidence | evidence lens | supports、refutes、qualifies、reproduces 分组且每条可追溯 Artifact、Run 和 Claim revision | M13.6-C04 | P0 | L |
+| M13.6-C06 | verification | 展示 Verification outcome 与独立性 | verification lens | outcome、implementation relation、data relation、Contract/Policy revision 可见 | M13.6-C04 | P0 | L |
+| M13.6-C07 | finding | 展示 Finding 与 Challenge 影响 | trust impact panel | severity、位置、状态影响、下游污染和解决状态可追溯 | M13.6-C06,M8-29 | P0 | L |
+| M13.6-C08 | graph | 实现 Argument 多关系过滤 | argument lens | 14 种 Claim relation 可筛选、解释方向并聚焦邻域 | M13.6-A06,M13.6-C04 | P0 | XL |
+| M13.6-C09 | frontier | 实现 Frontier 视角与时间旅行 | frontier lens | snapshot 成员、加入/移除/替换原因和最新状态清晰 | M13.6-C03,M8-05 | P0 | XL |
+| M13.6-C10 | accessibility | 为图形视图实现等价列表 | graph list alternative | 键盘和屏幕阅读器可访问相同节点、边、过滤和详情 | M13.6-C08:M13.6-C09 | P0 | L |
+| M13.6-C11 | navigation | 保留阅读上下文的深链接 | contextual deep links | 刷新或分享后恢复 revision、view、selection、filter 和 expansion | M13.6-A08,M13.6-C05:M13.6-C10 | P0 | L |
+
+**M13.6-C 任务数：11；退出门槛：四种视角共享同一协议事实，渐进展开和列表替代完整。**
+
+### M13.6-D：Agent handoff 与传播
+
+| ID | Area | 原子任务 | 单一交付物 | 验收标准 | 依赖 | Priority | Size |
+|---|---|---|---|---|---|---|---|
+| M13.6-D01 | schema | 定义 Agent handoff Schema | JSON Schema | 包含 intent、target revision、permalink、prompt、CLI、MCP、scope 和 continuation，不含凭据 | M13.6-A08,M11-20 | P0 | L |
+| M13.6-D02 | protocol | 实现 handoff 序列化与校验 | protocol package | 相同输入产生稳定 payload，未知版本失败关闭 | M13.6-D01 | P0 | M |
+| M13.6-D03 | api | 实现从永久链接解析 handoff 上下文 | handoff resolver API | 只返回调用者有权读取的最小上下文并绑定准确 revision | M13.6-D02,M13.6-C11 | P0 | L |
+| M13.6-D04 | cli | 实现 `evimesh handoff` 命令 | CLI command | 可读取 URL/JSON，预览目标和建议动作，不回显 token | M13.6-D02,M10-45 | P0 | L |
+| M13.6-D05 | mcp | 暴露 handoff resource 与解析 tool | MCP capability | MCP 客户端可恢复相同对象、revision、intent 和 continuation | M13.6-D02,M11-31 | P0 | L |
+| M13.6-D06 | web | 实现通用 handoff sheet | handoff sheet | 可复制自然语言任务、CLI 命令、MCP 指引和 JSON，并说明所需 scope | M13.6-D03:M13.6-D05 | P0 | L |
+| M13.6-D07 | evidence | 将“补充证据”接入 handoff | evidence handoff | 从 Claim revision 生成 relation-aware Evidence 任务且上下文准确 | M13.6-D06,M13.6-C05 | P0 | M |
+| M13.6-D08 | challenge | 将“提出质疑”和“开始验证”接入 handoff | trust handoffs | 目标 Claim revision、Contract/Policy 和现有 Findings 自动带入 | M13.6-D06,M13.6-C06:M13.6-C07 | P0 | M |
+| M13.6-D09 | fallback | 将复杂 Web 写入降为手动回退 | manual fallback entry | 主动作指向 handoff，表单仍可访问且不降低无障碍能力 | M13.6-D07:M13.6-D08 | P1 | M |
+| M13.6-D10 | sharing | 实现不可变分享与 Open Graph 摘要 | share system | 公开对象可复制准确 revision 链接，旧 revision 提示更新版本，URL 无敏感数据 | M13.6-C11,M12-17 | P0 | L |
+
+**M13.6-D 任务数：10；退出门槛：同一 Web 上下文可安全交给 CLI 和 MCP，公开 revision 可稳定分享。**
+
+### M13.6-E：理解度与生产门禁
+
+| ID | Area | 原子任务 | 单一交付物 | 验收标准 | 依赖 | Priority | Size |
+|---|---|---|---|---|---|---|---|
+| M13.6-E01 | fixture | 建立跨状态真实协议 fixture | UX fixture set | 覆盖 accepted、contested、refuted、dependency_tainted、Frontier replacement 和 mixed Evidence | M13.6-C01 | P0 | L |
+| M13.6-E02 | test | 建立状态摘要契约测试 | contract tests | UI 摘要与 fixture 的 revision、relation、Receipt、Finding、Challenge 完全一致 | M13.6-E01,M13.6-C02 | P0 | L |
+| M13.6-E03 | e2e | 测试关注到变化再到详情路径 | watched change E2E | watch、event、projection、feed、deep link 和 read 状态端到端通过 | M13.6-B09,M13.6-C11 | P0 | XL |
+| M13.6-E04 | integration | 测试 Web 到 CLI/MCP handoff | handoff integration test | 两个通道恢复相同 target revision 和 intent，payload 不含 secret | M13.6-D10 | P0 | XL |
+| M13.6-E05 | quality | 执行移动端与无障碍验证 | accessibility report | 390px 无横向溢出，键盘和屏幕阅读器可完成阅读、关注、handoff、分享 | M13.6-C10,M13.6-D10 | P0 | L |
+| M13.6-E06 | performance | 执行大图性能验证 | graph performance report | 500 Claim/2000 edge fixture 可渐进加载，交互不阻塞主线程 | M13.6-C08:M13.6-C10 | P0 | L |
+| M13.6-E07 | ux-test | 执行科研状态理解度测试 | comprehension report | ≥5 名目标用户在 60 秒内正确说明阶段、争议、验证和 Frontier，成功率≥80% | M13.6-E02:M13.6-E06 | P0 | L |
+| M13.6-E08 | release | 执行生产 canary 与发布验收 | M13.6 release report | 无 Severity 1、无虚构分数、关键遥测稳定且所有退出门槛有证据 | M13.6-E07,M13-30 | P0 | L |
+
+**M13.6-E 任务数：8；本里程碑任务总数：47；退出门槛：M13.6-E08 通过并形成生产证据包。**
+
+## M13.7：成熟产品壳、科研身份与 Agent 接入闭环
+
+**里程碑目标：** 在 M14 真实科研 Pilot 前，把当前“对象路由集合”升级为成熟科研产品：用户能用 GitHub、ORCID 或 Email 安全登录，管理可信科研身份和个人凭据，按科研任务而不是数据库表导航，并在 3 分钟内让自己的 CLI 或 MCP 完成第一次可信读取。本里程碑按 A→(B∥C)→(D∥E)→F 执行，每个 Part 一个 PR，不为每个原子任务单独开 PR。
+
+详细产品约束见 `docs/m13.7-mature-product-identity-agent-onboarding.md`。
+
+### M13.7-A：研究审计与产品契约
+
+| ID | Area | 原子任务 | 单一交付物 | 验收标准 | 依赖 | Priority | Size |
+|---|---|---|---|---|---|---|---|
+| M13.7-A01 | audit | 建立生产体验审计矩阵 | production UX audit | 匿名、登录、空、错、移动端与桌面关键路由均有截图、问题和严重度 | M13.6-A09 | P0 | M |
+| M13.7-A02 | research | 完成成熟产品模式基准研究 | benchmark report | 覆盖 Primer/GitHub 导航、ORCID 身份、Token 安全和 MCP 接入模式，结论可追溯到官方资料 | M13.7-A01 | P0 | M |
+| M13.7-A03 | product | 冻结研究者任务与心智模型 | JTBD map | 覆盖发现、理解、关注、处理工作、连接 Agent 和账户管理，不以数据库表为任务 | M13.7-A01 | P0 | M |
+| M13.7-A04 | ia | 冻结全局信息架构 | product IA | Home、Explore、Work、Agent、Docs、Account 的职责、入口和层级无重叠 | M13.7-A02,M13.7-A03 | P0 | L |
+| M13.7-A05 | routing | 编写路由与旧链接兼容契约 | route contract | 新旧路由、公开/私有边界、canonical URL、redirect 和 breadcrumb 全部列明 | M13.7-A04,M13.6-A08 | P0 | M |
+| M13.7-A06 | design-system | 编写 Primer React 采用 ADR | design-system ADR | 明确单一系统、适配层、Token、组件边界、迁移策略和禁止混用规则 | M13.7-A02,M13.7-A04 | P0 | M |
+| M13.7-A07 | identity | 完成 ORCID 与 Supabase 技术 Spike | identity ADR | 使用 Sandbox 验证 OAuth/OIDC、回调、账号关联和邮箱缺失路径，选定可部署方案 | M13.7-A02 | P0 | L |
+| M13.7-A08 | contract | 冻结账户、身份与凭据数据契约 | account contract | OAuth identity、公开资料、个人链接、Token 和可见性分离建模，安全边界明确 | M13.7-A07 | P0 | L |
+| M13.7-A09 | prototype | 制作产品壳与接入闭环原型 | coded prototype | 匿名首页、登录、Home、Workspace、Settings、Agent Connect 六条路径可点击且使用真实文案 | M13.7-A04:M13.7-A08 | P0 | XL |
+| M13.7-A10 | ux-test | 执行概念与导航测试 | concept test report | ≥5 名目标用户完成入口定位，一级导航首选路径成功率≥80%，无 Severity 1 认知问题 | M13.7-A09 | P0 | L |
+
+**M13.7-A 任务数：10；退出门槛：产品 IA、设计系统、身份技术路径、原型和研究者概念测试全部冻结。**
+
+> **2026-08-10 状态：** 已提交的 `/prototypes/m13-7-a` 是通过仓库契约测试的说明性 fixture 原型，而非可用的登录、身份、凭据、Agent 或真实研究流程。不得关闭 M13.7-A：A07 需要获授权的 ORCID Sandbox 和隔离 Supabase 证据；A10 需要至少五位已同意目标用户的真实会话及去标识化报告。
+
+### M13.7-B：登录、账户与科研身份
+
+| ID | Area | 原子任务 | 单一交付物 | 验收标准 | 依赖 | Priority | Size |
+|---|---|---|---|---|---|---|---|
+| M13.7-B01 | config | 建立 Web Auth 公共配置契约 | config validator | Preview/Production 缺少 Supabase URL、anon key 或 callback 配置时构建或部署失败 | M13.7-A10 | P0 | M |
+| M13.7-B02 | auth | 实现服务端会话与登录态边界 | auth session layer | Header、受保护路由、回跳和刷新会话一致，不依赖客户端闪烁判断 | M13.7-B01 | P0 | L |
+| M13.7-B03 | auth-ui | 重做统一登录入口 | sign-in hub | ORCID、GitHub、Email 三条路径可见，说明用途、权限、隐私和错误恢复 | M13.7-B02,M13.7-A09 | P0 | L |
+| M13.7-B04 | github | 完成 GitHub OAuth 生产配置 | GitHub sign-in flow | 本地、Preview、Production callback 均通过，取消、拒绝和重复登录可恢复 | M13.7-B03 | P0 | M |
+| M13.7-B05 | orcid | 实现 ORCID OAuth/OIDC 登录 | ORCID sign-in flow | 只接受认证 iD，使用官方显示规范，处理缺失邮箱、拒绝授权和 Sandbox/Production 配置 | M13.7-A07,M13.7-B03 | P0 | XL |
+| M13.7-B06 | email | 完成 Email 登录回退 | email auth flow | 登录、注册、找回、验证和限流状态完整，第三方登录不可用时仍可进入 | M13.7-B03 | P0 | L |
+| M13.7-B07 | database | 建立外部身份模型与 RLS | identity migration | Actor 可关联多个 provider，provider subject 唯一，敏感 token 不暴露给客户端 | M13.7-A08,M13.7-B04:M13.7-B06 | P0 | XL |
+| M13.7-B08 | security | 实现身份关联、解除与碰撞恢复 | identity linking flow | 关联和解除需重新认证，同一 ORCID/GitHub 不可绑定多个 Actor，操作写入审计 | M13.7-B07 | P0 | XL |
+| M13.7-B09 | profile | 扩展研究者资料与可见性 | profile migration | 支持 affiliation、research fields、website、avatar、bio 和字段级公开策略 | M13.7-A08,M13.7-B07 | P0 | L |
+| M13.7-B10 | web | 实现资料设置与公开研究者页 | profile experience | Settings 可编辑资料和身份，公开页显示已验证 ORCID/GitHub 与可追溯公开贡献 | M13.7-B08,M13.7-B09 | P0 | XL |
+| M13.7-B11 | test | 执行认证与身份安全测试 | auth security report | 覆盖 state/PKCE/CSRF、callback、账号枚举、碰撞、解除、RLS 和多 provider E2E | M13.7-B03:M13.7-B10 | P0 | L |
+
+**M13.7-B 任务数：11；退出门槛：生产可完成三种登录，可信身份可安全关联，账户与公开资料形成闭环。**
+
+### M13.7-C：成熟应用壳与任务型信息架构
+
+| ID | Area | 原子任务 | 单一交付物 | 验收标准 | 依赖 | Priority | Size |
+|---|---|---|---|---|---|---|---|
+| M13.7-C01 | design-system | 建立 Primer 适配层与品牌 Token | UI foundation | 应用只通过 EviMesh 适配组件使用 Primer，颜色、间距、字体、焦点和主题 Token 可测试 | M13.7-A06,M13.7-A10 | P0 | XL |
+| M13.7-C02 | shell | 实现认证感知的全局 Header | global header | Brand、Search、Home、Explore、Work、Agent、Docs、Sign in/Account 在各状态一致 | M13.7-C01,M13.7-B02 | P0 | L |
+| M13.7-C03 | navigation | 将一级导航改为研究任务模型 | primary navigation | 数据库对象退出一级导航，当前入口、未读状态和权限状态可理解 | M13.7-A04,M13.7-C02 | P0 | L |
+| M13.7-C04 | layout | 实现上下文侧栏与 PageHeader | application layout | Settings、Agent、Explore、Workspace 使用邻近内容的 NavList、breadcrumb 和稳定动作区 | M13.7-A05,M13.7-C01 | P0 | XL |
+| M13.7-C05 | settings | 建立完整 Account Settings 壳 | settings shell | Profile、Connected identities、Tokens、Security、Notifications 可发现且当前项明确 | M13.7-C04,M13.7-B10 | P0 | L |
+| M13.7-C06 | search | 实现全局搜索与命令面板 | search command palette | 可按 Question、Project、Topic、People 搜索并从键盘打开最近对象和常用动作 | M13.7-C02,M13.7-C03 | P0 | XL |
+| M13.7-C07 | account | 实现账户菜单和会话动作 | account menu | Profile、Settings、Agent connections、Sign out 可发现，匿名与登录状态无歧义 | M13.7-C02,M13.7-B10 | P0 | M |
+| M13.7-C08 | routing | 落地旧导航兼容与 canonical 路由 | route migration | 已分享 URL 不失效，旧入口有 redirect 或上下文提示，SEO canonical 正确 | M13.7-A05,M13.7-C03:M13.7-C05 | P0 | L |
+| M13.7-C09 | responsive | 实现移动端等价导航 | responsive shell | 390px 可完成搜索、全局导航、上下文导航和账户操作，无功能被桌面专属隐藏 | M13.7-C02:M13.7-C07 | P0 | L |
+| M13.7-C10 | states | 建立应用壳状态与视觉回归 | shell state suite | loading、empty、error、offline、denied、anonymous、authenticated 均有 Story 和截图基线 | M13.7-C01:M13.7-C09 | P0 | L |
+
+**M13.7-C 任务数：10；退出门槛：全站使用成熟、认证感知、响应式且可回归验证的统一应用壳。**
+
+### M13.7-D：Agent、CLI 与 MCP 接入中心
+
+| ID | Area | 原子任务 | 单一交付物 | 验收标准 | 依赖 | Priority | Size |
+|---|---|---|---|---|---|---|---|
+| M13.7-D01 | ia | 冻结 Agent Connection Center 信息架构 | agent route map | Overview、MCP、CLI、SDK、Read with an agent、Security 的职责和完成状态明确 | M13.7-A10,M13.7-C10 | P0 | M |
+| M13.7-D02 | auth | 实现 CLI/MCP 浏览器或设备授权 | connection authorization | 支持短期 code、最小 scope、超时、取消、轮询和撤销，不要求新用户粘贴长期 Token | M13.7-B11,M11-26 | P0 | XL |
+| M13.7-D03 | cli | 实现 CLI 连接向导 | CLI onboarding | 安装、登录、环境检查和第一次只读命令可复制并显示成功状态 | M13.7-D02 | P0 | L |
+| M13.7-D04 | mcp | 实现 Remote MCP 连接向导 | MCP onboarding | 服务 URL、认证、权限和测试步骤完整，连接失败可诊断 | M13.7-D02,M11-26 | P0 | XL |
+| M13.7-D05 | clients | 提供客户端专用配置卡 | client setup cards | Codex、Claude、Cursor 和 Generic MCP 配置可复制，版本、平台和密钥占位符正确 | M13.7-D03,M13.7-D04 | P0 | L |
+| M13.7-D06 | settings | 将 API Tokens 纳入 Settings | token list | Token 页可从账户和 Agent 区到达，显示名称、scope、资源、过期、最后使用和状态 | M13.7-C05 | P0 | L |
+| M13.7-D07 | token | 重做 Token 创建、一次展示与撤销 | token lifecycle | 名称必填、默认过期、明文只出现一次、撤销即时生效且操作可审计 | M13.7-D06,M13.7-B11 | P0 | XL |
+| M13.7-D08 | permission | 建立人类可读最小权限模型 | scope selector | scope 有用途和风险说明，可限制 Project，危险组合二次确认且默认最小权限 | M13.7-D07 | P0 | L |
+| M13.7-D09 | docs | 编写 Agent 阅读与使用指南 | agent reading guide | 覆盖协议对象、四种视角、ID/revision、来源、权限、handoff 和隐私边界 | M13.6-A02:M13.6-A08,M13.7-D01 | P0 | L |
+| M13.7-D10 | docs | 生成 MCP resource/tool 目录 | generated tool catalog | 目录从 schema 生成或校验，标明只读/写入、scope、输入、输出和稳定性 | M13.7-D09,M11-26 | P0 | L |
+| M13.7-D11 | test | 验证第一次连接与凭据撤销 | onboarding E2E | 新账户在 3 分钟内完成 CLI 或 MCP 首次读取，撤销后旧会话无法继续调用 | M13.7-D03:M13.7-D10 | P0 | XL |
+
+**M13.7-D 任务数：11；退出门槛：用户不阅读内部开发文档即可连接 CLI/MCP，完成首读并安全管理授权。**
+
+### M13.7-E：研究者中心页面重构
+
+| ID | Area | 原子任务 | 单一交付物 | 验收标准 | 依赖 | Priority | Size |
+|---|---|---|---|---|---|---|---|
+| M13.7-E01 | landing | 重做匿名产品首页 | public landing | 一句话价值、真实公开研究示例、Explore 和 Connect Agent 双入口完整，无空框堆叠 | M13.7-C10,M13.6-A09 | P0 | XL |
+| M13.7-E02 | home | 重做登录后 Home | researcher home | 优先显示 since-last-visit 变化、Watchlist、My work、最近访问和 Agent 状态 | M13.7-C10,M13.6-B07 | P0 | XL |
+| M13.7-E03 | explore | 建立统一研究发现页 | Explore experience | 一个搜索入口支持 Questions、Projects、Topics、People 和可参与性筛选 | M13.7-C06,M13.6-C03 | P0 | XL |
+| M13.7-E04 | work | 建立个人工作中心 | Work hub | 我的 Task、验证队列、Challenge、草稿和贡献按待办状态组织 | M13.7-C10,M13.6-B06 | P0 | XL |
+| M13.7-E05 | workspace | 重构 Project 研究工作区 | project workspace | 首屏回答研究范围、当前前沿、争议、阻塞、最近变化和下一步，不以对象表为主轴 | M13.7-C04,M13.6-C03 | P0 | XL |
+| M13.7-E06 | question | 重构 Question 阅读路径 | question workspace | Summary、Frontier、Argument、Evidence、Verification & challenges、Activity 渐进展开 | M13.7-E05,M13.6-C03:M13.6-C10 | P0 | XL |
+| M13.7-E07 | claim | 重构 Claim 状态阅读页 | claim reader | statement、state、revision、关系、Evidence、Receipt、Finding、Challenge 与来源可追溯且无虚构分数 | M13.7-C04,M13.6-C01:M13.6-C10 | P0 | XL |
+| M13.7-E08 | people | 在研究内容中接入可信贡献者身份 | contributor identity | 作者、验证者和挑战者可打开公开资料，已验证 ORCID/GitHub 标记一致 | M13.7-B10,M13.7-E03:M13.7-E07 | P0 | L |
+| M13.7-E09 | states | 重写关键页面空状态与下一步 | actionable empty states | 空状态解释原因，并提供真实样例、探索、连接 Agent 或权限恢复中的一个有效动作 | M13.7-E01:M13.7-E08 | P0 | L |
+| M13.7-E10 | handoff | 将 Agent handoff 接入研究页面 | contextual handoff | 补充证据、质疑、验证、继续研究均携带准确 ID/revision、最小 scope 和返回链接 | M13.6-D10,M13.7-D11,M13.7-E05:M13.7-E07 | P0 | XL |
+
+**M13.7-E 任务数：10；退出门槛：匿名、关注、发现、工作和研究阅读形成任务型产品路径，并与 Agent handoff 连通。**
+
+### M13.7-F：迁移、质量与生产门禁
+
+| ID | Area | 原子任务 | 单一交付物 | 验收标准 | 依赖 | Priority | Size |
+|---|---|---|---|---|---|---|---|
+| M13.7-F01 | migration | 完成全路由迁移清单 | route migration report | 每条现有路由标记 keep、redirect、replace 或 retire，公开永久链接无意外失效 | M13.7-C08,M13.7-E10 | P0 | M |
+| M13.7-F02 | cleanup | 移除旧应用壳与重复原语 | UI cleanup | 旧一级对象导航和重复 Card/Form/Nav 原语不再被生产路由引用，无双设计系统 | M13.7-F01,M13.7-C10 | P0 | L |
+| M13.7-F03 | config | 建立生产配置与健康门禁 | deployment gate | Supabase、API、OAuth、MCP 公共配置缺失时 CI/部署失败，健康页不泄露 secret | M13.7-B01,M13.7-D11 | P0 | L |
+| M13.7-F04 | security | 执行身份、Token 与 MCP 安全审计 | security report | 无 token URL/日志/Analytics 泄露，scope、过期、撤销、RLS、callback 和审计符合契约 | M13.7-B11,M13.7-D08 | P0 | XL |
+| M13.7-F05 | accessibility | 执行 WCAG 2.2 AA 验证 | accessibility report | 自动检查无阻断项，键盘和屏幕阅读器完成登录、导航、阅读、连接和撤销 | M13.7-C10,M13.7-E10 | P0 | L |
+| M13.7-F06 | visual-test | 建立全路由视觉回归矩阵 | visual regression suite | 匿名/登录/空/错/加载/拒绝状态在 390、768、1440px 均有基线 | M13.7-C10,M13.7-E10 | P0 | L |
+| M13.7-F07 | responsive | 验证响应式与系统主题 | responsive report | 三档视口和系统深色模式无横向溢出、遮挡、不可达动作或对比度问题 | M13.7-F05,M13.7-F06 | P0 | L |
+| M13.7-F08 | performance | 执行关键页面性能门禁 | performance report | Core Web Vitals 达到 Good 目标，Header/Search/Home/Workspace 无明显布局跳动 | M13.7-F02,M13.7-E10 | P0 | L |
+| M13.7-F09 | canary | 执行生产 canary | canary report | Auth、ORCID/GitHub、Explore、Token、CLI/MCP 首读和公开链接在生产 smoke 通过 | M13.7-F02:M13.7-F08 | P0 | L |
+| M13.7-F10 | ux-test | 执行成熟产品关键任务测试 | usability report | ≥5 名目标用户，关键任务成功率≥80%，无未解决 Severity 1/2 问题 | M13.7-F09 | P0 | L |
+| M13.7-F11 | docs | 同步用户文档、截图和运维手册 | release docs | Quickstart、Auth、身份、Token、MCP、CLI、故障恢复和回滚与生产一致 | M13.7-F09,M13.7-F10 | P0 | M |
+| M13.7-F12 | release | 形成 M13.7 生产证据包 | M13.7 release report | 12 项 M14 准入门槛逐项有证据，M13.6 能力未回退，回滚方案已演练 | M13.7-F10,M13.7-F11,M13.6-E08 | P0 | L |
+
+**M13.7-F 任务数：12；本里程碑任务总数：64；退出门槛：M13.7-F12 通过后才允许启动 M14。**
+
 ## M14：首个科研闭环与验收
 
 **里程碑目标：** 用真实科研问题证明系统能够推进、验证、挑战、合并和继续。
 
 | ID | Area | 原子任务 | 单一交付物 | 验收标准 | 依赖 | Priority | Size |
 |---|---|---|---|---|---|---|---|
-| M14-01 | pilot | 选择计算科研 Pilot 问题 | Pilot brief | 范围、许可、数据与负责人明确 | M1-08,M13-02 | P0 | M |
+| M14-01 | pilot | 选择计算科研 Pilot 问题 | Pilot brief | 范围、许可、数据与负责人明确 | M1-08,M13-02,M13.7-F12 | P0 | M |
 | M14-02 | pilot | 编写 Pilot ResearchContract | Contract revision | 通过 Question Schema | M14-01,M1-29 | P0 | M |
 | M14-03 | pilot | 创建 Pilot Project | Project object | Web 可访问 Project | M14-02,M5-09 | P0 | S |
 | M14-04 | pilot | 创建 Pilot Question | Question object | 状态为 admissible | M14-02,M5-13 | P0 | S |

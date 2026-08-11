@@ -1167,13 +1167,14 @@
       },
       "UploadPlanRequest": {
         "type": "object",
-        "required": ["artifactId", "revision", "rawHash", "sizeBytes", "mediaType"],
+        "required": ["artifactId", "revision", "rawHash", "sizeBytes", "mediaType", "fileName"],
         "properties": {
           "artifactId": { "type": "string", "minLength": 1 },
           "revision": { "type": "integer", "minimum": 1 },
           "rawHash": { "type": "string", "pattern": "^sha256:[0-9a-fA-F]{64}$" },
           "sizeBytes": { "type": "integer", "minimum": 0 },
-          "mediaType": { "type": "string", "minLength": 1 }
+          "mediaType": { "type": "string", "minLength": 1 },
+          "fileName": { "type": "string", "minLength": 1 }
         }
       },
       "UploadPlanResponse": {

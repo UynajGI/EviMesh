@@ -440,6 +440,69 @@ test("transitions a Question state through the API", async () => {
   assert.equal((await response.json()).question.state, "proposed");
 });
 
+test("uses server-side risk signals for automatic Question transitions", async () => {
+  const request = (body) => new Request("https://api.example.test/questions/question-1/transitions", {
+    method: "POST",
+    headers: { authorization: "Bearer test-token", "content-type": "application/json" },
+    body: JSON.stringify({ toState: "proposed", automaticPublication: true, ...body }),
+  });
+  const makeApp = (signals, calls = []) => createApp({
+    repository: identityRepository({
+      getQuestionState: async (questionId) => ({ questionId, state: "draft" }),
+      updateQuestion: async (questionId, patch) => ({ questionId, ...patch }),
+      appendResearchEvent: async (event) => event,
+    }),
+    questionEventFactory: eventFactory,
+    questionRoleResolver: async () => "maintainer",
+    questionRiskResolver: async (context) => {
+      calls.push(context);
+      return signals;
+    },
+    ...AUTH,
+  });
+
+  const calls = [];
+  const open = await makeApp([], calls).fetch(request({ riskSignals: ["malicious_file"] }), {});
+  assert.equal(open.status, 201, await open.clone().text());
+  assert.deepEqual(calls[0], {
+    repository: calls[0].repository,
+    actorId: "actor-1",
+    questionId: "question-1",
+    toState: "proposed",
+    claims: { sub: "supabase-subject" },
+  });
+
+  for (const [signals, code] of [
+    [["missing_evidence"], "QUESTION_RISK_REVIEW_REQUIRED"],
+    [["personal_data"], "QUESTION_RISK_RESTRICTED"],
+    [["malicious_file"], "QUESTION_RISK_PROHIBITED"],
+  ]) {
+    const response = await makeApp(signals).fetch(request({ riskSignals: [] }), {});
+    assert.equal(response.status, 409, await response.clone().text());
+    assert.equal((await response.json()).code, code);
+  }
+});
+
+test("fails closed when automatic Question publication has no risk resolver", async () => {
+  const app = createApp({
+    repository: identityRepository({
+      getQuestionState: async (questionId) => ({ questionId, state: "draft" }),
+      updateQuestion: async (questionId, patch) => ({ questionId, ...patch }),
+      appendResearchEvent: async (event) => event,
+    }),
+    questionEventFactory: eventFactory,
+    questionRoleResolver: async () => "maintainer",
+    ...AUTH,
+  });
+  const response = await app.fetch(new Request("https://api.example.test/questions/question-1/transitions", {
+    method: "POST",
+    headers: { authorization: "Bearer test-token", "content-type": "application/json" },
+    body: JSON.stringify({ toState: "proposed", automaticPublication: true, riskSignals: [] }),
+  }), {});
+  assert.equal(response.status, 503, await response.clone().text());
+  assert.equal((await response.json()).code, "QUESTION_RISK_RESOLVER_UNAVAILABLE");
+});
+
 test("revises a project revision with If-Match", async () => {
   const current = { projectId: "project-1", revision: 1, state: "active", name: "old", summary: "old", license: "CC-BY-4.0", maintainerIds: ["actor-1"] };
   const app = createApp({

@@ -10,10 +10,13 @@
     "infra:doctor": "node scripts/infra-doctor.mjs",
     "infra:hosted-readiness": "node scripts/hosted-readiness.mjs",
     "auth:test:email": "node scripts/test-supabase-email-auth.mjs",
+    "package:build": "node scripts/build-npm-distributions.mjs",
+    "package:test": "node scripts/test-npm-tarballs.mjs",
     "validate": "turbo run lint",
     "prepare": "lefthook install"
   },
   "devDependencies": {
+    "esbuild": "0.25.4",
     "lefthook": "^2.1.10",
     "turbo": "^2.10.8"
   }

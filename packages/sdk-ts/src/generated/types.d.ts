@@ -61,7 +61,7 @@ export type CreateClaimRequest = { claimId: string; questionId?: string | null; 
 
 export type CreateArtifactRequest = { artifactId: string; artifactType: "code" | "dataset" | "document" | "figure" | "proof" | "notebook" | "container" | "model" | "report" | "other"; rawHash: string; semanticHash?: string | null; sizeBytes: number; mediaType: string; license: string; description?: string | null; locationId: string; location: string; };
 
-export type UploadPlanRequest = { artifactId: string; revision: number; rawHash: string; sizeBytes: number; mediaType: string; };
+export type UploadPlanRequest = { artifactId: string; revision: number; rawHash: string; sizeBytes: number; mediaType: string; fileName: string; };
 
 export type UploadPlanResponse = { uploadType: "single"; key: string; sizeBytes: number; mediaType: string; issuedAt: string; expiresAt: string; url: string; };
 

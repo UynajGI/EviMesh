@@ -17,7 +17,9 @@ test('initializes the Next App Router shell', async () => {
   assert.match(config, /turbopack: \{ root: workspaceRoot \}/);
   assert.match(globals, /@import "tailwindcss"/);
   assert.match(postcss, /'@tailwindcss\/postcss': \{\}/);
-  assert.match(page, /className="mx-auto max-w-6xl/);
+  assert.match(page, /<PageContainer>/);
+  const pageTemplate = await read('../components/ui/page.js');
+  assert.match(pageTemplate, /max-w-6xl/);
 });
 
 test('configures OpenNext for Cloudflare Workers deployment', async () => {
@@ -53,14 +55,18 @@ test('defines light and dark design tokens for the web product', async () => {
   assert.match(globals, /@media \(prefers-color-scheme: dark\) \{[\s\S]*--evimesh-background:/);
 });
 
-test('provides primary navigation and the five initial product routes', async () => {
+test('provides primary navigation and the initial product routes', async () => {
   const [layout, nav, projects, tasks, verification, contributions] = await Promise.all([
     read('../app/layout.js'), read('../components/site-nav.js'), read('../app/projects/page.js'), read('../app/tasks/page.js'), read('../app/verification/page.js'), read('../app/contributions/page.js'),
   ]);
   assert.match(layout, /<SiteNav \/>/);
   assert.match(nav, /aria-label="Primary navigation"/);
-  for (const href of ['/', '/projects', '/tasks', '/verification', '/contributions']) assert.match(nav, new RegExp(`href: '${href.replace('/', '\\/')}'`));
-  for (const page of [verification, contributions]) assert.match(page, /SectionPlaceholder/);
+  // First-level navigation is capped at six items; overflow actions still exist.
+  const primarySection = nav.slice(0, nav.indexOf('const overflowLinks'));
+  const primaryHrefs = (primarySection.match(/\{ href: '([^']+)', label: '[^']+' \}/g) ?? []).map((entry) => entry.match(/href: '([^']+)'/)[1]);
+  assert.ok(primaryHrefs.length <= 6, `primary navigation has ${primaryHrefs.length} items`);
+  for (const href of ['/projects', '/questions', '/tasks', '/claims', '/verification', '/events']) assert.ok(primaryHrefs.includes(href), `missing ${href} in primary navigation`);
+  for (const page of [verification]) assert.match(page, /SectionPlaceholder/);
   assert.match(tasks, /Task board/);
   assert.match(projects, /Create a project/);
 });
@@ -163,7 +169,7 @@ test('renders the project list and creation form', async () => {
 
 test('renders the first Question submission step for question and value', async () => {
   const page = await read('../app/questions/new/page.js');
-  assert.match(page, /Step 1 of 4/);
+  assert.match(page, /Step \$\{step\} of 4/);
   assert.match(page, /Question statement/);
   assert.match(page, /Question value/);
   assert.match(page, /Continue to scope/);
@@ -174,7 +180,7 @@ test('supports the second Question submission step for scope and exclusions', as
   assert.match(page, /Question scope/);
   assert.match(page, /Question exclusions/);
   assert.match(page, /Continue to progress/);
-  assert.match(page, /setStep\(2\)/);
+  assert.match(page, /advance\(event, 2\)/);
 });
 
 test('supports the third Question submission step for progress and falsification', async () => {
@@ -182,7 +188,7 @@ test('supports the third Question submission step for progress and falsification
   assert.match(page, /Question progress/);
   assert.match(page, /Question falsification conditions/);
   assert.match(page, /Continue to permissions/);
-  assert.match(page, /setStep\(3\)/);
+  assert.match(page, /advance\(event, 3\)/);
 });
 
 test('supports the fourth Question submission step for license and risks', async () => {
@@ -190,7 +196,7 @@ test('supports the fourth Question submission step for license and risks', async
   assert.match(page, /Question license/);
   assert.match(page, /Question risks/);
   assert.match(page, /Review question/);
-  assert.match(page, /setStep\(4\)/);
+  assert.match(page, /advance\(event, 4\)/);
 });
 
 test('renders a normalized Question preview before submission', async () => {
@@ -208,8 +214,8 @@ test('renders Question details with Contract, state, and Task summaries', async 
   const page = await read('../app/questions/[questionId]/page.js');
   assert.match(page, /\/questions\/\$\{questionId\}/);
   assert.match(page, /Research Contract/);
-  assert.match(page, /data\.question\.state/);
-  assert.match(page, /data\.tasks/);
+  assert.match(page, /question\.state/);
+  assert.match(page, /tasks\.length/);
 });
 
 test('renders the Task board with every protocol status lane', async () => {
@@ -349,10 +355,12 @@ test('imports validated JSON and stored ZIP draft bundles into the Claim editor'
 test('keeps the Claim editor responsive at mobile and desktop breakpoints', async () => {
   const page = await read('../app/claims/new/page.js');
   const nav = await read('../components/site-nav.js');
-  assert.match(page, /mx-auto max-w-5xl px-6/);
+  assert.match(page, /PageContainer/);
   assert.match(page, /flex flex-wrap gap-3/);
   assert.match(page, /overflow-x-auto/);
-  assert.match(nav, /flex-wrap/);
+  // The shell collapses to a toggle below md instead of wrapping the nav row.
+  assert.match(nav, /md:hidden/);
+  assert.match(nav, /aria-expanded/);
   assert.match(nav, /gap-/);
 });
 
@@ -364,14 +372,14 @@ test('provides basic accessible names and status semantics on key M9 pages', asy
     read('../app/events/page.js'),
   ]);
   assert.match(nav, /aria-label="Primary navigation"/);
-  assert.match(page, /<h1 className=.*Draft a Claim/);
-  assert.match(page, /<label className=.*Statement/);
+  assert.match(page, /Draft a Claim/);
+  assert.match(page, /Label htmlFor="claim-statement">Statement/);
   assert.match(page, /role="status"/);
   assert.match(page, /role="alert"/);
   assert.match(workspace, /aria-label="Verification workspace"/);
   assert.match(workspace, /aria-label="Blind Context"/);
-  assert.match(events, /<h1 className=.*Event audit/);
-  assert.match(events, /role="alert"/);
+  assert.match(events, /Event audit/);
+  assert.match(events, /ErrorState/);
 });
 
 test('renders Claim revision diff controls and changed fields', async () => {
@@ -387,6 +395,7 @@ test('renders direct R2 evidence upload with hash and progress', async () => {
   const page = await read('../app/artifacts/upload/page.js');
   assert.match(panel, /crypto\.subtle\.digest/);
   assert.match(panel, /artifacts\/upload-plan/);
+  assert.match(panel, /fileName: file\.name/);
   assert.match(panel, /XMLHttpRequest/);
   assert.match(panel, /onprogress/);
   assert.match(panel, /SHA-256/);

@@ -1,12 +1,22 @@
 {
   "name": "@evimesh/cli",
-  "private": true,
+  "private": false,
   "version": "0.3.0",
+  "engines": { "node": ">=22" },
   "description": "sq — EviMesh research network CLI",
   "bin": {
-    "sq": "bin/sq.mjs"
+    "sq": "dist/sq.mjs"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
+    "build": "node ../../scripts/build-npm-distributions.mjs cli",
+    "prepack": "npm run build",
     "lint": "node ../../scripts/check-package.mjs",
     "test": "node --test test/*.test.mjs"
   }
