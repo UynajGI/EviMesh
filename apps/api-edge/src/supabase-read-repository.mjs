@@ -16,7 +16,7 @@ export class SupabaseReadRepositoryError extends Error {
 
 function requiredString(value, name) {
   if (typeof value !== "string" || value.trim().length === 0) {
-    throw new SupabaseReadRepositoryError(`${name} is required`);
+    throw new SupabaseReadRepositoryError(`${name} is required`, "SUPABASE_READ_CONFIGURATION_INVALID", 500);
   }
   return value.trim();
 }
@@ -29,15 +29,8 @@ function mapRow(row) {
   return Object.fromEntries(Object.entries(row).map(([key, value]) => [camelCaseKey(key), value]));
 }
 
-function includesTag(row, tag) {
-  if (tag === null) return true;
-  if (row.tag === tag) return true;
-  return Array.isArray(row.tags) && row.tags.includes(tag);
-}
-
-function matchesOptional(value, expected) {
-  return expected === null || value === expected;
-}
+const PAGE_SIZE = 1000;
+const PRIMARY_KEYS = Object.freeze({ claims: "claim_id", projects: "project_id", questions: "question_id", tasks: "task_id" });
 
 export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = fetch } = {}) {
   const baseUrl = requiredString(url, "Supabase URL").replace(/\/$/, "");
@@ -48,34 +41,54 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
     const endpoint = new URL(`${baseUrl}/rest/v1/${TABLES[table]}`);
     endpoint.searchParams.set("select", "*");
     endpoint.searchParams.set("deleted_at", "is.null");
-    endpoint.searchParams.set("order", "created_at.desc");
+    endpoint.searchParams.set("order", `created_at.desc,${PRIMARY_KEYS[table]}.desc`);
     for (const [column, value] of Object.entries(filters)) {
       if (value !== null && value !== undefined) endpoint.searchParams.set(column, `eq.${value}`);
     }
 
-    let response;
-    try {
-      response = await fetchImpl(endpoint, { headers: { accept: "application/json", apikey: apiKey } });
-    } catch {
-      throw new SupabaseReadRepositoryError("Supabase Data API request failed");
+    const rows = [];
+    for (let offset = 0; ; offset += PAGE_SIZE) {
+      let response;
+      try {
+        response = await fetchImpl(endpoint, { headers: { accept: "application/json", apikey: apiKey, Range: `${offset}-${offset + PAGE_SIZE - 1}`, "Range-Unit": "items" } });
+      } catch {
+        throw new SupabaseReadRepositoryError("Supabase Data API request failed");
+      }
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        const detail = typeof payload === "object" && payload ? ` (${JSON.stringify(payload).slice(0, 512)})` : "";
+        throw new SupabaseReadRepositoryError(`Supabase Data API request failed with ${response.status}${detail}`);
+      }
+      if (!Array.isArray(payload)) throw new SupabaseReadRepositoryError("Supabase Data API returned an invalid response");
+      rows.push(...payload.map(mapRow));
+      if (payload.length < PAGE_SIZE) return rows;
     }
-    if (!response.ok) throw new SupabaseReadRepositoryError("Supabase Data API request failed");
-    const payload = await response.json().catch(() => null);
-    if (!Array.isArray(payload)) throw new SupabaseReadRepositoryError("Supabase Data API returned an invalid response");
-    return payload.map(mapRow);
+  }
+
+  async function questionIdsForProject(projectId) {
+    if (projectId === null) return null;
+    return new Set((await list("questions", { project_id: projectId })).map((question) => question.questionId));
+  }
+
+  function unsupportedFilter(name) {
+    throw new SupabaseReadRepositoryError(`${name} filtering is not available in the hosted discovery read model`, "SUPABASE_READ_FILTER_UNSUPPORTED", 400);
   }
 
   return Object.freeze({
     listProjects: ({ state = null } = {}) => list("projects", { state }),
     listQuestions: ({ projectId = null, state = null } = {}) => list("questions", { project_id: projectId, state }),
     async listTasks({ projectId = null, status = null, type = null, tag = null } = {}) {
+      if (type !== null) unsupportedFilter("task type");
+      if (tag !== null) unsupportedFilter("task tag");
       const rows = await list("tasks", { state: status });
-      return rows.filter((row) => matchesOptional(row.projectId, projectId)
-        && matchesOptional(row.type ?? row.taskType, type) && includesTag(row, tag));
+      const questionIds = await questionIdsForProject(projectId);
+      return questionIds === null ? rows : rows.filter((row) => questionIds.has(row.questionId));
     },
     async listClaims({ projectId = null, status = null, tag = null } = {}) {
+      if (tag !== null) unsupportedFilter("claim tag");
       const rows = await list("claims", { state: status });
-      return rows.filter((row) => matchesOptional(row.projectId, projectId) && includesTag(row, tag));
+      const questionIds = await questionIdsForProject(projectId);
+      return questionIds === null ? rows : rows.filter((row) => questionIds.has(row.questionId));
     },
   });
 }

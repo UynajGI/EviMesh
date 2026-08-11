@@ -1254,17 +1254,18 @@ return app;
 
 export function createWorker({ fetchImpl = fetch } = {}) {
   const unconfiguredApp = createApp();
-  let hostedApp = null;
+  const hostedApps = new Map();
   return Object.freeze({
     fetch(request, env = {}, executionContext) {
       const publishableKey = env.SUPABASE_PUBLISHABLE_KEY ?? env.SUPABASE_ANON_KEY;
       if (!env.SUPABASE_URL || !publishableKey) {
         return unconfiguredApp.fetch(request, env, executionContext);
       }
-      hostedApp ??= createApp({
+      const key = `${env.SUPABASE_URL}\u0000${publishableKey}`;
+      if (!hostedApps.has(key)) hostedApps.set(key, createApp({
         repository: createSupabaseReadRepository({ url: env.SUPABASE_URL, publishableKey, fetchImpl }),
-      });
-      return hostedApp.fetch(request, env, executionContext);
+      }));
+      return hostedApps.get(key).fetch(request, env, executionContext);
     },
     request: unconfiguredApp.request.bind(unconfiguredApp),
   });
