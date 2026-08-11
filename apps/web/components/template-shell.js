@@ -25,10 +25,23 @@ const groups = [
     ],
   },
   {
+    label: 'Contribute',
+    links: [
+      { href: '/questions/new', label: 'New question', icon: CircleHelp },
+      { href: '/claims/new', label: 'New claim', icon: GitPullRequestArrow },
+      { href: '/evidence/new', label: 'Add evidence', icon: FileCheck2 },
+      { href: '/challenges/new', label: 'Raise a challenge', icon: ShieldCheck },
+      { href: '/runs/new', label: 'Start a run', icon: Activity },
+      { href: '/verification/receipt/new', label: 'Record verification', icon: FileCheck2 },
+    ],
+  },
+  {
     label: 'Connect',
     links: [
       { href: '/agent', label: 'Agent manual', icon: Bot },
       { href: '/settings/tokens', label: 'API tokens', icon: KeyRound },
+      { href: '/contributions', label: 'My contributions', icon: GitPullRequestArrow },
+      { href: '/settings', label: 'Settings', icon: KeyRound },
       { href: '/events', label: 'Activity', icon: Activity },
     ],
   },

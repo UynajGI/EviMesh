@@ -7,8 +7,14 @@ const shell = await readFile(new URL('../components/template-shell.js', import.m
 test('TailAdmin shell groups research navigation by user purpose', () => {
   assert.match(shell, /label: 'Workspace'/);
   assert.match(shell, /label: 'Connect'/);
-  for (const label of ['Overview', 'Projects', 'Questions', 'Claims', 'Tasks', 'Verification', 'Agent manual', 'API tokens', 'Activity']) {
+  for (const label of ['Overview', 'Projects', 'Questions', 'Claims', 'Tasks', 'Verification', 'New question', 'New claim', 'Add evidence', 'Raise a challenge', 'Start a run', 'Record verification', 'Agent manual', 'API tokens', 'My contributions', 'Settings', 'Activity']) {
     assert.match(shell, new RegExp(`label: '${label}'`), `navigation is missing ${label}`);
+  }
+});
+
+test('shell keeps every supported write and account workflow discoverable', () => {
+  for (const href of ['/questions/new', '/claims/new', '/runs/new', '/evidence/new', '/verification/receipt/new', '/challenges/new', '/settings', '/contributions']) {
+    assert.match(shell, new RegExp(`href: '${href.replace(/[/.]/g, '\\$&')}'`), `navigation is missing ${href}`);
   }
 });
 

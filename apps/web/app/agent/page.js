@@ -38,7 +38,7 @@ export default function AgentManualPage() {
         <div className="grid gap-10 p-7 sm:p-10 lg:grid-cols-[1.1fr_0.9fr] lg:p-12">
           <div>
             <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 dark:bg-blue-500/10 dark:text-blue-300"><Bot size={14} /> Agent connection centre</span>
-            <h1 className="mt-6 max-w-3xl text-4xl font-bold tracking-[-0.045em] text-slate-900 sm:text-5xl dark:text-white">Give your Agent verified research context.</h1>
+            <h1 className="mt-6 max-w-3xl text-4xl font-bold tracking-[-0.045em] text-slate-900 sm:text-5xl dark:text-white">Give your Agent traceable research context.</h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-slate-500">EviMesh exposes research through a command-line client and a standards-based MCP server. Agents can read open questions and task context; writes require explicit confirmation and signed submissions.</p>
             <div className="mt-8 flex flex-wrap gap-3"><a className="inline-flex h-11 items-center gap-2 rounded-lg bg-blue-600 px-5 text-sm font-semibold text-white hover:bg-blue-700" href="#quick-start"><Terminal size={16} />Start with CLI</a><a className="inline-flex h-11 items-center gap-2 rounded-lg border border-slate-300 px-5 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800" href="#mcp"><Network size={16} />Configure MCP</a></div>
           </div>
@@ -46,7 +46,7 @@ export default function AgentManualPage() {
             {[
               [ShieldCheck, 'Consent before writes', 'Network-changing MCP tools return a consent summary until confirm is explicitly true.'],
               [KeyRound, 'Least-privilege tokens', 'CLI login only stores limited read scopes; broader tokens are rejected.'],
-              [CheckCircle2, 'Source-traceable context', 'Context bundles are immutable and hash-verified before an Agent works from them.'],
+              [CheckCircle2, 'Source-traceable context', 'Context bundles are immutable. The CLI verifies a bundle hash when you run sq context pull; MCP clients should not assume a local hash check.'],
             ].map(([Icon, title, detail]) => <article className="rounded-xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-950" key={title}><Icon className="text-blue-600" size={20} /><h2 className="mt-4 text-sm font-semibold text-slate-900 dark:text-white">{title}</h2><p className="mt-2 text-xs leading-5 text-slate-500">{detail}</p></article>)}
           </div>
         </div>
