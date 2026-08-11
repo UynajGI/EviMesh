@@ -56,16 +56,15 @@ test('defines light and dark design tokens for the web product', async () => {
 });
 
 test('provides primary navigation and the initial product routes', async () => {
-  const [layout, nav, projects, tasks, verification, contributions] = await Promise.all([
-    read('../app/layout.js'), read('../components/site-nav.js'), read('../app/projects/page.js'), read('../app/tasks/page.js'), read('../app/verification/page.js'), read('../app/contributions/page.js'),
+  const [layout, shell, projects, tasks, verification, contributions] = await Promise.all([
+    read('../app/layout.js'), read('../components/template-shell.js'), read('../app/projects/page.js'), read('../app/tasks/page.js'), read('../app/verification/page.js'), read('../app/contributions/page.js'),
   ]);
-  assert.match(layout, /<SiteNav \/>/);
-  assert.match(nav, /aria-label="Primary navigation"/);
-  // First-level navigation is capped at six items; overflow actions still exist.
-  const primarySection = nav.slice(0, nav.indexOf('const overflowLinks'));
-  const primaryHrefs = (primarySection.match(/\{ href: '([^']+)', label: '[^']+' \}/g) ?? []).map((entry) => entry.match(/href: '([^']+)'/)[1]);
-  assert.ok(primaryHrefs.length <= 6, `primary navigation has ${primaryHrefs.length} items`);
-  for (const href of ['/projects', '/questions', '/tasks', '/claims', '/verification', '/events']) assert.ok(primaryHrefs.includes(href), `missing ${href} in primary navigation`);
+  assert.match(layout, /<TemplateShell>/);
+  assert.match(shell, /aria-label=\{group\.label\}/);
+  assert.match(shell, /TailAdmin's MIT-licensed Next\.js template/);
+  for (const href of ['/projects', '/questions', '/tasks', '/claims', '/verification', '/events', '/agent', '/settings/tokens']) assert.match(shell, new RegExp(`href: '${href.replace('/', '\\/')}'`));
+  assert.match(shell, /href="\/login"/);
+  assert.match(shell, />Login<\/Link>/);
   for (const page of [verification]) assert.match(page, /SectionPlaceholder/);
   assert.match(tasks, /Task board/);
   assert.match(projects, /Create a project/);
@@ -90,12 +89,14 @@ test('provides loading skeletons for each main product route', async () => {
 });
 
 test('provides Supabase email and GitHub authentication from the sign-in page', async () => {
-  const [client, page] = await Promise.all([read('../lib/supabase-browser.js'), read('../app/sign-in/page.js')]);
+  const [client, page, legacy] = await Promise.all([read('../lib/supabase-browser.js'), read('../app/login/page.js'), read('../app/sign-in/page.js')]);
   assert.match(client, /createClient\(url, key\)/);
   assert.match(client, /NEXT_PUBLIC_SUPABASE_URL/);
   assert.match(page, /signInWithPassword/);
   assert.match(page, /signInWithOAuth\(\{ provider: 'github'/);
   assert.match(page, /Continue with GitHub/);
+  assert.match(page, /Login to your account/);
+  assert.match(legacy, /redirect\('\/login'\)/);
 });
 
 test('renders a reusable Cytoscape Claim DAG component', async () => {
@@ -259,7 +260,7 @@ test('provides Task lease acquire and release actions', async () => {
 });
 
 test('renders the Claim list with status and tag filters', async () => {
-  const [page, nav] = await Promise.all([read('../app/claims/page.js'), read('../components/site-nav.js')]);
+  const [page, nav] = await Promise.all([read('../app/claims/page.js'), read('../components/template-shell.js')]);
   assert.match(page, /Claims/);
   assert.match(page, /claims\?/);
   assert.match(page, /filters\.status/);
@@ -314,10 +315,10 @@ test('renders Frontier time travel with fixed members', async () => {
 });
 
 test('renders the Claim editor for statement, scope, assumptions, and falsification', async () => {
-  const [page, nav] = await Promise.all([read('../app/claims/new/page.js'), read('../components/site-nav.js')]);
+  const [page, nav] = await Promise.all([read('../app/claims/new/page.js'), read('../components/template-shell.js')]);
   for (const field of ['Statement', 'Scope', 'Assumptions', 'Falsification conditions']) assert.match(page, new RegExp(field));
   assert.match(page, /Claim preview/);
-  assert.match(nav, /claims\/new/);
+  assert.match(nav, /href: '\/claims'/);
 });
 
 test('persists claim drafts through IndexedDB and restores them on refresh', async () => {
@@ -354,13 +355,13 @@ test('imports validated JSON and stored ZIP draft bundles into the Claim editor'
 
 test('keeps the Claim editor responsive at mobile and desktop breakpoints', async () => {
   const page = await read('../app/claims/new/page.js');
-  const nav = await read('../components/site-nav.js');
+  const nav = await read('../components/template-shell.js');
   assert.match(page, /PageContainer/);
   assert.match(page, /flex flex-wrap gap-3/);
   assert.match(page, /overflow-x-auto/);
-  // The shell collapses to a toggle below md instead of wrapping the nav row.
-  assert.match(nav, /md:hidden/);
-  assert.match(nav, /aria-expanded/);
+  // The TailAdmin shell moves the sidebar off-canvas and exposes a mobile toggle.
+  assert.match(nav, /lg:hidden/);
+  assert.match(nav, /aria-label="Open navigation"/);
   assert.match(nav, /gap-/);
 });
 
@@ -368,10 +369,10 @@ test('provides basic accessible names and status semantics on key M9 pages', asy
   const [page, workspace, nav, events] = await Promise.all([
     read('../app/claims/new/page.js'),
     read('../components/verification-workspace.js'),
-    read('../components/site-nav.js'),
+    read('../components/template-shell.js'),
     read('../app/events/page.js'),
   ]);
-  assert.match(nav, /aria-label="Primary navigation"/);
+  assert.match(nav, /aria-label=\{group\.label\}/);
   assert.match(page, /Draft a Claim/);
   assert.match(page, /Label htmlFor="claim-statement">Statement/);
   assert.match(page, /role="status"/);
