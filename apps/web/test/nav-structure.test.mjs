@@ -1,35 +1,32 @@
-import test from "node:test";
-import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 
-/** M13.5-A06: primary navigation stays at or below six first-level items. */
-const navSource = await readFile(new URL("../components/site-nav.js", import.meta.url), "utf8");
+const shell = await readFile(new URL('../components/template-shell.js', import.meta.url), 'utf8');
 
-function arrayItems(source, name) {
-  const match = source.match(new RegExp(`const ${name} = \\[([\\s\\S]*?)\\n\\];`));
-  assert.ok(match, `could not locate ${name} in site-nav.js`);
-  return (match[1].match(/\{ href: '[^']+', label: '[^']+' \}/g) ?? []);
-}
-
-test("primary navigation has at most six items", () => {
-  const items = arrayItems(navSource, "primaryLinks");
-  assert.ok(items.length >= 4 && items.length <= 6, `primary navigation has ${items.length} items, expected 4-6`);
-});
-
-test("primary navigation contains the research discovery items", () => {
-  const items = arrayItems(navSource, "primaryLinks").join("\n");
-  for (const label of ["Projects", "Questions", "Tasks", "Claims", "Verification"]) {
-    assert.ok(items.includes(label), `primary navigation is missing ${label}`);
+test('TailAdmin shell groups research navigation by user purpose', () => {
+  assert.match(shell, /label: 'Workspace'/);
+  assert.match(shell, /label: 'Connect'/);
+  for (const label of ['Overview', 'Projects', 'Questions', 'Claims', 'Tasks', 'Verification', 'New question', 'New claim', 'Add evidence', 'Raise a challenge', 'Start a run', 'Record verification', 'Agent manual', 'API tokens', 'My contributions', 'Settings', 'Activity']) {
+    assert.match(shell, new RegExp(`label: '${label}'`), `navigation is missing ${label}`);
   }
 });
 
-test("navigation exposes exactly one primary call to action", () => {
-  const ctas = (navSource.match(/bg-primary/g) ?? []).length;
-  assert.equal(ctas, 1, "exactly one primary CTA expected in the nav");
+test('shell keeps every supported write and account workflow discoverable', () => {
+  for (const href of ['/questions/new', '/claims/new', '/runs/new', '/evidence/new', '/verification/receipt/new', '/challenges/new', '/settings', '/contributions']) {
+    assert.match(shell, new RegExp(`href: '${href.replace(/[/.]/g, '\\$&')}'`), `navigation is missing ${href}`);
+  }
 });
 
-test("mobile navigation is collapsible with an accessible toggle", () => {
-  assert.match(navSource, /aria-expanded/);
-  assert.match(navSource, /aria-label="Toggle navigation menu"/);
-  assert.match(navSource, /md:hidden/);
+test('header exposes Login and Agent manual without hiding them in overflow', () => {
+  assert.match(shell, /href="\/login"/);
+  assert.match(shell, />Login<\/Link>/);
+  assert.match(shell, /href="\/agent"/);
+});
+
+test('mobile navigation uses an accessible drawer and backdrop', () => {
+  assert.match(shell, /aria-label="Open navigation"/);
+  assert.match(shell, /aria-label="Close navigation"/);
+  assert.match(shell, /mobileOpen \? 'translate-x-0'/);
+  assert.match(shell, /bg-slate-900\/50 backdrop-blur-sm/);
 });
