@@ -1,14 +1,30 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { access, readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-const route = await readFile(new URL('../app/agent/route.js', import.meta.url), 'utf8');
+const page = await readFile(new URL('../app/agent/page.js', import.meta.url), 'utf8');
+const route = await readFile(new URL('../app/agent.md/route.js', import.meta.url), 'utf8');
 const source = await readFile(new URL('../lib/agent-manual.js', import.meta.url), 'utf8');
 
-test('Agent manual is served as a direct Markdown document', () => {
+test('/agent is a human-facing onboarding page with the canonical URL', async () => {
+  assert.match(page, /export default function AgentOnboardingPage/);
+  assert.match(page, /https:\/\/www\.evimesh\.com\/agent\.md/);
+  assert.match(page, /Copy URL/);
+  assert.match(page, /Install the tools/);
+  assert.match(page, /Connect CLI or MCP/);
+  assert.match(page, /Understand EviMesh/);
+  await assert.rejects(access(new URL('../app/agent/route.js', import.meta.url)));
+});
+
+test('/agent.md is served as a direct Markdown document', () => {
   assert.match(route, /new Response\(agentManualMarkdown/);
   assert.match(route, /Content-Type': 'text\/markdown; charset=utf-8/);
-  assert.match(route, /Vary': 'Accept/);
+  assert.doesNotMatch(route, /text\/html/);
+});
+
+test('Agent manual identifies its canonical machine-readable URL', () => {
+  assert.match(source, /canonical public URL is https:\/\/www\.evimesh\.com\/agent\.md/i);
+  assert.doesNotMatch(source, /served as Markdown at `\/agent`/);
 });
 
 test('Agent manual documents the published CLI and MCP packages', () => {
