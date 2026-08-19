@@ -1,6 +1,8 @@
+'use client';
+
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
-'use client';
+
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
@@ -175,7 +177,7 @@ function ClaimDetailView({ params }) {
         <div className="min-w-0">
           {pinned ? (
             <p className="mt-2 rounded-md border border-status-accent-border bg-status-accent-bg px-3 py-1.5 text-xs text-status-accent-fg">
-              Pinned revision r{pinnedRevision}: this permalink always renders this exact immutable revision. <Link className="underline" href={`/claims/${claim.claimId}">Jump to current</Link>
+              Pinned revision r{pinnedRevision}: this permalink always renders this exact immutable revision. <Link className="underline" href={`/claims/${claim.claimId}`}>Jump to current</Link>
             </p>
           ) : null}
           <div className="flex flex-wrap items-center gap-3">
