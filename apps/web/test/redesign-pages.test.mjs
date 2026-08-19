@@ -196,3 +196,13 @@ test('contributor page shows roles and traceable activity without rankings', asy
   assert.match(page, /No points, no rankings/);
   assert.match(page, /\/actors\/\$\{actorId\}/);
 });
+
+test('attempt trail keeps agent attribution explicit and publishing human', async () => {
+  const page = await read('../app/attempts/[attemptId]/page.js');
+  assert.match(page, /Agents draft; humans approve what gets signed/);
+  assert.match(page, /objectType=attempt&objectId=/);
+  assert.match(page, /No signed events for this attempt yet/);
+  assert.match(page, /attribution chains are part of the record/i);
+  assert.match(page, /Failed, paused, or abandoned attempts keep their links/);
+  assert.match(page, /StatusBadge/);
+});
