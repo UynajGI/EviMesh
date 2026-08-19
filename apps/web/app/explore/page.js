@@ -33,6 +33,7 @@ function ExploreView() {
   const searchParams = useSearchParams();
   const [query, setQuery] = useState(searchParams.get('q') ?? '');
   const [type, setType] = useState('all');
+  const [sort, setSort] = useState('recent');
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -65,9 +66,13 @@ function ExploreView() {
     return items
       .filter((item) => (type === 'all' || item.kind === type))
       .filter((item) => !needle || item.id.toLowerCase().includes(needle) || (item.projectId ?? '').toLowerCase().includes(needle))
-      .sort((left, right) => Date.parse(right.when ?? 0) - Date.parse(left.when ?? 0))
+      .sort((left, right) => {
+        if (sort === 'title') return String(left.id).localeCompare(String(right.id));
+        if (sort === 'created') return Date.parse(right.when ?? 0) - Date.parse(left.when ?? 0);
+        return Date.parse(right.when ?? 0) - Date.parse(left.when ?? 0);
+      })
       .slice(0, 40);
-  }, [items, query, type]);
+  }, [items, query, type, sort]);
 
   const hrefFor = (item) => (item.kind === 'question' ? `/questions/${item.id}` : item.kind === 'project' ? `/projects/${item.id}` : `/claims/${item.id}`);
 
@@ -107,39 +112,65 @@ function ExploreView() {
         </div>
       </div>
 
-      <div className="mt-6">
-        {loading ? (
-          <div className="grid gap-3">{[0, 1, 2].map((key) => <Skeleton className="h-16 w-full" key={key} />)}</div>
-        ) : error ? (
-          <ErrorState message={error} onRetry={load} />
-        ) : results.length === 0 ? (
-          <Empty
-            action={(
-              <button className="rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground" onClick={() => { setQuery(''); setType('all'); }} type="button">
-                Clear filters
-              </button>
-            )}
-            description="No objects match the current search and filters. Try a shorter stable id or another type."
-            title="Nothing matches yet"
-          />
-        ) : (
-          <Card className="divide-y divide-border">
-            {results.map((item) => (
-              <article className="flex flex-wrap items-center gap-3 px-5 py-4 hover:bg-muted/50" key={`${item.kind}-${item.id}`}>
-                <StatusBadge label={item.kind} state={item.state} />
-                <IdChip className="min-w-0 flex-1" value={item.id} />
-                <Link className="text-xs font-medium text-primary hover:underline" href={hrefFor(item)}>open</Link>
-                {item.projectId ? <span className="text-xs tabular-nums text-muted-foreground">project {item.projectId}</span> : null}
-                <span className="ml-auto text-xs capitalize text-muted-foreground">{item.kind}</span>
-              </article>
+      <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,1fr)_15rem] lg:items-start">
+        <div className="min-w-0">
+          {loading ? (
+            <div className="grid gap-3">{[0, 1, 2].map((key) => <Skeleton className="h-16 w-full" key={key} />)}</div>
+          ) : error ? (
+            <ErrorState message={error} onRetry={load} />
+          ) : results.length === 0 ? (
+            <Empty
+              action={(
+                <button className="rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground" onClick={() => { setQuery(''); setType('all'); }} type="button">
+                  Clear filters
+                </button>
+              )}
+              description="No objects match the current search and filters. Try a shorter stable id or another type."
+              title="Nothing matches yet"
+            />
+          ) : (
+            <Card className="divide-y divide-border">
+              {results.map((item) => (
+                <article className="flex flex-wrap items-center gap-3 px-5 py-4 hover:bg-muted/50" key={`${item.kind}-${item.id}`}>
+                  <StatusBadge label={item.kind} state={item.state} />
+                  <IdChip className="min-w-0 flex-1" value={item.id} />
+                  <Link className="text-xs font-medium text-primary hover:underline" href={hrefFor(item)}>open</Link>
+                  {item.projectId ? <span className="text-xs tabular-nums text-muted-foreground">project {item.projectId}</span> : null}
+                  <span className="ml-auto text-xs capitalize text-muted-foreground">{item.kind}</span>
+                </article>
+              ))}
+            </Card>
+          )}
+          {!loading && !error ? (
+            <p className="mt-3 text-sm text-muted-foreground">
+              Ordered by recent activity. Sorting never expresses research value or support.
+            </p>
+          ) : null}
+        </div>
+
+        <aside aria-label="Ordering" className="rounded-lg border border-border bg-card p-4">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Order by</h2>
+          <div className="mt-3 grid gap-2 text-sm">
+            {[
+              ['recent', 'Recent activity'],
+              ['created', 'Newest created'],
+              ['title', 'Title order'],
+            ].map(([value, labelText]) => (
+              <label className="flex items-center gap-2" key={value}>
+                <input
+                  checked={sort === value}
+                  className="accent-[var(--evimesh-primary)]"
+                  name="explore-sort"
+                  onChange={() => setSort(value)}
+                  type="radio"
+                  value={value}
+                />
+                {labelText}
+              </label>
             ))}
-          </Card>
-        )}
-        {!loading && !error ? (
-          <p className="mt-3 text-sm text-muted-foreground">
-            Ordered by recent activity. Sorting never expresses research value or support.
-          </p>
-        ) : null}
+          </div>
+          <p className="mt-4 text-xs text-muted-foreground">No popularity ordering exists: sorting expresses recency, never research value.</p>
+        </aside>
       </div>
     </PageContainer>
   );

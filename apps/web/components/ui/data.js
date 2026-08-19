@@ -1,3 +1,9 @@
+'use client';
+
+import {
+  CircleCheck, CircleDashed, CircleHelp, Clock, FileText, Flag, FlaskConical,
+  Mountain, Scale, ShieldCheck, ShieldQuestion, TriangleAlert, XCircle,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /*
@@ -6,11 +12,38 @@ import { cn } from '@/lib/utils';
  *   - legacy tint variants (kept for existing call sites)
  *   - dual-tier status variants: token bg/fg/border pairs (design book 02)
  *   - emphasis variants: solid, reserved for the most consequential state per view
- * Status text always leads; color is never the only carrier.
+ * Status text always leads; color is never the only carrier, and every
+ * protocol state also carries an icon (design book 02 protocol map).
  */
 
+/* Protocol state -> 12px icon (lucide equivalents of the book's Phosphor set). */
+const STATE_ICONS = {
+  /* Question */
+  question: CircleHelp, proposal: FileText, review: FileText, admissibility: Scale,
+  active_question: CircleCheck, resolution: ShieldCheck, archived: CircleDashed, rejected: XCircle,
+  /* Claim */
+  hypothesis: CircleDashed, candidate: CircleHelp, under_verification: ShieldQuestion,
+  provisionally_accepted: CircleCheck, accepted: CircleCheck, contested: Scale,
+  refuted: XCircle, superseded: CircleDashed, retracted: XCircle, dependency_tainted: TriangleAlert,
+  /* Task */
+  open: CircleHelp, leased: Clock, blocked: TriangleAlert, completed: CircleCheck, cancelled: CircleDashed,
+  /* Challenge */
+  admissible: Scale, investigating: ShieldQuestion, upheld: XCircle, resolved: CircleCheck,
+  /* Evidence relations */
+  supports: CircleCheck, refutes: XCircle, qualifies: TriangleAlert, reproduces: FlaskConical,
+  /* Frontier / evidence kinds */
+  frontier: Mountain, evidence: FlaskConical, claim: Flag, task: FileText,
+  /* Change levels (attention priority, never truth) */
+  critical: XCircle, attention: TriangleAlert, update: Clock, quiet: CircleDashed,
+  inconclusive: CircleDashed,
+};
+
+function stateIcon(state) {
+  return STATE_ICONS[state] ?? null;
+}
+
 /** Status or category label. Variants are token-based; default is muted. */
-export function Badge({ variant = 'default', className, ...props }) {
+export function Badge({ variant = 'default', className, icon: IconOverride, children, ...props }) {
   const variants = {
     default: 'bg-muted text-muted-foreground',
     primary: 'bg-primary/10 text-primary',
@@ -32,7 +65,13 @@ export function Badge({ variant = 'default', className, ...props }) {
     'emphasis-info': 'bg-emphasis-info text-emphasis-foreground',
     'emphasis-neutral': 'bg-emphasis-neutral text-emphasis-foreground',
   };
-  return <span className={cn('inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium', variants[variant] ?? variants.default, className)} {...props} />;
+  const Icon = IconOverride ?? null;
+  return (
+    <span className={cn('inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium', variants[variant] ?? variants.default, className)} {...props}>
+      {Icon ? <Icon aria-hidden="true" size={12} className="shrink-0" /> : null}
+      {children}
+    </span>
+  );
 }
 
 /*
@@ -86,10 +125,11 @@ export function resolveStatusVariant(state) {
   return STATUS_VARIANTS[state] ?? 'status-neutral';
 }
 
-/** Protocol status badge with a human-readable, text-first label. */
+/** Protocol status badge: icon + human-readable, text-first label. */
 export function StatusBadge({ state, label, className }) {
+  const Icon = stateIcon(state);
   return (
-    <Badge className={className} variant={resolveStatusVariant(state)}>
+    <Badge className={className} icon={Icon} variant={resolveStatusVariant(state)}>
       {(label ?? state ?? '').replaceAll('_', ' ')}
     </Badge>
   );

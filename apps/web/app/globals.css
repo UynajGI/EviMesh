@@ -79,6 +79,15 @@
   --color-dag-structural: var(--evimesh-dag-structural);
   --color-dag-lineage: var(--evimesh-dag-lineage);
 
+  /* Categorical series for count distributions (rolebar) */
+  --color-series-1: var(--evimesh-series-1);
+  --color-series-2: var(--evimesh-series-2);
+  --color-series-3: var(--evimesh-series-3);
+  --color-series-4: var(--evimesh-series-4);
+  --color-series-5: var(--evimesh-series-5);
+  --color-series-6: var(--evimesh-series-6);
+  --color-series-7: var(--evimesh-series-7);
+
   --font-sans: var(--evimesh-font-sans);
   --font-mono: var(--evimesh-font-mono);
   /* Serif reading mode: claim statements and long research prose only. */
@@ -155,6 +164,14 @@
   --evimesh-font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --evimesh-font-mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
   --evimesh-font-serif: ui-serif, Georgia, Cambria, "Times New Roman", serif;
+  /* Data-visualization categorical series (counts, never scores) */
+  --evimesh-series-1: #3E71BC;
+  --evimesh-series-2: #B07A20;
+  --evimesh-series-3: #2E918C;
+  --evimesh-series-4: #B54B43;
+  --evimesh-series-5: #378450;
+  --evimesh-series-6: #725B9A;
+  --evimesh-series-7: #238EA9;
   /* Radius */
   --evimesh-radius-sm: 0.375rem;
   --evimesh-radius-md: 0.5rem;
