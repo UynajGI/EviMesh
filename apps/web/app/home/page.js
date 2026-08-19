@@ -114,7 +114,7 @@ export default function HomePage() {
             Manage subscriptions
           </Link>
         )}
-        description={`Observation window: last 7 days (since 2026-08-12). Live activity across open research, grouped by attention level; levels express attention priority, never the truth of a claim.`}
+        description={windowStart === null ? 'Live activity across open research, grouped by attention level; levels express attention priority, never the truth of a claim.' : `Observation window: last 7 days (since ${windowStart.toISOString().slice(0, 10)}), filtered to activity inside it. Levels express attention priority, never the truth of a claim.`}
         eyebrow="Home"
         title="What changed in research"
       />

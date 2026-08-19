@@ -18,6 +18,13 @@ const TYPES = [
   { id: 'claim', label: 'Claims' },
 ];
 
+async function fetchJson(path) {
+  const response = await fetch(`${API}${path}`);
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message ?? `${path} is unavailable.`);
+  return payload;
+}
+
 /* List rows carry no revision fields (titles live on detail endpoints), so
  * the first HYDRATE_LIMIT result rows get their real title/statement; rows
  * beyond the bound fall back to the id line. Bounded, real data only. */
@@ -38,13 +45,6 @@ async function hydrateTitle(item) {
   } catch {
     return null;
   }
-}
-
-async function fetchJson(path) {
-  const response = await fetch(`${API}${path}`);
-  const payload = await response.json();
-  if (!response.ok) throw new Error(payload.message ?? `${path} is unavailable.`);
-  return payload;
 }
 
 async function fetchList(path) {
