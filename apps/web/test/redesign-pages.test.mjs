@@ -229,10 +229,12 @@ test('list endpoints are hydrated before relation grouping (Codex P1s)', async (
 test('workspace keeps only this question\'s tasks and claims and loads frontier members', async () => {
   const page = await read('../app/questions/[questionId]/page.js');
   assert.match(page, /taskItems\.filter\(\(task\) => task\.questionId === questionId\)/);
-  assert.match(page, /claimPage\.filter\(\(claim\) => claim\.questionId === questionId\)/);
+  assert.match(page, /claimItems\.filter\(\(claim\) => claim\.questionId === questionId\)/);
   assert.match(page, /frontier\/history\?limit=100/);
   assert.match(page, /snapshot\.snapshotId === frontier\.snapshotId/);
-  // Question-wide views must not silently cut to the first N claims.
+  // Question-wide views page through the claim list instead of one request.
+  assert.match(page, /fetchAllClaims/);
+  assert.match(page, /body\.nextCursor/);
   assert.doesNotMatch(page, /\.slice\(0, 8\)/);
 });
 
@@ -253,4 +255,33 @@ test('no interactive control is nested inside a navigation link', async () => {
 test('Docs forwards to the Markdown manual, not the connection wizard', async () => {
   const docs = await read('../app/docs/page.js');
   assert.match(docs, /redirect\('\/agent\/manual'\)/);
+});
+
+test('agent center and handoffs use registered MCP tools and CLI commands', async () => {
+  const [agent, claim, workspace] = await Promise.all([
+    read('../app/agent/page.js'),
+    read('../app/claims/[claimId]/page.js'),
+    read('../app/questions/[questionId]/page.js'),
+  ]);
+  // Catalog names match apps/mcp/src/tools.mjs registrations.
+  for (const tool of ['search_open_tasks', 'get_task_context', 'create_claim', 'publish_submission', 'attach_evidence', 'submit_verification']) {
+    assert.ok(agent.includes(tool), `tool catalog is missing ${tool}`);
+  }
+  assert.doesNotMatch(agent, /name: '(search|get_frontier|draft_claim|publish_signed)'/);
+  // Handoff suggestions are real commands from the sq table and MCP tools.
+  assert.match(claim, /sq provenance/);
+  assert.match(claim, /sq verify checkout/);
+  assert.match(claim, /evimesh:\/\/claims\/\$\{claim\.claimId\}\/revisions\/\$\{currentRevision\.revision\}/);
+  assert.match(claim, /attach_evidence \(confirm: true\)/);
+  assert.match(workspace, /sq question list --project/);
+  assert.match(workspace, /search_open_tasks \(read-only\)/);
+  for (const page of [claim, workspace]) {
+    assert.doesNotMatch(page, /claims inspect|questions inspect|draft_evidence|publish_signed/);
+  }
+});
+
+test('command palette Enter executes the active command before search fallback', async () => {
+  const palette = await read('../components/command-palette.js');
+  assert.match(palette, /if \(results\[active\]\) \{\s*go\(results\[active\]\.href\);/);
+  assert.match(palette, /\/explore\?q=/);
 });

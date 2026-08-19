@@ -247,9 +247,9 @@ export default function ClaimDetailPage({ params }) {
       </div>
 
       <HandoffSheet
-        cliCommand={`sq claims inspect ${claim.claimId} --rev ${currentRevision.revision}`}
+        cliCommand={`sq provenance ${claim.claimId}   # inspect the dependency path\nsq verify checkout ${claim.claimId}   # lock r${currentRevision.revision} for verification`}
         intent="Advance this claim with your agent"
-        mcpCall={`resource: evimesh://claims/${claim.claimId}?rev=${currentRevision.revision}\ntool:     draft_evidence (confirm: true)`}
+        mcpCall={`resource: evimesh://claims/${claim.claimId}/revisions/${currentRevision.revision}\ntool:     attach_evidence (confirm: true)`}
         objectId={claim.claimId}
         objectType="claim"
         onOpenChange={setHandoffOpen}

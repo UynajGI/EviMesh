@@ -74,11 +74,13 @@ export function CommandPalette() {
       setActive((index) => Math.max(index - 1, 0));
     } else if (event.key === 'Enter') {
       event.preventDefault();
-      if (needle) {
+      // Execute the active command when one matches; fall back to object
+      // search on Explore only when no command matches the query.
+      if (results[active]) {
+        go(results[active].href);
+      } else if (needle) {
         setOpen(false);
         router.push(`/explore?q=${encodeURIComponent(query.trim())}`);
-      } else if (results[active]) {
-        go(results[active].href);
       }
     }
   }
@@ -129,7 +131,7 @@ export function CommandPalette() {
         </ul>
         <p className="flex gap-4 border-t border-border px-4 py-2.5 text-[11px] text-muted-foreground">
           <span><kbd className="rounded border border-border bg-muted px-1 font-mono">↑</kbd> <kbd className="rounded border border-border bg-muted px-1 font-mono">↓</kbd> select</span>
-          <span><kbd className="rounded border border-border bg-muted px-1 font-mono">↵</kbd> {needle ? 'search objects' : 'open'}</span>
+          <span><kbd className="rounded border border-border bg-muted px-1 font-mono">↵</kbd> {results.length > 0 ? 'open' : needle ? 'search objects' : 'open'}</span>
           <span><kbd className="rounded border border-border bg-muted px-1 font-mono">Esc</kbd> close</span>
         </p>
       </DialogContent>

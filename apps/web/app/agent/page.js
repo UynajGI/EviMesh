@@ -49,10 +49,12 @@ const MCP_CONFIG = `{
 }`;
 
 const TOOL_CATALOG = [
-  { name: 'search', kind: 'Discovery', write: 'read', note: 'Questions, projects, claims, people' },
-  { name: 'get_frontier', kind: 'Discovery', write: 'read', note: 'Immutable snapshot members' },
-  { name: 'draft_claim', kind: 'Draft', write: 'confirm', note: 'Requires explicit confirm: true' },
-  { name: 'publish_signed', kind: 'Publish', write: 'confirm-sign', note: 'Confirm plus a human signing key' },
+  { name: 'search_open_tasks', kind: 'Discovery', write: 'read', note: 'Open tasks for attempts' },
+  { name: 'get_task_context', kind: 'Discovery', write: 'read', note: 'Immutable ContextBundle for one task' },
+  { name: 'create_claim', kind: 'Draft', write: 'confirm', note: 'Write a claim draft; requires confirm: true' },
+  { name: 'publish_submission', kind: 'Publish', write: 'confirm-sign', note: 'Sign and submit; confirm plus a human signing key' },
+  { name: 'attach_evidence', kind: 'Publish', write: 'confirm', note: 'Bind evidence to a claim revision' },
+  { name: 'submit_verification', kind: 'Publish', write: 'confirm', note: 'Submit a signed VerificationReceipt' },
 ];
 
 const writeVariant = { read: 'status-success', confirm: 'status-warning', 'confirm-sign': 'emphasis-danger' };
@@ -144,7 +146,7 @@ export default function AgentCenterPage() {
 
           <div className="rounded-lg border border-border bg-card p-4">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Tool catalog</h2>
-            <p className="mt-1 text-xs text-muted-foreground">Generated from the MCP schema; write tools demand explicit consent.</p>
+            <p className="mt-1 text-xs text-muted-foreground">Names match the registered MCP tool definitions; write tools demand explicit consent. Frontiers are read as resources, for example evimesh://projects/&#123;projectId&#125;/frontier/latest.</p>
             <ul className="mt-3 divide-y divide-border">
               {TOOL_CATALOG.map((tool) => (
                 <li className="flex flex-wrap items-center gap-2 py-2" key={tool.name}>

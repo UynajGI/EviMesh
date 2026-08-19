@@ -56,20 +56,34 @@ export default function QuestionDetailPage({ params }) {
 
   useEffect(() => { Promise.resolve(params).then(({ questionId: value }) => setQuestionId(value)); }, [params]);
 
+  /* Question-wide views must see every claim: follow the claim list cursor
+   * (capped defensively at five pages) instead of stopping at one page. */
+  async function fetchAllClaims(projectId) {
+    const items = [];
+    let cursor = null;
+    for (let page = 0; page < 5; page += 1) {
+      const body = await request(`/claims?projectId=${projectId}&limit=100${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`);
+      items.push(...(body.items ?? []));
+      if (!body.nextCursor) break;
+      cursor = body.nextCursor;
+    }
+    return items;
+  }
+
   async function load() {
     setError(null);
     try {
       const question = await request(`/questions/${questionId}`);
       const projectId = question.question.projectId;
-      const [taskItems, frontier, claimPage, events] = await Promise.all([
+      const [taskItems, frontier, claimItems, events] = await Promise.all([
         request(`/tasks?projectId=${projectId}&limit=100`).then((body) => body.items ?? []),
         request(`/projects/${projectId}/frontier/latest`).then((body) => body.frontier ?? null).catch(() => null),
-        request(`/claims?projectId=${projectId}&limit=100`).then((body) => body.items ?? []).catch(() => []),
+        fetchAllClaims(projectId).catch(() => []),
         request(`/events?objectType=question&objectId=${questionId}&limit=20`).then((body) => body.items ?? []).catch(() => []),
       ]);
       // Tasks and claims are queried per project; keep only this question's.
       const tasks = taskItems.filter((task) => task.questionId === questionId);
-      const claims = claimPage.filter((claim) => claim.questionId === questionId);
+      const claims = claimItems.filter((claim) => claim.questionId === questionId);
       // frontier/latest does not hydrate members; the paged history does.
       let frontierWithMembers = frontier;
       if (frontier?.snapshotId) {
@@ -363,9 +377,9 @@ export default function QuestionDetailPage({ params }) {
       ) : null}
 
       <HandoffSheet
-        cliCommand={`sq questions inspect ${question.questionId}`}
+        cliCommand={`sq question list --project ${question.projectId}   # find this question's state\nsq task list --status open             # open tasks to pick up`}
         intent="Continue this question with your agent"
-        mcpCall={`resource: evimesh://questions/${question.questionId}\ntool:     search (read-only)`}
+        mcpCall={`tool:     search_open_tasks (read-only)\nresource: evimesh://projects/${question.projectId}/frontier/latest`}
         objectId={question.questionId}
         objectType="question"
         onOpenChange={setHandoffOpen}
