@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Activity, FileCheck2, FlaskConical, GitPullRequestArrow, History, Scale, ShieldCheck,
+  Activity, Bot, FileCheck2, FlaskConical, GitPullRequestArrow, History, Scale, ShieldCheck,
 } from 'lucide-react';
 import { Card, CardContent, StatusBadge } from '@/components/ui/data';
 import { Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
@@ -31,6 +31,26 @@ const CREATE_LINKS = [
   { href: '/runs/new', label: 'Start a run', icon: Activity },
   { href: '/verification/receipt/new', label: 'Record verification', icon: ShieldCheck },
 ];
+
+/* Task titles live on /tasks/:id (revision table), so hydrate the first
+ * WORK_HYDRATE queue rows; the rest keep the id line. */
+const WORK_HYDRATE = 8;
+
+async function hydrateTaskTitle(task) {
+  try {
+    const detail = await fetchJson(`/tasks/${task.taskId}`);
+    return detail.currentRevision?.title ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchJson(path) {
+  const response = await fetch(`${API}${path}`);
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message ?? `${path} is unavailable.`);
+  return payload;
+}
 
 async function fetchList(path) {
   const response = await fetch(`${API}${path}`);
@@ -80,7 +100,8 @@ export default function WorkPage() {
         fetchList('/claims?status=under_verification&limit=10'),
         fetchList('/events?limit=60'),
       ]);
-      setTasks(tasks);
+      const enriched = await Promise.all(tasks.slice(0, WORK_HYDRATE).map(async (task) => ({ ...task, title: await hydrateTaskTitle(task) })));
+      setTasks([...enriched, ...tasks.slice(WORK_HYDRATE)]);
       setVerificationClaims(claims);
       setEvents(recentEvents);
     } catch (reason) {
@@ -99,30 +120,27 @@ export default function WorkPage() {
   return (
     <PageContainer wide>
       <PageHeader
+        action={(
+          <button
+            className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-accent-foreground/90"
+            onClick={() => setHandoffOpen(true)}
+            type="button"
+          >
+            <Bot aria-hidden="true" size={15} />
+            Hand new work to your agent
+          </button>
+        )}
         description="The action queue: tasks open to pick up, claims moving through verification, and every write workflow within one click."
         eyebrow="Work"
         title="What you can do now"
       />
       {error ? <ErrorState className="mt-10" message={error} onRetry={load} /> : null}
 
-      <section aria-labelledby="create-heading" className="mt-8">
-        <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-border bg-card p-5">
-          <div>
-            <h2 className="text-lg font-semibold" id="create-heading">Start something</h2>
-            <p className="mt-1 max-w-xl text-sm text-muted-foreground">
-              Research writing on EviMesh is agent-led: describe the intent and hand it to your agent with full
-              context. The web reads and explains; agents draft, humans sign.
-            </p>
-          </div>
-          <button
-            className="inline-flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-accent-foreground/90"
-            onClick={() => setHandoffOpen(true)}
-            type="button"
-          >
-            <Activity aria-hidden="true" size={15} />
-            Hand new work to your agent
-          </button>
-        </div>
+      <section aria-label="Manual submission fallback" className="mt-6">
+        <p className="max-w-2xl text-sm text-muted-foreground">
+          Research writing on EviMesh is agent-led: describe the intent and hand it to your agent with full context.
+          The web reads and explains; agents draft, humans sign.
+        </p>
         <details className="mt-3 rounded-lg border border-border bg-card px-5 py-4">
           <summary className="cursor-pointer text-sm text-muted-foreground">
             Manual submission (fallback for no-agent and accessibility paths)
@@ -147,21 +165,29 @@ export default function WorkPage() {
       </section>
 
       <div className="mt-8 flex gap-1 overflow-x-auto border-b border-border" role="tablist" aria-label="Work views">
-        {TABS.map((entry) => (
-          <button
-            aria-selected={tab === entry.id}
-            className={cn(
-              '-mb-px whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium transition-colors',
-              tab === entry.id ? 'border-primary font-semibold text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground',
-            )}
-            key={entry.id}
-            onClick={() => setTab(entry.id)}
-            role="tab"
-            type="button"
-          >
-            {entry.label}
-          </button>
-        ))}
+        {TABS.map((entry) => {
+          const total = entry.id === 'tasks' ? (openTasks?.length ?? 0)
+            : entry.id === 'verify' ? (verificationClaims?.length ?? 0)
+              : null;
+          return (
+            <button
+              aria-selected={tab === entry.id}
+              className={cn(
+                '-mb-px inline-flex items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium transition-colors',
+                tab === entry.id ? 'border-primary font-semibold text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground',
+              )}
+              key={entry.id}
+              onClick={() => setTab(entry.id)}
+              role="tab"
+              type="button"
+            >
+              {entry.label}
+              {total !== null ? (
+                <span className={cn('rounded-full border px-1.5 text-[11px] font-medium tabular-nums', entry.id === 'verify' ? 'border-status-accent-border bg-status-accent-bg text-status-accent-fg' : 'border-border bg-muted text-muted-foreground')}>{total}</span>
+              ) : null}
+            </button>
+          );
+        })}
       </div>
 
       {tab === 'tasks' ? (
@@ -171,12 +197,21 @@ export default function WorkPage() {
           ) : (
             <Card className="divide-y divide-border">
               {openTasks.map((task) => (
-                <article className="flex flex-wrap items-center gap-3 px-5 py-4" key={task.taskId}>
-                  <StatusBadge state="open" />
-                  <IdChip value={task.taskId} />
-                  <Link className="text-xs font-medium text-primary hover:underline" href={`/tasks/${task.taskId}`}>open</Link>
-                  <button className="rounded-md border border-border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground" onClick={() => setRowHandoff({ objectType: 'task', objectId: task.taskId, intent: 'Run this task with your agent' })} type="button">Hand to agent</button>
-                  <span className="ml-auto text-xs tabular-nums text-muted-foreground">project {task.projectId ?? 'unassigned'}</span>
+                <article className="grid gap-1.5 px-5 py-4" key={task.taskId}>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <StatusBadge state="open" />
+                    {task.title ? (
+                      <Link className="min-w-0 flex-1 truncate font-medium hover:underline" href={`/tasks/${task.taskId}`}>{task.title}</Link>
+                    ) : (
+                      <IdChip className="min-w-0 flex-1" value={task.taskId} />
+                    )}
+                    <button className="rounded-md border border-border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground" onClick={() => setRowHandoff({ objectType: 'task', objectId: task.taskId, intent: 'Run this task with your agent' })} type="button">Hand to agent</button>
+                    <Link className="text-xs text-muted-foreground hover:text-foreground" href="/runs/new">manual receipt</Link>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                    <IdChip value={task.taskId} />
+                    <span className="tabular-nums">project {task.projectId ?? 'unassigned'}</span>
+                  </div>
                 </article>
               ))}
             </Card>
@@ -196,6 +231,8 @@ export default function WorkPage() {
                   <StatusBadge state={claim.state} />
                   <IdChip value={claim.claimId} />
                   <Link className="text-xs font-medium text-primary hover:underline" href={`/claims/${claim.claimId}`}>open</Link>
+                  <button className="rounded-md border border-border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground" onClick={() => setRowHandoff({ objectType: 'claim', objectId: claim.claimId, intent: 'Verify this claim with your agent' })} type="button">Hand to agent</button>
+                  <Link className="text-xs text-muted-foreground hover:text-foreground" href="/verification/receipt/new">manual receipt</Link>
                   <span className="ml-auto text-xs text-muted-foreground">receipts record outcomes and findings, never a score</span>
                 </article>
               ))}
