@@ -70,7 +70,7 @@ export default function ContributionsPage() {
   }
   const contributors = [...byActor.values()].sort((left, right) => right.count - left.count);
 
-  
+
   return <PageContainer wide><PageHeader eyebrow="Shared credit" title="Contributions" description="See the people and roles behind each verified step of scientific progress." />
     {loading ? <Skeleton className="mt-10 h-96 w-full" /> : contributors.length === 0 ? <Empty className="mt-10" title="No contributions yet" description="Signed contributions will appear here as research work moves through the protocol." /> : <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
       <div className="grid min-w-0 gap-4 md:grid-cols-2">{contributors.map((entry) => {
