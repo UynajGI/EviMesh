@@ -6,13 +6,15 @@ const page = await readFile(new URL('../app/agent/page.js', import.meta.url), 'u
 const route = await readFile(new URL('../app/agent.md/route.js', import.meta.url), 'utf8');
 const source = await readFile(new URL('../lib/agent-manual.js', import.meta.url), 'utf8');
 
-test('/agent is a human-facing onboarding page with the canonical URL', async () => {
-  assert.match(page, /export default function AgentOnboardingPage/);
+/*
+ * M13.8 replaces the three-step onboarding page with the six-step connection
+ * center; the canonical manual URL and its copy action carry over.
+ */
+test('/agent is the connection center and keeps the canonical manual URL', async () => {
+  assert.match(page, /export default function AgentCenterPage/);
   assert.match(page, /https:\/\/www\.evimesh\.com\/agent\.md/);
-  assert.match(page, /Copy URL/);
-  assert.match(page, /Install the tools/);
-  assert.match(page, /Connect CLI or MCP/);
-  assert.match(page, /Understand EviMesh/);
+  assert.match(page, /copyManualUrl/);
+  for (const step of ['Choose a client', 'Test the connection', 'Check provenance and continue']) assert.match(page, new RegExp(step));
   await assert.rejects(access(new URL('../app/agent/route.js', import.meta.url)));
 });
 

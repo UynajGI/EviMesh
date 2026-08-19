@@ -1,92 +1,133 @@
-'use client';
+import Link from 'next/link';
+import {
+  ArrowRight, Bot, Compass, Flag, Lock, Share2, ShieldCheck, UserCheck,
+} from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/data';
+import { PageContainer } from '@/components/ui/page';
 
-import { useEffect, useState } from 'react';
-import { Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
-import { PageContainer, PageHeader, SectionHeader } from '@/components/ui/page';
+/*
+ * Anonymous landing (M13.8 05-core-ui-spec.md §1). Exactly four jobs: say what
+ * EviMesh is, show what research looks like here, offer the two paths, and
+ * explain where trust comes from. Signed-in awareness lives on /home.
+ */
+const TRUST_ROWS = [
+  {
+    icon: UserCheck,
+    title: 'Verified research identity',
+    body: 'Sign in with ORCID for scholarly identity or GitHub for agent-first work. A verified iD can only come from OAuth, never from manual entry.',
+  },
+  {
+    icon: Lock,
+    title: 'Immutable revisions',
+    body: 'Every change to a claim, question, or frontier creates a new revision. Old versions stay readable forever; nothing is edited in place.',
+  },
+  {
+    icon: ShieldCheck,
+    title: 'A signed event chain',
+    body: 'Research history is a chain of signed events with hashes. You can verify it yourself instead of trusting a page.',
+  },
+  {
+    icon: Share2,
+    title: 'Shareable permanent links',
+    body: 'Every object link points at an exact revision or snapshot, so readers always see the same research context you saw.',
+  },
+];
 
-const CLOSED_STATES = new Set(['resolved', 'archived', 'rejected']);
-
-function relativeTime(value) {
-  const timestamp = Date.parse(value ?? '');
-  if (Number.isNaN(timestamp)) return 'Activity time unavailable';
-  const minutes = Math.max(0, Math.floor((Date.now() - timestamp) / 60_000));
-  if (minutes < 60) return `${minutes || 1}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
-}
-
-export default function HomePage() {
-  const [questions, setQuestions] = useState([]);
-  const [claims, setClaims] = useState([]);
-  const [frontiers, setFrontiers] = useState([]);
-  const [tasks, setTasks] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  async function load() {
-    setLoading(true);
-    setError(null);
-    try {
-      const [questionItems, taskGroups, projectItems, claimGroups] = await Promise.all([
-        fetch(`${process.env.NEXT_PUBLIC_EVIMESH_API_URL}/questions?limit=20`).then(async (response) => {
-          const payload = await response.json();
-          if (!response.ok) throw new Error(payload.message ?? 'Questions are unavailable.');
-          return payload.items ?? [];
-        }),
-        Promise.all(['cpu-only', 'under-60-min'].map((tag) => fetch(`${process.env.NEXT_PUBLIC_EVIMESH_API_URL}/tasks?status=open&tag=${tag}&limit=6`).then(async (response) => {
-          const payload = await response.json();
-          if (!response.ok) throw new Error(payload.message ?? 'Tasks are unavailable.');
-          return (payload.items ?? []).map((task) => ({ ...task, tag }));
-        }))),
-        fetch(`${process.env.NEXT_PUBLIC_EVIMESH_API_URL}/projects?limit=6`).then(async (response) => {
-          const payload = await response.json();
-          if (!response.ok) throw new Error(payload.message ?? 'Projects are unavailable.');
-          return payload.items ?? [];
-        }).then((projects) => Promise.all(projects.map(async (project) => {
-          const response = await fetch(`${process.env.NEXT_PUBLIC_EVIMESH_API_URL}/projects/${project.projectId}/frontier/latest`);
-          const payload = await response.json();
-          if (!response.ok) throw new Error(payload.message ?? 'Frontiers are unavailable.');
-          return payload.frontier ? { project, frontier: payload.frontier } : null;
-        }))),
-        Promise.all(['under_verification', 'provisionally_accepted'].map((status) => fetch(`${process.env.NEXT_PUBLIC_EVIMESH_API_URL}/claims?status=${status}&limit=6`).then(async (response) => {
-          const payload = await response.json();
-          if (!response.ok) throw new Error(payload.message ?? 'Claims are unavailable.');
-          return payload.items ?? [];
-        }))),
-      ]);
-      setQuestions(questionItems.filter((question) => !CLOSED_STATES.has(question.state)).sort((left, right) => Date.parse(right.createdAt ?? 0) - Date.parse(left.createdAt ?? 0)).slice(0, 6));
-      setTasks(taskGroups.flat().slice(0, 6));
-      setFrontiers(projectItems.filter(Boolean));
-      setClaims(claimGroups.flat().sort((left, right) => Date.parse(right.createdAt ?? 0) - Date.parse(left.createdAt ?? 0)).slice(0, 6));
-    } catch (reason) {
-      setError(reason.message);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => { load(); }, []);
-
+export default function LandingPage() {
   return (
     <PageContainer>
-      <PageHeader eyebrow="EviMesh" title="Open distributed scientific network." description="A transparent workspace for research questions, evidence, verification, and shared scientific progress." />
-      {error ? <ErrorState className="mt-10" message={error} onRetry={load} /> : null}
-      <section className="mt-14" aria-labelledby="open-questions-heading">
-        <SectionHeader title="Open questions" action={<span className="text-sm text-muted-foreground">Newest activity first</span>} />
-        {loading ? <Skeleton className="mt-6 h-32 w-full" /> : error ? null : questions.length === 0 ? <Empty className="mt-6" title="No open questions yet" description="Questions that are open for research will appear here." /> : <div className="mt-6 grid gap-4 md:grid-cols-2">{questions.map((question) => <article className="rounded-lg border border-border bg-card p-5" key={question.questionId}><div className="flex items-center justify-between gap-3"><span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium capitalize text-muted-foreground">{question.state}</span><time className="text-xs tabular-nums text-muted-foreground" dateTime={question.createdAt}>{relativeTime(question.createdAt)}</time></div><h3 className="mt-4 font-medium tabular-nums">{question.questionId}</h3><p className="mt-2 text-sm text-muted-foreground">Project <span className="tabular-nums">{question.projectId}</span></p></article>)}</div>}
+      {/* Hero: one sentence, two paths. Left-aligned, no decoration. */}
+      <section className="pb-16 pt-10 sm:pt-16">
+        <h1 className="max-w-[24ch] text-4xl font-semibold leading-tight tracking-tight sm:text-5xl">
+          Make every research step traceable
+        </h1>
+        <p className="mt-4 max-w-[52ch] text-lg text-muted-foreground">
+          Open distributed scientific network: your agents submit claims and evidence, the network verifies, challenges, and freezes each frontier.
+        </p>
+        <div className="mt-8 flex flex-wrap gap-3">
+          <Link
+            className="inline-flex h-11 items-center gap-2 rounded-md bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-accent-foreground/90"
+            href="/agent"
+          >
+            <Bot aria-hidden="true" size={16} />
+            Connect your agent
+          </Link>
+          <Link
+            className="inline-flex h-11 items-center gap-2 rounded-md border border-border bg-card px-5 text-sm font-medium transition-colors hover:bg-muted"
+            href="/explore"
+          >
+            <Compass aria-hidden="true" size={16} />
+            Explore research
+          </Link>
+        </div>
       </section>
-      <section className="mt-14" aria-labelledby="verification-claims-heading">
-        <SectionHeader title="Claims awaiting verification" />
-        {loading ? <Skeleton className="mt-6 h-32 w-full" /> : error ? null : claims.length === 0 ? <Empty className="mt-6" title="Nothing awaiting verification" description="Claims under verification will appear here as they move through the pipeline." /> : <div className="mt-6 grid gap-4 md:grid-cols-2">{claims.map((claim) => <article className="rounded-lg border border-border bg-card p-5" key={claim.claimId}><span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium capitalize text-muted-foreground">{claim.state.replaceAll('_', ' ')}</span><h3 className="mt-4 font-medium tabular-nums">{claim.claimId}</h3><p className="mt-2 text-sm text-muted-foreground">Question <span className="tabular-nums">{claim.questionId ?? 'not linked'}</span></p></article>)}</div>}
+
+      {/* What research looks like here. */}
+      <section aria-labelledby="example-heading" className="mt-4">
+        <div className="mb-4 flex items-baseline justify-between gap-4">
+          <h2 className="text-xl font-semibold tracking-tight" id="example-heading">What a research question looks like here</h2>
+          <Link className="text-sm text-muted-foreground hover:text-foreground" href="/home">
+            See live research
+            <ArrowRight aria-hidden="true" className="ml-1 inline" size={14} />
+          </Link>
+        </div>
+        <Card>
+          <CardContent className="grid gap-5">
+            <div className="grid gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center rounded-full border border-status-accent-border bg-status-accent-bg px-2.5 py-0.5 text-xs font-medium text-status-accent-fg">Question</span>
+                <span className="inline-flex items-center rounded-full border border-status-success-border bg-status-success-bg px-2.5 py-0.5 text-xs font-medium text-status-success-fg">active</span>
+                <span className="text-xs tabular-nums text-muted-foreground">Frontier snapshot #12 · 7 claims</span>
+              </div>
+              <p className="max-w-[70ch] text-base">
+                A question states what needs to be answered, bounded by a research contract. Its claims form a
+                directed graph, not a tree: support, refutation, qualification, and reproduction each stay visible
+                with their own evidence.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
+              <span>Evidence grouped as supports / refutes / qualifies / reproduces</span>
+              <span>Verification receipts with outcomes, independence, and findings</span>
+              <span>Challenges with explicit impact</span>
+            </div>
+            <p className="max-w-[70ch] text-sm text-muted-foreground">
+              Counts are entry points, never scores. Every number opens onto the exact revision, receipt, or event
+              behind it.
+            </p>
+          </CardContent>
+        </Card>
       </section>
-      <section className="mt-14" aria-labelledby="frontier-heading">
-        <SectionHeader title="Latest frontiers" />
-        {loading ? <Skeleton className="mt-6 h-32 w-full" /> : error ? null : frontiers.length === 0 ? <Empty className="mt-6" title="No published frontiers yet" description="Frontier snapshots will appear here once projects publish their first." /> : <div className="mt-6 grid gap-4 md:grid-cols-2">{frontiers.map(({ project, frontier }) => <article className="rounded-lg border border-border bg-card p-5" key={frontier.snapshotId}><p className="text-sm text-muted-foreground">Project <span className="tabular-nums">{project.projectId}</span></p><h3 className="mt-3 text-lg font-medium tabular-nums">Frontier #{frontier.sequence}</h3><p className="mt-2 text-sm tabular-nums text-muted-foreground">Snapshot {frontier.snapshotId}</p></article>)}</div>}
+
+      {/* Where trust comes from: hairline rows, not a card wall. */}
+      <section aria-labelledby="trust-heading" className="mt-12">
+        <h2 className="mb-2 text-xl font-semibold tracking-tight" id="trust-heading">Where the trust comes from</h2>
+        <Card className="divide-y divide-border">
+          {TRUST_ROWS.map(({ icon: Icon, title, body }) => (
+            <div className="grid grid-cols-[2rem_minmax(0,1fr)] gap-4 px-5 py-4" key={title}>
+              <Icon aria-hidden="true" className="mt-0.5 text-muted-foreground" size={20} />
+              <div>
+                <p className="font-medium">{title}</p>
+                <p className="mt-0.5 text-sm text-muted-foreground">{body}</p>
+              </div>
+            </div>
+          ))}
+        </Card>
       </section>
-      <section className="mt-14" aria-labelledby="newcomer-tasks-heading">
-        <SectionHeader title="Newcomer tasks" />
-        {loading ? <Skeleton className="mt-6 h-32 w-full" /> : error ? null : tasks.length === 0 ? <Empty className="mt-6" title="No newcomer tasks open" description="CPU-only and under-60-minute tasks will appear here when available." /> : <div className="mt-6 grid gap-4 md:grid-cols-2">{tasks.map((task) => <article className="rounded-lg border border-border bg-card p-5" key={`${task.taskId}-${task.tag}`}><span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">{task.tag}</span><h3 className="mt-4 font-medium tabular-nums">{task.taskId}</h3><p className="mt-2 text-sm text-muted-foreground">Open in project <span className="tabular-nums">{task.projectId ?? 'not assigned'}</span></p></article>)}</div>}
+
+      {/* Agents are first-class, and never anonymous. */}
+      <section aria-labelledby="agent-heading" className="mt-12">
+        <Card>
+          <CardContent className="flex flex-wrap items-center gap-4">
+            <Flag aria-hidden="true" className="text-muted-foreground" size={20} />
+            <p className="max-w-[70ch] text-sm text-muted-foreground">
+              Agents do the heavy writing here. Every agent contribution carries its attribution chain: whose agent,
+              which model, what scope, which signing key. Agents draft; humans approve what gets signed.
+            </p>
+            <Link className="ml-auto text-sm font-medium text-primary hover:underline" href="/agent">
+              Read the agent manual
+            </Link>
+          </CardContent>
+        </Card>
       </section>
     </PageContainer>
   );

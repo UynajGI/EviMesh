@@ -11,7 +11,7 @@ test('initializes the Next App Router shell', async () => {
   const packageJson = JSON.parse(manifest);
   assert.equal(packageJson.scripts.dev, 'next dev');
   assert.equal(packageJson.scripts.build, 'next build');
-  assert.match(layout, /<html lang="en">/);
+  assert.match(layout, /<html lang="en"/);
   assert.match(layout, /import '\.\/globals\.css';/);
   assert.match(page, /Open distributed scientific network/);
   assert.match(config, /turbopack: \{ root: workspaceRoot \}/);
@@ -56,15 +56,16 @@ test('defines light and dark design tokens for the web product', async () => {
 });
 
 test('provides primary navigation and the initial product routes', async () => {
-  const [layout, shell, projects, tasks, verification, contributions] = await Promise.all([
-    read('../app/layout.js'), read('../components/template-shell.js'), read('../app/projects/page.js'), read('../app/tasks/page.js'), read('../app/verification/page.js'), read('../app/contributions/page.js'),
+  const [layout, shell, projects, tasks, verification, contributions, docs] = await Promise.all([
+    read('../app/layout.js'), read('../components/template-shell.js'), read('../app/projects/page.js'), read('../app/tasks/page.js'), read('../app/verification/page.js'), read('../app/contributions/page.js'), read('../app/docs/page.js'),
   ]);
   assert.match(layout, /<TemplateShell>/);
-  assert.match(shell, /aria-label=\{group\.label\}/);
-  assert.match(shell, /TailAdmin's MIT-licensed Next\.js template/);
-  for (const href of ['/projects', '/questions', '/tasks', '/claims', '/verification', '/events', '/agent', '/settings/tokens']) assert.match(shell, new RegExp(`href: '${href.replace('/', '\\/')}'`));
+  assert.match(layout, /data-theme="auto"/);
+  assert.match(layout, /localStorage.getItem\("evimesh-theme"\)/);
+  for (const href of ['/home', '/explore', '/work', '/agent', '/docs']) assert.ok(shell.includes(`href: '${href}'`), `shell is missing ${href}`);
   assert.match(shell, /href="\/login"/);
-  assert.match(shell, />Login<\/Link>/);
+  assert.ok(shell.includes('Sign in'), 'shell must show the sign-in entry');
+  assert.match(docs, /redirect\('\/agent\.md'\)/);
   for (const page of [verification]) assert.match(page, /SectionPlaceholder/);
   assert.match(tasks, /Task board/);
   assert.match(projects, /Create a project/);
@@ -124,7 +125,7 @@ test('manages API tokens with one-time secret display', async () => {
 });
 
 test('renders open questions on the homepage by latest available activity', async () => {
-  const page = await read('../app/page.js');
+  const page = await read('../app/home/page.js');
   assert.match(page, /\/questions\?limit=20/);
   assert.match(page, /CLOSED_STATES/);
   assert.match(page, /Open questions/);
@@ -132,14 +133,14 @@ test('renders open questions on the homepage by latest available activity', asyn
 });
 
 test('renders only claims awaiting verification on the homepage', async () => {
-  const page = await read('../app/page.js');
+  const page = await read('../app/home/page.js');
   assert.match(page, /under_verification/);
   assert.match(page, /provisionally_accepted/);
   assert.match(page, /Claims awaiting verification/);
 });
 
 test('renders each project latest frontier on the homepage', async () => {
-  const page = await read('../app/page.js');
+  const page = await read('../app/home/page.js');
   assert.match(page, /\/projects\?limit=6/);
   assert.match(page, /frontier\/latest/);
   assert.match(page, /Latest frontiers/);
@@ -147,7 +148,7 @@ test('renders each project latest frontier on the homepage', async () => {
 });
 
 test('renders tagged newcomer tasks on the homepage', async () => {
-  const page = await read('../app/page.js');
+  const page = await read('../app/home/page.js');
   assert.match(page, /\['cpu-only', 'under-60-min'\]/);
   assert.match(page, /tag=\$\{tag\}/);
   assert.match(page, /Newcomer tasks/);
@@ -260,13 +261,13 @@ test('provides Task lease acquire and release actions', async () => {
 });
 
 test('renders the Claim list with status and tag filters', async () => {
-  const [page, nav] = await Promise.all([read('../app/claims/page.js'), read('../components/template-shell.js')]);
+  const [page, explore] = await Promise.all([read('../app/claims/page.js'), read('../app/explore/page.js')]);
   assert.match(page, /Claims/);
   assert.match(page, /claims\?/);
   assert.match(page, /filters\.status/);
   assert.match(page, /filters\.tag/);
   assert.match(page, /under_verification/);
-  assert.match(nav, /href: '\/claims'/);
+  assert.ok(explore.includes('`/claims/${item.id}`'), 'Explore must route into claim details');
 });
 
 test('renders Claim details with statement, scope, falsification, and revisions', async () => {
@@ -315,10 +316,10 @@ test('renders Frontier time travel with fixed members', async () => {
 });
 
 test('renders the Claim editor for statement, scope, assumptions, and falsification', async () => {
-  const [page, nav] = await Promise.all([read('../app/claims/new/page.js'), read('../components/template-shell.js')]);
+  const [page, work] = await Promise.all([read('../app/claims/new/page.js'), read('../app/work/page.js')]);
   for (const field of ['Statement', 'Scope', 'Assumptions', 'Falsification conditions']) assert.match(page, new RegExp(field));
   assert.match(page, /Claim preview/);
-  assert.match(nav, /href: '\/claims'/);
+  assert.ok(work.includes("href: '/claims/new'"), 'Work page must keep the claim editor one click away');
 });
 
 test('persists claim drafts through IndexedDB and restores them on refresh', async () => {
@@ -359,8 +360,8 @@ test('keeps the Claim editor responsive at mobile and desktop breakpoints', asyn
   assert.match(page, /PageContainer/);
   assert.match(page, /flex flex-wrap gap-3/);
   assert.match(page, /overflow-x-auto/);
-  // The TailAdmin shell moves the sidebar off-canvas and exposes a mobile toggle.
-  assert.match(nav, /lg:hidden/);
+  // The M13.8 shell hides the primary nav behind a mobile toggle below md.
+  assert.match(nav, /md:hidden/);
   assert.match(nav, /aria-label="Open navigation"/);
   assert.match(nav, /gap-/);
 });
@@ -372,7 +373,8 @@ test('provides basic accessible names and status semantics on key M9 pages', asy
     read('../components/template-shell.js'),
     read('../app/events/page.js'),
   ]);
-  assert.match(nav, /aria-label=\{group\.label\}/);
+  assert.match(nav, /aria-label="Primary"/);
+  assert.match(nav, /aria-label="Primary mobile"/);
   assert.match(page, /Draft a Claim/);
   assert.match(page, /Label htmlFor="claim-statement">Statement/);
   assert.match(page, /role="status"/);

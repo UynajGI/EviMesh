@@ -19,5 +19,10 @@
     "esbuild": "0.25.4",
     "lefthook": "^2.1.10",
     "turbo": "^2.10.8"
+  },
+  "pnpm": {
+    "overrides": {
+      "nanoid@^3.0.0": "3.3.18"
+    }
   }
 }
