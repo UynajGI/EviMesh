@@ -2,10 +2,11 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { Bot, Check, Share2 } from 'lucide-react';
 import { Card, CardContent, StatusBadge } from '@/components/ui/data';
 import { Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
 import { IdChip } from '@/components/ui/idchip';
-import { PageContainer, PageHeader } from '@/components/ui/page';
+import { PageContainer } from '@/components/ui/page';
 
 const API = process.env.NEXT_PUBLIC_EVIMESH_API_URL;
 
@@ -35,6 +36,7 @@ export default function AttemptDetailPage({ params }) {
   const [data, setData] = useState(null);
   const [events, setEvents] = useState([]);
   const [error, setError] = useState(null);
+  const [shared, setShared] = useState(false);
 
   useEffect(() => { Promise.resolve(params).then(({ attemptId: value }) => setAttemptId(value)); }, [params]);
 
@@ -82,11 +84,35 @@ export default function AttemptDetailPage({ params }) {
         <span aria-current="page" className="tabular-nums">{attempt.attemptId ?? attemptId}</span>
       </nav>
 
-      <PageHeader
-        description="One attributable research attempt. Agents draft; humans approve what gets signed. Attribution chains are part of the record, not metadata."
-        eyebrow={`Attempt${revision ? ` · r${revision}` : ''}`}
-        title="Attempt trail"
-      />
+      <header className="flex flex-wrap items-start justify-between gap-5">
+        <div className="flex min-w-0 items-start gap-5">
+          <span aria-hidden="true" className="grid size-16 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
+            <Bot size={28} />
+          </span>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <StatusBadge state="update" label="agent" />
+              <StatusBadge state="active_question" label="attributed attempt" />
+            </div>
+            <h1 className="mt-2 text-2xl font-semibold tracking-tight">Attempt trail{revision ? ' · r' + revision : ''}</h1>
+            <p className="mt-3 max-w-2xl text-sm text-muted-foreground">One attributable research attempt. Agents draft; humans approve what gets signed. Attribution chains are part of the record, not metadata.</p>
+          </div>
+        </div>
+        <button
+          className="inline-flex h-9 shrink-0 items-center gap-2 rounded-md border border-border bg-card px-3 text-sm font-medium hover:bg-muted"
+          onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(window.location.href);
+              setShared(true);
+              setTimeout(() => setShared(false), 2000);
+            } catch { /* unavailable */ }
+          }}
+          type="button"
+        >
+          {shared ? <Check aria-hidden="true" size={14} /> : <Share2 aria-hidden="true" size={14} />}
+          {shared ? 'Link copied' : 'Share trail'}
+        </button>
+      </header>
 
       <div className="mt-5 flex flex-wrap items-center gap-3">
         <StatusBadge state={attempt.state ?? attempt.status ?? 'active'} />
