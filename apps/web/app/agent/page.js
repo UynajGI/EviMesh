@@ -62,10 +62,14 @@ const writeVariant = { read: 'status-success', confirm: 'status-warning', 'confi
 /*
  * Agent connection center (M13.8 06-personal-ui-spec.md §3): the path from
  * "heard about EviMesh" to "my agent made one trusted read". The manual itself
- * stays a direct Markdown document at /agent/manual.
+ * stays a direct Markdown document at /agent.md (canonical URL below, as
+ * introduced by the onboarding split on main).
  */
+const AGENT_MANUAL_URL = 'https://www.evimesh.com/agent.md';
+
 export default function AgentCenterPage() {
   const [copied, setCopied] = useState(false);
+  const [copiedUrl, setCopiedUrl] = useState(false);
   const [doneThrough, setDoneThrough] = useState(2);
 
   async function copyConfig() {
@@ -78,10 +82,32 @@ export default function AgentCenterPage() {
     }
   }
 
+  async function copyManualUrl() {
+    try {
+      await navigator.clipboard.writeText(AGENT_MANUAL_URL);
+      setCopiedUrl(true);
+      setTimeout(() => setCopiedUrl(false), 2000);
+    } catch {
+      setCopiedUrl(false);
+    }
+  }
+
   return (
     <PageContainer wide>
       <PageHeader
-        action={<Link className="inline-flex h-9 items-center rounded-md border border-border bg-card px-3 text-sm font-medium hover:bg-muted" href="/agent/manual">Agent manual (Markdown)</Link>}
+        action={(
+          <div className="flex max-w-md items-center gap-2 rounded-md border border-border bg-card px-3 py-2">
+            <Link className="min-w-0 truncate font-mono text-xs text-muted-foreground hover:text-foreground" href="/agent.md" title={AGENT_MANUAL_URL}>{AGENT_MANUAL_URL}</Link>
+            <button
+              className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md border border-border bg-background px-2 text-xs font-medium text-muted-foreground hover:text-foreground"
+              onClick={copyManualUrl}
+              type="button"
+            >
+              {copiedUrl ? <Check aria-hidden="true" size={12} /> : null}
+              {copiedUrl ? 'Copied' : 'Copy'}
+            </button>
+          </div>
+        )}
         description="Every step is retryable and revocable. Config examples use placeholders; real credentials never appear on this page."
         eyebrow="Agent"
         title="Connect your agent"
@@ -171,7 +197,7 @@ export default function AgentCenterPage() {
           />
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <FileText aria-hidden="true" size={14} />
-            <span>Full protocol semantics: <Link className="text-primary hover:underline" href="/agent/manual">the agent manual</Link>, served as Markdown for direct reading.</span>
+            <span>Full protocol semantics: <Link className="text-primary hover:underline" href="/agent.md">the agent manual</Link>, served as Markdown for direct reading.</span>
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Plug aria-hidden="true" size={14} />

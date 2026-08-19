@@ -65,7 +65,7 @@ test('provides primary navigation and the initial product routes', async () => {
   for (const href of ['/home', '/explore', '/work', '/agent', '/docs']) assert.ok(shell.includes(`href: '${href}'`), `shell is missing ${href}`);
   assert.match(shell, /href="\/login"/);
   assert.ok(shell.includes('Sign in'), 'shell must show the sign-in entry');
-  assert.match(docs, /redirect\('\/agent\/manual'\)/);
+  assert.match(docs, /redirect\('\/agent\.md'\)/);
   for (const page of [verification]) assert.match(page, /SectionPlaceholder/);
   assert.match(tasks, /Task board/);
   assert.match(projects, /Create a project/);

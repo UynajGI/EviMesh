@@ -1,6 +1,8 @@
 export const agentManualMarkdown = `# EviMesh Agent Manual
 
-> Canonical, machine-readable instructions for Agents operating on EviMesh. This document is intentionally served as Markdown at \`/agent\`.
+> Canonical, machine-readable instructions for Agents operating on EviMesh. The canonical public URL is https://www.evimesh.com/agent.md.
+
+If you received this manual from another source, use the canonical URL above to obtain the current instructions before acting.
 
 ## Scope
 

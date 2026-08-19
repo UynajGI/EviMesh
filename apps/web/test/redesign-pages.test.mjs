@@ -148,11 +148,11 @@ test('handoff sheets carry intent, object, and return path but never credentials
 });
 
 test('agent center walks six steps and keeps the manual as Markdown', async () => {
-  const [page, route] = await Promise.all([read('../app/agent/page.js'), read('../app/agent/manual/route.js')]);
+  const [page, route] = await Promise.all([read('../app/agent/page.js'), read('../app/agent.md/route.js')]);
   for (const step of ['Choose a client', 'Sign in and grant least privilege', 'Add the connection config', 'Test the connection', 'Read a real public question', 'Check provenance and continue']) {
     assert.match(page, new RegExp(`title: '${step}'`), `agent center is missing step ${step}`);
   }
-  assert.match(page, /href="\/agent\/manual"/);
+  assert.match(page, /href="\/agent\.md"/);
   assert.match(page, /never real credentials|never appear on this page/);
   assert.match(page, /confirm \+ signature/);
   assert.match(page, /Revoke or narrow grants/);
@@ -254,7 +254,7 @@ test('no interactive control is nested inside a navigation link', async () => {
 
 test('Docs forwards to the Markdown manual, not the connection wizard', async () => {
   const docs = await read('../app/docs/page.js');
-  assert.match(docs, /redirect\('\/agent\/manual'\)/);
+  assert.match(docs, /redirect\('\/agent\.md'\)/);
 });
 
 test('agent center and handoffs use registered MCP tools and CLI commands', async () => {

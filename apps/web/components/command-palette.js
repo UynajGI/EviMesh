@@ -10,7 +10,7 @@ const COMMANDS = [
   { group: 'Go to', label: 'Explore research', hint: 'G E', href: '/explore' },
   { group: 'Go to', label: 'Work queue', hint: 'G W', href: '/work' },
   { group: 'Go to', label: 'Agent connection center', href: '/agent' },
-  { group: 'Go to', label: 'Agent manual (Markdown)', href: '/agent/manual' },
+  { group: 'Go to', label: 'Agent manual (Markdown)', href: '/agent.md' },
   { group: 'Go to', label: 'Event audit', href: '/events' },
   { group: 'Go to', label: 'Contributions', href: '/contributions' },
   { group: 'Go to', label: 'Settings', href: '/settings' },
