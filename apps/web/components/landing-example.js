@@ -40,11 +40,11 @@ export function LandingExample({ fallback }) {
         const questions = await fetchJson('/questions?limit=8').then((body) => body.items ?? []);
         const open = questions.filter((question) => !['resolved', 'archived', 'rejected'].includes(question.state));
         for (const question of open.slice(0, 4)) {
-          const claims = await fetchJson(`/claims?projectId=${question.question.projectId}&limit=100`)
+          const claims = await fetchJson(`/claims?projectId=${question.projectId}&limit=100`)
             .then((body) => (body.items ?? []).filter((claim) => claim.questionId === question.questionId))
             .catch(() => []);
           if (claims.length > 0) {
-            const frontier = await fetchJson(`/projects/${question.question.projectId}/frontier/latest`)
+            const frontier = await fetchJson(`/projects/${question.projectId}/frontier/latest`)
               .then((body) => body.frontier ?? null).catch(() => null);
             // Evidence grouped counts per claim (mockup claim rows): hydrate
             // relations from the detail endpoint, bounded to the shown rows.
@@ -82,15 +82,15 @@ export function LandingExample({ fallback }) {
     <Card>
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4">
         <div className="flex flex-wrap items-center gap-2">
-          <StatusBadge state={question.question.state} label="question" />
+          <StatusBadge state={question.state} label="question" />
           {frontier ? <span className="text-xs tabular-nums text-muted-foreground">Frontier #{frontier.sequence}</span> : null}
-          <span className="text-xs tabular-nums text-muted-foreground">project {question.question.projectId}</span>
+          <span className="text-xs tabular-nums text-muted-foreground">project {question.projectId}</span>
           {revision.createdAt ? <span className="text-xs tabular-nums text-muted-foreground">{relativeTime(revision.createdAt)}</span> : null}
         </div>
-        <IdChip value={question.question.questionId} />
+        <IdChip value={question.questionId} />
       </div>
       <div className="px-5 py-4">
-        <h3 className="text-lg font-medium leading-snug">{revision.title ?? revision.statement ?? question.question.questionId}</h3>
+        <h3 className="text-lg font-medium leading-snug">{revision.title ?? revision.statement ?? question.questionId}</h3>
         {revision.statement && revision.title ? <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{revision.statement}</p> : null}
         <ul className="mt-4 divide-y divide-border">
           {claims.map((claim) => (
@@ -124,7 +124,7 @@ export function LandingExample({ fallback }) {
             </span>
           ) : null}
         </span>
-        <Link className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline" href={`/questions/${question.question.questionId}`}>
+        <Link className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline" href={`/questions/${question.questionId}`}>
           Enter the workspace <ArrowRight aria-hidden="true" size={14} />
         </Link>
       </div>

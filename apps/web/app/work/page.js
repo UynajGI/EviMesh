@@ -90,23 +90,52 @@ export default function WorkPage() {
   const [openTasks, setTasks] = useState(null);
   const [verificationClaims, setVerificationClaims] = useState(null);
   const [events, setEvents] = useState(null);
+  const [scopedActor, setScopedActor] = useState(null);
   const [error, setError] = useState(null);
+
+  /* Queues load independently: an events outage must not blank the task
+   * and verification tabs. The contribution record is scoped to the signed-in
+   * actor when a session exists; otherwise it shows the network-wide record
+   * with an explicit label. Events paginate ascending, so the newest page is
+   * the last one (bounded traversal). */
+  async function loadNewestEvents(actorId) {
+    const pages = [];
+    let cursor = null;
+    for (let page = 0; page < 10; page += 1) {
+      const query = `/events?limit=100${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}${actorId ? `&actorId=${encodeURIComponent(actorId)}`: ''}`;
+      const body = await fetchJson(query);
+      pages.push(...(body.items ?? []));
+      if (!body.nextCursor) break;
+      cursor = body.nextCursor;
+    }
+    return pages.slice(-60);
+  }
 
   async function load() {
     setError(null);
-    try {
-      const [tasks, claims, recentEvents] = await Promise.all([
-        fetchList('/tasks?status=open&limit=12'),
-        fetchList('/claims?status=under_verification&limit=10'),
-        fetchList('/events?limit=60'),
-      ]);
-      const enriched = await Promise.all(tasks.slice(0, WORK_HYDRATE).map(async (task) => ({ ...task, title: await hydrateTaskTitle(task) })));
-      setTasks([...enriched, ...tasks.slice(WORK_HYDRATE)]);
-      setVerificationClaims(claims);
-      setEvents(recentEvents);
-    } catch (reason) {
-      setError(reason.message);
-    }
+    fetchList('/tasks?status=open&limit=12')
+      .then(async (tasks) => {
+        const enriched = await Promise.all(tasks.slice(0, WORK_HYDRATE).map(async (task) => ({ ...task, title: await hydrateTaskTitle(task) })));
+        setTasks([...enriched, ...tasks.slice(WORK_HYDRATE)]);
+      })
+      .catch((reason) => setError(reason.message));
+    fetchList('/claims?status=under_verification&limit=10')
+      .then(setVerificationClaims)
+      .catch((reason) => setError(reason.message));
+    (async () => {
+      try {
+        let actorId = null;
+        try {
+          const { createBrowserSupabaseClient } = await import('@/lib/supabase-browser');
+          const { data } = await createBrowserSupabaseClient().auth.getSession();
+          actorId = data.session?.user?.user_metadata?.evimesh_actor_id ?? data.session?.user?.id ?? null;
+        } catch { /* anonymous: network-wide record */ }
+        setScopedActor(actorId);
+        setEvents(await loadNewestEvents(actorId));
+      } catch (reason) {
+        setError(reason.message);
+      }
+    })();
   }
 
   useEffect(() => { load(); }, []);
@@ -286,6 +315,7 @@ export default function WorkPage() {
               <Card>
                 <div className="border-b border-border px-5 py-3">
                   <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Role distribution</h3>
+                <p className="mt-1 text-xs text-muted-foreground">{scopedActor ? 'Scoped to the signed-in actor.' : 'Network-wide record: no signed-in actor detected.'}</p>
                 </div>
                 <CardContent>
                   <RoleBar counts={roleCounts} />
@@ -294,7 +324,7 @@ export default function WorkPage() {
               </Card>
               <Card className="px-5 py-2">
                 <ol className="list-none">
-                  {(events ?? []).slice(0, 10).map((event) => {
+                  {(events ?? []).slice(-10).reverse().map((event) => {
                     const type = event.eventType ?? 'event';
                     const EventIcon = type.startsWith('frontier') ? FileCheck2 : type.startsWith('claim') ? GitPullRequestArrow : type.startsWith('evidence') ? FlaskConical : History;
                     return (

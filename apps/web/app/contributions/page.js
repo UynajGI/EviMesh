@@ -46,6 +46,13 @@ export default function ContributionsPage() {
 
   useEffect(() => { load(); }, []);
 
+  const overallCounts = useMemo(() => {
+    const counts = Object.fromEntries(CONTRIBUTION_ROLES.map((role) => [role, 0]));
+    for (const event of events) counts[roleForEventType(event.eventType)] += 1;
+    return counts;
+  }, [events]);
+
+
   if (error) {
     return <PageContainer><PageHeader eyebrow="Shared credit" title="Contributions" description="See the people and roles behind each verified step of scientific progress." /><ErrorState className="mt-8" message={error} requestId={requestId} onRetry={load} /></PageContainer>;
   }
@@ -53,25 +60,21 @@ export default function ContributionsPage() {
   const byActor = new Map();
   for (const event of events) {
     const actor = actorLabel(event.actorId);
-    if (!byActor.has(actor)) byActor.set(actor, { actor, count: 0, types: new Set(), latest: event.createdAt });
+    if (!byActor.has(actor)) byActor.set(actor, { actor, count: 0, types: new Set(), roleCounts: {}, latest: event.createdAt });
     const entry = byActor.get(actor);
     entry.count += 1;
     if (event.eventType) entry.types.add(event.eventType);
+    const role = roleForEventType(event.eventType);
+    entry.roleCounts[role] = (entry.roleCounts[role] ?? 0) + 1;
     if (event.createdAt && (!entry.latest || event.createdAt > entry.latest)) entry.latest = event.createdAt;
   }
   const contributors = [...byActor.values()].sort((left, right) => right.count - left.count);
 
-  const overallCounts = useMemo(() => {
-    const counts = Object.fromEntries(CONTRIBUTION_ROLES.map((role) => [role, 0]));
-    for (const event of events) counts[roleForEventType(event.eventType)] += 1;
-    return counts;
-  }, [events]);
-
+  
   return <PageContainer wide><PageHeader eyebrow="Shared credit" title="Contributions" description="See the people and roles behind each verified step of scientific progress." />
     {loading ? <Skeleton className="mt-10 h-96 w-full" /> : contributors.length === 0 ? <Empty className="mt-10" title="No contributions yet" description="Signed contributions will appear here as research work moves through the protocol." /> : <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
       <div className="grid min-w-0 gap-4 md:grid-cols-2">{contributors.map((entry) => {
-        const counts = Object.fromEntries(CONTRIBUTION_ROLES.map((role) => [role, 0]));
-        for (const type of entry.types) counts[roleForEventType(type)] += 1;
+        const counts = entry.roleCounts;
         return (
           <article className="rounded-lg border border-border bg-card p-5" key={entry.actor}>
             <div className="flex flex-wrap items-center gap-3">

@@ -96,7 +96,6 @@ function ExploreView() {
       .filter((item) => !needle || item.id.toLowerCase().includes(needle) || (item.projectId ?? '').toLowerCase().includes(needle))
       .sort((left, right) => {
         if (sort === 'title') return String(left.id).localeCompare(String(right.id));
-        if (sort === 'created') return Date.parse(right.when ?? 0) - Date.parse(left.when ?? 0);
         return Date.parse(right.when ?? 0) - Date.parse(left.when ?? 0);
       })
       .slice(0, 40);
@@ -200,7 +199,6 @@ function ExploreView() {
           <div className="mt-3 grid gap-2 text-sm">
             {[
               ['recent', 'Recent activity'],
-              ['created', 'Newest created'],
               ['title', 'Title order'],
             ].map(([value, labelText]) => (
               <label className="flex items-center gap-2" key={value}>

@@ -39,6 +39,10 @@ test('home renders attention-tiered sections with status badges and copyable ids
   for (const section of ['Open questions', 'Claims awaiting verification', 'Latest frontiers', 'Newcomer tasks']) {
     assert.match(page, new RegExp(section));
   }
+  // Context rail copy stays locked (Codex review suggestion).
+  for (const rail of ['My work', 'Agent connection', 'Event audit']) {
+    assert.match(page, new RegExp(rail), `home rail missing ${rail}`);
+  }
 });
 
 test('landing shows a real live example with a graceful fallback', async () => {
