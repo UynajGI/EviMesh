@@ -171,10 +171,10 @@ M6 now includes the first Artifact/Evidence/Run domain baseline and streaming
 SHA-256 object hashing. See [`m6-artifact-evidence.md`](m6-artifact-evidence.md)
 for the current boundary and R2 environment bindings.
 
-The M9 web UI surface and deployment boundary are documented in
-[`web-ui.md`](web-ui.md). The feature branch contains the UI changes; the
-production domain only changes after the Part-level review, merge, and
-Cloudflare deployment workflow complete.
+The web UI surface and deployment boundary are documented in
+[`web-ui.md`](web-ui.md); the current route map reflects the M13.8 task
+shell. The production domain only changes after the Part-level review,
+merge, and Cloudflare deployment workflow complete.
 
 M10 adds the programmatic access layer: the research API routes are now fully
 wired in `apps/api-edge` (contract in `apps/api-edge/openapi.json`), the
@@ -222,10 +222,22 @@ and [A10](docs/m13.7-a/10-concept-navigation-test-report.md) awaits real,
 consented target-user sessions. See the [M13.7 design record](docs/m13.7-mature-product-identity-agent-onboarding.md)
 for the delivery boundary and supporting contracts.
 
+M13.8 delivers the UI design book and the first full implementation pass on
+it. [`docs/design/`](docs/design/README.md) is the visual and content source
+of truth: research findings, the three-layer token system with dual-tier
+status colors, page specs for core, personal, and emerging interfaces, and 17
+zero-build HTML mockups under `docs/design/html/`. The web app now runs the
+M13.8 task shell (Home / Explore / Work / Agent / Docs), dual-theme tokens
+with a manual toggle, the six-view question workspace, agent handoff sheets
+as the default write interaction, a command palette, and the connection
+center at `/agent` with the manual served as Markdown at `/agent.md`.
+
 The Web preview workflow in [`.github/workflows/web-preview.yml`](.github/workflows/web-preview.yml)
 deploys `apps/web/public` to the `evimesh-web-dev` Cloudflare Pages project for
 same-repository pull requests. It requires `CLOUDFLARE_API_TOKEN` and
 `CLOUDFLARE_ACCOUNT_ID` to be configured as repository secrets.
 Changes to `apps/web` on `main` are deployed by
 [`.github/workflows/web-production.yml`](.github/workflows/web-production.yml)
-to the separate `evimesh-web` Pages project using the same repository secrets.
+to the production Cloudflare Worker (OpenNext build via
+`pnpm --filter @evimesh/web deploy:production`) using the same repository
+secrets.

@@ -3,26 +3,37 @@
 The Next.js web product lives in `apps/web` and is deployed through the
 OpenNext Cloudflare Worker configuration in `apps/web/wrangler.jsonc`.
 
-## Current M9 UI surface
+## Current UI surface (M13.8)
 
-The web app includes product routes for Projects, Questions, Tasks, Claims,
-Artifacts, Runs, Evidence, Verification, Challenges, Frontier details,
-Contributors, and Event audit. The Claim editor at `/claims/new` supports
-browser-local IndexedDB drafts, validated JSON/ZIP Bundle export, and JSON/ZIP
-Bundle import.
+The app runs the task shell from the M13.8 design book
+([`docs/design/`](design/README.md)): a top header with the primary
+navigation Home / Explore / Work / Agent / Docs, global search, a manual
+light/dark theme toggle, and a mobile drawer.
 
-The Claim editor was checked in a real browser at 375px and 1440px wide. The
-responsive regression and basic accessibility checks are in
-`apps/web/test/next-app.test.mjs`.
+Product routes: the anonymous landing at `/`, the live-data Home at `/home`,
+unified search at `/explore`, the action queue at `/work`, object pages for
+Projects, Questions, Tasks, Claims, Artifacts, Runs, Evidence, Verification,
+Challenges, Frontier details, Contributors, Attempts, and Event audit, plus
+Account Settings, Notifications, and the six-view question workspace
+(Summary / Current frontier / Argument / Evidence / Verification & challenges
+/ Activity). `/docs` forwards to the canonical agent manual, served as
+Markdown at `/agent.md`; `/agent` is the six-step connection center.
+Complex writes open a handoff sheet instead of a form, and the command
+palette (Ctrl+K or `/`) delegates object search to `/explore`.
+
+The claim editor at `/claims/new` still supports browser-local IndexedDB
+drafts, validated JSON/ZIP bundle export, and JSON/ZIP bundle import.
+
+## Tests and build
+
+Run the web suite with `node --test` inside `apps/web` (205 tests, including
+the dual-theme token contrast gate) and build with
+`node node_modules/next/dist/bin/next build`. Prefer these direct commands
+over `pnpm build` / `pnpm test`, which trigger a pnpm dependency
+re-verification and full reinstall that can stall on slow registry mirrors.
 
 ## Deployment boundary
 
-The UI changes are currently on the feature branch and are not visible at
-`https://evimesh.com` until the M9 Part is reviewed, merged, and the production
-workflow completes. A raw unstyled sign-in page at the domain indicates the
-previous static deployment, not that the UI source is missing.
-
-The server routes those M9 pages render against were implemented in
-`apps/api-edge` during M10 (see [`docs/m10-sdk-cli.md`](docs/m10-sdk-cli.md));
-they become end-to-end live once the Worker is redeployed. The UI build, test
-suite, and lint checks remain independent of those hosted data dependencies.
+Pull requests deploy a preview via `web-preview.yml`; pushes to `main` that
+touch `apps/web` deploy the production Cloudflare Worker via
+`web-production.yml` (`pnpm --filter @evimesh/web deploy:production`).
