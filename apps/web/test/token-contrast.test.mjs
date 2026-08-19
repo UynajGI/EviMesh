@@ -70,6 +70,15 @@ test("defines the complete semantic token set in both themes", () => {
     for (const name of ["background", "foreground", "card", "card-foreground", "muted", "muted-foreground", "secondary", "secondary-foreground", "accent", "accent-foreground", "border", "primary", "primary-foreground", "destructive", "destructive-foreground", "success", "success-foreground", "warning", "warning-foreground", "info", "info-foreground", "focus", "ring"]) {
       assert.ok(tokens[name], `${theme} theme is missing --evimesh-${name}`);
     }
+    // M13.8 status dual tiers + emphasis + DAG edges.
+    for (const family of ["neutral", "accent", "success", "warning", "danger", "info"]) {
+      for (const part of ["bg", "fg", "border"]) {
+        assert.ok(tokens[`status-${family}-${part}`], `${theme} theme is missing --evimesh-status-${family}-${part}`);
+      }
+    }
+    for (const name of ["emphasis-success", "emphasis-warning", "emphasis-danger", "emphasis-info", "emphasis-neutral", "emphasis-foreground", "dag-positive", "dag-negative", "dag-qualify", "dag-structural", "dag-lineage"]) {
+      assert.ok(tokens[name], `${theme} theme is missing --evimesh-${name}`);
+    }
   }
 });
 
@@ -94,6 +103,19 @@ test("text pairs meet WCAG 2.2 AA contrast (4.5:1) in both themes", () => {
     for (const [fg, bg] of pairs) {
       const ratio = contrastRatio(color(fg), color(bg));
       assert.ok(ratio >= 4.5, `${theme}: ${fg} on ${bg} is ${ratio.toFixed(2)}:1, expected >= 4.5:1`);
+    }
+    // M13.8: dual-tier badge text on its own surface AND on the page/card
+    // background (badges also render as standalone text).
+    for (const family of ["neutral", "accent", "success", "warning", "danger", "info"]) {
+      const fg = `status-${family}-fg`;
+      for (const bg of [`status-${family}-bg`, "background", "card"]) {
+        const ratio = contrastRatio(color(fg), color(bg));
+        assert.ok(ratio >= 4.5, `${theme}: ${fg} on ${bg} is ${ratio.toFixed(2)}:1, expected >= 4.5:1`);
+      }
+    }
+    for (const family of ["success", "warning", "danger", "info", "neutral"]) {
+      const ratio = contrastRatio(color("emphasis-foreground"), color(`emphasis-${family}`));
+      assert.ok(ratio >= 4.5, `${theme}: emphasis-foreground on emphasis-${family} is ${ratio.toFixed(2)}:1, expected >= 4.5:1`);
     }
   }
 });
