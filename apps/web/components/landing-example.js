@@ -6,6 +6,7 @@ import { ArrowRight } from 'lucide-react';
 import { Card, StatusBadge } from '@/components/ui/data';
 import { Skeleton } from '@/components/ui/feedback';
 import { IdChip } from '@/components/ui/idchip';
+import { hydrateEvidenceLinks, evidenceRelations } from '@/lib/hydrate';
 
 const API = process.env.NEXT_PUBLIC_EVIMESH_API_URL;
 
@@ -21,6 +22,15 @@ async function fetchJson(path) {
  * its claim states instead of inventing a demo. Falls back to the honest
  * descriptive card when the API is empty or unreachable.
  */
+function relativeTime(value) {
+  const timestamp = Date.parse(value ?? '');
+  if (Number.isNaN(timestamp)) return '';
+  const minutes = Math.max(0, Math.floor((Date.now() - timestamp) / 60_000));
+  if (minutes < 60) return `${minutes || 1}m ago`;
+  if (minutes < 1440) return `${Math.floor(minutes / 60)}h ago`;
+  return `${Math.floor(minutes / 1440)}d ago`;
+}
+
 export function LandingExample({ fallback }) {
   const [example, setExample] = useState('loading');
 
@@ -36,7 +46,20 @@ export function LandingExample({ fallback }) {
           if (claims.length > 0) {
             const frontier = await fetchJson(`/projects/${question.question.projectId}/frontier/latest`)
               .then((body) => body.frontier ?? null).catch(() => null);
-            setExample({ question, claims: claims.slice(0, 3), frontier });
+            // Evidence grouped counts per claim (mockup claim rows): hydrate
+            // relations from the detail endpoint, bounded to the shown rows.
+            const enriched = await Promise.all(claims.slice(0, 3).map(async (claim) => {
+              const evidence = await fetchJson(`/evidence?claimId=${claim.claimId}&limit=20`).then((body) => body.items ?? []).catch(() => []);
+              const hydrated = await hydrateEvidenceLinks(API, evidence);
+              const counts = {};
+              for (const relation of ['supports', 'refutes', 'qualifies', 'reproduces']) {
+                counts[relation] = hydrated.filter((item) => evidenceRelations(item).includes(relation)).length;
+              }
+              return { ...claim, evidenceCounts: counts };
+            }));
+            const contributor = await fetchJson(`/events?objectType=question&objectId=${question.questionId}&limit=1`)
+              .then((body) => body.items?.[0]?.actorId ?? null).catch(() => null);
+            setExample({ question, claims: enriched, frontier, contributor });
             return;
           }
         }
@@ -52,7 +75,7 @@ export function LandingExample({ fallback }) {
   }
   if (!example) return fallback;
 
-  const { question, claims, frontier } = example;
+  const { question, claims, frontier, contributor } = example;
   const revision = question.currentRevision ?? question;
 
   return (
@@ -61,6 +84,8 @@ export function LandingExample({ fallback }) {
         <div className="flex flex-wrap items-center gap-2">
           <StatusBadge state={question.question.state} label="question" />
           {frontier ? <span className="text-xs tabular-nums text-muted-foreground">Frontier #{frontier.sequence}</span> : null}
+          <span className="text-xs tabular-nums text-muted-foreground">project {question.question.projectId}</span>
+          {revision.createdAt ? <span className="text-xs tabular-nums text-muted-foreground">{relativeTime(revision.createdAt)}</span> : null}
         </div>
         <IdChip value={question.question.questionId} />
       </div>
@@ -69,12 +94,19 @@ export function LandingExample({ fallback }) {
         {revision.statement && revision.title ? <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{revision.statement}</p> : null}
         <ul className="mt-4 divide-y divide-border">
           {claims.map((claim) => (
-            <li className="flex flex-wrap items-center gap-3 py-2.5" key={claim.claimId}>
-              <StatusBadge state={claim.state} />
-              <Link className="min-w-0 flex-1 truncate text-sm text-muted-foreground hover:text-foreground" href={`/claims/${claim.claimId}`}>
-                Open evidence, verification, and downstream context
-              </Link>
-              <IdChip value={claim.claimId} />
+            <li className="grid gap-1.5 py-2.5" key={claim.claimId}>
+              <div className="flex flex-wrap items-center gap-3">
+                <StatusBadge state={claim.state} />
+                <Link className="min-w-0 flex-1 truncate text-sm text-muted-foreground hover:text-foreground" href={`/claims/${claim.claimId}`}>
+                  Open evidence, verification, and downstream context
+                </Link>
+                <IdChip value={claim.claimId} />
+              </div>
+              {claim.evidenceCounts ? (
+                <p className="text-xs tabular-nums text-muted-foreground">
+                  evidence: supports {claim.evidenceCounts.supports} · refutes {claim.evidenceCounts.refutes} · qualifies {claim.evidenceCounts.qualifies} · reproduces {claim.evidenceCounts.reproduces}
+                </p>
+              ) : null}
             </li>
           ))}
         </ul>
@@ -82,8 +114,16 @@ export function LandingExample({ fallback }) {
           Counts are entry points, never scores. Every number opens onto the exact revision, receipt, or event behind it.
         </p>
       </div>
-      <div className="flex items-center justify-between border-t border-border px-5 py-3">
-        <span className="text-xs text-muted-foreground">Live public research</span>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-5 py-3">
+        <span className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+          Live public research
+          {contributor ? (
+            <span>
+              {' '}· contributed by{' '}
+              <Link className="font-medium text-foreground hover:underline" href={`/contributors/${encodeURIComponent(contributor)}`}>{contributor}</Link>
+            </span>
+          ) : null}
+        </span>
         <Link className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline" href={`/questions/${question.question.questionId}`}>
           Enter the workspace <ArrowRight aria-hidden="true" size={14} />
         </Link>

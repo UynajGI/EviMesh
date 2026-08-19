@@ -62,6 +62,55 @@ export function TemplateShell({ children }) {
 
   const close = () => setMobileOpen(false);
 
+  /*
+   * Anonymous landing header (design book 05 §1): the signed-out shell is a
+   * reduced Explore / Agent / Docs nav with a quiet sign-in button, without
+   * the signed-in search, notifications, and account affordances.
+   */
+  if (pathname === '/') {
+    return (
+      <div className="flex min-h-screen flex-col bg-background text-foreground">
+        <a
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:border focus:border-border focus:bg-card focus:px-4 focus:py-2 focus:text-sm"
+          href="#main-content"
+        >
+          Skip to main content
+        </a>
+        <OfflineBanner />
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b border-border bg-card px-4 sm:px-6">
+          <Link className="inline-flex items-center gap-2 text-base font-semibold tracking-tight" href="/">
+            <span aria-hidden="true" className="grid size-5 place-items-center rounded-sm bg-primary text-xs font-bold text-primary-foreground">E</span>
+            EviMesh
+          </Link>
+          <nav aria-label="Primary" className="hidden items-center gap-1 md:flex">
+            {NAV_ITEMS.filter(({ href }) => ['/explore', '/agent', '/docs'].includes(href)).map(({ href, label, icon: Icon }) => (
+              <Link
+                aria-current={isActive(pathname, href) ? 'page' : undefined}
+                className={cn(
+                  'inline-flex h-8 items-center gap-2 rounded-md px-3 text-sm font-medium transition-colors',
+                  isActive(pathname, href) ? 'bg-accent text-accent-foreground font-semibold' : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                )}
+                href={href}
+                key={href}
+              >
+                <Icon aria-hidden="true" size={15} />
+                {label}
+              </Link>
+            ))}
+          </nav>
+          <div className="flex-1" />
+          <ThemeToggle />
+          <Link className="inline-flex h-8 items-center rounded-md border border-border bg-card px-3 text-sm font-medium hover:bg-muted" href="/login">
+            <LogIn aria-hidden="true" size={14} />
+            Sign in
+          </Link>
+        </header>
+        <main id="main-content" className="flex-1">{children}</main>
+        <CommandPalette />
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
       <a
