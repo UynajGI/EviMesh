@@ -206,3 +206,51 @@ test('attempt trail keeps agent attribution explicit and publishing human', asyn
   assert.match(page, /Failed, paused, or abandoned attempts keep their links/);
   assert.match(page, /StatusBadge/);
 });
+
+test('list endpoints are hydrated before relation grouping (Codex P1s)', async () => {
+  const [hydrate, claim, workspace] = await Promise.all([
+    read('../lib/hydrate.mjs'),
+    read('../app/claims/[claimId]/page.js'),
+    read('../app/questions/[questionId]/page.js'),
+  ]);
+  // Evidence rows gain claimLinks from /evidence/:id; receipts gain findings
+  // from /verifications/:receiptId; calls run in bounded chunks.
+  assert.match(hydrate, /\/evidence\/\$\{item\.evidenceId\}/);
+  assert.match(hydrate, /claimLinks/);
+  assert.match(hydrate, /\/verifications\/\$\{receipt\.receiptId\}/);
+  assert.match(hydrate, /findings/);
+  assert.match(hydrate, /chunkMap/);
+  for (const page of [claim, workspace]) {
+    assert.match(page, /hydrateEvidenceLinks/);
+    assert.match(page, /hydrateReceiptFindings|evidenceRelations/);
+  }
+});
+
+test('workspace keeps only this question\'s tasks and claims and loads frontier members', async () => {
+  const page = await read('../app/questions/[questionId]/page.js');
+  assert.match(page, /taskItems\.filter\(\(task\) => task\.questionId === questionId\)/);
+  assert.match(page, /claimPage\.filter\(\(claim\) => claim\.questionId === questionId\)/);
+  assert.match(page, /frontier\/history\?limit=100/);
+  assert.match(page, /snapshot\.snapshotId === frontier\.snapshotId/);
+  // Question-wide views must not silently cut to the first N claims.
+  assert.doesNotMatch(page, /\.slice\(0, 8\)/);
+});
+
+test('no interactive control is nested inside a navigation link', async () => {
+  const [claim, workspace, explore] = await Promise.all([
+    read('../app/claims/[claimId]/page.js'),
+    read('../app/questions/[questionId]/page.js'),
+    read('../app/explore/page.js'),
+  ]);
+  for (const [name, page] of [['claim', claim], ['workspace', workspace], ['explore', explore]]) {
+    assert.doesNotMatch(page, /<Link[^>]*>\s*<IdChip/, `${name} page nests IdChip inside a Link`);
+  }
+  const chip = await read('../components/ui/idchip.js');
+  assert.match(chip, /event\.preventDefault\(\)/);
+  assert.match(chip, /event\.stopPropagation\(\)/);
+});
+
+test('Docs forwards to the Markdown manual, not the connection wizard', async () => {
+  const docs = await read('../app/docs/page.js');
+  assert.match(docs, /redirect\('\/agent\/manual'\)/);
+});

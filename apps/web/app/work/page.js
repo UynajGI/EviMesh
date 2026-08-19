@@ -89,7 +89,7 @@ export default function WorkPage() {
             {openTasks.map((task) => (
               <article className="flex flex-wrap items-center gap-3 px-5 py-4" key={task.taskId}>
                 <StatusBadge state="open" />
-                <Link className="min-w-0 hover:underline" href={`/tasks/${task.taskId}`}><IdChip value={task.taskId} /></Link>
+                <IdChip value={task.taskId} /><Link className="text-xs text-primary hover:underline" href={`/tasks/${task.taskId}`}>open</Link>
                 <span className="ml-auto text-xs tabular-nums text-muted-foreground">project {task.projectId ?? 'unassigned'}</span>
               </article>
             ))}
@@ -106,7 +106,7 @@ export default function WorkPage() {
             {verificationClaims.map((claim) => (
               <article className="flex flex-wrap items-center gap-3 px-5 py-4" key={claim.claimId}>
                 <StatusBadge state={claim.state} />
-                <Link className="min-w-0 hover:underline" href={`/claims/${claim.claimId}`}><IdChip value={claim.claimId} /></Link>
+                <IdChip value={claim.claimId} /><Link className="text-xs text-primary hover:underline" href={`/claims/${claim.claimId}`}>open</Link>
                 <span className="ml-auto text-xs text-muted-foreground">receipts record outcomes and findings, never a score</span>
               </article>
             ))}

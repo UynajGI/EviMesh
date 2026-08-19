@@ -138,7 +138,7 @@ export default function AttemptDetailPage({ params }) {
               ) : links.map((link) => (
                 <div className="flex flex-wrap items-center gap-2" key={link.label}>
                   <span className="text-xs uppercase tracking-wide text-muted-foreground">{link.label}</span>
-                  {link.href ? <Link className="hover:underline" href={link.href}><IdChip value={link.value} /></Link> : <IdChip value={link.value} />}
+                  {link.href ? <span className="flex flex-wrap items-center gap-2"><IdChip value={link.value} /><Link className="text-xs text-primary hover:underline" href={link.href}>open</Link></span> : <IdChip value={link.value} />}
                 </div>
               ))}
               <p className="text-xs text-muted-foreground">

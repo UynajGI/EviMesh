@@ -98,7 +98,7 @@ export default function HomePage() {
               <StatusBadge state={question.state} />
               <time className="text-xs tabular-nums text-muted-foreground" dateTime={question.createdAt}>{relativeTime(question.createdAt)}</time>
             </div>
-            <h3 className="mt-4 font-medium"><Link className="hover:underline" href={`/questions/${question.questionId}`}><IdChip className="mt-1" value={question.questionId} /></Link></h3>
+            <h3 className="mt-4 font-medium"><IdChip className="mt-1" value={question.questionId} /><Link className="ml-1 text-xs text-primary hover:underline" href={`/questions/${question.questionId}`}>open</Link></h3>
             <p className="mt-2 text-sm text-muted-foreground">Project <span className="tabular-nums">{question.projectId}</span></p>
           </article>
         ))}</div>}
@@ -108,7 +108,7 @@ export default function HomePage() {
         {loading ? <Skeleton className="mt-6 h-32 w-full" /> : error ? null : claims.length === 0 ? <Empty className="mt-6" title="Nothing awaiting verification" description="Claims under verification will appear here as they move through the pipeline." /> : <div className="mt-6 grid gap-4 md:grid-cols-2">{claims.map((claim) => (
           <article className="rounded-lg border border-border bg-card p-5" key={claim.claimId}>
             <StatusBadge state={claim.state} />
-            <h3 className="mt-4 font-medium"><Link className="hover:underline" href={`/claims/${claim.claimId}`}><IdChip className="mt-1" value={claim.claimId} /></Link></h3>
+            <h3 className="mt-4 font-medium"><IdChip className="mt-1" value={claim.claimId} /><Link className="ml-1 text-xs text-primary hover:underline" href={`/claims/${claim.claimId}`}>open</Link></h3>
             <p className="mt-2 text-sm text-muted-foreground">Question <span className="tabular-nums">{claim.questionId ?? 'not linked'}</span></p>
           </article>
         ))}</div>}
@@ -128,7 +128,7 @@ export default function HomePage() {
         {loading ? <Skeleton className="mt-6 h-32 w-full" /> : error ? null : tasks.length === 0 ? <Empty className="mt-6" title="No newcomer tasks open" description="CPU-only and under-60-minute tasks will appear here when available." /> : <div className="mt-6 grid gap-4 md:grid-cols-2">{tasks.map((task) => (
           <article className="rounded-lg border border-border bg-card p-5" key={`${task.taskId}-${task.tag}`}>
             <span className="inline-flex items-center rounded-full border border-status-neutral-border bg-status-neutral-bg px-2.5 py-0.5 text-xs font-medium text-status-neutral-fg">{task.tag}</span>
-            <h3 className="mt-4 font-medium"><Link className="hover:underline" href={`/tasks/${task.taskId}`}><IdChip className="mt-1" value={task.taskId} /></Link></h3>
+            <h3 className="mt-4 font-medium"><IdChip className="mt-1" value={task.taskId} /><Link className="ml-1 text-xs text-primary hover:underline" href={`/tasks/${task.taskId}`}>open</Link></h3>
             <p className="mt-2 text-sm text-muted-foreground">Open in project <span className="tabular-nums">{task.projectId ?? 'not assigned'}</span></p>
           </article>
         ))}</div>}

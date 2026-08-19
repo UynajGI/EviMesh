@@ -21,6 +21,13 @@ export function IdChip({ value, label, className }) {
     setTimeout(() => setCopied(null), 1400);
   }
 
+  // Never let the copy click activate an ancestor link or button.
+  function onClick(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    copy();
+  }
+
   const short = value.length > 18 ? `${value.slice(0, 14)}…${value.slice(-6)}` : value;
 
   return (
@@ -30,7 +37,7 @@ export function IdChip({ value, label, className }) {
       <button
         aria-label={copied === true ? 'Copied' : `Copy ${label ?? 'stable id'}`}
         className="inline-flex size-5 shrink-0 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
-        onClick={copy}
+        onClick={onClick}
         type="button"
       >
         {copied === true ? <Check aria-hidden="true" size={12} /> : copied === false ? <X aria-hidden="true" size={12} /> : <Copy aria-hidden="true" size={12} />}

@@ -7,6 +7,7 @@ import { HandoffSheet } from '@/components/handoff-sheet';
 import { Badge, Card, CardContent, StatusBadge } from '@/components/ui/data';
 import { Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
 import { IdChip } from '@/components/ui/idchip';
+import { hydrateEvidenceLinks, hydrateReceiptFindings, evidenceRelations } from '@/lib/hydrate';
 import { PageContainer, PageHeader } from '@/components/ui/page';
 import { cn } from '@/lib/utils';
 
@@ -51,8 +52,10 @@ export default function ClaimDetailPage({ params }) {
         request(`/evidence?claimId=${claimId}&limit=100`).then((body) => body.items ?? []).catch(() => []),
         request(`/claims/${claimId}/verifications`).then((body) => body.items ?? body.receipts ?? []).catch(() => []),
       ]);
-      setEvidence(evidenceItems);
-      setReceipts(receiptItems);
+      /* List rows carry no relations: evidence links live on /evidence/:id
+       * (claimLinks) and receipt findings on /verifications/:receiptId. */
+      setEvidence(await hydrateEvidenceLinks(API, evidenceItems));
+      setReceipts(await hydrateReceiptFindings(API, receiptItems));
       setData(payload);
     } catch (reason) {
       setError(reason.message);
@@ -70,7 +73,7 @@ export default function ClaimDetailPage({ params }) {
   const graphEntries = graphNodes.map((node) => ({ id: node.claimId ?? node.id, state: node.state ?? node.status })).filter((node) => typeof node.id === 'string' && node.id !== claim.claimId);
   const dagElements = [{ data: { id: claim.claimId, label: claim.claimId, state: claim.state } }, ...graphEntries.map(({ id, state }) => ({ data: { id, label: id, state } })), ...graphEntries.map(({ id }) => ({ data: { id: `${direction}-${id}`, source: direction === 'upstream' ? id : claim.claimId, target: direction === 'upstream' ? claim.claimId : id } }))];
 
-  const evidenceFor = (relation) => evidence.filter((item) => (item.links ?? []).some((link) => link.relationType === relation));
+  const evidenceFor = (relation) => evidence.filter((item) => evidenceRelations(item).includes(relation));
   const receiptsFor = (outcome) => receipts.filter((receipt) => receipt.outcome === outcome);
   const topFinding = receipts.reduce((top, receipt) => {
     for (const finding of receipt.findings ?? []) {
@@ -166,7 +169,7 @@ export default function ClaimDetailPage({ params }) {
                     {graphEntries.map(({ id, state }) => (
                       <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-5 py-3 text-sm" key={id}>
                         <span className="capitalize text-muted-foreground">{direction}</span>
-                        <Link className="min-w-0 hover:underline" href={`/claims/${id}`}><IdChip value={id} /></Link>
+                        <IdChip value={id} /><Link className="text-xs text-primary hover:underline" href={`/claims/${id}`}>open</Link>
                         {state ? <StatusBadge state={state} /> : <span className="text-xs text-muted-foreground">unknown</span>}
                       </div>
                     ))}

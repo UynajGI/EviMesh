@@ -127,9 +127,8 @@ function ExploreView() {
             {results.map((item) => (
               <article className="flex flex-wrap items-center gap-3 px-5 py-4 hover:bg-muted/50" key={`${item.kind}-${item.id}`}>
                 <StatusBadge label={item.kind} state={item.state} />
-                <Link className="min-w-0 flex-1 hover:underline" href={hrefFor(item)}>
-                  <IdChip value={item.id} />
-                </Link>
+                <IdChip className="min-w-0 flex-1" value={item.id} />
+                <Link className="text-xs font-medium text-primary hover:underline" href={hrefFor(item)}>open</Link>
                 {item.projectId ? <span className="text-xs tabular-nums text-muted-foreground">project {item.projectId}</span> : null}
                 <span className="ml-auto text-xs capitalize text-muted-foreground">{item.kind}</span>
               </article>

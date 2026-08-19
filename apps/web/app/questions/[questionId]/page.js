@@ -6,6 +6,7 @@ import { Card, CardContent, StatusBadge } from '@/components/ui/data';
 import { HandoffSheet } from '@/components/handoff-sheet';
 import { Alert, Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
 import { IdChip } from '@/components/ui/idchip';
+import { hydrateEvidenceLinks, hydrateReceiptFindings, evidenceRelations } from '@/lib/hydrate';
 import { PageContainer, PageHeader } from '@/components/ui/page';
 import { cn } from '@/lib/utils';
 
@@ -60,14 +61,23 @@ export default function QuestionDetailPage({ params }) {
     try {
       const question = await request(`/questions/${questionId}`);
       const projectId = question.question.projectId;
-      const [tasks, frontier, claimPage, events] = await Promise.all([
-        request(`/tasks?projectId=${projectId}&limit=12`).then((body) => body.items ?? []),
+      const [taskItems, frontier, claimPage, events] = await Promise.all([
+        request(`/tasks?projectId=${projectId}&limit=100`).then((body) => body.items ?? []),
         request(`/projects/${projectId}/frontier/latest`).then((body) => body.frontier ?? null).catch(() => null),
         request(`/claims?projectId=${projectId}&limit=100`).then((body) => body.items ?? []).catch(() => []),
         request(`/events?objectType=question&objectId=${questionId}&limit=20`).then((body) => body.items ?? []).catch(() => []),
       ]);
-      const claims = claimPage.filter((claim) => !claim.questionId || claim.questionId === questionId);
-      setData({ ...question, tasks, frontier, claims, events });
+      // Tasks and claims are queried per project; keep only this question's.
+      const tasks = taskItems.filter((task) => task.questionId === questionId);
+      const claims = claimPage.filter((claim) => claim.questionId === questionId);
+      // frontier/latest does not hydrate members; the paged history does.
+      let frontierWithMembers = frontier;
+      if (frontier?.snapshotId) {
+        const history = await request(`/projects/${projectId}/frontier/history?limit=100`).then((body) => body.items ?? []).catch(() => []);
+        const match = history.find((snapshot) => snapshot.snapshotId === frontier.snapshotId);
+        frontierWithMembers = match ? { ...frontier, members: match.members } : frontier;
+      }
+      setData({ ...question, tasks, frontier: frontierWithMembers, claims, events });
     } catch (reason) {
       setError(reason.message);
     }
@@ -75,14 +85,15 @@ export default function QuestionDetailPage({ params }) {
 
   useEffect(() => { if (questionId) load(); }, [questionId]);
 
-  const claimIds = (data?.claims ?? []).map((claim) => claim.claimId).slice(0, 8);
-
-  /* Evidence and receipts load lazily, once, on their first tab view. */
+  /* Evidence and receipts load lazily, once, on their first tab view.
+   * They cover every claim of this question (up to the list ceiling of 100). */
+  const claimIds = (data?.claims ?? []).map((claim) => claim.claimId);
   useEffect(() => {
     if (view !== 'evidence' || evidence !== null || !data) return;
     setEvidence('loading');
-    Promise.all(claimIds.map((id) => request(`/evidence?claimId=${id}&limit=50`).then((body) => body.items ?? []).catch(() => [])))
-      .then((groups) => setEvidence(groups.flat()))
+    Promise.all(claimIds.map((id) => request(`/evidence?claimId=${id}&limit=100`).then((body) => body.items ?? []).catch(() => [])))
+      .then((groups) => hydrateEvidenceLinks(API, groups.flat()))
+      .then(setEvidence)
       .catch(() => setEvidence([]));
   }, [view, data, evidence, claimIds.join(',')]);
 
@@ -90,7 +101,8 @@ export default function QuestionDetailPage({ params }) {
     if (view !== 'verification' || receipts !== null || !data) return;
     setReceipts('loading');
     Promise.all(claimIds.map((id) => request(`/claims/${id}/verifications`).then((body) => body.items ?? body.receipts ?? []).catch(() => [])))
-      .then((groups) => setReceipts(groups.flat()))
+      .then((groups) => hydrateReceiptFindings(API, groups.flat()))
+      .then(setReceipts)
       .catch(() => setReceipts([]));
   }, [view, data, receipts, claimIds.join(',')]);
 
@@ -101,7 +113,7 @@ export default function QuestionDetailPage({ params }) {
   const attentionClaims = claims.filter((claim) => ATTENTION_STATES.has(claim.state));
   const frontierMembers = Array.isArray(frontier?.members) ? frontier.members : [];
 
-  const evidenceByRelation = (relation) => (evidence ?? []).filter((item) => (item.links ?? []).some((link) => link.relationType === relation));
+  const evidenceByRelation = (relation) => (evidence ?? []).filter((item) => evidenceRelations(item).includes(relation));
   const outcomeCount = (outcome) => (receipts ?? []).filter((receipt) => receipt.outcome === outcome).length;
   const topFindingSeverity = (receipts ?? []).reduce((top, receipt) => {
     for (const finding of receipt.findings ?? []) {
@@ -197,7 +209,7 @@ export default function QuestionDetailPage({ params }) {
                 {tasks.slice(0, 6).map((task) => (
                   <div className="flex flex-wrap items-center gap-3 px-5 py-3" key={task.taskId}>
                     <StatusBadge state={task.status ?? task.state ?? 'open'} />
-                    <Link className="hover:underline" href={`/tasks/${task.taskId}`}><IdChip value={task.taskId} /></Link>
+                    <IdChip value={task.taskId} /><Link className="text-xs text-primary hover:underline" href={`/tasks/${task.taskId}`}>open</Link>
                     <span className="ml-auto text-xs text-muted-foreground">{task.status ?? task.state ?? ''}</span>
                   </div>
                 ))}
@@ -220,7 +232,7 @@ export default function QuestionDetailPage({ params }) {
                 return (
                   <div className="flex flex-wrap items-center gap-3 px-5 py-3" key={member.claimId ?? member.id}>
                     <StatusBadge state={claim?.state ?? 'accepted'} />
-                    <Link className="min-w-0 hover:underline" href={`/claims/${member.claimId}`}><IdChip value={member.claimId} /></Link>
+                    <IdChip value={member.claimId} /><Link className="text-xs text-primary hover:underline" href={`/claims/${member.claimId}`}>open</Link>
                     <span className="ml-auto text-xs tabular-nums text-muted-foreground">r{member.claimRevision ?? member.revision ?? '?'}</span>
                   </div>
                 );
@@ -247,7 +259,7 @@ export default function QuestionDetailPage({ params }) {
                 <div className="grid gap-2 px-5 py-4" key={claim.claimId}>
                   <div className="flex flex-wrap items-center gap-3">
                     <StatusBadge state={claim.state} />
-                    <Link className="min-w-0 hover:underline" href={`/claims/${claim.claimId}`}><IdChip value={claim.claimId} /></Link>
+                    <IdChip value={claim.claimId} /><Link className="text-xs text-primary hover:underline" href={`/claims/${claim.claimId}`}>open</Link>
                   </div>
                   <Link className="max-w-3xl text-sm text-muted-foreground hover:text-foreground" href={`/claims/${claim.claimId}`}>
                     Open evidence, verification, and downstream context →
@@ -313,7 +325,7 @@ export default function QuestionDetailPage({ params }) {
                   <div className="flex flex-wrap items-center gap-3 px-5 py-3" key={receipt.receiptId}>
                     <StatusBadge state={receipt.outcome} />
                     <IdChip value={receipt.receiptId} />
-                    {receipt.claimId ? <Link className="hover:underline" href={`/claims/${receipt.claimId}`}><IdChip value={receipt.claimId} /></Link> : null}
+                    {receipt.claimId ? <><IdChip value={receipt.claimId} /><Link className="text-xs text-primary hover:underline" href={`/claims/${receipt.claimId}`}>open</Link></> : null}
                     <span className="ml-auto font-mono text-xs text-muted-foreground">{receipt.implementationRelation ?? ''}{receipt.contextMode ? ` · ${receipt.contextMode}` : ''}</span>
                   </div>
                 ))}
