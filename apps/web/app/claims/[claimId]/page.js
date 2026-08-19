@@ -8,7 +8,8 @@ import { Badge, Card, CardContent, StatusBadge } from '@/components/ui/data';
 import { Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
 import { IdChip } from '@/components/ui/idchip';
 import { hydrateEvidenceLinks, hydrateReceiptFindings, evidenceRelations } from '@/lib/hydrate';
-import { PageContainer, PageHeader } from '@/components/ui/page';
+import { PageContainer } from '@/components/ui/page';
+import { Check, Eye, Share2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const API = process.env.NEXT_PUBLIC_EVIMESH_API_URL;
@@ -76,6 +77,9 @@ export default function ClaimDetailPage({ params }) {
   const [direction, setDirection] = useState('downstream');
   const [graphView, setGraphView] = useState('graph');
   const [handoffOpen, setHandoffOpen] = useState(false);
+  const [watched, setWatched] = useState(false);
+  const [shared, setShared] = useState(false);
+  const [revisionDiff, setRevisionDiff] = useState(null);
   const [evidence, setEvidence] = useState([]);
   const [receipts, setReceipts] = useState([]);
   const [error, setError] = useState(null);
@@ -95,12 +99,31 @@ export default function ClaimDetailPage({ params }) {
       setEvidence(await hydrateEvidenceLinks(API, evidenceItems));
       setReceipts(await hydrateReceiptFindings(API, receiptItems));
       setData(payload);
+      /* Inline revision diff preview (mockup r(n) vs r(n-1) statement lines):
+       * hydrate the current and previous revision when both exist. */
+      const revision = payload.currentRevision?.revision;
+      if (Number.isInteger(revision) && revision > 1) {
+        try {
+          const [current, previous] = await Promise.all([
+            request(`/claims/${claimId}/revisions/${revision}`),
+            request(`/claims/${claimId}/revisions/${revision - 1}`),
+          ]);
+          const currentStatement = current.revision?.statement ?? current.claimRevision?.statement ?? null;
+          const previousStatement = previous.revision?.statement ?? previous.claimRevision?.statement ?? null;
+          if (currentStatement && previousStatement && currentStatement !== previousStatement) {
+            setRevisionDiff({ from: previousStatement, to: currentStatement, previous: revision - 1 });
+          }
+        } catch { /* diff preview unavailable; the diff page remains */ }
+      }
     } catch (reason) {
       setError(reason.message);
     }
   }
 
   useEffect(() => { if (claimId) load(); }, [claimId]);
+  useEffect(() => {
+    try { setWatched(localStorage.getItem(`evimesh-watch-claim-${claimId}`) === '1'); } catch { /* unavailable */ }
+  }, [claimId]);
   useEffect(() => { if (claimId) request(`/claims/${claimId}/graph?direction=${direction}&maxDepth=3`).then(setGraph).catch((reason) => setError(reason.message)); }, [claimId, direction]);
 
   if (error) return <PageContainer><ErrorState message={error} onRetry={load} /></PageContainer>;
@@ -132,28 +155,70 @@ export default function ClaimDetailPage({ params }) {
         <span aria-current="page" className="tabular-nums">{claim.claimId}</span>
       </nav>
 
-      <PageHeader
-        action={(
-          <div className="flex flex-wrap gap-2">
-            <Link className="inline-flex h-9 items-center rounded-md border border-border bg-card px-3 text-sm font-medium hover:bg-muted" href={`/claims/${claim.claimId}/diff`}>Revision diff</Link>
-            <button className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-accent-foreground/90" onClick={() => setHandoffOpen(true)} type="button">Continue with an agent</button>
+      {/* Mockup claim.html header: badge row, serif statement headline,
+          meta with attribution chain, then the action slots. */}
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-3">
+            <StatusBadge state={claim.state} label="claim" />
+            <Badge variant="default">revision r{currentRevision.revision}</Badge>
+            <IdChip label="claim" value={claim.claimId} />
           </div>
-        )}
-        description={claim.questionId ? null : 'Not linked to a question yet.'}
-        eyebrow={`Claim · r${currentRevision.revision}`}
-        title={claim.claimId}
-      />
-
-      {/* The statement IS the headline: serif reading mode, no rhetorical title. */}
-      <div className="mt-5 grid gap-4">
-        <p className="max-w-[65ch] font-serif text-lg leading-relaxed">{currentRevision.statement}</p>
-        <div className="flex flex-wrap items-center gap-3">
-          <StatusBadge state={claim.state} />
-          <Badge variant="default">revision r{currentRevision.revision}</Badge>
-          <IdChip label="claim" value={claim.claimId} />
-          {claim.questionId ? <Link className="text-xs tabular-nums text-muted-foreground hover:text-foreground" href={`/questions/${claim.questionId}`}>question {claim.questionId}</Link> : null}
+          <p className="claim-statement mt-4 max-w-[65ch] font-serif text-lg leading-relaxed">{currentRevision.statement}</p>
+          <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+            {claim.questionId ? <Link className="tabular-nums hover:text-foreground" href={`/questions/${claim.questionId}`}>question {claim.questionId}</Link> : <span>Not linked to a question yet.</span>}
+            {(currentRevision.createdBy ?? claim.createdBy) ? (
+              <>
+                <span aria-hidden="true">·</span>
+                <span className="flex items-center gap-1">
+                  drafted by{' '}
+                  <Link className="font-medium text-foreground hover:underline" href={`/contributors/${encodeURIComponent(currentRevision.createdBy ?? claim.createdBy)}`}>{currentRevision.createdBy ?? claim.createdBy}</Link>
+                </span>
+              </>
+            ) : null}
+            {currentRevision.createdAt ? (
+              <>
+                <span aria-hidden="true">·</span>
+                <span className="tabular-nums">r{currentRevision.revision} published {new Date(currentRevision.createdAt).toISOString().slice(0, 10)}</span>
+              </>
+            ) : null}
+          </div>
         </div>
-      </div>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <button
+            aria-pressed={watched}
+            className={cn('inline-flex h-9 items-center gap-2 rounded-md border px-3 text-sm font-medium', watched ? 'border-primary bg-accent text-accent-foreground' : 'border-border bg-card hover:bg-muted')}
+            onClick={() => {
+              const next = !watched;
+              setWatched(next);
+              try {
+                if (next) localStorage.setItem(`evimesh-watch-claim-${claimId}`, '1');
+                else localStorage.removeItem(`evimesh-watch-claim-${claimId}`);
+              } catch { /* unavailable */ }
+            }}
+            type="button"
+          >
+            <Eye aria-hidden="true" size={14} />
+            {watched ? 'Watching' : 'Watch'}
+          </button>
+          <button
+            className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-sm font-medium hover:bg-muted"
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(`${window.location.origin}/claims/${claim.claimId}?rev=${currentRevision.revision}`);
+                setShared(true);
+                setTimeout(() => setShared(false), 2000);
+              } catch { /* unavailable */ }
+              setTimeout(() => setShared(false), 2000);
+            }}
+            type="button"
+          >
+            {shared ? <Check aria-hidden="true" size={14} /> : <Share2 aria-hidden="true" size={14} />}
+            {shared ? 'Link copied' : `Share r${currentRevision.revision} permalink`}
+          </button>
+          <button className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-accent-foreground/90" onClick={() => setHandoffOpen(true)} type="button">Continue with an agent</button>
+        </div>
+      </header>
 
       <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start">
         <div className="grid min-w-0 gap-8">
@@ -236,6 +301,15 @@ export default function ClaimDetailPage({ params }) {
                 <p className="font-mono text-sm tabular-nums">Revision {currentRevision.revision}</p>
                 <p className="mt-2 text-sm text-muted-foreground">Current immutable revision; previous revisions are linked by `supersedes`.</p>
                 {currentRevision.supersedes ? <p className="mt-2 text-xs text-muted-foreground">Supersedes revision {currentRevision.supersedes}.</p> : null}
+                {revisionDiff ? (
+                  <div className="mt-3">
+                    <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Statement diff r{revisionDiff.previous} to r{currentRevision.revision}</p>
+                    <pre className="overflow-x-auto rounded-md border border-border font-mono text-xs leading-5">
+                      <span className="block bg-status-danger-bg px-3 py-1.5 text-status-danger-fg line-through">- {revisionDiff.from}</span>
+                      <span className="block bg-status-success-bg px-3 py-1.5 text-status-success-fg">+ {revisionDiff.to}</span>
+                    </pre>
+                  </div>
+                ) : null}
               </CardContent>
             </Card>
           </section>
