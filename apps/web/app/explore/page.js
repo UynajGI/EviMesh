@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { Card, StatusBadge } from '@/components/ui/data';
 import { Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
 import { IdChip } from '@/components/ui/idchip';
+import { HandoffSheet } from '@/components/handoff-sheet';
 import { PageContainer, PageHeader } from '@/components/ui/page';
 import { cn } from '@/lib/utils';
 
@@ -34,6 +35,7 @@ function ExploreView() {
   const [query, setQuery] = useState(searchParams.get('q') ?? '');
   const [type, setType] = useState('all');
   const [sort, setSort] = useState('recent');
+  const [rowHandoff, setRowHandoff] = useState(null);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -135,6 +137,7 @@ function ExploreView() {
                   <StatusBadge label={item.kind} state={item.state} />
                   <IdChip className="min-w-0 flex-1" value={item.id} />
                   <Link className="text-xs font-medium text-primary hover:underline" href={hrefFor(item)}>open</Link>
+                  <button className="rounded-md border border-border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground" onClick={() => setRowHandoff(item)} type="button">Hand to agent</button>
                   {item.projectId ? <span className="text-xs tabular-nums text-muted-foreground">project {item.projectId}</span> : null}
                   <span className="ml-auto text-xs capitalize text-muted-foreground">{item.kind}</span>
                 </article>
@@ -172,6 +175,19 @@ function ExploreView() {
           <p className="mt-4 text-xs text-muted-foreground">No popularity ordering exists: sorting expresses recency, never research value.</p>
         </aside>
       </div>
+      {rowHandoff ? (
+        <HandoffSheet
+          cliCommand={`sq ${rowHandoff.kind === 'question' ? 'question list' : 'project list'}   # locate ${rowHandoff.id}`}
+          intent={`Continue this ${rowHandoff.kind} with your agent`}
+          mcpCall={`resource: evimesh://${rowHandoff.kind}s`}
+          objectId={rowHandoff.id}
+          objectType={rowHandoff.kind}
+          onOpenChange={(open) => { if (!open) setRowHandoff(null); }}
+          open={Boolean(rowHandoff)}
+          scopes={['read', 'drafts']}
+          view="explore"
+        />
+      ) : null}
     </PageContainer>
   );
 }

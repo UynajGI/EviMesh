@@ -27,6 +27,44 @@ function JsonBlock({ value }) {
 }
 
 /*
+ * Design book 05 §6 / 09 §2.5 deflist pattern: strings render as prose lines,
+ * arrays render as a quiet hairline list, objects fall back to a definition
+ * list of their scalar entries. Raw JSON stays in technical details.
+ */
+function ReadableField({ value }) {
+  if (value === null || value === undefined || value === '') {
+    return <p className="mt-2 text-sm text-muted-foreground">Not stated in this revision.</p>;
+  }
+  if (typeof value === 'string') {
+    return <p className="mt-2 max-w-[65ch] text-sm leading-6">{value}</p>;
+  }
+  if (Array.isArray(value)) {
+    if (value.length === 0) return <p className="mt-2 text-sm text-muted-foreground">None recorded.</p>;
+    return (
+      <ul className="mt-2 divide-y divide-border rounded-lg border border-border">
+        {value.map((entry, index) => (
+          <li className="px-4 py-2.5 text-sm" key={index}>
+            {typeof entry === 'string' || typeof entry === 'number' ? entry : <ReadableField value={entry} />}
+          </li>
+        ))}
+      </ul>
+    );
+  }
+  const entries = Object.entries(value).filter(([, entry]) => typeof entry !== 'object' || entry === null);
+  if (entries.length === 0) return <div className="mt-2"><JsonBlock value={value} /></div>;
+  return (
+    <dl className="mt-2 grid gap-2 text-sm sm:grid-cols-[max-content_1fr] sm:gap-x-5">
+      {entries.map(([key, entry]) => (
+        <div className="contents" key={key}>
+          <dt className="text-muted-foreground">{key.replaceAll(/([A-Z])/g, ' $1').toLowerCase()}</dt>
+          <dd>{entry === null ? 'none' : String(entry)}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+/*
  * Claim detail (M13.8 05-core-ui-spec.md §6): serif statement, structured
  * fields, DAG graph with an equivalent keyboard-reachable list view, revision
  * history, and a status-summary rail. Counts are entry points, never scores.
@@ -125,9 +163,20 @@ export default function ClaimDetailPage({ params }) {
               <CardContent className="grid gap-5">
                 <p className="max-w-[65ch] font-serif text-base leading-relaxed">{currentRevision.statement}</p>
                 <div className="grid gap-4">
-                  <div><h3 className="text-sm font-medium">Scope</h3><JsonBlock value={currentRevision.scope} /></div>
-                  <div><h3 className="text-sm font-medium">Assumptions</h3><JsonBlock value={currentRevision.assumptions} /></div>
-                  <div><h3 className="text-sm font-medium">Falsification conditions</h3><JsonBlock value={currentRevision.falsification ?? currentRevision.falsificationConditions} /></div>
+                  {/* Design book 05 §6: readable field values first; the raw JSON
+                      stays available in technical details one layer down. */}
+                  <div>
+                    <h3 className="text-sm font-medium">Scope</h3>
+                    <ReadableField value={currentRevision.scope} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium">Assumptions</h3>
+                    <ReadableField value={currentRevision.assumptions} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium">Falsification conditions</h3>
+                    <ReadableField value={currentRevision.falsification ?? currentRevision.falsificationConditions} />
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -200,6 +249,12 @@ export default function ClaimDetailPage({ params }) {
                   <dt className="text-muted-foreground">Current revision</dt><dd className="font-mono tabular-nums">r{currentRevision.revision}</dd>
                   <dt className="text-muted-foreground">Next allowed states</dt><dd className="font-mono tabular-nums">{statusPolicy.allowedTransitions.join(', ') || 'No transitions'}</dd>
                 </dl>
+                <p className="mb-2 mt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Raw structured fields</p>
+                <div className="grid gap-3">
+                  <div><p className="text-xs text-muted-foreground">scope</p><JsonBlock value={currentRevision.scope} /></div>
+                  <div><p className="text-xs text-muted-foreground">assumptions</p><JsonBlock value={currentRevision.assumptions} /></div>
+                  <div><p className="text-xs text-muted-foreground">falsification</p><JsonBlock value={currentRevision.falsification ?? currentRevision.falsificationConditions} /></div>
+                </div>
               </div>
             </details>
           </section>

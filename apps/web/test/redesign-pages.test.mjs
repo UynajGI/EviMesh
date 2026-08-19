@@ -347,3 +347,25 @@ test('design chapters 03/04/08 land in production: truncation, motion, states', 
   assert.match(banner, /navigator\.onLine/);
   assert.match(banner, /addEventListener\('online'/);
 });
+
+test('mockup-vs-production row actions and attribution land', async () => {
+  const [claim, workspace, work, explore] = await Promise.all([
+    read('../app/claims/[claimId]/page.js'),
+    read('../app/questions/[questionId]/page.js'),
+    read('../app/work/page.js'),
+    read('../app/explore/page.js'),
+  ]);
+  // Claim fields render readable first; raw JSON moves into technical details.
+  assert.match(claim, /function ReadableField/);
+  assert.match(claim, /Raw structured fields/);
+  assert.match(claim, /ReadableField value=\{currentRevision\.scope\}/);
+  // Workspace activity carries actor attribution links (mockup Activity tab).
+  assert.match(workspace, /Contributed by/);
+  assert.ok(workspace.includes('encodeURIComponent(event.actorId)'), 'attribution must link to the contributor record');
+  // Work and Explore rows carry the per-row agent handoff (mockup row actions).
+  for (const [name, page] of [['work', work], ['explore', explore]]) {
+    assert.match(page, /Hand to agent/, `${name} rows missing the handoff action`);
+    assert.match(page, /rowHandoff/);
+    assert.match(page, /<HandoffSheet/);
+  }
+});

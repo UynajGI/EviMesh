@@ -66,6 +66,7 @@ function roleForEventType(type) {
 export default function WorkPage() {
   const [tab, setTab] = useState('tasks');
   const [handoffOpen, setHandoffOpen] = useState(false);
+  const [rowHandoff, setRowHandoff] = useState(null);
   const [openTasks, setTasks] = useState(null);
   const [verificationClaims, setVerificationClaims] = useState(null);
   const [events, setEvents] = useState(null);
@@ -174,6 +175,7 @@ export default function WorkPage() {
                   <StatusBadge state="open" />
                   <IdChip value={task.taskId} />
                   <Link className="text-xs font-medium text-primary hover:underline" href={`/tasks/${task.taskId}`}>open</Link>
+                  <button className="rounded-md border border-border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground" onClick={() => setRowHandoff({ objectType: 'task', objectId: task.taskId, intent: 'Run this task with your agent' })} type="button">Hand to agent</button>
                   <span className="ml-auto text-xs tabular-nums text-muted-foreground">project {task.projectId ?? 'unassigned'}</span>
                 </article>
               ))}
@@ -294,6 +296,21 @@ resource: evimesh://questions/open`}
         scopes={['read', 'drafts']}
         view="work"
       />
+      {rowHandoff ? (
+        <HandoffSheet
+          cliCommand={`sq task inspect ${rowHandoff.objectId}   # read inputs, outputs, acceptance
+sq attempt start ${rowHandoff.objectId}     # begin an attributed attempt`}
+          intent={rowHandoff.intent}
+          mcpCall={`tool:     get_task_context (read-only)
+tool:     start_attempt (confirm: true)`}
+          objectId={rowHandoff.objectId}
+          objectType={rowHandoff.objectType}
+          onOpenChange={(open) => { if (!open) setRowHandoff(null); }}
+          open={Boolean(rowHandoff)}
+          scopes={['read', 'attempts', 'drafts']}
+          view="work"
+        />
+      ) : null}
     </PageContainer>
   );
 }
