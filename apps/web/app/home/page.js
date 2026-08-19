@@ -123,7 +123,7 @@ export default function HomePage() {
       <div className="mt-2 grid gap-10 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
         <div className="min-w-0">
           <ChangeGroup count={visibleClaims.length} level="attention" title="Claims awaiting verification">
-            {loading ? <Skeleton className="h-32 w-full" /> : error ? null : claims.length === 0 ? <Empty title="Nothing awaiting verification" description="Claims under verification will appear here as they move through the pipeline." /> : (
+            {loading ? <Skeleton className="h-32 w-full" /> : error ? null : visibleClaims.length === 0 ? <Empty title="Nothing awaiting verification" description="Claims under verification will appear here as they move through the pipeline." /> : (
               <div className="divide-y divide-border rounded-lg border border-border bg-card">
                 {visibleClaims.map((claim) => (
                   <ChangeItem
@@ -143,7 +143,7 @@ export default function HomePage() {
           </ChangeGroup>
 
           <ChangeGroup count={visibleQuestions.length} level="update" meta="Newest activity first" title="Open questions">
-            {loading ? <Skeleton className="mt-6 h-32 w-full" /> : error ? null : questions.length === 0 ? <Empty title="No open questions yet" description="Questions that are open for research will appear here." /> : (
+            {loading ? <Skeleton className="mt-6 h-32 w-full" /> : error ? null : visibleQuestions.length === 0 ? <Empty title="No open questions yet" description="Questions that are open for research will appear here." /> : (
               <div className="divide-y divide-border rounded-lg border border-border bg-card">
                 {visibleQuestions.map((question) => (
                   <ChangeItem
@@ -163,7 +163,7 @@ export default function HomePage() {
           </ChangeGroup>
 
           <ChangeGroup count={visibleFrontiers.length} level="frontier" title="Latest frontiers">
-            {loading ? <Skeleton className="mt-6 h-32 w-full" /> : error ? null : frontiers.length === 0 ? <Empty title="No published frontiers yet" description="Frontier snapshots will appear here once projects publish their first." /> : (
+            {loading ? <Skeleton className="mt-6 h-32 w-full" /> : error ? null : visibleFrontiers.length === 0 ? <Empty title="No published frontiers yet" description="Frontier snapshots will appear here once projects publish their first." /> : (
               <div className="divide-y divide-border rounded-lg border border-border bg-card">
                 {visibleFrontiers.map(({ project, frontier }) => (
                   <ChangeItem
@@ -183,7 +183,7 @@ export default function HomePage() {
           </ChangeGroup>
 
           <ChangeGroup count={visibleTasks.length} level="task" title="Newcomer tasks">
-            {loading ? <Skeleton className="mt-6 h-32 w-full" /> : error ? null : tasks.length === 0 ? <Empty title="No newcomer tasks open" description="CPU-only and under-60-minute tasks will appear here when available." /> : (
+            {loading ? <Skeleton className="mt-6 h-32 w-full" /> : error ? null : visibleTasks.length === 0 ? <Empty title="No newcomer tasks open" description="CPU-only and under-60-minute tasks will appear here when available." /> : (
               <div className="divide-y divide-border rounded-lg border border-border bg-card">
                 {visibleTasks.map((task) => (
                   <ChangeItem

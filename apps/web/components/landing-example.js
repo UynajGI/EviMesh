@@ -103,8 +103,11 @@ export function LandingExample({ fallback }) {
                 <IdChip value={claim.claimId} />
               </div>
               {claim.evidenceCounts ? (
-                <p className="text-xs tabular-nums text-muted-foreground">
-                  evidence: supports {claim.evidenceCounts.supports} · refutes {claim.evidenceCounts.refutes} · qualifies {claim.evidenceCounts.qualifies} · reproduces {claim.evidenceCounts.reproduces}
+                <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs tabular-nums text-muted-foreground">
+                  {claim.evidenceCounts.supports > 0 ? <Link className="hover:text-foreground" href={`/claims/${claim.claimId}`}>supports {claim.evidenceCounts.supports}</Link> : <span>supports 0</span>}
+                  {claim.evidenceCounts.refutes > 0 ? <Link className="hover:text-foreground" href={`/claims/${claim.claimId}`}>refutes {claim.evidenceCounts.refutes}</Link> : <span>refutes 0</span>}
+                  {claim.evidenceCounts.qualifies > 0 ? <Link className="hover:text-foreground" href={`/claims/${claim.claimId}`}>qualifies {claim.evidenceCounts.qualifies}</Link> : <span>qualifies 0</span>}
+                  {claim.evidenceCounts.reproduces > 0 ? <Link className="hover:text-foreground" href={`/claims/${claim.claimId}`}>reproduces {claim.evidenceCounts.reproduces}</Link> : <span>reproduces 0</span>}
                 </p>
               ) : null}
             </li>

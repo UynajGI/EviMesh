@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Clock } from 'lucide-react';
+
+const API = process.env.NEXT_PUBLIC_EVIMESH_API_URL;
 import { Card, StatusBadge } from '@/components/ui/data';
 import { Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
 import { IdChip } from '@/components/ui/idchip';

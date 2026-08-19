@@ -1,3 +1,5 @@
+import { useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 'use client';
 
 import Link from 'next/link';
@@ -70,8 +72,11 @@ function ReadableField({ value }) {
  * fields, DAG graph with an equivalent keyboard-reachable list view, revision
  * history, and a status-summary rail. Counts are entry points, never scores.
  */
-export default function ClaimDetailPage({ params }) {
+function ClaimDetailView({ params }) {
   const [claimId, setClaimId] = useState(null);
+  const searchParams = useSearchParams();
+  const pinnedRevision = Number.parseInt(searchParams.get('rev') ?? '', 10);
+  const [pinnedRevisionData, setPinnedRevisionData] = useState(null);
   const [data, setData] = useState(null);
   const [graph, setGraph] = useState(null);
   const [direction, setDirection] = useState('downstream');
@@ -90,6 +95,13 @@ export default function ClaimDetailPage({ params }) {
     setError(null);
     try {
       const payload = await request(`/claims/${claimId}`);
+      /* A ?rev=N permalink must render that exact immutable revision. */
+      if (Number.isInteger(pinnedRevision) && pinnedRevision >= 1) {
+        try {
+          const pinned = await request(`/claims/${claimId}/revisions/${pinnedRevision}`);
+          setPinnedRevisionData(pinned.revision ?? pinned.claimRevision ?? pinned ?? null);
+        } catch { /* pinned revision unavailable: fall back to current */ }
+      }
       const [evidenceItems, receiptItems] = await Promise.all([
         request(`/evidence?claimId=${claimId}&limit=100`).then((body) => body.items ?? []).catch(() => []),
         request(`/claims/${claimId}/verifications`).then((body) => body.items ?? body.receipts ?? []).catch(() => []),
@@ -129,7 +141,9 @@ export default function ClaimDetailPage({ params }) {
   if (error) return <PageContainer><ErrorState message={error} onRetry={load} /></PageContainer>;
   if (!data) return <PageContainer><Skeleton className="h-32 w-full" /><Skeleton className="mt-6 h-96 w-full" /></PageContainer>;
 
-  const { claim, currentRevision, statusPolicy } = data;
+  const { claim, statusPolicy } = data;
+  const pinned = Number.isInteger(pinnedRevision) && pinnedRevision >= 1 && pinnedRevisionData;
+  const currentRevision = pinned ? { ...data.currentRevision, ...pinnedRevisionData, revision: pinnedRevision } : data.currentRevision;
   const graphNodes = Array.isArray(graph?.nodes) ? graph.nodes : [];
   const graphEntries = graphNodes.map((node) => ({ id: node.claimId ?? node.id, state: node.state ?? node.status })).filter((node) => typeof node.id === 'string' && node.id !== claim.claimId);
   const dagElements = [{ data: { id: claim.claimId, label: claim.claimId, state: claim.state } }, ...graphEntries.map(({ id, state }) => ({ data: { id, label: id, state } })), ...graphEntries.map(({ id }) => ({ data: { id: `${direction}-${id}`, source: direction === 'upstream' ? id : claim.claimId, target: direction === 'upstream' ? claim.claimId : id } }))];
@@ -159,6 +173,11 @@ export default function ClaimDetailPage({ params }) {
           meta with attribution chain, then the action slots. */}
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
+          {pinned ? (
+            <p className="mt-2 rounded-md border border-status-accent-border bg-status-accent-bg px-3 py-1.5 text-xs text-status-accent-fg">
+              Pinned revision r{pinnedRevision}: this permalink always renders this exact immutable revision. <Link className="underline" href={`/claims/${claim.claimId}">Jump to current</Link>
+            </p>
+          ) : null}
           <div className="flex flex-wrap items-center gap-3">
             <StatusBadge state={claim.state} label="claim" />
             <Badge variant="default">revision r{currentRevision.revision}</Badge>
@@ -389,4 +408,8 @@ export default function ClaimDetailPage({ params }) {
       />
     </PageContainer>
   );
+}
+
+export default function ClaimDetailPage(props) {
+  return (<Suspense fallback={<PageContainer><Skeleton className="h-32 w-full" /><Skeleton className="mt-6 h-96 w-full" /></PageContainer>}><ClaimDetailView {...props} /></Suspense>);
 }

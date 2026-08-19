@@ -91,7 +91,17 @@ export default function QuestionDetailPage({ params }) {
       // frontier/latest does not hydrate members; the paged history does.
       let frontierWithMembers = frontier;
       if (frontier?.snapshotId) {
-        const history = await request(`/projects/${projectId}/frontier/history?limit=100`).then((body) => body.items ?? []).catch(() => []);
+        /* History is ascending and paginated: traverse to the final page
+         * (bounded) so the latest snapshot and its predecessor are present. */
+        const history = [];
+        let historyCursor = null;
+        for (let page = 0; page < 10; page += 1) {
+          const body = await request(`/projects/${projectId}/frontier/history?limit=100${historyCursor ? `&cursor=${encodeURIComponent(historyCursor)}` : ''}`).catch(() => null);
+          if (!body) break;
+          history.push(...(body.items ?? []));
+          if (!body.nextCursor) break;
+          historyCursor = body.nextCursor;
+        }
         const match = history.find((snapshot) => snapshot.snapshotId === frontier.snapshotId);
         frontierWithMembers = match ? { ...frontier, members: match.members } : frontier;
         const sorted = [...history].sort((left, right) => (right.sequence ?? 0) - (left.sequence ?? 0));
