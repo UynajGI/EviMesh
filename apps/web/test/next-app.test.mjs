@@ -215,7 +215,7 @@ test('renders a normalized Question preview before submission', async () => {
 test('renders Question details with Contract, state, and Task summaries', async () => {
   const page = await read('../app/questions/[questionId]/page.js');
   assert.match(page, /\/questions\/\$\{questionId\}/);
-  assert.match(page, /Research Contract/);
+  assert.match(page, /Research scope/);
   assert.match(page, /question\.state/);
   assert.match(page, /tasks\.length/);
 });

@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, StatusBadge } from '@/components/ui/data';
 import { HandoffSheet } from '@/components/handoff-sheet';
 import { Alert, Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
-import { Flag, FlaskConical, History, Mountain } from 'lucide-react';
+import { Check, Eye, Flag, FlaskConical, History, Mountain, Share2 } from 'lucide-react';
 import { IdChip } from '@/components/ui/idchip';
 import { hydrateEvidenceLinks, hydrateReceiptFindings, evidenceRelations } from '@/lib/hydrate';
 import { PageContainer, PageHeader } from '@/components/ui/page';
@@ -50,6 +50,9 @@ export default function QuestionDetailPage({ params }) {
   const [questionId, setQuestionId] = useState(null);
   const [view, setView] = useState('summary');
   const [handoffOpen, setHandoffOpen] = useState(false);
+  const [watched, setWatched] = useState(false);
+  const [shared, setShared] = useState(false);
+  const [previousSnapshot, setPreviousSnapshot] = useState(null);
   const [data, setData] = useState(null);
   const [evidence, setEvidence] = useState(null);
   const [receipts, setReceipts] = useState(null);
@@ -91,6 +94,9 @@ export default function QuestionDetailPage({ params }) {
         const history = await request(`/projects/${projectId}/frontier/history?limit=100`).then((body) => body.items ?? []).catch(() => []);
         const match = history.find((snapshot) => snapshot.snapshotId === frontier.snapshotId);
         frontierWithMembers = match ? { ...frontier, members: match.members } : frontier;
+        const sorted = [...history].sort((left, right) => (right.sequence ?? 0) - (left.sequence ?? 0));
+        const currentIndex = sorted.findIndex((snapshot) => snapshot.snapshotId === frontier.snapshotId);
+        if (currentIndex >= 0 && sorted[currentIndex + 1]) setPreviousSnapshot(sorted[currentIndex + 1]);
       }
       setData({ ...question, tasks, frontier: frontierWithMembers, claims, events });
     } catch (reason) {
@@ -99,6 +105,9 @@ export default function QuestionDetailPage({ params }) {
   }
 
   useEffect(() => { if (questionId) load(); }, [questionId]);
+  useEffect(() => {
+    try { setWatched(localStorage.getItem(`evimesh-watch-${questionId}`) === '1'); } catch { /* unavailable */ }
+  }, [questionId]);
 
   /* Evidence and receipts load lazily, once, on their first tab view.
    * They cover every claim of this question (up to the list ceiling of 100). */
@@ -146,13 +155,42 @@ export default function QuestionDetailPage({ params }) {
         <span aria-hidden="true">/</span>
         <Link className="tabular-nums hover:text-foreground" href={`/projects/${question.projectId}`}>{question.projectId}</Link>
         <span aria-hidden="true">/</span>
-        <span aria-current="page" className="tabular-nums">{question.questionId}</span>
+        <span aria-current="page" className="max-w-[40ch] truncate">{currentRevision.title ?? question.questionId}</span>
       </nav>
 
       <PageHeader
         action={(
           <div className="flex flex-wrap gap-2">
-            <Link className="inline-flex h-9 items-center rounded-md border border-border bg-card px-3 text-sm font-medium hover:bg-muted" href={`/projects/${question.projectId}`}>Open project</Link>
+            <button
+              aria-pressed={watched}
+              className={cn('inline-flex h-9 items-center gap-2 rounded-md border px-3 text-sm font-medium', watched ? 'border-primary bg-accent text-accent-foreground' : 'border-border bg-card hover:bg-muted')}
+              onClick={() => {
+                const next = !watched;
+                setWatched(next);
+                try {
+                  if (next) localStorage.setItem(`evimesh-watch-${questionId}`, '1');
+                  else localStorage.removeItem(`evimesh-watch-${questionId}`);
+                } catch { /* unavailable */ }
+              }}
+              type="button"
+            >
+              <Eye aria-hidden="true" size={14} />
+              {watched ? 'Watching' : 'Watch'}
+            </button>
+            <button
+              className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-sm font-medium hover:bg-muted"
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(window.location.href);
+                  setShared(true);
+                  setTimeout(() => setShared(false), 2000);
+                } catch { /* unavailable */ }
+              }}
+              type="button"
+            >
+              {shared ? <Check aria-hidden="true" size={14} /> : <Share2 aria-hidden="true" size={14} />}
+              {shared ? 'Link copied' : 'Share this snapshot'}
+            </button>
             <button className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-accent-foreground/90" onClick={() => setHandoffOpen(true)} type="button">Continue with an agent</button>
           </div>
         )}
@@ -165,6 +203,12 @@ export default function QuestionDetailPage({ params }) {
         <StatusBadge state={question.state} />
         <IdChip label="question" value={question.questionId} />
         {frontier ? <span className="text-xs tabular-nums text-muted-foreground">Frontier #{frontier.sequence}</span> : null}
+        {currentRevision.createdAt ? (
+          <span className="flex items-center gap-1 text-xs tabular-nums text-muted-foreground">
+            <History aria-hidden="true" size={12} />
+            created {new Date(currentRevision.createdAt).toISOString().slice(0, 10)}
+          </span>
+        ) : null}
       </div>
 
       <div className="mt-6 flex gap-1 overflow-x-auto border-b border-border" role="tablist" aria-label="Workspace views">
@@ -197,9 +241,15 @@ export default function QuestionDetailPage({ params }) {
           <div className="grid gap-4 lg:grid-cols-2">
             <Card>
               <CardContent>
-                <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Research Contract</h2>
+                <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Research scope (Contract r{contract.revision})</h2>
                 <p className="mt-2 font-medium">{contract.title ?? contract.contractId}</p>
-                <p className="mt-1 text-sm tabular-nums text-muted-foreground">{contract.contractId} · revision {contract.revision}</p>
+                <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-[max-content_1fr] sm:gap-x-5">
+                  {currentRevision.statement ? (<><dt className="text-muted-foreground">Answers</dt><dd>{currentRevision.statement}</dd></>) : null}
+                  {currentRevision.scope ? (<><dt className="text-muted-foreground">Scope</dt><dd>{currentRevision.scope}</dd></>) : null}
+                  {currentRevision.exclusions ? (<><dt className="text-muted-foreground">Exclusions</dt><dd>{currentRevision.exclusions}</dd></>) : null}
+                  {currentRevision.falsification ? (<><dt className="text-muted-foreground">Falsification</dt><dd>{currentRevision.falsification}</dd></>) : null}
+                  <dt className="text-muted-foreground">Contract</dt><dd className="font-mono text-xs">{contract.contractId} · r{contract.revision}</dd>
+                </dl>
               </CardContent>
             </Card>
             <Card>
@@ -212,6 +262,11 @@ export default function QuestionDetailPage({ params }) {
                       <IdChip value={frontier.snapshotId} />
                       <span className="text-xs tabular-nums text-muted-foreground">{frontierMembers.length} member claim(s)</span>
                     </div>
+                    {previousSnapshot ? (
+                      <Link className="mt-2 inline-block text-xs text-muted-foreground hover:text-foreground" href={`/projects/${question.projectId}/frontier/${previousSnapshot.snapshotId}`}>
+                        Previous snapshot #{previousSnapshot.sequence} →
+                      </Link>
+                    ) : null}
                   </>
                 ) : <p className="mt-2 text-sm text-muted-foreground">No frontier published yet for this project.</p>}
               </CardContent>
@@ -230,6 +285,7 @@ export default function QuestionDetailPage({ params }) {
                 ))}
               </Card>
             )}
+            <Link className="mt-3 inline-block text-sm text-muted-foreground hover:text-foreground" href="/work">Claim work in Work →</Link>
           </section>
         </div>
       ) : null}
