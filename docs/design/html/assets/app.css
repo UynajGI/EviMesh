@@ -1,0 +1,1603 @@
+/* ==========================================================================
+   EviMesh shared component styles (design book reference implementation)
+   ==========================================================================
+   Depends on: tokens.css (must be loaded first).
+   Naming: BEM-lite functional names: .block, .block__part, .block--variant.
+   All colors reference semantic/component tokens only. No raw hex here.
+   Icons: inline SVG sprite, referenced via <svg class="icon"><use href="#icon-..."/></svg>.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   0. Base
+   -------------------------------------------------------------------------- */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--evimesh-bg);
+  color: var(--evimesh-fg);
+  font-family: var(--evimesh-font-sans);
+  font-size: var(--evimesh-text-base);
+  line-height: var(--evimesh-lh-normal);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, h4, h5, h6, p, figure {
+  margin: 0;
+}
+
+a {
+  color: var(--evimesh-fg-link);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+code, pre, kbd, samp {
+  font-family: var(--evimesh-font-mono);
+}
+
+img, svg {
+  display: block;
+  max-width: 100%;
+}
+
+table {
+  border-collapse: collapse;
+}
+
+/* Focus: 2px ring, visible on any surface, keyboard only. */
+:where(a, button, input, textarea, select, summary, [role="button"], [tabindex]):focus-visible {
+  outline: var(--evimesh-focus-w) solid var(--evimesh-focus);
+  outline-offset: var(--evimesh-focus-offset);
+  border-radius: var(--evimesh-radius-sm);
+}
+
+/* Reduced motion: everything collapses to instant state changes. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   1. Utilities
+   -------------------------------------------------------------------------- */
+
+.u-tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+.u-mono {
+  font-family: var(--evimesh-font-mono);
+  font-size: 0.92em;
+}
+
+.u-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.u-muted   { color: var(--evimesh-fg-muted); }
+.u-subtle  { color: var(--evimesh-fg-subtle); }
+.u-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* --------------------------------------------------------------------------
+   2. Icons
+   -------------------------------------------------------------------------- */
+
+.icon {
+  width: 1rem;      /* 16px default */
+  height: 1rem;
+  flex: none;
+  fill: currentColor;
+}
+
+.icon--sm { width: 0.875rem; height: 0.875rem; } /* 14px, badges/meta */
+.icon--lg { width: 1.25rem;  height: 1.25rem; }  /* 20px, empty states */
+.icon--xl { width: 1.5rem;   height: 1.5rem; }   /* 24px, headers */
+
+/* --------------------------------------------------------------------------
+   3. Product shell
+   -------------------------------------------------------------------------- */
+
+.shell {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 3.1 Global header: logo | nav | search | theme | account. Height 56px. */
+.gheader {
+  position: sticky;
+  top: 0;
+  z-index: var(--evimesh-z-header);
+  height: var(--evimesh-header-h);
+  display: flex;
+  align-items: center;
+  gap: var(--evimesh-space-4);
+  padding: 0 var(--evimesh-container-px);
+  background: var(--evimesh-c-header-bg);
+  border-bottom: var(--evimesh-border-w) solid var(--evimesh-c-header-border);
+}
+
+.gheader__logo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--evimesh-space-2);
+  font-weight: 650;
+  font-size: var(--evimesh-text-md);
+  letter-spacing: var(--evimesh-tracking-tight);
+  color: var(--evimesh-c-header-fg);
+}
+
+.gheader__logo:hover { text-decoration: none; }
+
+.gheader__mark {
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: var(--evimesh-radius-sm);
+  background: var(--evimesh-action-primary);
+  color: var(--evimesh-action-primary-fg);
+  display: grid;
+  place-items: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+/* Primary navigation (max 6 items, task-based). */
+.gnav {
+  display: flex;
+  align-items: center;
+  gap: var(--evimesh-space-1);
+}
+
+.gnav__link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--evimesh-space-2);
+  height: 2rem;
+  padding: 0 var(--evimesh-space-3);
+  border-radius: var(--evimesh-radius-md);
+  color: var(--evimesh-c-header-fg-muted);
+  font-size: var(--evimesh-text-base);
+  font-weight: 500;
+}
+
+.gnav__link:hover {
+  background: var(--evimesh-action-ghost-hover);
+  color: var(--evimesh-c-header-fg);
+  text-decoration: none;
+}
+
+.gnav__link[aria-current="page"] {
+  background: var(--evimesh-surface-selected);
+  color: var(--evimesh-c-header-fg);
+  font-weight: 600;
+}
+
+.gheader__spacer { flex: 1; }
+
+/* Global search box. */
+.gsearch {
+  position: relative;
+  width: 18rem;
+}
+
+.gsearch__icon {
+  position: absolute;
+  left: var(--evimesh-space-3);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--evimesh-fg-subtle);
+  pointer-events: none;
+}
+
+.gsearch__input {
+  width: 100%;
+  height: var(--evimesh-control-h-sm);
+  padding: 0 var(--evimesh-space-3) 0 2.125rem;
+  font: inherit;
+  font-size: var(--evimesh-text-sm);
+  color: var(--evimesh-c-input-fg);
+  background: var(--evimesh-bg);
+  border: var(--evimesh-border-w) solid var(--evimesh-c-input-border);
+  border-radius: var(--evimesh-radius-md);
+}
+
+.gsearch__input::placeholder { color: var(--evimesh-c-input-placeholder); }
+
+.gsearch__kbd {
+  position: absolute;
+  right: var(--evimesh-space-2);
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* Theme toggle and icon buttons. */
+.iconbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: none;
+  border-radius: var(--evimesh-radius-md);
+  background: transparent;
+  color: var(--evimesh-c-header-fg-muted);
+  cursor: pointer;
+}
+
+.iconbtn:hover {
+  background: var(--evimesh-action-ghost-hover);
+  color: var(--evimesh-c-header-fg);
+}
+
+.iconbtn[aria-pressed="true"] {
+  background: var(--evimesh-surface-selected);
+  color: var(--evimesh-c-header-fg);
+}
+
+/* Account chip (avatar + name). */
+.account {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--evimesh-space-2);
+  height: 2rem;
+  padding: 0 var(--evimesh-space-2) 0 var(--evimesh-space-1);
+  border: none;
+  border-radius: var(--evimesh-radius-full);
+  background: transparent;
+  color: var(--evimesh-c-header-fg);
+  font: inherit;
+  font-size: var(--evimesh-text-sm);
+  cursor: pointer;
+}
+
+.account:hover { background: var(--evimesh-action-ghost-hover); }
+
+.avatar {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: var(--evimesh-radius-full);
+  background: var(--evimesh-surface-accent);
+  color: var(--evimesh-status-accent-fg);
+  display: grid;
+  place-items: center;
+  font-size: var(--evimesh-text-xs);
+  font-weight: 650;
+  overflow: hidden;
+}
+
+.avatar--lg { width: 2.5rem; height: 2.5rem; font-size: var(--evimesh-text-base); }
+
+/* Agent avatar: same shape, robot glyph, always distinguishable from humans. */
+.avatar--agent {
+  background: var(--evimesh-surface-muted);
+  color: var(--evimesh-fg-muted);
+}
+
+/* 3.2 Page container. */
+.page {
+  width: 100%;
+  max-width: var(--evimesh-container-max);
+  margin: 0 auto;
+  padding: var(--evimesh-space-6) var(--evimesh-container-px) var(--evimesh-space-16);
+}
+
+.page--wide { max-width: 80rem; }
+
+/* 3.3 Layout with context sidebar. */
+.layout {
+  display: grid;
+  grid-template-columns: var(--evimesh-sidebar-w) minmax(0, 1fr);
+  gap: var(--evimesh-space-8);
+  align-items: start;
+}
+
+.sidebar {
+  position: sticky;
+  top: calc(var(--evimesh-header-h) + var(--evimesh-space-4));
+  border-right: var(--evimesh-border-w) solid var(--evimesh-c-sidebar-border);
+  padding-right: var(--evimesh-space-4);
+}
+
+.navlist {
+  display: flex;
+  flex-direction: column;
+  gap: var(--evimesh-space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.navlist__title {
+  padding: var(--evimesh-space-2) var(--evimesh-space-3);
+  font-size: var(--evimesh-text-xs);
+  font-weight: 600;
+  letter-spacing: var(--evimesh-tracking-wide);
+  text-transform: uppercase;
+  color: var(--evimesh-fg-subtle);
+}
+
+.navlist__link {
+  display: flex;
+  align-items: center;
+  gap: var(--evimesh-space-2);
+  min-height: 2rem;
+  padding: var(--evimesh-space-1) var(--evimesh-space-3);
+  border-radius: var(--evimesh-radius-md);
+  color: var(--evimesh-fg-muted);
+  font-size: var(--evimesh-text-base);
+}
+
+.navlist__link:hover {
+  background: var(--evimesh-c-sidebar-item-hover);
+  color: var(--evimesh-fg);
+  text-decoration: none;
+}
+
+.navlist__link[aria-current="page"] {
+  background: var(--evimesh-c-sidebar-item-active-bg);
+  color: var(--evimesh-c-sidebar-item-active-fg);
+  font-weight: 600;
+}
+
+/* 3.4 Breadcrumbs. */
+.breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--evimesh-space-1);
+  margin-bottom: var(--evimesh-space-3);
+  font-size: var(--evimesh-text-sm);
+  color: var(--evimesh-fg-muted);
+  list-style: none;
+  padding: 0;
+}
+
+.breadcrumb li { display: inline-flex; align-items: center; gap: var(--evimesh-space-1); }
+.breadcrumb a { color: var(--evimesh-fg-muted); }
+.breadcrumb a:hover { color: var(--evimesh-fg-link); text-decoration: none; }
+.breadcrumb [aria-current="page"] { color: var(--evimesh-fg); }
+.breadcrumb .icon { color: var(--evimesh-fg-subtle); }
+
+/* --------------------------------------------------------------------------
+   4. PageHeader / sections
+   -------------------------------------------------------------------------- */
+
+.pageheader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--evimesh-space-4);
+  padding-bottom: var(--evimesh-space-5);
+  margin-bottom: var(--evimesh-space-6);
+  border-bottom: var(--evimesh-border-w) solid var(--evimesh-border-muted);
+}
+
+.pageheader__eyebrow {
+  display: block;
+  margin-bottom: var(--evimesh-space-1);
+  font-size: var(--evimesh-text-xs);
+  font-weight: 600;
+  letter-spacing: var(--evimesh-tracking-wide);
+  text-transform: uppercase;
+  color: var(--evimesh-fg-subtle);
+}
+
+.pageheader__title {
+  font-size: var(--evimesh-text-3xl);
+  font-weight: 650;
+  letter-spacing: var(--evimesh-tracking-tight);
+  line-height: var(--evimesh-lh-tight);
+}
+
+.pageheader__desc {
+  margin-top: var(--evimesh-space-2);
+  max-width: var(--evimesh-prose-max);
+  color: var(--evimesh-fg-muted);
+}
+
+.pageheader__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--evimesh-space-2);
+}
+
+.section { margin-top: var(--evimesh-space-12); }
+
+.sectionhead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--evimesh-space-4);
+  margin-bottom: var(--evimesh-space-4);
+}
+
+.sectionhead__title {
+  font-size: var(--evimesh-text-xl);
+  font-weight: 600;
+  letter-spacing: var(--evimesh-tracking-tight);
+}
+
+.sectionhead__meta {
+  font-size: var(--evimesh-text-sm);
+  color: var(--evimesh-fg-muted);
+}
+
+/* --------------------------------------------------------------------------
+   5. Buttons
+   -------------------------------------------------------------------------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--evimesh-space-2);
+  height: var(--evimesh-control-h-md);
+  padding: 0 var(--evimesh-space-4);
+  border: var(--evimesh-border-w) solid transparent;
+  border-radius: var(--evimesh-radius-md);
+  font: inherit;
+  font-size: var(--evimesh-text-base);
+  font-weight: 550;
+  line-height: 1;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+  transition: background-color var(--evimesh-dur-fast) var(--evimesh-ease-standard),
+              border-color var(--evimesh-dur-fast) var(--evimesh-ease-standard),
+              color var(--evimesh-dur-fast) var(--evimesh-ease-standard);
+}
+
+.btn:hover { text-decoration: none; }
+
+.btn:active { transform: translateY(1px); }
+
+.btn:disabled,
+.btn[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
+}
+
+/* Variants */
+.btn--primary {
+  background: var(--evimesh-action-primary);
+  color: var(--evimesh-action-primary-fg);
+}
+.btn--primary:hover:not(:disabled) { background: var(--evimesh-action-primary-hover); }
+
+.btn--secondary {
+  background: var(--evimesh-action-secondary);
+  color: var(--evimesh-action-secondary-fg);
+}
+.btn--secondary:hover:not(:disabled) { background: var(--evimesh-action-secondary-hover); }
+
+.btn--outline {
+  background: var(--evimesh-action-outline);
+  border-color: var(--evimesh-border-strong);
+  color: var(--evimesh-fg);
+}
+.btn--outline:hover:not(:disabled) { background: var(--evimesh-action-outline-hover); }
+
+.btn--ghost {
+  background: transparent;
+  color: var(--evimesh-fg-muted);
+}
+.btn--ghost:hover:not(:disabled) {
+  background: var(--evimesh-action-ghost-hover);
+  color: var(--evimesh-fg);
+}
+
+.btn--destructive {
+  background: var(--evimesh-action-destructive);
+  color: var(--evimesh-action-destructive-fg);
+}
+.btn--destructive:hover:not(:disabled) { background: var(--evimesh-action-destructive-hover); }
+
+.btn--link {
+  height: auto;
+  padding: 0;
+  background: transparent;
+  color: var(--evimesh-fg-link);
+  font-weight: 500;
+}
+.btn--link:hover:not(:disabled) { text-decoration: underline; }
+
+/* Sizes */
+.btn--sm {
+  height: var(--evimesh-control-h-sm);
+  padding: 0 var(--evimesh-space-3);
+  font-size: var(--evimesh-text-sm);
+  border-radius: var(--evimesh-radius-sm);
+}
+
+.btn--lg {
+  height: var(--evimesh-control-h-lg);
+  padding: 0 var(--evimesh-space-5);
+  font-size: var(--evimesh-text-md);
+}
+
+/* Loading state: swap label for spinner, keep width stable via data attr. */
+.btn__spinner {
+  width: 1em;
+  height: 1em;
+  border-radius: var(--evimesh-radius-full);
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  animation: btn-spin 0.7s linear infinite;
+}
+
+@keyframes btn-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* --------------------------------------------------------------------------
+   6. Badges (protocol status, dual tier)
+   -------------------------------------------------------------------------- */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--evimesh-space-1);
+  height: 1.375rem;               /* 22px */
+  padding: 0 var(--evimesh-space-2);
+  border-radius: var(--evimesh-c-badge-radius);
+  border: var(--evimesh-border-w) solid transparent;
+  font-size: var(--evimesh-text-xs);
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.badge .icon { width: 0.75rem; height: 0.75rem; }
+
+/* Muted tier (default): semantic bg + semantic fg. */
+.badge--neutral { background: var(--evimesh-status-neutral-bg); color: var(--evimesh-status-neutral-fg); border-color: var(--evimesh-status-neutral-border); }
+.badge--accent  { background: var(--evimesh-status-accent-bg);  color: var(--evimesh-status-accent-fg);  border-color: var(--evimesh-status-accent-border); }
+.badge--success { background: var(--evimesh-status-success-bg); color: var(--evimesh-status-success-fg); border-color: var(--evimesh-status-success-border); }
+.badge--warning { background: var(--evimesh-status-warning-bg); color: var(--evimesh-status-warning-fg); border-color: var(--evimesh-status-warning-border); }
+.badge--danger  { background: var(--evimesh-status-danger-bg);  color: var(--evimesh-status-danger-fg);  border-color: var(--evimesh-status-danger-border); }
+.badge--info    { background: var(--evimesh-status-info-bg);    color: var(--evimesh-status-info-fg);    border-color: var(--evimesh-status-info-border); }
+
+/* Emphasis tier: solid, reserved for the single most consequential state
+   per view (e.g. refuted on a claim list). */
+.badge--emphasis-success { background: var(--evimesh-emphasis-success); color: var(--evimesh-fg-onEmphasis); }
+.badge--emphasis-warning { background: var(--evimesh-emphasis-warning); color: var(--evimesh-fg-onEmphasis); }
+.badge--emphasis-danger  { background: var(--evimesh-emphasis-danger);  color: var(--evimesh-fg-onEmphasis); }
+.badge--emphasis-info    { background: var(--evimesh-emphasis-info);    color: var(--evimesh-fg-onEmphasis); }
+.badge--emphasis-neutral { background: var(--evimesh-emphasis-neutral); color: var(--evimesh-fg-onEmphasis); }
+
+/* Outline tier: quiet, for dense tables. */
+.badge--outline {
+  background: transparent;
+  border-color: var(--evimesh-border-strong);
+  color: var(--evimesh-fg-muted);
+}
+
+/* --------------------------------------------------------------------------
+   7. Cards
+   -------------------------------------------------------------------------- */
+
+.card {
+  background: var(--evimesh-c-card-bg);
+  border: var(--evimesh-border-w) solid var(--evimesh-c-card-border);
+  border-radius: var(--evimesh-c-card-radius);
+}
+
+.card--flat { border-radius: 0; border-left: 0; border-right: 0; }
+
+.card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--evimesh-space-4);
+  padding: var(--evimesh-space-5);
+  border-bottom: var(--evimesh-border-w) solid var(--evimesh-border-muted);
+}
+
+.card__title {
+  font-size: var(--evimesh-text-lg);
+  font-weight: 600;
+  letter-spacing: var(--evimesh-tracking-tight);
+}
+
+.card__body { padding: var(--evimesh-space-5); }
+
+.card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--evimesh-space-4);
+  padding: var(--evimesh-space-4) var(--evimesh-space-5);
+  border-top: var(--evimesh-border-w) solid var(--evimesh-border-muted);
+}
+
+.card-grid {
+  display: grid;
+  gap: var(--evimesh-space-4);
+}
+
+.card-grid--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.card-grid--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+/* --------------------------------------------------------------------------
+   8. Metadata row
+   -------------------------------------------------------------------------- */
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--evimesh-space-2) var(--evimesh-space-4);
+  font-size: var(--evimesh-text-sm);
+  color: var(--evimesh-fg-muted);
+}
+
+.meta__item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--evimesh-space-1);
+  white-space: nowrap;
+}
+
+.meta__item .icon { color: var(--evimesh-fg-subtle); }
+
+.meta__sep {
+  width: 1px;
+  height: 0.875rem;
+  background: var(--evimesh-border-muted);
+}
+
+/* Definition list used in technical details / receipt cards. */
+.deflist {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--evimesh-space-2) var(--evimesh-space-5);
+  margin: 0;
+  font-size: var(--evimesh-text-sm);
+}
+
+.deflist dt {
+  color: var(--evimesh-fg-muted);
+  font-weight: 500;
+}
+
+.deflist dd {
+  margin: 0;
+  color: var(--evimesh-fg);
+  overflow-wrap: anywhere;
+}
+
+/* --------------------------------------------------------------------------
+   9. Forms
+   -------------------------------------------------------------------------- */
+
+.field { display: flex; flex-direction: column; gap: var(--evimesh-space-2); }
+
+.field__label {
+  font-size: var(--evimesh-text-base);
+  font-weight: 550;
+  color: var(--evimesh-fg);
+}
+
+.field__help {
+  font-size: var(--evimesh-text-sm);
+  color: var(--evimesh-fg-muted);
+}
+
+.field__error {
+  display: flex;
+  align-items: center;
+  gap: var(--evimesh-space-1);
+  font-size: var(--evimesh-text-sm);
+  color: var(--evimesh-status-danger-fg);
+}
+
+.input,
+.textarea,
+.select {
+  width: 100%;
+  min-height: var(--evimesh-control-h-md);
+  padding: var(--evimesh-space-2) var(--evimesh-space-3);
+  font: inherit;
+  font-size: var(--evimesh-text-base);
+  color: var(--evimesh-c-input-fg);
+  background: var(--evimesh-c-input-bg);
+  border: var(--evimesh-border-w) solid var(--evimesh-c-input-border);
+  border-radius: var(--evimesh-radius-md);
+}
+
+.textarea { min-height: 6rem; resize: vertical; line-height: var(--evimesh-lh-normal); }
+
+.input::placeholder,
+.textarea::placeholder { color: var(--evimesh-c-input-placeholder); }
+
+.input:hover,
+.textarea:hover,
+.select:hover { border-color: var(--evimesh-fg-subtle); }
+
+.input[aria-invalid="true"],
+.textarea[aria-invalid="true"],
+.select[aria-invalid="true"] {
+  border-color: var(--evimesh-c-input-error-border);
+  border-width: var(--evimesh-focus-w);
+}
+
+.input:disabled,
+.textarea:disabled,
+.select:disabled {
+  background: var(--evimesh-surface-muted);
+  color: var(--evimesh-fg-muted);
+  cursor: not-allowed;
+}
+
+.select {
+  appearance: none;
+  padding-right: var(--evimesh-space-8);
+  /* Chevron color = neutral-500 (light). Dark variant overridden below
+     because data-URIs cannot reference CSS variables. */
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cpath fill='%23737B85' d='M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,53.66,90.34L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--evimesh-space-3) center;
+  background-size: 0.875rem;
+}
+
+/* Dark-theme chevron = neutral-400. Keep both blocks in sync. */
+[data-theme="dark"] .select {
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cpath fill='%239FA5AD' d='M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,53.66,90.34L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z'/%3E%3C/svg%3E");
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .select {
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cpath fill='%239FA5AD' d='M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,53.66,90.34L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z'/%3E%3C/svg%3E");
+  }
+}
+
+/* Checkbox / radio: native elements, token-colored accent. */
+.check {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--evimesh-space-2);
+  font-size: var(--evimesh-text-base);
+}
+
+.check input {
+  width: 1rem;
+  height: 1rem;
+  margin: 0.2em 0 0;
+  accent-color: var(--evimesh-action-primary);
+}
+
+/* Switch (role="switch"). */
+.switch {
+  position: relative;
+  width: 2.25rem;
+  height: 1.25rem;
+  border: var(--evimesh-border-w) solid var(--evimesh-border-strong);
+  border-radius: var(--evimesh-radius-full);
+  background: var(--evimesh-surface-muted);
+  cursor: pointer;
+  padding: 0;
+}
+
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 1rem;
+  height: 1rem;
+  border-radius: var(--evimesh-radius-full);
+  background: var(--evimesh-bg-raised);
+  border: var(--evimesh-border-w) solid var(--evimesh-border-strong);
+  transition: transform var(--evimesh-dur-base) var(--evimesh-ease-standard);
+}
+
+.switch[aria-checked="true"] {
+  background: var(--evimesh-action-primary);
+  border-color: var(--evimesh-action-primary);
+}
+
+.switch[aria-checked="true"]::after { transform: translateX(1rem); }
+
+/* --------------------------------------------------------------------------
+   10. Feedback: Alert / Empty / ErrorState / Skeleton
+   -------------------------------------------------------------------------- */
+
+.alert {
+  display: flex;
+  gap: var(--evimesh-space-3);
+  padding: var(--evimesh-space-4);
+  border: var(--evimesh-border-w) solid;
+  border-radius: var(--evimesh-radius-lg);
+  font-size: var(--evimesh-text-base);
+}
+
+.alert .icon { margin-top: 0.125rem; }
+
+.alert--info {
+  background: var(--evimesh-status-info-bg);
+  border-color: var(--evimesh-status-info-border);
+  color: var(--evimesh-status-info-fg);
+}
+
+.alert--success {
+  background: var(--evimesh-status-success-bg);
+  border-color: var(--evimesh-status-success-border);
+  color: var(--evimesh-status-success-fg);
+}
+
+.alert--warning {
+  background: var(--evimesh-status-warning-bg);
+  border-color: var(--evimesh-status-warning-border);
+  color: var(--evimesh-status-warning-fg);
+}
+
+.alert--danger {
+  background: var(--evimesh-status-danger-bg);
+  border-color: var(--evimesh-status-danger-border);
+  color: var(--evimesh-status-danger-fg);
+}
+
+.alert__title { font-weight: 600; margin-bottom: var(--evimesh-space-1); }
+
+/* Empty and error states share one layout. */
+.blank {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--evimesh-space-3);
+  padding: var(--evimesh-space-12) var(--evimesh-space-6);
+  border: var(--evimesh-border-w) dashed var(--evimesh-border-strong);
+  border-radius: var(--evimesh-radius-lg);
+}
+
+.blank__icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  display: grid;
+  place-items: center;
+  border-radius: var(--evimesh-radius-full);
+  background: var(--evimesh-surface-muted);
+  color: var(--evimesh-fg-muted);
+}
+
+.blank__title { font-size: var(--evimesh-text-lg); font-weight: 600; }
+
+.blank__desc {
+  max-width: 42ch;
+  color: var(--evimesh-fg-muted);
+}
+
+.blank__actions {
+  display: flex;
+  gap: var(--evimesh-space-2);
+  margin-top: var(--evimesh-space-2);
+}
+
+/* ErrorState shows a request id for traceability. */
+.blank--error { border-style: solid; border-color: var(--evimesh-status-danger-border); }
+.blank--error .blank__icon { background: var(--evimesh-status-danger-bg); color: var(--evimesh-status-danger-fg); }
+
+.blank__request-id {
+  font-family: var(--evimesh-font-mono);
+  font-size: var(--evimesh-text-xs);
+  color: var(--evimesh-fg-subtle);
+}
+
+/* Skeleton. */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--evimesh-c-skeleton);
+  border-radius: var(--evimesh-radius-sm);
+}
+
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, var(--evimesh-bg-raised), transparent);
+  opacity: 0.4;
+  animation: skeleton-shimmer 1.4s var(--evimesh-ease-standard) infinite;
+}
+
+@keyframes skeleton-shimmer {
+  to { transform: translateX(100%); }
+}
+
+.skeleton--text  { height: 0.875rem; }
+.skeleton--title { height: 1.375rem; width: 60%; }
+.skeleton--badge { height: 1.375rem; width: 5rem; border-radius: var(--evimesh-radius-full); }
+.skeleton--avatar { width: 1.5rem; height: 1.5rem; border-radius: var(--evimesh-radius-full); }
+.skeleton--row { height: 3rem; border-radius: var(--evimesh-radius-md); }
+
+/* --------------------------------------------------------------------------
+   11. Tables
+   -------------------------------------------------------------------------- */
+
+.tablewrap {
+  border: var(--evimesh-border-w) solid var(--evimesh-border);
+  border-radius: var(--evimesh-radius-lg);
+  overflow-x: auto;
+  background: var(--evimesh-c-card-bg);
+}
+
+.table {
+  width: 100%;
+  font-size: var(--evimesh-text-sm);
+}
+
+.table th {
+  text-align: left;
+  padding: var(--evimesh-space-3) var(--evimesh-space-4);
+  font-size: var(--evimesh-text-xs);
+  font-weight: 600;
+  letter-spacing: var(--evimesh-tracking-wide);
+  text-transform: uppercase;
+  color: var(--evimesh-c-table-header-fg);
+  border-bottom: var(--evimesh-border-w) solid var(--evimesh-border);
+  white-space: nowrap;
+}
+
+.table td {
+  padding: var(--evimesh-space-3) var(--evimesh-space-4);
+  border-bottom: var(--evimesh-border-w) solid var(--evimesh-c-table-border);
+  vertical-align: top;
+}
+
+.table tbody tr:last-child td { border-bottom: 0; }
+
+.table tbody tr:hover { background: var(--evimesh-c-table-row-hover); }
+
+.table .u-tabular { white-space: nowrap; }
+
+/* --------------------------------------------------------------------------
+   12. kbd
+   -------------------------------------------------------------------------- */
+
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  min-width: 1.375rem;
+  height: 1.375rem;
+  padding: 0 var(--evimesh-space-2);
+  justify-content: center;
+  font-family: var(--evimesh-font-mono);
+  font-size: var(--evimesh-text-xs);
+  color: var(--evimesh-c-kbd-fg);
+  background: var(--evimesh-c-kbd-bg);
+  border: var(--evimesh-border-w) solid var(--evimesh-c-kbd-border);
+  border-bottom-width: 2px;
+  border-radius: var(--evimesh-radius-sm);
+}
+
+/* --------------------------------------------------------------------------
+   13. Long-form research reading (.prose-research, serif mode)
+   -------------------------------------------------------------------------- */
+
+.prose-research {
+  font-family: var(--evimesh-font-serif);
+  font-size: var(--evimesh-text-md);
+  line-height: var(--evimesh-lh-relaxed);
+  max-width: var(--evimesh-prose-max);
+  color: var(--evimesh-fg);
+}
+
+.prose-research > * + * { margin-top: var(--evimesh-space-4); }
+
+.prose-research h2,
+.prose-research h3 {
+  font-family: var(--evimesh-font-sans); /* headings stay sans: UI hierarchy */
+  letter-spacing: var(--evimesh-tracking-tight);
+  margin-top: var(--evimesh-space-8);
+}
+
+.prose-research h2 { font-size: var(--evimesh-text-xl); font-weight: 600; }
+.prose-research h3 { font-size: var(--evimesh-text-lg); font-weight: 600; }
+
+.prose-research blockquote {
+  margin: var(--evimesh-space-5) 0;
+  padding-left: var(--evimesh-space-4);
+  border-left: 2px solid var(--evimesh-border-strong);
+  color: var(--evimesh-fg-muted);
+}
+
+.prose-research code {
+  font-size: 0.875em;
+  padding: 0.1em 0.35em;
+  background: var(--evimesh-c-code-bg);
+  border-radius: var(--evimesh-radius-sm);
+}
+
+.prose-research a { text-decoration: underline; text-underline-offset: 2px; }
+
+/* Claim statement rendering: serif, slightly larger, no decoration. */
+.claim-statement {
+  font-family: var(--evimesh-font-serif);
+  font-size: var(--evimesh-text-lg);
+  line-height: var(--evimesh-lh-relaxed);
+  max-width: var(--evimesh-prose-max);
+}
+
+/* --------------------------------------------------------------------------
+   14. DAG (schematic SVG styles)
+   Edge encoding = color family + line style + labeled relation. Color is
+   never the only carrier: every edge also carries a readable label or a
+   legend entry.
+   Families:
+     positive   supports / reproduces / verifies        solid
+     negative   refutes / contradicts / challenges      solid, thicker
+     qualify    qualifies                               dashed
+     structural depends_on / uses_method / uses_dataset / implements  dotted
+     lineage    extends / supersedes / derived_from     dash-dot
+   -------------------------------------------------------------------------- */
+
+.dag {
+  border: var(--evimesh-border-w) solid var(--evimesh-border);
+  border-radius: var(--evimesh-radius-lg);
+  background: var(--evimesh-bg-raised);
+  overflow-x: auto;
+}
+
+.dag svg { display: block; margin: 0 auto; }
+
+.dag__node rect,
+.dag__node .dag__node-box {
+  fill: var(--evimesh-c-dag-node-bg);
+  stroke: var(--evimesh-c-dag-node-border);
+  stroke-width: 1;
+}
+
+.dag__node text {
+  fill: var(--evimesh-fg);
+  font-family: var(--evimesh-font-sans);
+  font-size: 11px;
+}
+
+.dag__node .dag__node-sub {
+  fill: var(--evimesh-fg-muted);
+  font-family: var(--evimesh-font-mono);
+  font-size: 9px;
+}
+
+.dag__node--selected rect { stroke: var(--evimesh-border-focus); stroke-width: 2; }
+.dag__node--contested rect { stroke: var(--evimesh-status-warning-fg); }
+.dag__node--refuted rect { stroke: var(--evimesh-status-danger-fg); }
+
+.dag__edge { fill: none; stroke-width: 1.5; }
+.dag__edge--positive   { stroke: var(--evimesh-c-dag-edge-positive); }
+.dag__edge--negative   { stroke: var(--evimesh-c-dag-edge-negative); stroke-width: 2; }
+.dag__edge--qualify    { stroke: var(--evimesh-c-dag-edge-qualify); stroke-dasharray: 6 4; }
+.dag__edge--structural { stroke: var(--evimesh-c-dag-edge-structural); stroke-dasharray: 2 3; }
+.dag__edge--lineage    { stroke: var(--evimesh-c-dag-edge-lineage); stroke-dasharray: 10 3 2 3; }
+
+/* Arrowheads are explicit paths (not markers) so they inherit family color. */
+.dag__arrow--positive   { fill: var(--evimesh-c-dag-edge-positive); }
+.dag__arrow--negative   { fill: var(--evimesh-c-dag-edge-negative); }
+.dag__arrow--qualify    { fill: var(--evimesh-c-dag-edge-qualify); }
+.dag__arrow--structural { fill: var(--evimesh-c-dag-edge-structural); }
+.dag__arrow--lineage    { fill: var(--evimesh-c-dag-edge-lineage); }
+
+.dag__edge-label {
+  font-family: var(--evimesh-font-mono);
+  font-size: 9px;
+  fill: var(--evimesh-fg-muted);
+}
+
+.dag-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--evimesh-space-2) var(--evimesh-space-5);
+  padding: var(--evimesh-space-3) var(--evimesh-space-4);
+  border-top: var(--evimesh-border-w) solid var(--evimesh-border-muted);
+  font-size: var(--evimesh-text-xs);
+  color: var(--evimesh-fg-muted);
+}
+
+.dag-legend__item { display: inline-flex; align-items: center; gap: var(--evimesh-space-2); }
+
+.dag-legend__line { width: 2rem; height: 0; border-top: 2px solid currentColor; }
+.dag-legend__line--positive { color: var(--evimesh-c-dag-edge-positive); }
+.dag-legend__line--negative { color: var(--evimesh-c-dag-edge-negative); }
+.dag-legend__line--qualify { color: var(--evimesh-c-dag-edge-qualify); border-top-style: dashed; }
+.dag-legend__line--structural { color: var(--evimesh-c-dag-edge-structural); border-top-style: dotted; }
+.dag-legend__line--lineage { color: var(--evimesh-c-dag-edge-lineage); border-top-style: dashed; }
+
+/* --------------------------------------------------------------------------
+   15. Contribution role bar and timeline
+   -------------------------------------------------------------------------- */
+
+/* Role distribution: compact counts-only bar. Counts, never scores. */
+.rolebar {
+  display: flex;
+  height: 0.5rem;
+  border-radius: var(--evimesh-radius-full);
+  overflow: hidden;
+  background: var(--evimesh-surface-muted);
+}
+
+.rolebar__seg { height: 100%; }
+.rolebar__seg--originator  { background: var(--evimesh-p-series-1); }
+.rolebar__seg--contributor { background: var(--evimesh-p-series-3); }
+.rolebar__seg--reviewer    { background: var(--evimesh-p-series-6); }
+.rolebar__seg--verifier    { background: var(--evimesh-p-series-5); }
+.rolebar__seg--witness     { background: var(--evimesh-p-series-7); }
+.rolebar__seg--maintainer  { background: var(--evimesh-p-series-2); }
+
+/* Event timeline. */
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.timeline__item {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr);
+  gap: var(--evimesh-space-3);
+  padding: var(--evimesh-space-3) 0;
+  border-bottom: var(--evimesh-border-w) solid var(--evimesh-border-muted);
+}
+
+.timeline__item:last-child { border-bottom: 0; }
+
+.timeline__icon {
+  width: 2rem;
+  height: 2rem;
+  display: grid;
+  place-items: center;
+  border-radius: var(--evimesh-radius-full);
+  background: var(--evimesh-surface-muted);
+  color: var(--evimesh-fg-muted);
+}
+
+.timeline__body { min-width: 0; }
+.timeline__meta { margin-top: var(--evimesh-space-1); }
+
+/* --------------------------------------------------------------------------
+   16. Responsive
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 767px) {
+  .gnav { display: none; }         /* replaced by mobile menu in real app */
+  .gsearch { width: 10rem; }
+  .layout { grid-template-columns: 1fr; }
+  .sidebar {
+    position: static;
+    border-right: 0;
+    border-bottom: var(--evimesh-border-w) solid var(--evimesh-c-sidebar-border);
+    padding-right: 0;
+    padding-bottom: var(--evimesh-space-4);
+  }
+  .card-grid--2,
+  .card-grid--3 { grid-template-columns: 1fr; }
+  .pageheader { flex-direction: column; }
+}
+
+@media (max-width: 389px) {
+  :root { --evimesh-container-px: 1rem; }
+  .gsearch { display: none; }
+}
+
+/* --------------------------------------------------------------------------
+   17. Shared additions for product pages (design book M13.8)
+   -------------------------------------------------------------------------- */
+
+/* 17.1 Skip link (first focusable element on every page). */
+.skip-link {
+  position: absolute;
+  left: var(--evimesh-space-4);
+  top: calc(-1 * var(--evimesh-space-16));
+  z-index: var(--evimesh-z-toast);
+  padding: var(--evimesh-space-2) var(--evimesh-space-4);
+  background: var(--evimesh-bg-raised);
+  border: var(--evimesh-border-w) solid var(--evimesh-border-strong);
+  border-radius: var(--evimesh-radius-md);
+  color: var(--evimesh-fg);
+  font-size: var(--evimesh-text-sm);
+  transition: top var(--evimesh-dur-base) var(--evimesh-ease-standard);
+}
+
+.skip-link:focus { top: var(--evimesh-space-4); text-decoration: none; }
+
+/* 17.2 Demo-fixture notice (M13.7: demo data must be labeled, never faked). */
+.demo-notice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--evimesh-space-2);
+  padding: var(--evimesh-space-2) var(--evimesh-container-px);
+  font-size: var(--evimesh-text-xs);
+  color: var(--evimesh-fg-muted);
+  background: var(--evimesh-bg-inset);
+  border-bottom: var(--evimesh-border-w) solid var(--evimesh-border-muted);
+}
+
+/* 17.3 Stable-id chip: mono value + copy affordance, never a bare hash wall. */
+.idchip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--evimesh-space-1);
+  max-width: 100%;
+  padding: 0 var(--evimesh-space-1) 0 var(--evimesh-space-2);
+  background: var(--evimesh-bg-inset);
+  border: var(--evimesh-border-w) solid var(--evimesh-border-muted);
+  border-radius: var(--evimesh-radius-sm);
+  font-family: var(--evimesh-font-mono);
+  font-size: var(--evimesh-text-xs);
+  color: var(--evimesh-fg-muted);
+  white-space: nowrap;
+}
+
+.idchip__value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.idchip__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.375rem;
+  height: 1.375rem;
+  border: none;
+  border-radius: var(--evimesh-radius-sm);
+  background: transparent;
+  color: var(--evimesh-fg-subtle);
+  cursor: pointer;
+}
+
+.idchip__btn:hover { background: var(--evimesh-surface-muted); color: var(--evimesh-fg); }
+.idchip__btn:focus-visible { outline: var(--evimesh-focus-w) solid var(--evimesh-focus); outline-offset: 1px; }
+
+/* 17.4 Attribution chain: who produced this (human, or human's agent). */
+.attr {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--evimesh-space-2);
+  min-width: 0;
+  font-size: var(--evimesh-text-sm);
+  color: var(--evimesh-fg-muted);
+}
+
+.attr__owner { color: var(--evimesh-fg); font-weight: 550; }
+
+/* "by X's agent Y" secondary chain segment. */
+.attr__via {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--evimesh-space-1);
+  padding: 0 var(--evimesh-space-2);
+  height: 1.25rem;
+  border-radius: var(--evimesh-radius-full);
+  background: var(--evimesh-surface-muted);
+  border: var(--evimesh-border-w) solid var(--evimesh-border-muted);
+  font-size: var(--evimesh-text-xs);
+  white-space: nowrap;
+}
+
+.attr__via .icon { width: 0.75rem; height: 0.75rem; }
+
+/* 17.5 Change item: one watchlist change, level first, explain after. */
+.changeitem {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--evimesh-space-3);
+  align-items: start;
+  padding: var(--evimesh-space-4) var(--evimesh-space-5);
+  border-bottom: var(--evimesh-border-w) solid var(--evimesh-border-muted);
+}
+
+.changeitem:last-child { border-bottom: 0; }
+
+.changeitem__icon {
+  width: 2rem;
+  height: 2rem;
+  display: grid;
+  place-items: center;
+  border-radius: var(--evimesh-radius-full);
+  background: var(--evimesh-surface-muted);
+  color: var(--evimesh-fg-muted);
+  flex: none;
+}
+
+.changeitem--critical .changeitem__icon { background: var(--evimesh-status-danger-bg); color: var(--evimesh-status-danger-fg); }
+.changeitem--attention .changeitem__icon { background: var(--evimesh-status-warning-bg); color: var(--evimesh-status-warning-fg); }
+.changeitem--update .changeitem__icon { background: var(--evimesh-status-info-bg); color: var(--evimesh-status-info-fg); }
+.changeitem--quiet .changeitem__icon { background: var(--evimesh-surface-muted); color: var(--evimesh-fg-subtle); }
+
+.changeitem__what { font-weight: 550; }
+.changeitem__why { margin-top: 2px; color: var(--evimesh-fg-muted); font-size: var(--evimesh-text-sm); }
+.changeitem__basis { margin-top: var(--evimesh-space-2); display: flex; flex-wrap: wrap; align-items: center; gap: var(--evimesh-space-2); }
+.changeitem__time { font-size: var(--evimesh-text-xs); color: var(--evimesh-fg-subtle); white-space: nowrap; }
+
+/* 17.6 Connection stepper (Agent Center). */
+.stepper { list-style: none; margin: 0; padding: 0; }
+
+.stepper__item {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr);
+  gap: var(--evimesh-space-4);
+  position: relative;
+  padding-bottom: var(--evimesh-space-6);
+}
+
+.stepper__item:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  left: 0.9375rem;
+  top: 2rem;
+  bottom: 0;
+  width: 1px;
+  background: var(--evimesh-border-strong);
+}
+
+.stepper__num {
+  width: 2rem;
+  height: 2rem;
+  display: grid;
+  place-items: center;
+  border-radius: var(--evimesh-radius-full);
+  background: var(--evimesh-surface-muted);
+  border: var(--evimesh-border-w) solid var(--evimesh-border-strong);
+  color: var(--evimesh-fg-muted);
+  font-family: var(--evimesh-font-mono);
+  font-size: var(--evimesh-text-xs);
+}
+
+.stepper__item--done .stepper__num {
+  background: var(--evimesh-status-success-bg);
+  border-color: var(--evimesh-status-success-border);
+  color: var(--evimesh-status-success-fg);
+}
+
+.stepper__item--current .stepper__num {
+  background: var(--evimesh-action-primary);
+  border-color: var(--evimesh-action-primary);
+  color: var(--evimesh-action-primary-fg);
+}
+
+.stepper__title { font-weight: 600; }
+.stepper__desc { margin-top: 2px; color: var(--evimesh-fg-muted); font-size: var(--evimesh-text-sm); }
+.stepper__panel { margin-top: var(--evimesh-space-3); }
+
+/* 17.7 Overlay dialog + scrim (handoff sheet, command palette). */
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--evimesh-z-modal);
+  display: grid;
+  place-items: start center;
+  padding: var(--evimesh-space-16) var(--evimesh-space-4);
+  background: color-mix(in srgb, var(--evimesh-bg-overlay) 55%, transparent);
+  overflow-y: auto;
+}
+
+.dialog {
+  width: 100%;
+  max-width: 40rem;
+  background: var(--evimesh-bg-raised);
+  border: var(--evimesh-border-w) solid var(--evimesh-border);
+  border-radius: var(--evimesh-radius-lg);
+  box-shadow: var(--evimesh-shadow-overlay);
+}
+
+.dialog--wide { max-width: 36rem; }
+.dialog__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--evimesh-space-4);
+  padding: var(--evimesh-space-5);
+  border-bottom: var(--evimesh-border-w) solid var(--evimesh-border-muted);
+}
+
+.dialog__title { font-size: var(--evimesh-text-lg); font-weight: 600; }
+.dialog__body { padding: var(--evimesh-space-5); display: grid; gap: var(--evimesh-space-5); }
+.dialog__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--evimesh-space-2);
+  padding: var(--evimesh-space-4) var(--evimesh-space-5);
+  border-top: var(--evimesh-border-w) solid var(--evimesh-border-muted);
+}
+
+/* 17.8 Command palette. */
+.cmdk__input {
+  width: 100%;
+  padding: var(--evimesh-space-4) var(--evimesh-space-5);
+  font: inherit;
+  font-size: var(--evimesh-text-md);
+  color: var(--evimesh-fg);
+  background: transparent;
+  border: none;
+  border-bottom: var(--evimesh-border-w) solid var(--evimesh-border-muted);
+}
+
+.cmdk__input:focus { outline: none; }
+.cmdk__list { list-style: none; margin: 0; padding: var(--evimesh-space-2); max-height: 22rem; overflow-y: auto; }
+.cmdk__group-title {
+  padding: var(--evimesh-space-2) var(--evimesh-space-3) var(--evimesh-space-1);
+  font-size: var(--evimesh-text-xs);
+  font-weight: 600;
+  letter-spacing: var(--evimesh-tracking-wide);
+  text-transform: uppercase;
+  color: var(--evimesh-fg-subtle);
+}
+
+.cmdk__item {
+  display: flex;
+  align-items: center;
+  gap: var(--evimesh-space-3);
+  padding: var(--evimesh-space-2) var(--evimesh-space-3);
+  border-radius: var(--evimesh-radius-md);
+  color: var(--evimesh-fg);
+  cursor: pointer;
+}
+
+.cmdk__item:hover, .cmdk__item[aria-selected="true"] {
+  background: var(--evimesh-surface-selected);
+  text-decoration: none;
+}
+
+.cmdk__item .icon { color: var(--evimesh-fg-muted); }
+.cmdk__item-kbd { margin-left: auto; display: inline-flex; gap: var(--evimesh-space-1); }
+
+/* 17.9 Page footer. */
+.pfooter {
+  margin-top: auto;
+  padding: var(--evimesh-space-6) var(--evimesh-container-px);
+  border-top: var(--evimesh-border-w) solid var(--evimesh-border-muted);
+  font-size: var(--evimesh-text-xs);
+  color: var(--evimesh-fg-subtle);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--evimesh-space-2) var(--evimesh-space-5);
+  justify-content: space-between;
+}
+
+.pfooter a { color: var(--evimesh-fg-muted); }
+
+/* 17.10 Tabs (URL-addressable views, aria pattern). */
+.tabs {
+  display: flex;
+  gap: var(--evimesh-space-1);
+  border-bottom: var(--evimesh-border-w) solid var(--evimesh-border);
+  overflow-x: auto;
+}
+
+.tabs__tab {
+  appearance: none;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  padding: var(--evimesh-space-2) var(--evimesh-space-3);
+  font: inherit;
+  font-size: var(--evimesh-text-sm);
+  font-weight: 500;
+  color: var(--evimesh-fg-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tabs__tab:hover { color: var(--evimesh-fg); }
+
+.tabs__tab[aria-selected="true"] {
+  color: var(--evimesh-fg);
+  font-weight: 600;
+  border-bottom-color: var(--evimesh-action-primary);
+}
+
+.tabs__tab .badge { margin-left: var(--evimesh-space-2); }
+
+/* 17.11 Generic row list (watchlist entries, search results). */
+.rowlist { display: flex; flex-direction: column; }
+.rowlist__item {
+  display: grid;
+  gap: var(--evimesh-space-2);
+  padding: var(--evimesh-space-4) var(--evimesh-space-5);
+  border-bottom: var(--evimesh-border-w) solid var(--evimesh-border-muted);
+}
+.rowlist__item:last-child { border-bottom: 0; }
+.rowlist__item:hover { background: var(--evimesh-c-table-row-hover); }
+
+/* 17.12 Code block (config snippets, CLI suggestions). */
+.codeblock {
+  margin: 0;
+  padding: var(--evimesh-space-4);
+  background: var(--evimesh-bg-inset);
+  border: var(--evimesh-border-w) solid var(--evimesh-border-muted);
+  border-radius: var(--evimesh-radius-md);
+  font-family: var(--evimesh-font-mono);
+  font-size: var(--evimesh-text-xs);
+  line-height: var(--evimesh-lh-snug);
+  overflow-x: auto;
+  color: var(--evimesh-fg);
+  white-space: pre;
+}
+
+.codeblock__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--evimesh-space-2);
+  padding: var(--evimesh-space-2) var(--evimesh-space-3);
+  border: var(--evimesh-border-w) solid var(--evimesh-border-muted);
+  border-bottom: 0;
+  border-radius: var(--evimesh-radius-md) var(--evimesh-radius-md) 0 0;
+  background: var(--evimesh-surface-muted);
+  font-family: var(--evimesh-font-mono);
+  font-size: var(--evimesh-text-xs);
+  color: var(--evimesh-fg-muted);
+}
+
+.codeblock__bar + .codeblock { border-radius: 0 0 var(--evimesh-radius-md) var(--evimesh-radius-md); }
+
+/* 17.13 Definition group headings inside cards. */
+.kicker {
+  font-size: var(--evimesh-text-xs);
+  font-weight: 600;
+  letter-spacing: var(--evimesh-tracking-wide);
+  text-transform: uppercase;
+  color: var(--evimesh-fg-subtle);
+  margin-bottom: var(--evimesh-space-2);
+}
+
+/* 17.14 Diff (revision field-level changes). */
+.diff { font-family: var(--evimesh-font-mono); font-size: var(--evimesh-text-xs); line-height: var(--evimesh-lh-snug); }
+.diff__line { display: block; padding: 0 var(--evimesh-space-2); border-radius: var(--evimesh-radius-sm); white-space: pre-wrap; }
+.diff__line--add { background: var(--evimesh-status-success-bg); color: var(--evimesh-status-success-fg); }
+.diff__line--del { background: var(--evimesh-status-danger-bg); color: var(--evimesh-status-danger-fg); text-decoration: line-through; }
+
+/* 17.15 Landing page metrics strip (counts only, never scores). */
+.statgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--evimesh-space-4); }
+.statgrid__num { font-size: var(--evimesh-text-2xl); font-weight: 650; font-variant-numeric: tabular-nums; letter-spacing: var(--evimesh-tracking-tight); }
+.statgrid__label { margin-top: 2px; font-size: var(--evimesh-text-sm); color: var(--evimesh-fg-muted); }
+
+@media (max-width: 767px) {
+  .statgrid { grid-template-columns: 1fr; }
+  .changeitem { grid-template-columns: auto minmax(0, 1fr); }
+  .changeitem__time { grid-column: 2; }
+  .dialog { max-width: none; }
+}

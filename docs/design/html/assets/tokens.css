@@ -1,0 +1,484 @@
+/* ==========================================================================
+   EviMesh Design Tokens (single source of truth for the design book)
+   ==========================================================================
+   Version: 1.0.0 (design book M13.8, 2026-08-19)
+   Layering (Primer-style, three layers):
+     1. Primitive   --evimesh-p-*      raw scales, never used by components
+     2. Semantic    --evimesh-{role}   meaning-bearing, theme-switched
+     3. Component   --evimesh-c-*      per-component decisions
+   Theme contract:
+     - Light values live on :root
+     - Dark values are applied by BOTH of the following (identical blocks,
+       keep them in sync):
+         @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) }
+         [data-theme="dark"]
+     - theme.js sets data-theme = light | dark | auto on <html> and
+       persists it to localStorage. With "auto" (default) the media query
+       decides. See assets/theme.js for the no-flash inline snippet.
+   Contrast: every fg/bg pairing below is verified >= 4.5:1 in BOTH themes
+   (see docs/design/02-color-language.md, self-check table).
+   ========================================================================== */
+
+:root {
+  color-scheme: light;
+
+  /* ----------------------------------------------------------------------
+     LAYER 1: PRIMITIVE TOKENS (--evimesh-p-*)
+     Raw material only. Components must never reference these directly.
+     Neutral hue 255 (blue-gray). Status hues: success 152, warning 75,
+     danger 27, info 240. Brand hue 258.
+     ---------------------------------------------------------------------- */
+
+  /* Neutral scale (blue-gray) */
+  --evimesh-p-neutral-0:   #FFFFFF;
+  --evimesh-p-neutral-50:  #F9FAFB;
+  --evimesh-p-neutral-75:  #F4F6F8;
+  --evimesh-p-neutral-100: #EFF1F4;
+  --evimesh-p-neutral-150: #EBEEF1;
+  --evimesh-p-neutral-200: #E5E9ED;
+  --evimesh-p-neutral-250: #DCE0E5;
+  --evimesh-p-neutral-300: #CED3D9;
+  --evimesh-p-neutral-400: #9FA5AD;
+  --evimesh-p-neutral-450: #8C939B;
+  --evimesh-p-neutral-500: #737B85;
+  --evimesh-p-neutral-550: #5C646F;
+  --evimesh-p-neutral-600: #555E6A;
+  --evimesh-p-neutral-700: #3B4551;
+  --evimesh-p-neutral-800: #242F3D;
+  --evimesh-p-neutral-850: #1C2531;
+  --evimesh-p-neutral-875: #171F2A;
+  --evimesh-p-neutral-900: #111822;
+  --evimesh-p-neutral-925: #0D131B;
+  --evimesh-p-neutral-950: #090E14;
+  --evimesh-p-neutral-975: #05080D;
+
+  /* Brand scale (blue, hue 258) */
+  --evimesh-p-brand-100: #EBF4FF;
+  --evimesh-p-brand-200: #DBE9FE;
+  --evimesh-p-brand-300: #BED6F9;
+  --evimesh-p-brand-400: #70A6F5;
+  --evimesh-p-brand-500: #3E7AD3;
+  --evimesh-p-brand-600: #2063BF;
+  --evimesh-p-brand-700: #154E9C;
+  --evimesh-p-brand-800: #103A74;
+
+  /* Success scale (green, hue 152) */
+  --evimesh-p-success-100: #E5FAEA;
+  --evimesh-p-success-200: #CFF0D6;
+  --evimesh-p-success-300: #A8DFB6;
+  --evimesh-p-success-400: #60AC76;
+  --evimesh-p-success-500: #287B46;
+  --evimesh-p-success-600: #15733C;
+  --evimesh-p-success-700: #135C30;
+  --evimesh-p-success-800: #124324;
+
+  /* Warning scale (amber, hue 75) */
+  --evimesh-p-warning-100: #FFF0D6;
+  --evimesh-p-warning-200: #FFE2B8;
+  --evimesh-p-warning-300: #FBCB88;
+  --evimesh-p-warning-400: #D79F4C;
+  --evimesh-p-warning-500: #A86E00;
+  --evimesh-p-warning-600: #965E00;
+  --evimesh-p-warning-700: #784A00;
+  --evimesh-p-warning-800: #593800;
+
+  /* Danger scale (red, hue 27) */
+  --evimesh-p-danger-100: #FFEEEC;
+  --evimesh-p-danger-200: #FFE1DD;
+  --evimesh-p-danger-300: #FDC9C2;
+  --evimesh-p-danger-400: #E86156;
+  --evimesh-p-danger-500: #D73431;
+  --evimesh-p-danger-600: #BE2323;
+  --evimesh-p-danger-700: #9B1F1D;
+  --evimesh-p-danger-800: #721C19;
+
+  /* Info scale (blue, hue 240) */
+  --evimesh-p-info-100: #E5F6FF;
+  --evimesh-p-info-200: #D2EEFF;
+  --evimesh-p-info-300: #B0DCFD;
+  --evimesh-p-info-400: #5AA0D0;
+  --evimesh-p-info-500: #20709F;
+  --evimesh-p-info-600: #0E6A9B;
+  --evimesh-p-info-700: #005581;
+  --evimesh-p-info-800: #024061;
+
+  /* Data-visualization categorical series (calm, mid-lightness).
+     Ordered for maximum adjacent distinction. Never map series color to
+     meaning (no "red = bad" shortcuts); meaning always comes from labels. */
+  --evimesh-p-series-1: #3E71BC; /* blue   */
+  --evimesh-p-series-2: #B07A20; /* amber  */
+  --evimesh-p-series-3: #2E918C; /* teal   */
+  --evimesh-p-series-4: #B54B43; /* red    */
+  --evimesh-p-series-5: #378450; /* green  */
+  --evimesh-p-series-6: #725B9A; /* violet */
+  --evimesh-p-series-7: #238EA9; /* cyan   */
+  --evimesh-p-series-8: #7E7F3C; /* olive  */
+
+  /* ----------------------------------------------------------------------
+     NON-COLOR PRIMITIVES
+     ---------------------------------------------------------------------- */
+
+  /* Typography stacks */
+  --evimesh-font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, sans-serif;
+  --evimesh-font-mono: ui-monospace, "SF Mono", "Cascadia Code",
+    "JetBrains Mono", Menlo, Consolas, monospace;
+  /* Serif reading stack: ONLY for .prose-research long-form reading mode.
+     Never use for UI chrome. */
+  --evimesh-font-serif: Charter, "Bitstream Charter", Sitka, Georgia,
+    Cambria, "Times New Roman", serif;
+
+  /* Type scale (rem). Pair with the matching line-height token. */
+  --evimesh-text-xs:   0.75rem;   /* 12px, meta, kbd, badge          */
+  --evimesh-text-sm:   0.8125rem; /* 13px, dense lists, metadata     */
+  --evimesh-text-base: 0.875rem;  /* 14px, product body default      */
+  --evimesh-text-md:   1rem;      /* 16px, reading body, inputs      */
+  --evimesh-text-lg:   1.125rem;  /* 18px, card titles, lead         */
+  --evimesh-text-xl:   1.25rem;   /* 20px, section titles            */
+  --evimesh-text-2xl:  1.5rem;    /* 24px, page titles (secondary)   */
+  --evimesh-text-3xl:  1.875rem;  /* 30px, page titles               */
+  --evimesh-text-4xl:  2.25rem;   /* 36px, landing / doc hero        */
+  --evimesh-lh-tight:    1.25;
+  --evimesh-lh-snug:     1.4;
+  --evimesh-lh-normal:   1.55;
+  --evimesh-lh-relaxed:  1.7;     /* prose-research */
+  --evimesh-tracking-tight: -0.01em;
+  --evimesh-tracking-normal: 0;
+  --evimesh-tracking-wide: 0.02em; /* meta uppercase eyebrows only */
+
+  /* Spacing scale (4px baseline). Use these, never ad-hoc values. */
+  --evimesh-space-0:  0;
+  --evimesh-space-1:  0.25rem;  /*  4px  */
+  --evimesh-space-2:  0.5rem;   /*  8px  */
+  --evimesh-space-3:  0.75rem;  /* 12px  */
+  --evimesh-space-4:  1rem;     /* 16px  */
+  --evimesh-space-5:  1.25rem;  /* 20px  card padding */
+  --evimesh-space-6:  1.5rem;   /* 24px  */
+  --evimesh-space-8:  2rem;     /* 32px  */
+  --evimesh-space-10: 2.5rem;   /* 40px  */
+  --evimesh-space-12: 3rem;     /* 48px  */
+  --evimesh-space-16: 4rem;     /* 64px  section gap */
+  --evimesh-space-24: 6rem;     /* 96px  landing section gap */
+
+  /* Radius system (one system, locked) */
+  --evimesh-radius-sm:   0.375rem; /* 6px  controls: inputs, small buttons */
+  --evimesh-radius-md:   0.5rem;   /* 8px  buttons, kbd, code, small cards */
+  --evimesh-radius-lg:   0.75rem;  /* 12px cards, dialogs */
+  --evimesh-radius-full: 9999px;   /* badges, avatars */
+
+  /* Borders and elevation */
+  --evimesh-border-w: 1px; /* hairline everywhere */
+  /* Shadows are near-absent by contract (<0.05 alpha). Only overlays may
+     use shadow-overlay. */
+  --evimesh-shadow-xs: 0 1px 2px rgba(9, 14, 20, 0.04);
+  --evimesh-shadow-overlay: 0 8px 24px rgba(9, 14, 20, 0.12);
+
+  /* Controls and targets */
+  --evimesh-control-h-sm: 1.75rem;  /* 28px dense controls (filters) */
+  --evimesh-control-h-md: 2.25rem;  /* 36px default controls */
+  --evimesh-control-h-lg: 2.75rem;  /* 44px coarse-pointer targets */
+  --evimesh-target-coarse: 2.75rem; /* 44px minimum touch target */
+
+  /* Focus */
+  --evimesh-focus-w: 2px;
+  --evimesh-focus-offset: 2px;
+
+  /* Motion (feedback / hierarchy / context switch only) */
+  --evimesh-dur-fast: 100ms;
+  --evimesh-dur-base: 160ms;
+  --evimesh-dur-slow: 240ms;
+  --evimesh-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --evimesh-ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Z-index scale (systemic, do not invent values) */
+  --evimesh-z-header:  30;
+  --evimesh-z-sidebar: 20;
+  --evimesh-z-overlay: 40;
+  --evimesh-z-modal:   50;
+  --evimesh-z-toast:   60;
+
+  /* Layout */
+  --evimesh-container-max: 72rem;      /* 1152px (max-w-6xl) */
+  --evimesh-container-px: 1.5rem;      /* page horizontal padding */
+  --evimesh-header-h: 3.5rem;          /* 56px global header */
+  --evimesh-sidebar-w: 15rem;          /* 240px context sidebar */
+  --evimesh-prose-max: 65ch;           /* long-form measure */
+
+  /* ----------------------------------------------------------------------
+     LAYER 2: SEMANTIC TOKENS (light theme values)
+     ---------------------------------------------------------------------- */
+
+  /* Surfaces */
+  --evimesh-bg:        var(--evimesh-p-neutral-50);
+  --evimesh-bg-inset:  var(--evimesh-p-neutral-100);
+  --evimesh-bg-raised: var(--evimesh-p-neutral-0);
+  --evimesh-bg-overlay: var(--evimesh-p-neutral-900); /* use with alpha */
+
+  /* Foreground */
+  --evimesh-fg:           var(--evimesh-p-neutral-900);
+  --evimesh-fg-muted:     var(--evimesh-p-neutral-600);
+  --evimesh-fg-subtle:    var(--evimesh-p-neutral-550);
+  --evimesh-fg-onEmphasis: var(--evimesh-p-neutral-0);
+  --evimesh-fg-link:      var(--evimesh-p-brand-600);
+
+  /* Borders */
+  --evimesh-border:        var(--evimesh-p-neutral-250);
+  --evimesh-border-muted:  var(--evimesh-p-neutral-200);
+  --evimesh-border-strong: var(--evimesh-p-neutral-300);
+  --evimesh-border-focus:  var(--evimesh-p-brand-600);
+
+  /* Actions */
+  --evimesh-action-primary:        var(--evimesh-p-brand-600);
+  --evimesh-action-primary-hover:  var(--evimesh-p-brand-700);
+  --evimesh-action-primary-fg:     var(--evimesh-p-neutral-0);
+  --evimesh-action-secondary:      var(--evimesh-p-neutral-150);
+  --evimesh-action-secondary-hover: var(--evimesh-p-neutral-200);
+  --evimesh-action-secondary-fg:   var(--evimesh-p-neutral-800);
+  --evimesh-action-outline:        var(--evimesh-p-neutral-0);
+  --evimesh-action-outline-hover:  var(--evimesh-p-neutral-75);
+  --evimesh-action-ghost-hover:    var(--evimesh-p-neutral-100);
+  --evimesh-action-destructive:       var(--evimesh-p-danger-600);
+  --evimesh-action-destructive-hover: var(--evimesh-p-danger-700);
+  --evimesh-action-destructive-fg:    var(--evimesh-p-neutral-0);
+
+  /* Derived surfaces */
+  --evimesh-surface-muted:    var(--evimesh-p-neutral-100);
+  --evimesh-surface-accent:   var(--evimesh-p-brand-100);
+  --evimesh-surface-selected: var(--evimesh-p-brand-100);
+
+  /* Status dual tier.
+     -bg     badge/inline-chip surface (muted tier)
+     -fg     badge text + standalone semantic text/icons (>=4.5:1 on -bg
+             AND on page bg, so it can be used outside the chip too)
+     -border optional chip outline
+     -emphasis (below) solid badge, needs fg-onEmphasis text */
+  --evimesh-status-neutral-bg:     var(--evimesh-p-neutral-150);
+  --evimesh-status-neutral-fg:     var(--evimesh-p-neutral-700);
+  --evimesh-status-neutral-border: var(--evimesh-p-neutral-250);
+  --evimesh-status-accent-bg:      var(--evimesh-p-brand-100);
+  --evimesh-status-accent-fg:      var(--evimesh-p-brand-700);
+  --evimesh-status-accent-border:  var(--evimesh-p-brand-200);
+  --evimesh-status-success-bg:     var(--evimesh-p-success-100);
+  --evimesh-status-success-fg:     var(--evimesh-p-success-700);
+  --evimesh-status-success-border: var(--evimesh-p-success-200);
+  --evimesh-status-warning-bg:     var(--evimesh-p-warning-100);
+  --evimesh-status-warning-fg:     var(--evimesh-p-warning-700);
+  --evimesh-status-warning-border: var(--evimesh-p-warning-200);
+  --evimesh-status-danger-bg:      var(--evimesh-p-danger-100);
+  --evimesh-status-danger-fg:      var(--evimesh-p-danger-700);
+  --evimesh-status-danger-border:  var(--evimesh-p-danger-200);
+  --evimesh-status-info-bg:        var(--evimesh-p-info-100);
+  --evimesh-status-info-fg:        var(--evimesh-p-info-700);
+  --evimesh-status-info-border:    var(--evimesh-p-info-200);
+
+  /* Solid emphasis badges (white / near-white text) */
+  --evimesh-emphasis-success: var(--evimesh-p-success-600);
+  --evimesh-emphasis-warning: var(--evimesh-p-warning-600);
+  --evimesh-emphasis-danger:  var(--evimesh-p-danger-600);
+  --evimesh-emphasis-info:    var(--evimesh-p-info-600);
+  --evimesh-emphasis-neutral: var(--evimesh-p-neutral-700);
+
+  /* Focus ring */
+  --evimesh-focus: var(--evimesh-p-brand-600);
+  --evimesh-ring:  var(--evimesh-p-brand-600);
+
+  /* ----------------------------------------------------------------------
+     LAYER 3: COMPONENT TOKENS (--evimesh-c-*)
+     Map components to semantic tokens. If a component needs a value that
+     is not here, add it here first; do not inline raw values.
+     ---------------------------------------------------------------------- */
+  --evimesh-c-header-bg:     var(--evimesh-bg-raised);
+  --evimesh-c-header-border: var(--evimesh-border);
+  --evimesh-c-header-fg:     var(--evimesh-fg);
+  --evimesh-c-header-fg-muted: var(--evimesh-fg-muted);
+  --evimesh-c-sidebar-bg:     var(--evimesh-bg);
+  --evimesh-c-sidebar-border: var(--evimesh-border-muted);
+  --evimesh-c-sidebar-item-hover: var(--evimesh-surface-muted);
+  --evimesh-c-sidebar-item-active-bg: var(--evimesh-surface-selected);
+  --evimesh-c-sidebar-item-active-fg: var(--evimesh-fg);
+  --evimesh-c-card-bg:      var(--evimesh-bg-raised);
+  --evimesh-c-card-border:  var(--evimesh-border);
+  --evimesh-c-card-radius:  var(--evimesh-radius-lg);
+  --evimesh-c-badge-radius: var(--evimesh-radius-full);
+  --evimesh-c-input-bg:      var(--evimesh-bg-raised);
+  --evimesh-c-input-border:  var(--evimesh-border-strong);
+  --evimesh-c-input-fg:      var(--evimesh-fg);
+  --evimesh-c-input-placeholder: var(--evimesh-fg-subtle);
+  --evimesh-c-input-error-border: var(--evimesh-emphasis-danger);
+  --evimesh-c-table-header-fg: var(--evimesh-fg-muted);
+  --evimesh-c-table-row-hover: var(--evimesh-surface-muted);
+  --evimesh-c-table-border:  var(--evimesh-border-muted);
+  --evimesh-c-skeleton:      var(--evimesh-surface-muted);
+  --evimesh-c-kbd-bg:        var(--evimesh-surface-muted);
+  --evimesh-c-kbd-border:    var(--evimesh-border);
+  --evimesh-c-kbd-fg:        var(--evimesh-fg-muted);
+  --evimesh-c-code-bg:       var(--evimesh-surface-muted);
+  --evimesh-c-code-fg:       var(--evimesh-fg);
+  --evimesh-c-dag-edge-neutral: var(--evimesh-p-neutral-400);
+  --evimesh-c-dag-edge-positive: var(--evimesh-p-success-500);
+  --evimesh-c-dag-edge-negative: var(--evimesh-p-danger-500);
+  --evimesh-c-dag-edge-qualify: var(--evimesh-p-warning-500);
+  --evimesh-c-dag-edge-structural: var(--evimesh-p-info-500);
+  --evimesh-c-dag-edge-lineage: var(--evimesh-p-neutral-500);
+  --evimesh-c-dag-node-bg:   var(--evimesh-bg-raised);
+  --evimesh-c-dag-node-border: var(--evimesh-border-strong);
+}
+
+/* ----------------------------------------------------------------------
+   DARK THEME (values re-assigned, same token names; never inverted).
+   DUPLICATION NOTE: the dark block below appears twice on purpose:
+   once inside the prefers-color-scheme media query (auto mode) and once
+   on [data-theme="dark"] (manual override). Keep the two in sync.
+   ---------------------------------------------------------------------- */
+
+/* BEGIN-DARK */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --evimesh-bg:        var(--evimesh-p-neutral-950);
+  --evimesh-bg-inset:  var(--evimesh-p-neutral-975);
+  --evimesh-bg-raised: var(--evimesh-p-neutral-900);
+  --evimesh-bg-overlay: var(--evimesh-p-neutral-850);
+
+  --evimesh-fg:           var(--evimesh-p-neutral-75);
+  --evimesh-fg-muted:     var(--evimesh-p-neutral-400);
+  --evimesh-fg-subtle:    var(--evimesh-p-neutral-450);
+  --evimesh-fg-onEmphasis: var(--evimesh-p-neutral-75);
+  --evimesh-fg-link:      var(--evimesh-p-brand-400);
+
+  --evimesh-border:        var(--evimesh-p-neutral-850);
+  --evimesh-border-muted:  var(--evimesh-p-neutral-875);
+  --evimesh-border-strong: var(--evimesh-p-neutral-700);
+  --evimesh-border-focus:  var(--evimesh-p-brand-400);
+
+  --evimesh-action-primary:        var(--evimesh-p-brand-600);
+  --evimesh-action-primary-hover:  var(--evimesh-p-brand-700);
+  --evimesh-action-primary-fg:     var(--evimesh-p-neutral-0);
+  --evimesh-action-secondary:      var(--evimesh-p-neutral-850);
+  --evimesh-action-secondary-hover: var(--evimesh-p-neutral-800);
+  --evimesh-action-secondary-fg:   var(--evimesh-p-neutral-100);
+  --evimesh-action-outline:        var(--evimesh-p-neutral-925);
+  --evimesh-action-outline-hover:  var(--evimesh-p-neutral-850);
+  --evimesh-action-ghost-hover:    var(--evimesh-p-neutral-850);
+  --evimesh-action-destructive:       var(--evimesh-p-danger-600);
+  --evimesh-action-destructive-hover: var(--evimesh-p-danger-700);
+  --evimesh-action-destructive-fg:    var(--evimesh-p-neutral-0);
+
+  --evimesh-surface-muted:    var(--evimesh-p-neutral-850);
+  --evimesh-surface-accent:   var(--evimesh-p-brand-800);
+  --evimesh-surface-selected: var(--evimesh-p-brand-800);
+
+  --evimesh-status-neutral-bg:     var(--evimesh-p-neutral-850);
+  --evimesh-status-neutral-fg:     var(--evimesh-p-neutral-300);
+  --evimesh-status-neutral-border: var(--evimesh-p-neutral-700);
+  --evimesh-status-accent-bg:      var(--evimesh-p-brand-800);
+  --evimesh-status-accent-fg:      var(--evimesh-p-brand-300);
+  --evimesh-status-accent-border:  var(--evimesh-p-brand-700);
+  --evimesh-status-success-bg:     var(--evimesh-p-success-800);
+  --evimesh-status-success-fg:     var(--evimesh-p-success-300);
+  --evimesh-status-success-border: var(--evimesh-p-success-700);
+  --evimesh-status-warning-bg:     var(--evimesh-p-warning-800);
+  --evimesh-status-warning-fg:     var(--evimesh-p-warning-300);
+  --evimesh-status-warning-border: var(--evimesh-p-warning-700);
+  --evimesh-status-danger-bg:      var(--evimesh-p-danger-800);
+  --evimesh-status-danger-fg:      var(--evimesh-p-danger-300);
+  --evimesh-status-danger-border:  var(--evimesh-p-danger-700);
+  --evimesh-status-info-bg:        var(--evimesh-p-info-800);
+  --evimesh-status-info-fg:        var(--evimesh-p-info-300);
+  --evimesh-status-info-border:    var(--evimesh-p-info-700);
+
+  --evimesh-emphasis-success: var(--evimesh-p-success-700);
+  --evimesh-emphasis-warning: var(--evimesh-p-warning-700);
+  --evimesh-emphasis-danger:  var(--evimesh-p-danger-700);
+  --evimesh-emphasis-info:    var(--evimesh-p-info-700);
+  --evimesh-emphasis-neutral: var(--evimesh-p-neutral-700);
+
+  --evimesh-focus: var(--evimesh-p-brand-400);
+  --evimesh-ring:  var(--evimesh-p-brand-400);
+
+  --evimesh-c-dag-edge-neutral: var(--evimesh-p-neutral-500);
+  --evimesh-c-dag-edge-positive: var(--evimesh-p-success-400);
+  --evimesh-c-dag-edge-negative: var(--evimesh-p-danger-400);
+  --evimesh-c-dag-edge-qualify: var(--evimesh-p-warning-400);
+  --evimesh-c-dag-edge-structural: var(--evimesh-p-info-400);
+  --evimesh-c-dag-edge-lineage: var(--evimesh-p-neutral-400);
+}
+/* END-DARK */
+
+@media (prefers-color-scheme: dark) {
+  /* Auto mode: applies when theme.js has not forced light.
+     Same block as [data-theme="dark"] above (keep in sync). */
+  /* BEGIN-DARK */
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --evimesh-bg:        var(--evimesh-p-neutral-950);
+    --evimesh-bg-inset:  var(--evimesh-p-neutral-975);
+    --evimesh-bg-raised: var(--evimesh-p-neutral-900);
+    --evimesh-bg-overlay: var(--evimesh-p-neutral-850);
+
+    --evimesh-fg:           var(--evimesh-p-neutral-75);
+    --evimesh-fg-muted:     var(--evimesh-p-neutral-400);
+    --evimesh-fg-subtle:    var(--evimesh-p-neutral-450);
+    --evimesh-fg-onEmphasis: var(--evimesh-p-neutral-75);
+    --evimesh-fg-link:      var(--evimesh-p-brand-400);
+
+    --evimesh-border:        var(--evimesh-p-neutral-850);
+    --evimesh-border-muted:  var(--evimesh-p-neutral-875);
+    --evimesh-border-strong: var(--evimesh-p-neutral-700);
+    --evimesh-border-focus:  var(--evimesh-p-brand-400);
+
+    --evimesh-action-primary:        var(--evimesh-p-brand-600);
+    --evimesh-action-primary-hover:  var(--evimesh-p-brand-700);
+    --evimesh-action-primary-fg:     var(--evimesh-p-neutral-0);
+    --evimesh-action-secondary:      var(--evimesh-p-neutral-850);
+    --evimesh-action-secondary-hover: var(--evimesh-p-neutral-800);
+    --evimesh-action-secondary-fg:   var(--evimesh-p-neutral-100);
+    --evimesh-action-outline:        var(--evimesh-p-neutral-925);
+    --evimesh-action-outline-hover:  var(--evimesh-p-neutral-850);
+    --evimesh-action-ghost-hover:    var(--evimesh-p-neutral-850);
+    --evimesh-action-destructive:       var(--evimesh-p-danger-600);
+    --evimesh-action-destructive-hover: var(--evimesh-p-danger-700);
+    --evimesh-action-destructive-fg:    var(--evimesh-p-neutral-0);
+
+    --evimesh-surface-muted:    var(--evimesh-p-neutral-850);
+    --evimesh-surface-accent:   var(--evimesh-p-brand-800);
+    --evimesh-surface-selected: var(--evimesh-p-brand-800);
+
+    --evimesh-status-neutral-bg:     var(--evimesh-p-neutral-850);
+    --evimesh-status-neutral-fg:     var(--evimesh-p-neutral-300);
+    --evimesh-status-neutral-border: var(--evimesh-p-neutral-700);
+    --evimesh-status-accent-bg:      var(--evimesh-p-brand-800);
+    --evimesh-status-accent-fg:      var(--evimesh-p-brand-300);
+    --evimesh-status-accent-border:  var(--evimesh-p-brand-700);
+    --evimesh-status-success-bg:     var(--evimesh-p-success-800);
+    --evimesh-status-success-fg:     var(--evimesh-p-success-300);
+    --evimesh-status-success-border: var(--evimesh-p-success-700);
+    --evimesh-status-warning-bg:     var(--evimesh-p-warning-800);
+    --evimesh-status-warning-fg:     var(--evimesh-p-warning-300);
+    --evimesh-status-warning-border: var(--evimesh-p-warning-700);
+    --evimesh-status-danger-bg:      var(--evimesh-p-danger-800);
+    --evimesh-status-danger-fg:      var(--evimesh-p-danger-300);
+    --evimesh-status-danger-border:  var(--evimesh-p-danger-700);
+    --evimesh-status-info-bg:        var(--evimesh-p-info-800);
+    --evimesh-status-info-fg:        var(--evimesh-p-info-300);
+    --evimesh-status-info-border:    var(--evimesh-p-info-700);
+
+    --evimesh-emphasis-success: var(--evimesh-p-success-700);
+    --evimesh-emphasis-warning: var(--evimesh-p-warning-700);
+    --evimesh-emphasis-danger:  var(--evimesh-p-danger-700);
+    --evimesh-emphasis-info:    var(--evimesh-p-info-700);
+    --evimesh-emphasis-neutral: var(--evimesh-p-neutral-700);
+
+    --evimesh-focus: var(--evimesh-p-brand-400);
+    --evimesh-ring:  var(--evimesh-p-brand-400);
+
+    --evimesh-c-dag-edge-neutral: var(--evimesh-p-neutral-500);
+    --evimesh-c-dag-edge-positive: var(--evimesh-p-success-400);
+    --evimesh-c-dag-edge-negative: var(--evimesh-p-danger-400);
+    --evimesh-c-dag-edge-qualify: var(--evimesh-p-warning-400);
+    --evimesh-c-dag-edge-structural: var(--evimesh-p-info-400);
+    --evimesh-c-dag-edge-lineage: var(--evimesh-p-neutral-400);
+  }
+  /* END-DARK */
+}
