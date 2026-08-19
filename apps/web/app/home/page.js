@@ -1,11 +1,12 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { IdChip } from '@/components/ui/idchip';
+import { Activity, Bot, ListTodo } from 'lucide-react';
+import { ChangeGroup, ChangeItem } from '@/components/change-item';
 import { StatusBadge } from '@/components/ui/data';
 import { Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
-import { PageContainer, PageHeader, SectionHeader } from '@/components/ui/page';
-import Link from 'next/link';
+import { PageContainer, PageHeader } from '@/components/ui/page';
 
 const CLOSED_STATES = new Set(['resolved', 'archived', 'rejected']);
 
@@ -20,10 +21,10 @@ function relativeTime(value) {
 }
 
 /*
- * Signed-in Home (M13.8 05-core-ui-spec.md §2). Sections are grouped by
- * attention level; statuses are text-first badges; ids are copyable chips.
- * Until per-user watchlists exist, this is the honest live view of open
- * research, and the tiers below express attention priority, never truth.
+ * Signed-in Home (design book 05 §2): an awareness stream grouped by
+ * attention level (icon + tone first, what / why / basis after), with a
+ * context rail. Until per-user watchlists exist this is the honest live view;
+ * levels express attention priority, never the truth of a claim.
  */
 export default function HomePage() {
   const [questions, setQuestions] = useState([]);
@@ -77,62 +78,117 @@ export default function HomePage() {
 
   useEffect(() => { load(); }, []);
 
+  const rail = [
+    { icon: ListTodo, title: 'Work queue', body: 'Tasks, verification, challenges, and drafts in one place.', href: '/work', cta: 'Go to Work' },
+    { icon: Bot, title: 'Agent connection', body: 'Six steps from hearing about EviMesh to a first trusted read.', href: '/agent', cta: 'Open the center' },
+    { icon: Activity, title: 'Event audit', body: 'Signed research history with hashes, one layer down.', href: '/events', cta: 'Open audit' },
+  ];
+
   return (
-    <PageContainer>
+    <PageContainer wide>
       <PageHeader
-        action={(
-          <Link className="inline-flex h-9 items-center rounded-md border border-border bg-card px-3 text-sm font-medium transition-colors hover:bg-muted" href="/work">
-            Go to Work
-          </Link>
-        )}
-        description="Live activity across open research. Sections express attention priority, never the truth of a claim."
+        description="Live activity across open research, grouped by attention level. Levels express attention priority, never the truth of a claim."
         eyebrow="Home"
         title="What changed in research"
       />
       {error ? <ErrorState className="mt-10" message={error} onRetry={load} /> : null}
-      <section className="mt-14" aria-labelledby="open-questions-heading">
-        <SectionHeader action={<span className="text-sm text-muted-foreground">Newest activity first</span>} title="Open questions" />
-        {loading ? <Skeleton className="mt-6 h-32 w-full" /> : error ? null : questions.length === 0 ? <Empty className="mt-6" title="No open questions yet" description="Questions that are open for research will appear here." /> : <div className="mt-6 grid gap-4 md:grid-cols-2">{questions.map((question) => (
-          <article className="rounded-lg border border-border bg-card p-5" key={question.questionId}>
-            <div className="flex items-center justify-between gap-3">
-              <StatusBadge state={question.state} />
-              <time className="text-xs tabular-nums text-muted-foreground" dateTime={question.createdAt}>{relativeTime(question.createdAt)}</time>
+
+      <div className="mt-2 grid gap-10 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
+        <div className="min-w-0">
+          <ChangeGroup count={claims.length} title="Claims awaiting verification">
+            {loading ? <Skeleton className="h-32 w-full" /> : error ? null : claims.length === 0 ? <Empty title="Nothing awaiting verification" description="Claims under verification will appear here as they move through the pipeline." /> : (
+              <div className="divide-y divide-border rounded-lg border border-border bg-card">
+                {claims.map((claim) => (
+                  <ChangeItem
+                    href={`/claims/${claim.claimId}`}
+                    id={claim.claimId}
+                    idLabel="claim"
+                    key={claim.claimId}
+                    level="attention"
+                    meta={<StatusBadge state={claim.state} />}
+                    time={relativeTime(claim.createdAt)}
+                    what="Claim moving through verification"
+                    why="Receipts record outcomes, independence, and findings. Open the claim to see the exact revision, evidence groups, and any unresolved finding."
+                  />
+                ))}
+              </div>
+            )}
+          </ChangeGroup>
+
+          <ChangeGroup count={questions.length} meta="Newest activity first" title="Open questions">
+            {loading ? <Skeleton className="mt-6 h-32 w-full" /> : error ? null : questions.length === 0 ? <Empty title="No open questions yet" description="Questions that are open for research will appear here." /> : (
+              <div className="divide-y divide-border rounded-lg border border-border bg-card">
+                {questions.map((question) => (
+                  <ChangeItem
+                    href={`/questions/${question.questionId}`}
+                    id={question.questionId}
+                    idLabel="question"
+                    key={question.questionId}
+                    level="update"
+                    meta={<StatusBadge state={question.state} />}
+                    time={relativeTime(question.createdAt)}
+                    what="Open question seeking answers"
+                    why="Each question carries its research contract, frontier membership, and claim graph in the six-view workspace."
+                  />
+                ))}
+              </div>
+            )}
+          </ChangeGroup>
+
+          <ChangeGroup count={frontiers.length} title="Latest frontiers">
+            {loading ? <Skeleton className="mt-6 h-32 w-full" /> : error ? null : frontiers.length === 0 ? <Empty title="No published frontiers yet" description="Frontier snapshots will appear here once projects publish their first." /> : (
+              <div className="divide-y divide-border rounded-lg border border-border bg-card">
+                {frontiers.map(({ project, frontier }) => (
+                  <ChangeItem
+                    href={`/projects/${project.projectId}`}
+                    id={frontier.snapshotId}
+                    idLabel="snapshot"
+                    key={frontier.snapshotId}
+                    level="frontier"
+                    meta={<span className="text-sm font-medium tabular-nums">Frontier #{frontier.sequence}</span>}
+                    time={relativeTime(frontier.createdAt)}
+                    what="Frontier snapshot published"
+                    why="Snapshots are immutable: the member set is frozen at publication and stays linkable forever."
+                  />
+                ))}
+              </div>
+            )}
+          </ChangeGroup>
+
+          <ChangeGroup count={tasks.length} title="Newcomer tasks">
+            {loading ? <Skeleton className="mt-6 h-32 w-full" /> : error ? null : tasks.length === 0 ? <Empty title="No newcomer tasks open" description="CPU-only and under-60-minute tasks will appear here when available." /> : (
+              <div className="divide-y divide-border rounded-lg border border-border bg-card">
+                {tasks.map((task) => (
+                  <ChangeItem
+                    href={`/tasks/${task.taskId}`}
+                    id={task.taskId}
+                    idLabel="task"
+                    key={`${task.taskId}-${task.tag}`}
+                    level="task"
+                    meta={<span className="rounded-full border border-border bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{task.tag}</span>}
+                    time={relativeTime(task.createdAt)}
+                    what="Open task to pick up"
+                    why="CPU-only and under-60-minute work suitable for a first attempt."
+                  />
+                ))}
+              </div>
+            )}
+          </ChangeGroup>
+        </div>
+
+        <aside aria-label="Context" className="grid gap-3">
+          {rail.map(({ icon: Icon, title, body, href, cta }) => (
+            <div className="rounded-lg border border-border bg-card p-4" key={title}>
+              <div className="flex items-center gap-2">
+                <Icon aria-hidden="true" className="text-muted-foreground" size={16} />
+                <h2 className="text-sm font-semibold">{title}</h2>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">{body}</p>
+              <Link className="mt-3 inline-block text-xs font-medium text-primary hover:underline" href={href}>{cta} →</Link>
             </div>
-            <h3 className="mt-4 font-medium"><IdChip className="mt-1" value={question.questionId} /><Link className="ml-1 text-xs text-primary hover:underline" href={`/questions/${question.questionId}`}>open</Link></h3>
-            <p className="mt-2 text-sm text-muted-foreground">Project <span className="tabular-nums">{question.projectId}</span></p>
-          </article>
-        ))}</div>}
-      </section>
-      <section className="mt-14" aria-labelledby="verification-claims-heading">
-        <SectionHeader title="Claims awaiting verification" />
-        {loading ? <Skeleton className="mt-6 h-32 w-full" /> : error ? null : claims.length === 0 ? <Empty className="mt-6" title="Nothing awaiting verification" description="Claims under verification will appear here as they move through the pipeline." /> : <div className="mt-6 grid gap-4 md:grid-cols-2">{claims.map((claim) => (
-          <article className="rounded-lg border border-border bg-card p-5" key={claim.claimId}>
-            <StatusBadge state={claim.state} />
-            <h3 className="mt-4 font-medium"><IdChip className="mt-1" value={claim.claimId} /><Link className="ml-1 text-xs text-primary hover:underline" href={`/claims/${claim.claimId}`}>open</Link></h3>
-            <p className="mt-2 text-sm text-muted-foreground">Question <span className="tabular-nums">{claim.questionId ?? 'not linked'}</span></p>
-          </article>
-        ))}</div>}
-      </section>
-      <section className="mt-14" aria-labelledby="frontier-heading">
-        <SectionHeader title="Latest frontiers" />
-        {loading ? <Skeleton className="mt-6 h-32 w-full" /> : error ? null : frontiers.length === 0 ? <Empty className="mt-6" title="No published frontiers yet" description="Frontier snapshots will appear here once projects publish their first." /> : <div className="mt-6 grid gap-4 md:grid-cols-2">{frontiers.map(({ project, frontier }) => (
-          <article className="rounded-lg border border-border bg-card p-5" key={frontier.snapshotId}>
-            <p className="text-sm text-muted-foreground">Project <Link className="tabular-nums hover:underline" href={`/projects/${project.projectId}`}>{project.projectId}</Link></p>
-            <h3 className="mt-3 text-lg font-medium tabular-nums">Frontier #{frontier.sequence}</h3>
-            <p className="mt-2"><IdChip value={frontier.snapshotId} /></p>
-          </article>
-        ))}</div>}
-      </section>
-      <section className="mt-14" aria-labelledby="newcomer-tasks-heading">
-        <SectionHeader title="Newcomer tasks" />
-        {loading ? <Skeleton className="mt-6 h-32 w-full" /> : error ? null : tasks.length === 0 ? <Empty className="mt-6" title="No newcomer tasks open" description="CPU-only and under-60-minute tasks will appear here when available." /> : <div className="mt-6 grid gap-4 md:grid-cols-2">{tasks.map((task) => (
-          <article className="rounded-lg border border-border bg-card p-5" key={`${task.taskId}-${task.tag}`}>
-            <span className="inline-flex items-center rounded-full border border-status-neutral-border bg-status-neutral-bg px-2.5 py-0.5 text-xs font-medium text-status-neutral-fg">{task.tag}</span>
-            <h3 className="mt-4 font-medium"><IdChip className="mt-1" value={task.taskId} /><Link className="ml-1 text-xs text-primary hover:underline" href={`/tasks/${task.taskId}`}>open</Link></h3>
-            <p className="mt-2 text-sm text-muted-foreground">Open in project <span className="tabular-nums">{task.projectId ?? 'not assigned'}</span></p>
-          </article>
-        ))}</div>}
-      </section>
+          ))}
+        </aside>
+      </div>
     </PageContainer>
   );
 }

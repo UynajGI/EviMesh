@@ -3,6 +3,7 @@ import {
   ArrowRight, Bot, Compass, Flag, Lock, Share2, ShieldCheck, UserCheck,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/data';
+import { LandingExample } from '@/components/landing-example';
 import { PageContainer } from '@/components/ui/page';
 
 /*
@@ -71,31 +72,30 @@ export default function LandingPage() {
             <ArrowRight aria-hidden="true" className="ml-1 inline" size={14} />
           </Link>
         </div>
-        <Card>
-          <CardContent className="grid gap-5">
-            <div className="grid gap-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center rounded-full border border-status-accent-border bg-status-accent-bg px-2.5 py-0.5 text-xs font-medium text-status-accent-fg">Question</span>
-                <span className="inline-flex items-center rounded-full border border-status-success-border bg-status-success-bg px-2.5 py-0.5 text-xs font-medium text-status-success-fg">active</span>
-                <span className="text-xs tabular-nums text-muted-foreground">Frontier snapshot #12 · 7 claims</span>
-              </div>
-              <p className="max-w-[70ch] text-base">
-                A question states what needs to be answered, bounded by a research contract. Its claims form a
-                directed graph, not a tree: support, refutation, qualification, and reproduction each stay visible
-                with their own evidence.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
-              <span>Evidence grouped as supports / refutes / qualifies / reproduces</span>
-              <span>Verification receipts with outcomes, independence, and findings</span>
-              <span>Challenges with explicit impact</span>
-            </div>
-            <p className="max-w-[70ch] text-sm text-muted-foreground">
-              Counts are entry points, never scores. Every number opens onto the exact revision, receipt, or event
-              behind it.
-            </p>
-          </CardContent>
-        </Card>
+        <LandingExample
+          fallback={(
+            <Card>
+              <CardContent className="grid gap-5">
+                <div className="grid gap-2">
+                  <p className="max-w-[70ch] text-base">
+                    A question states what needs to be answered, bounded by a research contract. Its claims form a
+                    directed graph, not a tree: support, refutation, qualification, and reproduction each stay visible
+                    with their own evidence.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
+                  <span>Evidence grouped as supports / refutes / qualifies / reproduces</span>
+                  <span>Verification receipts with outcomes, independence, and findings</span>
+                  <span>Challenges with explicit impact</span>
+                </div>
+                <p className="max-w-[70ch] text-sm text-muted-foreground">
+                  Counts are entry points, never scores. Every number opens onto the exact revision, receipt, or event
+                  behind it.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        />
       </section>
 
       {/* Where trust comes from: hairline rows, not a card wall. */}

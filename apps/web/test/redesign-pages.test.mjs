@@ -31,13 +31,31 @@ test('landing never fakes live data or sells a score', async () => {
 });
 
 test('home renders attention-tiered sections with status badges and copyable ids', async () => {
-  const page = await read('../app/home/page.js');
+  const [page, item] = await Promise.all([read('../app/home/page.js'), read('../components/change-item.js')]);
   assert.match(page, /attention priority, never the truth/);
   assert.match(page, /StatusBadge/);
-  assert.match(page, /IdChip/);
+  assert.match(item, /IdChip/);
+  assert.match(item, /grid-cols-\[2rem_minmax\(0,1fr\)\]/);
   for (const section of ['Open questions', 'Claims awaiting verification', 'Latest frontiers', 'Newcomer tasks']) {
     assert.match(page, new RegExp(section));
   }
+});
+
+test('landing shows a real live example with a graceful fallback', async () => {
+  const [page, example] = await Promise.all([read('../app/page.js'), read('../components/landing-example.js')]);
+  assert.match(page, /<LandingExample/);
+  assert.match(page, /fallback={/);
+  assert.match(example, /\/questions\?limit=8/);
+  assert.match(example, /claim.questionId === question.questionId/);
+  assert.match(example, /frontier\/latest/);
+  assert.doesNotMatch(page, /Frontier snapshot #\d+/);
+});
+
+test('workspace activity renders an icon timeline keyed by event type', async () => {
+  const page = await read('../app/questions/[questionId]/page.js');
+  assert.match(page, /type\.startsWith\('frontier'\) \? Mountain/);
+  assert.match(page, /rounded-full bg-muted/);
+  assert.match(page, /font-mono text-xs uppercase tracking-wide/);
 });
 
 test('explore is one search surface with type filters and honest ordering', async () => {

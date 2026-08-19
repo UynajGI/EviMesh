@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, StatusBadge } from '@/components/ui/data';
 import { HandoffSheet } from '@/components/handoff-sheet';
 import { Alert, Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
+import { Flag, FlaskConical, History, Mountain } from 'lucide-react';
 import { IdChip } from '@/components/ui/idchip';
 import { hydrateEvidenceLinks, hydrateReceiptFindings, evidenceRelations } from '@/lib/hydrate';
 import { PageContainer, PageHeader } from '@/components/ui/page';
@@ -362,14 +363,25 @@ export default function QuestionDetailPage({ params }) {
           <h2 className="mb-1 text-lg font-semibold" id="activity-heading">Activity</h2>
           <p className="mb-4 max-w-2xl text-sm text-muted-foreground">Signed research events for this question. Hashes and signatures stay in the event audit, one layer down.</p>
           {events.length === 0 ? <Empty title="No events in range" description="Signed events for this question will appear here as they happen." /> : (
-            <Card className="divide-y divide-border">
-              {events.map((event) => (
-                <div className="flex flex-wrap items-center gap-3 px-5 py-3" key={event.eventId}>
-                  <span className="font-mono text-xs text-muted-foreground">{event.eventType ?? 'event'}</span>
-                  <IdChip value={event.eventId} />
-                  <span className="ml-auto text-xs tabular-nums text-muted-foreground">{relativeTime(event.createdAt)}</span>
-                </div>
-              ))}
+            <Card className="px-5 py-2">
+              <ol className="list-none">
+                {events.map((event) => {
+                  const type = event.eventType ?? 'event';
+                  const EventIcon = type.startsWith('frontier') ? Mountain : type.startsWith('claim') ? Flag : type.startsWith('evidence') ? FlaskConical : History;
+                  return (
+                    <li className="grid grid-cols-[2rem_minmax(0,1fr)] gap-3 border-b border-border py-4 last:border-b-0" key={event.eventId}>
+                      <span aria-hidden="true" className="mt-0.5 grid size-8 place-items-center rounded-full bg-muted text-muted-foreground"><EventIcon size={15} /></span>
+                      <div className="min-w-0">
+                        <p className="font-mono text-xs uppercase tracking-wide text-muted-foreground">{type}</p>
+                        <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                          <IdChip value={event.eventId} />
+                          <span className="ml-auto text-xs tabular-nums text-muted-foreground">{relativeTime(event.createdAt)}</span>
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ol>
             </Card>
           )}
           <Link className="mt-3 inline-block text-sm text-muted-foreground hover:text-foreground" href="/events">Full event audit with hashes and signatures →</Link>
