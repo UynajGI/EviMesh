@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { Clock } from 'lucide-react';
 import { Card, StatusBadge } from '@/components/ui/data';
 import { Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
 import { IdChip } from '@/components/ui/idchip';
@@ -16,6 +17,28 @@ const TYPES = [
   { id: 'project', label: 'Projects' },
   { id: 'claim', label: 'Claims' },
 ];
+
+/* List rows carry no revision fields (titles live on detail endpoints), so
+ * the first HYDRATE_LIMIT result rows get their real title/statement; rows
+ * beyond the bound fall back to the id line. Bounded, real data only. */
+const HYDRATE_LIMIT = 12;
+
+async function hydrateTitle(item) {
+  try {
+    if (item.kind === 'question') {
+      const detail = await fetchJson(`/questions/${item.id}`);
+      return detail.currentRevision?.title ?? null;
+    }
+    if (item.kind === 'claim') {
+      const detail = await fetchJson(`/claims/${item.id}`);
+      const statement = detail.currentRevision?.statement ?? null;
+      return statement ? `${statement.slice(0, 90)}${statement.length > 90 ? '…' : ''}` : null;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 async function fetchList(path) {
   const response = await fetch(`${process.env.NEXT_PUBLIC_EVIMESH_API_URL}${path}`);
@@ -49,11 +72,14 @@ function ExploreView() {
         fetchList('/projects?limit=50'),
         fetchList('/claims?limit=50'),
       ]);
-      setItems([
+      const base = [
         ...questions.map((question) => ({ kind: 'question', id: question.questionId, state: question.state, when: question.createdAt, projectId: question.projectId })),
         ...projects.map((project) => ({ kind: 'project', id: project.projectId, state: project.state ?? 'active', when: project.createdAt })),
         ...claims.map((claim) => ({ kind: 'claim', id: claim.claimId, state: claim.state, when: claim.createdAt, questionId: claim.questionId })),
-      ]);
+      ];
+      setItems(base);
+      const heads = await Promise.all(base.slice(0, HYDRATE_LIMIT).map(async (item) => ({ ...item, title: await hydrateTitle(item) })));
+      setItems([...heads, ...base.slice(HYDRATE_LIMIT)]);
     } catch (reason) {
       setError(reason.message);
     } finally {
@@ -96,21 +122,25 @@ function ExploreView() {
           value={query}
         />
         <div className="flex gap-1 overflow-x-auto" role="tablist" aria-label="Result type">
-          {TYPES.map((entry) => (
-            <button
-              aria-selected={type === entry.id}
-              className={cn(
-                'h-8 whitespace-nowrap rounded-md border px-3 text-sm font-medium transition-colors',
-                type === entry.id ? 'border-primary bg-accent text-accent-foreground' : 'border-border bg-card text-muted-foreground hover:text-foreground',
-              )}
-              key={entry.id}
-              onClick={() => setType(entry.id)}
-              role="tab"
-              type="button"
-            >
-              {entry.label}
-            </button>
-          ))}
+          {TYPES.map((entry) => {
+            const total = entry.id === 'all' ? items.length : items.filter((item) => item.kind === entry.id).length;
+            return (
+              <button
+                aria-selected={type === entry.id}
+                className={cn(
+                  'inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-md border px-3 text-sm font-medium transition-colors',
+                  type === entry.id ? 'border-primary bg-accent text-accent-foreground' : 'border-border bg-card text-muted-foreground hover:text-foreground',
+                )}
+                key={entry.id}
+                onClick={() => setType(entry.id)}
+                role="tab"
+                type="button"
+              >
+                {entry.label}
+                <span className="rounded-full border border-border bg-muted px-1.5 text-[11px] font-medium tabular-nums text-muted-foreground">{total}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -133,13 +163,27 @@ function ExploreView() {
           ) : (
             <Card className="divide-y divide-border">
               {results.map((item) => (
-                <article className="flex flex-wrap items-center gap-3 px-5 py-4 hover:bg-muted/50" key={`${item.kind}-${item.id}`}>
-                  <StatusBadge label={item.kind} state={item.state} />
-                  <IdChip className="min-w-0 flex-1" value={item.id} />
-                  <Link className="text-xs font-medium text-primary hover:underline" href={hrefFor(item)}>open</Link>
-                  <button className="rounded-md border border-border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground" onClick={() => setRowHandoff(item)} type="button">Hand to agent</button>
-                  {item.projectId ? <span className="text-xs tabular-nums text-muted-foreground">project {item.projectId}</span> : null}
-                  <span className="ml-auto text-xs capitalize text-muted-foreground">{item.kind}</span>
+                <article className="grid gap-1.5 px-5 py-4 hover:bg-muted/50" key={`${item.kind}-${item.id}`}>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <StatusBadge label={item.kind} state={item.state} />
+                    {item.title ? (
+                      <Link className="min-w-0 flex-1 truncate text-base font-semibold hover:underline" href={hrefFor(item)}>{item.title}</Link>
+                    ) : (
+                      <IdChip className="min-w-0 flex-1" value={item.id} />
+                    )}
+                    <Link className="text-xs font-medium text-primary hover:underline" href={hrefFor(item)}>open</Link>
+                    <button className="rounded-md border border-border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground" onClick={() => setRowHandoff(item)} type="button">Hand to agent</button>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                    <IdChip value={item.id} />
+                    {item.projectId ? <span className="tabular-nums">project {item.projectId}</span> : null}
+                    {item.when ? (
+                      <span className="flex items-center gap-1 tabular-nums">
+                        <Clock aria-hidden="true" size={12} />
+                        {new Date(item.when).toISOString().slice(0, 10)}
+                      </span>
+                    ) : null}
+                  </div>
                 </article>
               ))}
             </Card>
