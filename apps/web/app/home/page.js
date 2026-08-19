@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { Activity, Bot, ListTodo } from 'lucide-react';
+import { Activity, Bot, ListFilter, ListTodo } from 'lucide-react';
 import { ChangeGroup, ChangeItem } from '@/components/change-item';
 import { StatusBadge } from '@/components/ui/data';
 import { Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
@@ -79,7 +79,17 @@ export default function HomePage() {
   useEffect(() => { load(); }, []);
 
   const rail = [
-    { icon: ListTodo, title: 'Work queue', body: 'Tasks, verification, challenges, and drafts in one place.', href: '/work', cta: 'Go to Work' },
+    {
+      icon: ListTodo,
+      title: 'My work',
+      href: '/work',
+      cta: 'Go to Work',
+      rows: [
+        { label: 'Claims awaiting your verification', count: claims.length, badge: 'accent' },
+        { label: 'Open tasks to pick up', count: tasks.length, badge: 'neutral' },
+        { label: 'Frontiers published', count: frontiers.length, badge: 'neutral' },
+      ],
+    },
     { icon: Bot, title: 'Agent connection', body: 'Six steps from hearing about EviMesh to a first trusted read.', href: '/agent', cta: 'Open the center' },
     { icon: Activity, title: 'Event audit', body: 'Signed research history with hashes, one layer down.', href: '/events', cta: 'Open audit' },
   ];
@@ -87,7 +97,13 @@ export default function HomePage() {
   return (
     <PageContainer wide>
       <PageHeader
-        description="Live activity across open research, grouped by attention level. Levels express attention priority, never the truth of a claim."
+        action={(
+          <Link className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-sm font-medium hover:bg-muted" href="/notifications">
+            <ListFilter aria-hidden="true" size={14} />
+            Manage subscriptions
+          </Link>
+        )}
+        description={`Observation window: last 7 days (since 2026-08-12). Live activity across open research, grouped by attention level; levels express attention priority, never the truth of a claim.`}
         eyebrow="Home"
         title="What changed in research"
       />
@@ -95,7 +111,7 @@ export default function HomePage() {
 
       <div className="mt-2 grid gap-10 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
         <div className="min-w-0">
-          <ChangeGroup count={claims.length} title="Claims awaiting verification">
+          <ChangeGroup count={claims.length} level="attention" title="Claims awaiting verification">
             {loading ? <Skeleton className="h-32 w-full" /> : error ? null : claims.length === 0 ? <Empty title="Nothing awaiting verification" description="Claims under verification will appear here as they move through the pipeline." /> : (
               <div className="divide-y divide-border rounded-lg border border-border bg-card">
                 {claims.map((claim) => (
@@ -115,7 +131,7 @@ export default function HomePage() {
             )}
           </ChangeGroup>
 
-          <ChangeGroup count={questions.length} meta="Newest activity first" title="Open questions">
+          <ChangeGroup count={questions.length} level="update" meta="Newest activity first" title="Open questions">
             {loading ? <Skeleton className="mt-6 h-32 w-full" /> : error ? null : questions.length === 0 ? <Empty title="No open questions yet" description="Questions that are open for research will appear here." /> : (
               <div className="divide-y divide-border rounded-lg border border-border bg-card">
                 {questions.map((question) => (
@@ -135,7 +151,7 @@ export default function HomePage() {
             )}
           </ChangeGroup>
 
-          <ChangeGroup count={frontiers.length} title="Latest frontiers">
+          <ChangeGroup count={frontiers.length} level="frontier" title="Latest frontiers">
             {loading ? <Skeleton className="mt-6 h-32 w-full" /> : error ? null : frontiers.length === 0 ? <Empty title="No published frontiers yet" description="Frontier snapshots will appear here once projects publish their first." /> : (
               <div className="divide-y divide-border rounded-lg border border-border bg-card">
                 {frontiers.map(({ project, frontier }) => (
@@ -155,7 +171,7 @@ export default function HomePage() {
             )}
           </ChangeGroup>
 
-          <ChangeGroup count={tasks.length} title="Newcomer tasks">
+          <ChangeGroup count={tasks.length} level="task" title="Newcomer tasks">
             {loading ? <Skeleton className="mt-6 h-32 w-full" /> : error ? null : tasks.length === 0 ? <Empty title="No newcomer tasks open" description="CPU-only and under-60-minute tasks will appear here when available." /> : (
               <div className="divide-y divide-border rounded-lg border border-border bg-card">
                 {tasks.map((task) => (
@@ -177,13 +193,24 @@ export default function HomePage() {
         </div>
 
         <aside aria-label="Context" className="grid gap-3">
-          {rail.map(({ icon: Icon, title, body, href, cta }) => (
+          {rail.map(({ icon: Icon, title, body, rows, href, cta }) => (
             <div className="rounded-lg border border-border bg-card p-4" key={title}>
               <div className="flex items-center gap-2">
                 <Icon aria-hidden="true" className="text-muted-foreground" size={16} />
                 <h2 className="text-sm font-semibold">{title}</h2>
               </div>
-              <p className="mt-1 text-xs text-muted-foreground">{body}</p>
+              {rows ? (
+                <ul className="mt-3 grid gap-2">
+                  {rows.map((row) => (
+                    <li className="flex items-center justify-between gap-2 text-xs" key={row.label}>
+                      <span className="text-muted-foreground">{row.label}</span>
+                      <span className="rounded-full border border-border bg-muted px-2 py-0.5 font-medium tabular-nums text-muted-foreground">{row.count}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-1 text-xs text-muted-foreground">{body}</p>
+              )}
               <Link className="mt-3 inline-block text-xs font-medium text-primary hover:underline" href={href}>{cta} →</Link>
             </div>
           ))}

@@ -39,15 +39,25 @@ export function ChangeItem({ level = 'update', what, why, time, href, id, idLabe
   );
 }
 
-/** Stream group header with a count chip, per the design book sectionheads. */
-export function ChangeGroup({ title, meta, count, children }) {
+/* Group count badge tone follows the group level (mockup: critical 2 in
+ * emphasis-danger, attention in warning, update in info). */
+const COUNT_VARIANTS = {
+  critical: 'border-transparent bg-emphasis-danger text-emphasis-foreground',
+  attention: 'border-status-warning-border bg-status-warning-bg text-status-warning-fg',
+  update: 'border-status-info-border bg-status-info-bg text-status-info-fg',
+  frontier: 'border-status-accent-border bg-status-accent-bg text-status-accent-fg',
+  task: 'border-border bg-muted text-muted-foreground',
+};
+
+/** Stream group header with a level-tinted count badge, per the mockup sectionheads. */
+export function ChangeGroup({ title, meta, count, level = 'update', children }) {
   return (
     <section className="mt-10" aria-labelledby={title.replace(/[^a-z0-9]+/gi, '-')}>
       <div className="mb-3 flex items-baseline justify-between gap-4">
         <h2 className="flex items-center gap-2 text-xl font-semibold tracking-tight" id={title.replace(/[^a-z0-9]+/gi, '-')}>
           {title}
           {typeof count === 'number' ? (
-            <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-xs font-medium tabular-nums text-muted-foreground">{count}</span>
+            <span className={cn('rounded-full border px-2 py-0.5 text-xs font-medium tabular-nums', COUNT_VARIANTS[level] ?? COUNT_VARIANTS.update)}>{count}</span>
           ) : null}
         </h2>
         {meta ? <span className="text-sm text-muted-foreground">{meta}</span> : null}
