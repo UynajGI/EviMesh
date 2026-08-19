@@ -10,6 +10,7 @@ import { Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
 import { IdChip } from '@/components/ui/idchip';
 import { PageContainer, PageHeader } from '@/components/ui/page';
 import { RoleBar, CONTRIBUTION_ROLES } from '@/components/role-bar';
+import { HandoffSheet } from '@/components/handoff-sheet';
 import { cn } from '@/lib/utils';
 
 const API = process.env.NEXT_PUBLIC_EVIMESH_API_URL;
@@ -64,6 +65,7 @@ function roleForEventType(type) {
  */
 export default function WorkPage() {
   const [tab, setTab] = useState('tasks');
+  const [handoffOpen, setHandoffOpen] = useState(false);
   const [openTasks, setTasks] = useState(null);
   const [verificationClaims, setVerificationClaims] = useState(null);
   const [events, setEvents] = useState(null);
@@ -102,20 +104,45 @@ export default function WorkPage() {
       />
       {error ? <ErrorState className="mt-10" message={error} onRetry={load} /> : null}
 
-      <section aria-labelledby="create-heading" className="mt-10">
-        <h2 className="mb-3 text-lg font-semibold" id="create-heading">Start something</h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {CREATE_LINKS.map(({ href, label, icon: Icon }) => (
-            <Link
-              className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 text-sm font-medium transition-colors hover:bg-muted"
-              href={href}
-              key={href}
-            >
-              <Icon aria-hidden="true" className="text-muted-foreground" size={16} />
-              {label}
-            </Link>
-          ))}
+      <section aria-labelledby="create-heading" className="mt-8">
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-border bg-card p-5">
+          <div>
+            <h2 className="text-lg font-semibold" id="create-heading">Start something</h2>
+            <p className="mt-1 max-w-xl text-sm text-muted-foreground">
+              Research writing on EviMesh is agent-led: describe the intent and hand it to your agent with full
+              context. The web reads and explains; agents draft, humans sign.
+            </p>
+          </div>
+          <button
+            className="inline-flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-accent-foreground/90"
+            onClick={() => setHandoffOpen(true)}
+            type="button"
+          >
+            <Activity aria-hidden="true" size={15} />
+            Hand new work to your agent
+          </button>
         </div>
+        <details className="mt-3 rounded-lg border border-border bg-card px-5 py-4">
+          <summary className="cursor-pointer text-sm text-muted-foreground">
+            Manual submission (fallback for no-agent and accessibility paths)
+          </summary>
+          <p className="mt-2 max-w-2xl text-xs text-muted-foreground">
+            These web forms are the retained fallback, not the primary path. The agent handoff above is the main
+            interaction for structured research writing.
+          </p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {CREATE_LINKS.map(({ href, label, icon: Icon }) => (
+              <Link
+                className="flex items-center gap-3 rounded-md border border-border bg-background px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+                href={href}
+                key={href}
+              >
+                <Icon aria-hidden="true" size={14} />
+                {label}
+              </Link>
+            ))}
+          </div>
+        </details>
       </section>
 
       <div className="mt-8 flex gap-1 overflow-x-auto border-b border-border" role="tablist" aria-label="Work views">
@@ -254,6 +281,19 @@ export default function WorkPage() {
           )}
         </section>
       ) : null}
+      <HandoffSheet
+        cliCommand={`sq question list   # find where to contribute
+sq task list       # open tasks to pick up`}
+        intent="Hand new research work to your agent"
+        mcpCall={`tool:     search_open_tasks (read-only)
+resource: evimesh://questions/open`}
+        objectId="work-queue"
+        objectType="work"
+        onOpenChange={setHandoffOpen}
+        open={handoffOpen}
+        scopes={['read', 'drafts']}
+        view="work"
+      />
     </PageContainer>
   );
 }

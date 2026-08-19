@@ -303,3 +303,22 @@ test('command palette Enter executes the active command before search fallback',
   assert.match(palette, /if \(results\[active\]\) \{\s*go\(results\[active\]\.href\);/);
   assert.match(palette, /\/explore\?q=/);
 });
+
+test('web reads, agents write: handoff is the primary action, forms are fallback', async () => {
+  const [work, task] = await Promise.all([
+    read('../app/work/page.js'),
+    read('../app/tasks/[taskId]/page.js'),
+  ]);
+  // Work: handoff primary above the demoted manual fallback.
+  assert.match(work, /Hand new work to your agent/);
+  assert.match(work, /Manual submission \(fallback for no-agent and accessibility paths\)/);
+  assert.match(work, /<HandoffSheet/);
+  for (const href of ['/questions/new', '/claims/new', '/evidence/new', '/challenges/new', '/runs/new', '/verification/receipt/new']) {
+    assert.ok(work.includes(`href: '${href}'`), `fallback must stay reachable: ${href}`);
+  }
+  // Task detail: agent handoff primary; manual attempt explicitly labeled fallback.
+  assert.match(task, /Run this task with an agent/);
+  assert.match(task, /<HandoffSheet/);
+  assert.match(task, /manual fallback/);
+  assert.match(task, /Start Attempt/);
+});
