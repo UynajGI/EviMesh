@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-const route = await readFile(new URL('../app/agent/route.js', import.meta.url), 'utf8');
+const route = await readFile(new URL('../app/agent/manual/route.js', import.meta.url), 'utf8');
 const source = await readFile(new URL('../lib/agent-manual.js', import.meta.url), 'utf8');
 
 test('Agent manual is served as a direct Markdown document', () => {

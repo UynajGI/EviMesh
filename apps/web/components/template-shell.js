@@ -13,6 +13,7 @@ import {
   BookOpen, Bot, Briefcase, Compass, House, LogIn, Menu, Search, X,
 } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { CommandPalette } from '@/components/command-palette';
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
@@ -145,6 +146,8 @@ export function TemplateShell({ children }) {
       ) : null}
 
       <main id="main-content" className="flex-1">{children}</main>
+
+      <CommandPalette />
 
       <footer className="border-t border-border px-6 py-4 text-xs text-muted-foreground">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2">

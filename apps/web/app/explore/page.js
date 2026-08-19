@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Card, StatusBadge } from '@/components/ui/data';
 import { Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
 import { IdChip } from '@/components/ui/idchip';
@@ -25,10 +26,12 @@ async function fetchList(path) {
 /*
  * Explore (M13.8 05-core-ui-spec.md §3): one search entry. Object types are
  * filter dimensions, never a navigation layer. No popularity ordering:
- * sorting expresses recency, never research value.
+ * sorting expresses recency, never research value. The initial query can
+ * arrive from the command palette via ?q=.
  */
-export default function ExplorePage() {
-  const [query, setQuery] = useState('');
+function ExploreView() {
+  const searchParams = useSearchParams();
+  const [query, setQuery] = useState(searchParams.get('q') ?? '');
   const [type, setType] = useState('all');
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -140,5 +143,13 @@ export default function ExplorePage() {
         ) : null}
       </div>
     </PageContainer>
+  );
+}
+
+export default function ExplorePage() {
+  return (
+    <Suspense fallback={<PageContainer><Skeleton className="h-32 w-full" /><Skeleton className="mt-6 h-64 w-full" /></PageContainer>}>
+      <ExploreView />
+    </Suspense>
   );
 }

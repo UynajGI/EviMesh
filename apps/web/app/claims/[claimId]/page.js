@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { ClaimDag } from '@/components/claim-dag';
+import { HandoffSheet } from '@/components/handoff-sheet';
 import { Badge, Card, CardContent, StatusBadge } from '@/components/ui/data';
 import { Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
 import { IdChip } from '@/components/ui/idchip';
@@ -35,6 +36,7 @@ export default function ClaimDetailPage({ params }) {
   const [graph, setGraph] = useState(null);
   const [direction, setDirection] = useState('downstream');
   const [graphView, setGraphView] = useState('graph');
+  const [handoffOpen, setHandoffOpen] = useState(false);
   const [evidence, setEvidence] = useState([]);
   const [receipts, setReceipts] = useState([]);
   const [error, setError] = useState(null);
@@ -93,7 +95,7 @@ export default function ClaimDetailPage({ params }) {
         action={(
           <div className="flex flex-wrap gap-2">
             <Link className="inline-flex h-9 items-center rounded-md border border-border bg-card px-3 text-sm font-medium hover:bg-muted" href={`/claims/${claim.claimId}/diff`}>Revision diff</Link>
-            <Link className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-accent-foreground/90" href="/agent">Continue with an agent</Link>
+            <button className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-accent-foreground/90" onClick={() => setHandoffOpen(true)} type="button">Continue with an agent</button>
           </div>
         )}
         description={claim.questionId ? null : 'Not linked to a question yet.'}
@@ -240,6 +242,19 @@ export default function ClaimDetailPage({ params }) {
           </Card>
         </aside>
       </div>
+
+      <HandoffSheet
+        cliCommand={`sq claims inspect ${claim.claimId} --rev ${currentRevision.revision}`}
+        intent="Advance this claim with your agent"
+        mcpCall={`resource: evimesh://claims/${claim.claimId}?rev=${currentRevision.revision}\ntool:     draft_evidence (confirm: true)`}
+        objectId={claim.claimId}
+        objectType="claim"
+        onOpenChange={setHandoffOpen}
+        open={handoffOpen}
+        revision={currentRevision.revision}
+        scopes={['evidence:write', 'drafts', 'verification:request']}
+        view="argument"
+      />
     </PageContainer>
   );
 }

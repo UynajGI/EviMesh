@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Card, CardContent, StatusBadge } from '@/components/ui/data';
+import { HandoffSheet } from '@/components/handoff-sheet';
 import { Alert, Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
 import { IdChip } from '@/components/ui/idchip';
 import { PageContainer, PageHeader } from '@/components/ui/page';
@@ -46,6 +47,7 @@ function relativeTime(value) {
 export default function QuestionDetailPage({ params }) {
   const [questionId, setQuestionId] = useState(null);
   const [view, setView] = useState('summary');
+  const [handoffOpen, setHandoffOpen] = useState(false);
   const [data, setData] = useState(null);
   const [evidence, setEvidence] = useState(null);
   const [receipts, setReceipts] = useState(null);
@@ -124,7 +126,7 @@ export default function QuestionDetailPage({ params }) {
         action={(
           <div className="flex flex-wrap gap-2">
             <Link className="inline-flex h-9 items-center rounded-md border border-border bg-card px-3 text-sm font-medium hover:bg-muted" href={`/projects/${question.projectId}`}>Open project</Link>
-            <Link className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-accent-foreground/90" href="/agent">Continue with an agent</Link>
+            <button className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-accent-foreground/90" onClick={() => setHandoffOpen(true)} type="button">Continue with an agent</button>
           </div>
         )}
         description={currentRevision.statement}
@@ -347,6 +349,19 @@ export default function QuestionDetailPage({ params }) {
           <Link className="mt-3 inline-block text-sm text-muted-foreground hover:text-foreground" href="/events">Full event audit with hashes and signatures →</Link>
         </section>
       ) : null}
+
+      <HandoffSheet
+        cliCommand={`sq questions inspect ${question.questionId}`}
+        intent="Continue this question with your agent"
+        mcpCall={`resource: evimesh://questions/${question.questionId}\ntool:     search (read-only)`}
+        objectId={question.questionId}
+        objectType="question"
+        onOpenChange={setHandoffOpen}
+        open={handoffOpen}
+        revision={currentRevision.revision}
+        scopes={['read', 'drafts']}
+        view={view}
+      />
     </PageContainer>
   );
 }

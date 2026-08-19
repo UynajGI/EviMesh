@@ -110,3 +110,89 @@ test('manual theme toggle persists and the layout applies it before first paint'
   assert.match(globals, /\[data-theme="dark"\] \{/);
   assert.match(globals, /:root:not\(\[data-theme="light"\]\) \{/);
 });
+
+test('workspace offers six protocol views with DAG framing and no scores', async () => {
+  const page = await read('../app/questions/[questionId]/page.js');
+  for (const label of ['Summary', 'Current frontier', 'Argument', 'Evidence', 'Verification & challenges', 'Activity']) {
+    assert.match(page, new RegExp(`label: '${label}'`), `workspace is missing view ${label}`);
+  }
+  assert.match(page, /fourteen directed edge types forming a DAG, never a parent-child tree/);
+  assert.match(page, /counts are navigation, never a score|Grouped counts are navigation/);
+  assert.match(page, /role="tablist"/);
+  assert.match(page, /objectType=question&objectId=/);
+});
+
+test('claim detail reads in serif with a status-summary rail', async () => {
+  const page = await read('../app/claims/[claimId]/page.js');
+  assert.match(page, /font-serif/);
+  assert.match(page, /Status summary/);
+  assert.match(page, /Counts are entry points, never scores/);
+  assert.match(page, /keyboard-reachable equivalent/);
+});
+
+test('handoff sheets carry intent, object, and return path but never credentials', async () => {
+  const sheet = await read('../components/handoff-sheet.js');
+  assert.match(sheet, /It never carries credentials|never carries credentials/);
+  assert.match(sheet, /navigator\.clipboard\.writeText/);
+  assert.match(sheet, /continuation:/);
+  assert.match(sheet, /Permalink/);
+  for (const block of ['Natural-language task', 'Suggested CLI', 'Suggested MCP']) {
+    assert.match(sheet, new RegExp(block));
+  }
+  const [claim, workspace] = await Promise.all([read('../app/claims/[claimId]/page.js'), read('../app/questions/[questionId]/page.js')]);
+  for (const page of [claim, workspace]) {
+    assert.match(page, /import \{ HandoffSheet \}/);
+    assert.match(page, /setHandoffOpen\(true\)/);
+    assert.match(page, /<HandoffSheet/);
+  }
+});
+
+test('agent center walks six steps and keeps the manual as Markdown', async () => {
+  const [page, route] = await Promise.all([read('../app/agent/page.js'), read('../app/agent/manual/route.js')]);
+  for (const step of ['Choose a client', 'Sign in and grant least privilege', 'Add the connection config', 'Test the connection', 'Read a real public question', 'Check provenance and continue']) {
+    assert.match(page, new RegExp(`title: '${step}'`), `agent center is missing step ${step}`);
+  }
+  assert.match(page, /href="\/agent\/manual"/);
+  assert.match(page, /never real credentials|never appear on this page/);
+  assert.match(page, /confirm \+ signature/);
+  assert.match(page, /Revoke or narrow grants/);
+  assert.match(route, /new Response\(agentManualMarkdown/);
+});
+
+test('command palette is keyboard-first and delegates object search to Explore', async () => {
+  const palette = await read('../components/command-palette.js');
+  assert.match(palette, /ctrlKey \|\| event\.metaKey/);
+  assert.match(palette, /event\.key === '\/'/);
+  assert.match(palette, /ArrowDown/);
+  assert.match(palette, /ArrowUp/);
+  assert.match(palette, /role="listbox"/);
+  assert.match(palette, /\/explore\?q=/);
+  const shell = await read('../components/template-shell.js');
+  assert.match(shell, /<CommandPalette \/>/);
+});
+
+test('settings covers five sections with the ORCID OAuth-only rule', async () => {
+  const page = await read('../app/settings/page.js');
+  for (const id of ['s-profile', 's-identities', 's-tokens', 's-security', 's-notifications']) {
+    assert.ok(page.includes(`id: '${id}'`), `settings is missing section ${id}`);
+  }
+  assert.match(page, /a manually typed iD can never show as verified/);
+  assert.match(page, /shown exactly once/);
+  assert.match(page, /attention priority, never a verdict/);
+});
+
+test('notifications ships its honest empty state, not a fake feed', async () => {
+  const page = await read('../app/notifications/page.js');
+  assert.match(page, /No notifications yet/);
+  assert.match(page, /Discover research to follow/);
+  assert.match(page, /subscription-driven|Subscription-driven/);
+});
+
+test('contributor page shows roles and traceable activity without rankings', async () => {
+  const page = await read('../app/contributors/[actorId]/page.js');
+  for (const section of ['Roles', 'Produced', 'Used', 'Frontier usage']) {
+    assert.match(page, new RegExp(section));
+  }
+  assert.match(page, /No points, no rankings/);
+  assert.match(page, /\/actors\/\$\{actorId\}/);
+});
