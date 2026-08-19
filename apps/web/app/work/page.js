@@ -260,7 +260,7 @@ export default function WorkPage() {
                   <StatusBadge state={claim.state} />
                   <IdChip value={claim.claimId} />
                   <Link className="text-xs font-medium text-primary hover:underline" href={`/claims/${claim.claimId}`}>open</Link>
-                  <button className="rounded-md border border-border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground" onClick={() => setRowHandoff({ objectType: 'claim', objectId: claim.claimId, intent: 'Verify this claim with your agent' })} type="button">Hand to agent</button>
+                  <button className="rounded-md border border-border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground" onClick={() => setRowHandoff({ objectType: 'claim', objectId: claim.claimId, intent: 'Verify this claim with your agent', kind: 'claim' })} type="button">Hand to agent</button>
                   <Link className="text-xs text-muted-foreground hover:text-foreground" href="/verification/receipt/new">manual receipt</Link>
                   <span className="ml-auto text-xs text-muted-foreground">receipts record outcomes and findings, never a score</span>
                 </article>
@@ -365,16 +365,22 @@ resource: evimesh://questions/open`}
       />
       {rowHandoff ? (
         <HandoffSheet
-          cliCommand={`sq task inspect ${rowHandoff.objectId}   # read inputs, outputs, acceptance
+          cliCommand={rowHandoff.kind === 'claim'
+            ? `sq provenance ${rowHandoff.objectId}   # inspect the dependency path
+sq verify checkout ${rowHandoff.objectId}   # lock the revision for verification`
+            : `sq task inspect ${rowHandoff.objectId}   # read inputs, outputs, acceptance
 sq attempt start ${rowHandoff.objectId}     # begin an attributed attempt`}
           intent={rowHandoff.intent}
-          mcpCall={`tool:     get_task_context (read-only)
+          mcpCall={rowHandoff.kind === 'claim'
+            ? `tool:     submit_verification (confirm: true)
+resource: read the claim revision via the web permalink above`
+            : `tool:     get_task_context (read-only)
 tool:     start_attempt (confirm: true)`}
           objectId={rowHandoff.objectId}
           objectType={rowHandoff.objectType}
           onOpenChange={(open) => { if (!open) setRowHandoff(null); }}
           open={Boolean(rowHandoff)}
-          scopes={['read', 'attempts', 'drafts']}
+          scopes={rowHandoff.kind === 'claim' ? ['read', 'verification:submit'] : ['read', 'attempts', 'drafts']}
           view="work"
         />
       ) : null}

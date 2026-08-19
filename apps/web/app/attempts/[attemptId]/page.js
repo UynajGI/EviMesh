@@ -2,11 +2,12 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { Bot, Check, Share2 } from 'lucide-react';
+import { Bot, Check, Share2, UserRound } from 'lucide-react';
 import { Card, CardContent, StatusBadge } from '@/components/ui/data';
 import { Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
 import { IdChip } from '@/components/ui/idchip';
 import { PageContainer } from '@/components/ui/page';
+import { cn } from '@/lib/utils';
 
 const API = process.env.NEXT_PUBLIC_EVIMESH_API_URL;
 
@@ -86,12 +87,12 @@ export default function AttemptDetailPage({ params }) {
 
       <header className="flex flex-wrap items-start justify-between gap-5">
         <div className="flex min-w-0 items-start gap-5">
-          <span aria-hidden="true" className="grid size-16 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
-            <Bot size={28} />
+          <span aria-hidden="true" className={cn('grid size-16 shrink-0 place-items-center rounded-full', actorIsAgent ? 'bg-muted text-muted-foreground' : 'bg-accent text-accent-foreground')}>
+            {actorIsAgent ? <Bot size={28} /> : <UserRound size={28} />}
           </span>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <StatusBadge state="update" label="agent" />
+              {actorIsAgent ? <StatusBadge state="update" label="agent" /> : null}
               <StatusBadge state="active_question" label="attributed attempt" />
             </div>
             <h1 className="mt-2 text-2xl font-semibold tracking-tight">Attempt trail{revision ? ' · r' + revision : ''}</h1>

@@ -32,6 +32,7 @@ export default function HomePage() {
   const [frontiers, setFrontiers] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [windowStart, setWindowStart] = useState(null);
   const [error, setError] = useState(null);
 
   async function load() {
@@ -77,6 +78,16 @@ export default function HomePage() {
   }
 
   useEffect(() => { load(); }, []);
+  /* Observation window derives from live time (client), not a frozen string. */
+  useEffect(() => {
+    setWindowStart(new Date(Date.now() - 7 * 24 * 60 * 60_000));
+  }, []);
+
+  const inWindow = (value) => windowStart === null || !value || Date.parse(value) >= windowStart.getTime();
+  const visibleQuestions = questions.filter((q) => inWindow(q.createdAt));
+  const visibleClaims = claims.filter((c) => inWindow(c.createdAt));
+  const visibleFrontiers = frontiers.filter((f) => inWindow(f.frontier.createdAt));
+  const visibleTasks = tasks.filter((t) => inWindow(t.createdAt));
 
   const rail = [
     {
@@ -85,9 +96,9 @@ export default function HomePage() {
       href: '/work',
       cta: 'Go to Work',
       rows: [
-        { label: 'Claims awaiting your verification', count: claims.length, badge: 'accent' },
-        { label: 'Open tasks to pick up', count: tasks.length, badge: 'neutral' },
-        { label: 'Frontiers published', count: frontiers.length, badge: 'neutral' },
+        { label: 'Claims awaiting your verification', count: visibleClaims.length, badge: 'accent' },
+        { label: 'Open tasks to pick up', count: visibleTasks.length, badge: 'neutral' },
+        { label: 'Frontiers published', count: visibleFrontiers.length, badge: 'neutral' },
       ],
     },
     { icon: Bot, title: 'Agent connection', body: 'Six steps from hearing about EviMesh to a first trusted read.', href: '/agent', cta: 'Open the center' },
@@ -111,10 +122,10 @@ export default function HomePage() {
 
       <div className="mt-2 grid gap-10 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
         <div className="min-w-0">
-          <ChangeGroup count={claims.length} level="attention" title="Claims awaiting verification">
+          <ChangeGroup count={visibleClaims.length} level="attention" title="Claims awaiting verification">
             {loading ? <Skeleton className="h-32 w-full" /> : error ? null : claims.length === 0 ? <Empty title="Nothing awaiting verification" description="Claims under verification will appear here as they move through the pipeline." /> : (
               <div className="divide-y divide-border rounded-lg border border-border bg-card">
-                {claims.map((claim) => (
+                {visibleClaims.map((claim) => (
                   <ChangeItem
                     href={`/claims/${claim.claimId}`}
                     id={claim.claimId}
@@ -131,10 +142,10 @@ export default function HomePage() {
             )}
           </ChangeGroup>
 
-          <ChangeGroup count={questions.length} level="update" meta="Newest activity first" title="Open questions">
+          <ChangeGroup count={visibleQuestions.length} level="update" meta="Newest activity first" title="Open questions">
             {loading ? <Skeleton className="mt-6 h-32 w-full" /> : error ? null : questions.length === 0 ? <Empty title="No open questions yet" description="Questions that are open for research will appear here." /> : (
               <div className="divide-y divide-border rounded-lg border border-border bg-card">
-                {questions.map((question) => (
+                {visibleQuestions.map((question) => (
                   <ChangeItem
                     href={`/questions/${question.questionId}`}
                     id={question.questionId}
@@ -151,10 +162,10 @@ export default function HomePage() {
             )}
           </ChangeGroup>
 
-          <ChangeGroup count={frontiers.length} level="frontier" title="Latest frontiers">
+          <ChangeGroup count={visibleFrontiers.length} level="frontier" title="Latest frontiers">
             {loading ? <Skeleton className="mt-6 h-32 w-full" /> : error ? null : frontiers.length === 0 ? <Empty title="No published frontiers yet" description="Frontier snapshots will appear here once projects publish their first." /> : (
               <div className="divide-y divide-border rounded-lg border border-border bg-card">
-                {frontiers.map(({ project, frontier }) => (
+                {visibleFrontiers.map(({ project, frontier }) => (
                   <ChangeItem
                     href={`/projects/${project.projectId}`}
                     id={frontier.snapshotId}
@@ -171,10 +182,10 @@ export default function HomePage() {
             )}
           </ChangeGroup>
 
-          <ChangeGroup count={tasks.length} level="task" title="Newcomer tasks">
+          <ChangeGroup count={visibleTasks.length} level="task" title="Newcomer tasks">
             {loading ? <Skeleton className="mt-6 h-32 w-full" /> : error ? null : tasks.length === 0 ? <Empty title="No newcomer tasks open" description="CPU-only and under-60-minute tasks will appear here when available." /> : (
               <div className="divide-y divide-border rounded-lg border border-border bg-card">
-                {tasks.map((task) => (
+                {visibleTasks.map((task) => (
                   <ChangeItem
                     href={`/tasks/${task.taskId}`}
                     id={task.taskId}

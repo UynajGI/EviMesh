@@ -40,6 +40,13 @@ async function hydrateTitle(item) {
   }
 }
 
+async function fetchJson(path) {
+  const response = await fetch(`${API}${path}`);
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.message ?? `${path} is unavailable.`);
+  return payload;
+}
+
 async function fetchList(path) {
   const response = await fetch(`${process.env.NEXT_PUBLIC_EVIMESH_API_URL}${path}`);
   const payload = await response.json();
@@ -95,7 +102,7 @@ function ExploreView() {
       .filter((item) => (type === 'all' || item.kind === type))
       .filter((item) => !needle || item.id.toLowerCase().includes(needle) || (item.projectId ?? '').toLowerCase().includes(needle))
       .sort((left, right) => {
-        if (sort === 'title') return String(left.id).localeCompare(String(right.id));
+        if (sort === 'title') return String(left.title ?? left.id).localeCompare(String(right.title ?? right.id));
         return Date.parse(right.when ?? 0) - Date.parse(left.when ?? 0);
       })
       .slice(0, 40);
@@ -219,9 +226,13 @@ function ExploreView() {
       </div>
       {rowHandoff ? (
         <HandoffSheet
-          cliCommand={`sq ${rowHandoff.kind === 'question' ? 'question list' : 'project list'}   # locate ${rowHandoff.id}`}
+          cliCommand={rowHandoff.kind === 'question'
+            ? `sq question list   # locate ${rowHandoff.id}`
+            : `sq provenance ${rowHandoff.id}   # inspect the dependency path`}
           intent={`Continue this ${rowHandoff.kind} with your agent`}
-          mcpCall={`resource: evimesh://${rowHandoff.kind}s`}
+          mcpCall={rowHandoff.kind === 'question'
+            ? 'resource: evimesh://questions/open'
+            : 'resource: read the claim revision via the web permalink above'}
           objectId={rowHandoff.id}
           objectType={rowHandoff.kind}
           onOpenChange={(open) => { if (!open) setRowHandoff(null); }}
