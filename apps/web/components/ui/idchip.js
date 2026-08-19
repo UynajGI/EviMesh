@@ -28,7 +28,10 @@ export function IdChip({ value, label, className }) {
     copy();
   }
 
-  const short = value.length > 18 ? `${value.slice(0, 14)}…${value.slice(-6)}` : value;
+    // Design book 03 §4: prefix + first 6 payload characters + ellipsis + last 4.
+  const underscore = value.indexOf("_");
+  const head = underscore > 0 ? value.slice(0, underscore + 6) : value.slice(0, 6);
+  const short = value.length > head.length + 4 ? `${head}…${value.slice(-4)}` : value;
 
   return (
     <span className={cn('inline-flex max-w-full items-center gap-1 rounded-sm border border-border bg-muted px-2 py-0.5 font-mono text-xs text-muted-foreground', className)}>

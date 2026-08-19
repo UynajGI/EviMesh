@@ -322,3 +322,28 @@ test('web reads, agents write: handoff is the primary action, forms are fallback
   assert.match(task, /manual fallback/);
   assert.match(task, /Start Attempt/);
 });
+
+test('design chapters 03/04/08 land in production: truncation, motion, states', async () => {
+  const [globals, dialog, chip, feedback, shell] = await Promise.all([
+    read('../app/globals.css'),
+    read('../components/ui/dialog.js'),
+    read('../components/ui/idchip.js'),
+    read('../components/ui/feedback.js'),
+    read('../components/template-shell.js'),
+  ]);
+  // 04 §6: global reduced-motion kill-switch and dialog M8 enter.
+  assert.match(globals, /prefers-reduced-motion: reduce/);
+  assert.match(dialog, /evimesh-dialog-enter/);
+  assert.match(globals, /evimesh-dialog-enter 160ms/);
+  // 03 §4: prefix + first-6 + ellipsis + last-4 truncation.
+  assert.match(chip, /value\.slice\(0, underscore \+ 6\)/);
+  assert.match(chip, /value\.slice\(-4\)/);
+  // 08 §1: blank family carries icon discs; denied exists; offline banner is mounted.
+  for (const icon of ['Inbox', 'CircleAlert', 'Lock']) assert.ok(feedback.includes(icon), `blank family missing ${icon}`);
+  assert.match(feedback, /export function DeniedState/);
+  assert.match(feedback, /missing scope/);
+  assert.match(shell, /<OfflineBanner \/>/);
+  const banner = await read('../components/offline-banner.js');
+  assert.match(banner, /navigator\.onLine/);
+  assert.match(banner, /addEventListener\('online'/);
+});

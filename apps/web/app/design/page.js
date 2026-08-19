@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge, Card, CardContent, CardHeader, Metadata, StatusBadge } from '@/components/ui/data';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
-import { Alert, Empty, Progress, Skeleton } from '@/components/ui/feedback';
+import { Alert, DeniedState, Empty, Progress, Skeleton } from '@/components/ui/feedback';
+import { OfflineBanner } from '@/components/offline-banner';
 import { Input, Label, Textarea } from '@/components/ui/form';
 import { IdChip } from '@/components/ui/idchip';
 import { PageContainer, PageHeader, SectionHeader } from '@/components/ui/page';
@@ -100,6 +101,13 @@ export default function DesignCatalogPage() {
       <Showcase title="Overlays" description="Focus-managed dialog and dependency-free tooltip.">
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}><DialogTrigger asChild><Button variant="outline">Open dialog</Button></DialogTrigger><DialogContent><h2 className="text-base font-semibold">Dialog</h2><p className="mt-2 text-sm text-muted-foreground">Focus moves into the dialog and returns on close.</p><div className="mt-6 flex justify-end"><Button onClick={() => setDialogOpen(false)}>Close</Button></div></DialogContent></Dialog>
         <Tooltip label="Keyboard reachable"><Button variant="ghost">Hover for tooltip</Button></Tooltip>
+      </Showcase>
+      <Showcase title="State family" description="Design book 08: blank states carry an icon disc, an 18px title, a bounded description, and a next action.">
+        <div className="grid w-full gap-4 md:grid-cols-3">
+          <Empty title="Nothing here yet" description="Items will appear here as data accumulates." />
+          <DeniedState scope="projects:read" />
+          <OfflineBanner />
+        </div>
       </Showcase>
       <Showcase title="Empty states" description="Dashed surface with a recovery path.">
         <Empty title="Nothing here yet" description="Items will appear here as data accumulates." className="w-full" />

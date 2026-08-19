@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { CommandPalette } from '@/components/command-palette';
+import { OfflineBanner } from '@/components/offline-banner';
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
@@ -69,6 +70,8 @@ export function TemplateShell({ children }) {
       >
         Skip to main content
       </a>
+
+      <OfflineBanner />
 
       <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b border-border bg-card px-4 sm:px-6">
         <button

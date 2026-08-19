@@ -19,7 +19,7 @@ export function DialogContent({ className, children, ...props }) {
     <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay className="fixed inset-0 bg-background/80 backdrop-blur-sm" />
       <DialogPrimitive.Content
-        className={cn('fixed left-1/2 top-1/2 w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-card p-6 text-card-foreground shadow-lg focus:outline-none', className)}
+        className={cn('evimesh-dialog-enter fixed left-1/2 top-1/2 w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-card p-6 text-card-foreground shadow-lg focus:outline-none', className)}
         {...props}
       >
         {children}
