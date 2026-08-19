@@ -145,6 +145,13 @@ function ClaimDetailView({ params }) {
 
   const { claim, statusPolicy } = data;
   const pinned = Number.isInteger(pinnedRevision) && pinnedRevision >= 1 && pinnedRevisionData;
+  /* Evidence links target exact revisions, so claim-wide lists are labeled
+   * with a pinned notice instead of silently mixing revisions. */
+  const pinnedNotice = pinned ? (
+    <p className="mb-3 rounded-md border border-status-accent-border bg-status-accent-bg px-3 py-1.5 text-xs text-status-accent-fg">
+      Viewing r{pinnedRevision}. Evidence and receipts below are listed claim-wide; each item carries the revision it links to.
+    </p>
+  ) : null;
   const currentRevision = pinned ? { ...data.currentRevision, ...pinnedRevisionData, revision: pinnedRevision } : data.currentRevision;
   const graphNodes = Array.isArray(graph?.nodes) ? graph.nodes : [];
   const graphEntries = graphNodes.map((node) => ({ id: node.claimId ?? node.id, state: node.state ?? node.status })).filter((node) => typeof node.id === 'string' && node.id !== claim.claimId);
@@ -362,6 +369,7 @@ function ClaimDetailView({ params }) {
               <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Status summary</h2>
             </div>
             <CardContent className="grid gap-5">
+              {pinnedNotice}
               <div>
                 <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Evidence by relation</h3>
                 <div className="mt-2 grid gap-1.5">

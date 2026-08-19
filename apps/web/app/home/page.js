@@ -40,7 +40,7 @@ export default function HomePage() {
     setError(null);
     try {
       const [questionItems, taskGroups, projectItems, claimGroups] = await Promise.all([
-        fetch(`${process.env.NEXT_PUBLIC_EVIMESH_API_URL}/questions?limit=20`).then(async (response) => {
+        fetch(`${process.env.NEXT_PUBLIC_EVIMESH_API_URL}/questions?limit=100`).then(async (response) => {
           const payload = await response.json();
           if (!response.ok) throw new Error(payload.message ?? 'Questions are unavailable.');
           return payload.items ?? [];
@@ -60,7 +60,7 @@ export default function HomePage() {
           if (!response.ok) throw new Error(payload.message ?? 'Frontiers are unavailable.');
           return payload.frontier ? { project, frontier: payload.frontier } : null;
         }))),
-        Promise.all(['under_verification', 'provisionally_accepted'].map((status) => fetch(`${process.env.NEXT_PUBLIC_EVIMESH_API_URL}/claims?status=${status}&limit=6`).then(async (response) => {
+        Promise.all(['under_verification', 'provisionally_accepted'].map((status) => fetch(`${process.env.NEXT_PUBLIC_EVIMESH_API_URL}/claims?status=${status}&limit=100`).then(async (response) => {
           const payload = await response.json();
           if (!response.ok) throw new Error(payload.message ?? 'Claims are unavailable.');
           return payload.items ?? [];

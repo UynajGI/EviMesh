@@ -126,7 +126,7 @@ test('manages API tokens with one-time secret display', async () => {
 
 test('renders open questions on the homepage by latest available activity', async () => {
   const page = await read('../app/home/page.js');
-  assert.match(page, /\/questions\?limit=20/);
+  assert.match(page, /\/questions\?limit=100/);
   assert.match(page, /CLOSED_STATES/);
   assert.match(page, /Open questions/);
   assert.match(page, /Newest activity first/);

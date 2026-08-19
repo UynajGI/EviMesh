@@ -53,6 +53,7 @@ export default function QuestionDetailPage({ params }) {
   const [watched, setWatched] = useState(false);
   const [shared, setShared] = useState(false);
   const [previousSnapshot, setPreviousSnapshot] = useState(null);
+  const [sharedRev, setSharedRev] = useState(null);
   const [data, setData] = useState(null);
   const [evidence, setEvidence] = useState(null);
   const [receipts, setReceipts] = useState(null);
@@ -115,6 +116,11 @@ export default function QuestionDetailPage({ params }) {
   }
 
   useEffect(() => { if (questionId) load(); }, [questionId]);
+  /* Immutable share context: ?rev=N pins the question revision in the URL. */
+  useEffect(() => {
+    const rev = new URLSearchParams(window.location.search).get('rev');
+    if (rev) setSharedRev(Number.parseInt(rev, 10));
+  }, []);
   useEffect(() => {
     try { setWatched(localStorage.getItem(`evimesh-watch-${questionId}`) === '1'); } catch { /* unavailable */ }
   }, [questionId]);
@@ -144,6 +150,11 @@ export default function QuestionDetailPage({ params }) {
   if (!data) return <PageContainer><Skeleton className="h-32 w-full" /><Skeleton className="mt-6 h-96 w-full" /></PageContainer>;
 
   const { question, currentRevision, contract, tasks, frontier, claims, events } = data;
+  /* Scope fields live on the contract revision (research_contract_revisions),
+   * not the question revision; read both with the contract winning. */
+  const scopeSource = { ...currentRevision, ...Object.fromEntries(
+    Object.entries(contract ?? {}).filter(([key]) => ['scope', 'exclusions', 'falsification', 'acceptance'].includes(key)),
+  ) };
   const attentionClaims = claims.filter((claim) => ATTENTION_STATES.has(claim.state));
   const frontierMembers = Array.isArray(frontier?.members) ? frontier.members : [];
 
@@ -191,7 +202,9 @@ export default function QuestionDetailPage({ params }) {
               className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-sm font-medium hover:bg-muted"
               onClick={async () => {
                 try {
-                  await navigator.clipboard.writeText(window.location.href);
+                  const shareContext = new URL(window.location.href);
+                  shareContext.searchParams.set('rev', String(currentRevision.revision ?? 1));
+                  await navigator.clipboard.writeText(shareContext.href);
                   setShared(true);
                   setTimeout(() => setShared(false), 2000);
                 } catch { /* unavailable */ }
@@ -205,7 +218,7 @@ export default function QuestionDetailPage({ params }) {
           </div>
         )}
         description={currentRevision.statement}
-        eyebrow={`Question · r${currentRevision.revision ?? 1}`}
+        eyebrow={`Question · r${sharedRev ?? currentRevision.revision ?? 1}`}
         title={currentRevision.title}
       />
 
@@ -255,9 +268,9 @@ export default function QuestionDetailPage({ params }) {
                 <p className="mt-2 font-medium">{contract.title ?? contract.contractId}</p>
                 <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-[max-content_1fr] sm:gap-x-5">
                   {currentRevision.statement ? (<><dt className="text-muted-foreground">Answers</dt><dd>{currentRevision.statement}</dd></>) : null}
-                  {currentRevision.scope ? (<><dt className="text-muted-foreground">Scope</dt><dd>{currentRevision.scope}</dd></>) : null}
-                  {currentRevision.exclusions ? (<><dt className="text-muted-foreground">Exclusions</dt><dd>{currentRevision.exclusions}</dd></>) : null}
-                  {currentRevision.falsification ? (<><dt className="text-muted-foreground">Falsification</dt><dd>{currentRevision.falsification}</dd></>) : null}
+                  {scopeSource.scope ? (<><dt className="text-muted-foreground">Scope</dt><dd>{currentRevision.scope}</dd></>) : null}
+                  {scopeSource.exclusions ? (<><dt className="text-muted-foreground">Exclusions</dt><dd>{currentRevision.exclusions}</dd></>) : null}
+                  {scopeSource.falsification ? (<><dt className="text-muted-foreground">Falsification</dt><dd>{currentRevision.falsification}</dd></>) : null}
                   <dt className="text-muted-foreground">Contract</dt><dd className="font-mono text-xs">{contract.contractId} · r{contract.revision}</dd>
                 </dl>
               </CardContent>
