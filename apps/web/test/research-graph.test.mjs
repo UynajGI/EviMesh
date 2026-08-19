@@ -10,7 +10,7 @@ test("graph keeps the canvas, legend, and node details", () => {
   assert.match(source, /aria-label="Claim node details"/);
   assert.match(source, /aria-label="Claim state legend"/);
   assert.match(source, /CLAIM_STATE_COLORS/);
-  assert.match(source, /cytoscape/);
+  assert.match(source, /React Flow/);
 });
 
 test("graph offers a list alternative for keyboard access", () => {
@@ -26,7 +26,7 @@ test("graph filters nodes and edges by state", () => {
   assert.match(source, /stateFilter/);
   assert.match(source, /Filter by state/);
   assert.match(source, /visibleNodeIds/);
-  assert.match(source, /filtered\.has\(element\.data\.source\)/);
+  assert.match(source, /visibleNodeIds\.has\(node\.id\)/);
 });
 
 test("graph list rows carry text labels, not color alone", () => {
