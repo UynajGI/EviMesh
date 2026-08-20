@@ -18,6 +18,7 @@ const TYPES = [
   { id: 'question', label: 'Questions' },
   { id: 'project', label: 'Projects' },
   { id: 'claim', label: 'Claims' },
+  { id: 'topic', label: 'Topics' },
   { id: 'researcher', label: 'Researchers' },
 ];
 
@@ -80,6 +81,8 @@ function ExploreView() {
   const [last30, setLast30] = useState(false);
   const [joinable, setJoinable] = useState(false);
   const [openTaskQuestions, setOpenTaskQuestions] = useState(null);
+  const [actorDirectory, setActorDirectory] = useState(null);
+  const [topicFilter, setTopicFilter] = useState(null);
   const [rowHandoff, setRowHandoff] = useState(null);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -95,7 +98,7 @@ function ExploreView() {
         fetchList('/claims?limit=50'),
       ]);
       const base = [
-        ...questions.map((question) => ({ kind: 'question', id: question.questionId, state: question.state, when: question.createdAt, projectId: question.projectId })),
+        ...questions.map((question) => ({ kind: 'question', id: question.questionId, state: question.state, when: question.createdAt, projectId: question.projectId, topics: Array.isArray(question.topics) ? question.topics : [] })),
         ...projects.map((project) => ({ kind: 'project', id: project.projectId, state: project.state ?? 'active', when: project.createdAt })),
         ...claims.map((claim) => ({ kind: 'claim', id: claim.claimId, state: claim.state, when: claim.createdAt, questionId: claim.questionId, createdBy: claim.createdBy })),
       ];
@@ -109,6 +112,14 @@ function ExploreView() {
         setOpenTaskQuestions(new Set(openTasks.map((task) => task.questionId).filter(Boolean)));
       } catch {
         setOpenTaskQuestions(new Set());
+      }
+      /* Researcher directory (mockup 研究者): the /actors endpoint is the
+       * source; older deployments fall back to the derived view. */
+      try {
+        const body = await fetchJson('/actors?limit=100');
+        setActorDirectory(body.items ?? []);
+      } catch {
+        setActorDirectory(null);
       }
     } catch (reason) {
       setError(reason.message);
@@ -128,21 +139,37 @@ function ExploreView() {
     return items.filter((item) => !item.when || Date.parse(item.when) >= since);
   }, [items, last30]);
 
-  /* Researchers are derived from the createdBy attribution already present on
-   * questions and claims (mockup 研究者 tab). There is no actor directory
-   * endpoint yet, so this stays a derived, bounded view of current results. */
+  /* Researcher rows (mockup 研究者): the /actors directory when the
+   * deployment exposes it, enriched with derived object counts from the
+   * loaded results. Falls back to the pure derived view on older APIs.
+   * Recency order, never contribution counts: counts stay navigation aids. */
   const researchers = useMemo(() => {
-    const byActor = new Map();
+    const derived = new Map();
     for (const item of windowed) {
       const actor = item.createdBy;
       if (!actor) continue;
-      const entry = byActor.get(actor) ?? { actorId: actor, count: 0, lastWhen: null };
+      const entry = derived.get(actor) ?? { actorId: actor, count: 0, lastWhen: null };
       entry.count += 1;
       if (!entry.lastWhen || Date.parse(item.when ?? 0) > Date.parse(entry.lastWhen)) entry.lastWhen = item.when;
-      byActor.set(actor, entry);
+      derived.set(actor, entry);
     }
-    /* Recency order, never contribution counts: counts stay navigation aids. */
-    return [...byActor.values()].sort((left, right) => Date.parse(right.lastWhen ?? 0) - Date.parse(left.lastWhen ?? 0));
+    if (actorDirectory) {
+      return actorDirectory
+        .map((actor) => ({ ...actor, count: derived.get(actor.actorId)?.count ?? 0, lastWhen: derived.get(actor.actorId)?.lastWhen ?? actor.createdAt }))
+        .sort((left, right) => Date.parse(right.lastWhen ?? 0) - Date.parse(left.lastWhen ?? 0));
+    }
+    return [...derived.values()].sort((left, right) => Date.parse(right.lastWhen ?? 0) - Date.parse(left.lastWhen ?? 0));
+  }, [windowed, actorDirectory]);
+
+  /* Topic rows (mockup 主题): aggregated from the questions' own topic tags.
+   * Alphabetical, never by count — counts are entry points only. */
+  const topics = useMemo(() => {
+    const counts = new Map();
+    for (const item of windowed) {
+      if (item.kind !== 'question') continue;
+      for (const topic of item.topics ?? []) counts.set(topic, (counts.get(topic) ?? 0) + 1);
+    }
+    return [...counts.entries()].map(([label, count]) => ({ label, count })).sort((left, right) => left.label.localeCompare(right.label));
   }, [windowed]);
 
   const results = useMemo(() => {
@@ -150,8 +177,12 @@ function ExploreView() {
     if (type === 'researcher') {
       return researchers.filter((entry) => !needle || entry.actorId.toLowerCase().includes(needle)).slice(0, 40);
     }
+    if (type === 'topic') {
+      return topics.filter((topic) => !needle || topic.label.toLowerCase().includes(needle));
+    }
     return windowed
       .filter((item) => (type === 'all' || item.kind === type))
+      .filter((item) => !topicFilter || (item.kind === 'question' && (item.topics ?? []).includes(topicFilter)))
       .filter((item) => !joinable || (item.kind === 'question' && openTaskQuestions?.has(item.id)))
       .filter((item) => !needle || item.id.toLowerCase().includes(needle) || (item.projectId ?? '').toLowerCase().includes(needle))
       .sort((left, right) => {
@@ -159,7 +190,7 @@ function ExploreView() {
         return Date.parse(right.when ?? 0) - Date.parse(left.when ?? 0);
       })
       .slice(0, 40);
-  }, [windowed, researchers, query, type, sort, joinable, openTaskQuestions]);
+  }, [windowed, researchers, topics, query, type, sort, joinable, openTaskQuestions, topicFilter]);
 
   const hrefFor = (item) => (item.kind === 'question' ? `/questions/${item.id}` : item.kind === 'project' ? `/projects/${item.id}` : `/claims/${item.id}`);
 
@@ -181,9 +212,19 @@ function ExploreView() {
           value={query}
         />
         <div className="flex flex-wrap items-center gap-2">
+          {topicFilter ? (
+            <button
+              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-primary bg-accent px-3 text-sm font-medium text-accent-foreground"
+              onClick={() => setTopicFilter(null)}
+              type="button"
+            >
+              topic: {topicFilter}
+              <span aria-hidden="true">✕</span>
+            </button>
+          ) : null}
           <div className="flex gap-1 overflow-x-auto" role="tablist" aria-label="Result type">
             {TYPES.map((entry) => {
-              const total = entry.id === 'all' ? windowed.length : entry.id === 'researcher' ? researchers.length : windowed.filter((item) => item.kind === entry.id).length;
+              const total = entry.id === 'all' ? windowed.length : entry.id === 'researcher' ? researchers.length : entry.id === 'topic' ? topics.length : windowed.filter((item) => item.kind === entry.id).length;
               return (
                 <button
                   aria-selected={type === entry.id}
@@ -243,19 +284,43 @@ function ExploreView() {
               description="No objects match the current search and filters. Try a shorter stable id or another type."
               title="Nothing matches yet"
             />
+          ) : type === 'topic' ? (
+            <Card className="divide-y divide-border">
+              {results.length === 0 ? (
+                <p className="px-5 py-4 text-sm text-muted-foreground">No topic tags recorded on the loaded questions yet. Topics arrive with new questions.</p>
+              ) : results.map((topic) => (
+                <article className="flex flex-wrap items-center gap-3 px-5 py-4 hover:bg-muted/50" key={topic.label}>
+                  <span aria-hidden="true" className="rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">topic</span>
+                  <span className="min-w-0 flex-1 truncate font-medium">{topic.label}</span>
+                  <span className="text-xs tabular-nums text-muted-foreground">{topic.count} question{topic.count === 1 ? '' : 's'}</span>
+                  <button
+                    className="rounded-md border border-border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+                    onClick={() => { setTopicFilter(topic.label); setType('question'); }}
+                    type="button"
+                  >
+                    Filter questions
+                  </button>
+                </article>
+              ))}
+              <p className="px-5 py-3 text-xs text-muted-foreground">Topic tags are plain navigation labels recorded on questions — never a taxonomy, and counts are entry points, not rankings.</p>
+            </Card>
           ) : type === 'researcher' ? (
             <Card className="divide-y divide-border">
               {results.map((entry) => (
                 <article className="flex flex-wrap items-center gap-3 px-5 py-4 hover:bg-muted/50" key={entry.actorId}>
                   <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-full bg-accent text-sm font-semibold text-accent-foreground">
-                    {entry.actorId.slice(0, 1).toUpperCase()}
+                    {(entry.displayName ?? entry.actorId).slice(0, 1).toUpperCase()}
                   </span>
-                  <Link className="min-w-0 flex-1 truncate font-medium hover:underline" href={`/contributors/${encodeURIComponent(entry.actorId)}`}>{entry.actorId}</Link>
-                  <span className="text-xs tabular-nums text-muted-foreground">{entry.count} linked object{entry.count === 1 ? '' : 's'}</span>
+                  <span className="min-w-0">
+                    <Link className="block truncate font-medium hover:underline" href={`/contributors/${encodeURIComponent(entry.actorId)}`}>{entry.displayName ?? entry.actorId}</Link>
+                    <span className="block truncate font-mono text-xs text-muted-foreground">{entry.actorId}</span>
+                  </span>
+                  {entry.actorType ? <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{entry.actorType}</span> : null}
+                  <span className="ml-auto text-xs tabular-nums text-muted-foreground">{entry.count} linked object{entry.count === 1 ? '' : 's'}</span>
                   <Link className="text-xs font-medium text-primary hover:underline" href={`/contributors/${encodeURIComponent(entry.actorId)}`}>open</Link>
                 </article>
               ))}
-              <p className="px-5 py-3 text-xs text-muted-foreground">Derived from attribution on the currently loaded questions and claims. Object counts are entry points, never contribution scores.</p>
+              <p className="px-5 py-3 text-xs text-muted-foreground">{actorDirectory ? 'From the actor directory, with object counts derived from the loaded results. Counts are entry points, never contribution scores.' : 'Derived from attribution on the currently loaded questions and claims (the actor directory endpoint is unavailable on this deployment). Object counts are entry points, never contribution scores.'}</p>
             </Card>
           ) : (
             <Card className="divide-y divide-border">
@@ -294,6 +359,32 @@ function ExploreView() {
             </p>
           ) : null}
         </div>
+
+        <aside aria-label="Topics" className="rounded-lg border border-border bg-card p-4">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Topics</h2>
+          {topics.length === 0 ? (
+            <p className="mt-3 text-xs text-muted-foreground">No topic tags on the loaded questions yet. Topics arrive with new questions.</p>
+          ) : (
+            <ul className="mt-3 grid gap-1.5">
+              {topics.slice(0, 8).map((topic) => (
+                <li key={topic.label}>
+                  <button
+                    className={cn(
+                      'flex w-full items-center justify-between gap-3 rounded px-1.5 py-1 text-xs hover:bg-muted',
+                      topicFilter === topic.label && 'bg-accent text-accent-foreground',
+                    )}
+                    onClick={() => setTopicFilter(topicFilter === topic.label ? null : topic.label)}
+                    type="button"
+                  >
+                    <span className="min-w-0 truncate">{topic.label}</span>
+                    <span className="tabular-nums text-muted-foreground">{topic.count}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="mt-3 text-[10px] text-muted-foreground">Alphabetical; counts are entry points, never rankings.</p>
+        </aside>
 
         <aside aria-label="Ordering" className="rounded-lg border border-border bg-card p-4">
           <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Order by</h2>

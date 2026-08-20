@@ -1,6 +1,10 @@
 const TABLES = Object.freeze({
+  actors: "actors",
+  actorProfiles: "actor_profiles",
   claims: "claims",
   claimRelations: "claim_relations",
+  contributionEdges: "contribution_edges",
+  contributionStatements: "contribution_statements",
   projects: "projects",
   questions: "questions",
   tasks: "tasks",
@@ -32,12 +36,26 @@ function mapRow(row) {
 
 const PAGE_SIZE = 1000;
 const TABLE_ORDERS = Object.freeze({
+  actors: "created_at.desc,actor_id.desc",
+  actorProfiles: "actor_id.asc",
   claims: "created_at.desc,claim_id.desc",
   claimRelations: "created_at.asc,source_claim_id.asc,target_claim_id.asc,relation_type.asc",
+  contributionEdges: "statement_id.asc,edge_type.asc",
+  contributionStatements: "created_at.desc,statement_id.desc",
   projects: "created_at.desc,project_id.desc",
   questions: "created_at.desc,question_id.desc",
   tasks: "created_at.desc,task_id.desc",
 });
+
+/** PostgREST filter value: `eq.x` for scalars, `in.(a,b)` for arrays. */
+function filterValue(value) {
+  if (Array.isArray(value)) return `in.(${value.map((entry) => String(entry).replaceAll(",", "").replaceAll(")", "")).join(",")})`;
+  return `eq.${value}`;
+}
+
+/* Append-only fact tables carry no lifecycle columns; the soft-delete
+ * filter must not be applied to them. */
+const TABLES_WITHOUT_SOFT_DELETE = new Set(["contributionEdges", "contributionStatements"]);
 
 export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = fetch } = {}) {
   const baseUrl = requiredString(url, "Supabase URL").replace(/\/$/, "");
@@ -47,10 +65,10 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
   async function list(table, filters = {}) {
     const endpoint = new URL(`${baseUrl}/rest/v1/${TABLES[table]}`);
     endpoint.searchParams.set("select", "*");
-    endpoint.searchParams.set("deleted_at", "is.null");
+    if (!TABLES_WITHOUT_SOFT_DELETE.has(table)) endpoint.searchParams.set("deleted_at", "is.null");
     endpoint.searchParams.set("order", TABLE_ORDERS[table]);
     for (const [column, value] of Object.entries(filters)) {
-      if (value !== null && value !== undefined) endpoint.searchParams.set(column, `eq.${value}`);
+      if (value !== null && value !== undefined) endpoint.searchParams.set(column, filterValue(value));
     }
 
     const rows = [];
@@ -113,6 +131,17 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
   }
 
   return Object.freeze({
+    /* Actor directory + identity card reads (M13.8 data gates round). All
+     * read through the same public-table REST surface as the other lists. */
+    listActors: async () => list("actors"),
+    async getActor(actorId) {
+      return (await list("actors", { actor_id: actorId }))[0] ?? null;
+    },
+    async getActorProfile(actorId) {
+      return (await list("actorProfiles", { actor_id: actorId }))[0] ?? null;
+    },
+    listContributionStatements: (actorId) => list("contributionStatements", { actor_id: actorId }),
+    listContributionEdges: (statementIds) => list("contributionEdges", { statement_id: statementIds }),
     listProjects: ({ state = null } = {}) => list("projects", { state }),
     listQuestions: ({ projectId = null, state = null } = {}) => list("questions", { project_id: projectId, state }),
     async listTasks({ projectId = null, status = null, type = null, tag = null } = {}) {

@@ -161,7 +161,13 @@ test('attempt page ships the identity card, self-declaration boundary, and publi
   assert.match(page, /Identity card/);
   assert.match(page, /agentRecord/);
   assert.match(page, /\/actors\/\$\{encodeURIComponent\(act\)\}/);
-  assert.match(page, /self_declared · not exposed by the public API yet/);
+  // Identity-card fields render from the actors endpoint; null stays honest.
+  assert.match(page, /const card = agentRecord\?\.actor \?\? \{\};/);
+  assert.match(page, /\{card\.modelName \?\? 'not stated'\}/);
+  assert.match(page, /\{card\.runtime \?\? 'not stated'\}/);
+  assert.match(page, /\{card\.scope \?\? 'not stated'\}/);
+  assert.match(page, /\{card\.publicKeyFingerprint \?\? 'not stated'\}/);
+  assert.match(page, /card\.ownerActorId/);
   assert.match(page, /Self-declared, not verified/);
   assert.match(page, /never impersonate humans/);
   assert.match(page, /This agent's public output/);
@@ -201,4 +207,75 @@ test('agent center anchors its sections and marks the recommended path', async (
   assert.match(page, /id="ac-security"/);
   assert.match(page, /recommended path/);
   assert.match(page, /Review or revoke tokens and scopes in Settings/);
+});
+
+/*
+ * Protocol/API closure pass: topics, actor directory, identity-card fields,
+ * and live grants moved from data gates to real data.
+ */
+
+test('explore renders real topic tags with filter, rail, and alphabetical order', async () => {
+  const page = await read('../app/explore/page.js');
+  assert.match(page, /\{ id: 'topic', label: 'Topics' \}/);
+  assert.match(page, /topics: Array\.isArray\(question\.topics\) \? question\.topics : \[\]/);
+  // Aggregation counts per question row; ordering is alphabetical, never by count.
+  assert.match(page, /counts\.set\(topic, \(counts\.get\(topic\) \?\? 0\) \+ 1\)/);
+  assert.match(page, /left\.label\.localeCompare\(right\.label\)/);
+  assert.doesNotMatch(page, /sort\([^)]*count[^)]*\)/);
+  // Rail and filter chip exist; filtering applies to question rows only.
+  assert.match(page, /aria-label="Topics"/);
+  assert.match(page, /topic: \{topicFilter\}/);
+  assert.match(page, /\(item\.kind === 'question' && \(item\.topics \?\? \[\]\)\.includes\(topicFilter\)\)/);
+  assert.match(page, /never a taxonomy, and counts are entry points, not rankings/);
+});
+
+test('explore researchers prefer the actor directory with derived enrichment', async () => {
+  const page = await read('../app/explore/page.js');
+  assert.match(page, /fetchJson\('\/actors\?limit=100'\)/);
+  assert.match(page, /setActorDirectory\(body\.items \?\? \[\]\)/);
+  assert.match(page, /if \(actorDirectory\)/);
+  assert.match(page, /entry\.displayName \?\? entry\.actorId/);
+  assert.match(page, /entry\.actorType/);
+  // Fallback stays honest when the deployment lacks the endpoint.
+  assert.match(page, /the actor directory endpoint is unavailable on this deployment/);
+});
+
+test('agent page lists live grants from the signed-in session', async () => {
+  const page = await read('../app/agent/page.js');
+  assert.match(page, /const \[grants, setGrants\] = useState\('signed-out'\)/);
+  assert.match(page, /\/api-tokens`/);
+  assert.match(page, /Bearer \$\{session\.access_token\}/);
+  assert.match(page, /aria-label="Active grants"/);
+  assert.match(page, /adjust scope/);
+  assert.match(page, /revokeGrant\(grant\)/);
+  assert.match(page, /method: 'DELETE'/);
+  assert.match(page, /Signed out: your live grant list loads here after sign-in/);
+});
+
+test('identity-card fields flow from the actors endpoint through the api layer', async () => {
+  const [query, repo] = await Promise.all([
+    read('../../api-edge/src/contribution-query.mjs'),
+    read('../../api-edge/src/supabase-read-repository.mjs'),
+  ]);
+  for (const field of ['modelName', 'runtime', 'scope', 'publicKeyFingerprint', 'ownerActorId', 'actorType', 'identityStrength']) {
+    assert.ok(query.includes(field), `contribution query missing ${field}`);
+  }
+  assert.match(query, /export async function listActors/);
+  assert.match(repo, /listActors: async \(\) => list\("actors"\)/);
+  assert.match(repo, /getActorProfile/);
+  assert.match(repo, /listContributionStatements: \(actorId\) => list\("contributionStatements"/);
+  // Append-only fact tables must not get the soft-delete filter.
+  assert.match(repo, /TABLES_WITHOUT_SOFT_DELETE/);
+});
+
+test('questions carry bounded topic tags through creation', async () => {
+  const [command, openapi] = await Promise.all([
+    read('../../../packages/domain/src/question-command.mjs'),
+    read('../../api-edge/openapi.json'),
+  ]);
+  assert.match(command, /const TOPIC_LIMIT = 8;/);
+  assert.match(command, /const TOPIC_MAX_LENGTH = 48;/);
+  assert.match(command, /topics: normalizeTopics\(topics\)/);
+  assert.ok(openapi.includes('"topics"'), 'openapi must document topics');
+  assert.ok(openapi.includes('ActorDirectoryResponse'), 'openapi must document the actor directory');
 });

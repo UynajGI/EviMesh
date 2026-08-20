@@ -44,6 +44,7 @@ registry mirrors. Use the direct `node` commands above.
 | UI design language, page specs, mockups | `docs/design/` (start at its README) |
 | API contract | `apps/api-edge/openapi.json` |
 | List endpoints don't carry relations | evidence links live on `/evidence/:id` (`claimLinks`), receipt findings on `/verifications/:receiptId`; hydrate via `apps/web/lib/hydrate.mjs` |
+| Actor directory & identity card | `GET /actors` (bounded page), `GET /actors/:id` returns the actor row incl. self-declared agent fields (null = not stated) |
 | Frontier members | only `/projects/:id/frontier/history` hydrates members; `latest` does not, and history pages are ASCENDING |
 | Protocol UX map / lexicon | `docs/m13.6-a/` |
 | Deployment | `.github/workflows/web-production.yml` (main + apps/web paths -> Cloudflare Worker) |

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Bot, Check, Code, FileText, Plug, TerminalSquare } from 'lucide-react';
 import { Alert } from '@/components/ui/feedback';
 import { IdChip } from '@/components/ui/idchip';
@@ -86,6 +86,42 @@ export default function AgentCenterPage() {
   const [copied, setCopied] = useState(false);
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [doneThrough, setDoneThrough] = useState(2);
+  /* Live grants (mockup 当前授权): personal access tokens with their scopes
+   * and last activity, read through the signed-in session. */
+  const [grants, setGrants] = useState('signed-out');
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      let session = null;
+      try {
+        const { createBrowserSupabaseClient } = await import('@/lib/supabase-browser');
+        ({ data: { session } } = await createBrowserSupabaseClient().auth.getSession());
+      } catch { /* anonymous */ }
+      if (!session) { if (!cancelled) setGrants('signed-out'); return; }
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_EVIMESH_API_URL}/api-tokens`, { headers: { authorization: `Bearer ${session.access_token}` } });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.message ?? 'grants are unavailable');
+        if (!cancelled) setGrants((payload.tokens ?? payload.items ?? []).filter((token) => !token.revokedAt));
+      } catch {
+        if (!cancelled) setGrants('unavailable');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  async function revokeGrant(token) {
+    try {
+      const { createBrowserSupabaseClient } = await import('@/lib/supabase-browser');
+      const { data } = await createBrowserSupabaseClient().auth.getSession();
+      const response = await fetch(`${process.env.NEXT_PUBLIC_EVIMESH_API_URL}/api-tokens/${token.tokenId}`, { headers: { authorization: `Bearer ${data.session.access_token}` }, method: 'DELETE' });
+      if (!response.ok) throw new Error('revoke failed');
+      setGrants((current) => Array.isArray(current) ? current.filter((entry) => entry.tokenId !== token.tokenId) : current);
+    } catch {
+      /* the Settings page remains the authoritative revocation surface */
+    }
+  }
 
   async function copyConfig() {
     try {
@@ -265,8 +301,37 @@ export default function AgentCenterPage() {
       <section aria-labelledby="agent-security-heading" className="mt-12" id="ac-security">
         <h2 className="text-xl font-semibold tracking-tight" id="agent-security-heading">Security and revocation</h2>
         <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-          The authorization model in three rules. Live grant lists appear here once web sign-in ships; the rules already hold.
+          The authorization model in three rules, plus your live grants.
         </p>
+
+        {/* Mockup 当前授权 rowlist: real personal access tokens from the
+            signed-in session; scopes, last activity, revoke inline. */}
+        {grants === 'signed-out' ? (
+          <p className="mt-4 rounded-lg border border-border bg-card px-5 py-4 text-sm text-muted-foreground">
+            Signed out: your live grant list loads here after sign-in. The rules below already hold either way.
+          </p>
+        ) : grants === 'unavailable' ? (
+          <p className="mt-4 rounded-lg border border-border bg-card px-5 py-4 text-sm text-muted-foreground">
+            Grants are temporarily unavailable. <Link className="text-primary hover:underline" href="/settings/tokens">Review them in Settings →</Link>
+          </p>
+        ) : grants.length === 0 ? (
+          <p className="mt-4 rounded-lg border border-border bg-card px-5 py-4 text-sm text-muted-foreground">
+            No active tokens. Agent connections normally start with browser device authorization; create a token only for automation.
+          </p>
+        ) : (
+          <ul className="mt-4 divide-y divide-border rounded-lg border border-border bg-card" aria-label="Active grants">
+            {grants.map((grant) => (
+              <li className="flex flex-wrap items-center gap-3 px-5 py-3.5" key={grant.tokenId}>
+                <span className="font-mono text-sm tabular-nums">{grant.tokenPrefix}</span>
+                <span className="font-mono text-xs text-muted-foreground">{(grant.scopes ?? []).join(' · ')}</span>
+                <span className="ml-auto text-xs tabular-nums text-muted-foreground">last used {grant.lastUsedAt ? String(grant.lastUsedAt).slice(0, 10) : 'never'}</span>
+                <Link className="text-xs text-primary hover:underline" href="/settings/tokens">adjust scope</Link>
+                <button className="rounded-md border border-border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground" onClick={() => revokeGrant(grant)} type="button">Revoke</button>
+              </li>
+            ))}
+          </ul>
+        )}
+
         <div className="mt-3 flex flex-wrap gap-3">
           <Link className="text-sm font-medium text-primary hover:underline" href="/settings/tokens">Review or revoke tokens and scopes in Settings →</Link>
         </div>

@@ -53,8 +53,8 @@ export default function AttemptDetailPage({ params }) {
       setData(payload);
       request(`/events?objectType=attempt&objectId=${attemptId}&limit=20`).then((body) => setEvents(body.items ?? [])).catch(() => setEvents([]));
       /* Agent identity card + public output (mockup 身份卡 / 公开产出):
-       * contribution data comes from the actors endpoint; model, runtime,
-       * scope, and key fingerprint are not exposed by the public API yet. */
+       * the actors endpoint returns the identity card row; self-declared
+       * fields are null until the actor owner records them. */
       const act = payload.attempt?.actor ?? payload.attempt?.actorId ?? payload.attempt?.createdBy;
       if (typeof act === 'string' && act.trim()) {
         request(`/actors/${encodeURIComponent(act)}`).then(setAgentRecord).catch(() => setAgentRecord(null));
@@ -77,6 +77,8 @@ export default function AttemptDetailPage({ params }) {
   const actor = attempt.actor ?? attempt.actorId ?? attempt.createdBy;
   const actorIsAgent = typeof actor === 'string' && /agent|bot|atlas|merope/i.test(actor);
   const revision = attempt.attemptRevision ?? attempt.revision;
+  /* Identity card fields from the actors endpoint; null stays "not stated". */
+  const card = agentRecord?.actor ?? {};
   const links = [
     attempt.taskId ? { label: 'Task', href: `/tasks/${attempt.taskId}`, value: attempt.taskId } : null,
     attempt.claimId ? { label: 'Claim', href: `/claims/${attempt.claimId}`, value: attempt.claimId } : null,
@@ -217,11 +219,18 @@ export default function AttemptDetailPage({ params }) {
                   </p>
                 ) : null}
                 <dl className="grid gap-1.5 text-sm">
+                  <div className="flex gap-2"><dt className="w-28 shrink-0 text-xs text-muted-foreground">Type</dt><dd className="text-xs">{card.actorType ?? 'not stated'}</dd></div>
                   <div className="flex gap-2"><dt className="w-28 shrink-0 text-xs text-muted-foreground">Last activity</dt><dd className="text-xs">{data?.traceSummary?.lastEventAt ? new Date(data.traceSummary.lastEventAt).toISOString().slice(0, 16).replace('T', ' ') : 'no events yet'}</dd></div>
-                  <div className="flex gap-2"><dt className="w-28 shrink-0 text-xs text-muted-foreground">Model</dt><dd className="text-xs text-muted-foreground">self_declared · not exposed by the public API yet</dd></div>
-                  <div className="flex gap-2"><dt className="w-28 shrink-0 text-xs text-muted-foreground">Runtime</dt><dd className="text-xs text-muted-foreground">not exposed by the public API yet</dd></div>
-                  <div className="flex gap-2"><dt className="w-28 shrink-0 text-xs text-muted-foreground">Scope</dt><dd className="text-xs text-muted-foreground">not exposed by the public API yet</dd></div>
-                  <div className="flex gap-2"><dt className="w-28 shrink-0 text-xs text-muted-foreground">Signing key</dt><dd className="text-xs text-muted-foreground">not exposed by the public API yet</dd></div>
+                  <div className="flex gap-2"><dt className="w-28 shrink-0 text-xs text-muted-foreground">Model</dt><dd className="font-mono text-xs">{card.modelName ?? 'not stated'}</dd></div>
+                  <div className="flex gap-2"><dt className="w-28 shrink-0 text-xs text-muted-foreground">Runtime</dt><dd className="font-mono text-xs">{card.runtime ?? 'not stated'}</dd></div>
+                  <div className="flex gap-2"><dt className="w-28 shrink-0 text-xs text-muted-foreground">Scope</dt><dd className="font-mono text-xs">{card.scope ?? 'not stated'}</dd></div>
+                  <div className="flex gap-2"><dt className="w-28 shrink-0 text-xs text-muted-foreground">Signing key</dt><dd className="font-mono text-xs">{card.publicKeyFingerprint ?? 'not stated'}</dd></div>
+                  {card.ownerActorId ? (
+                    <div className="flex gap-2">
+                      <dt className="w-28 shrink-0 text-xs text-muted-foreground">Acts for</dt>
+                      <dd className="text-xs"><Link className="text-primary hover:underline" href={`/contributors/${encodeURIComponent(card.ownerActorId)}`}>{card.ownerActorId}</Link></dd>
+                    </div>
+                  ) : null}
                 </dl>
                 <Alert
                   description="A self-reported model is a declaration, never a verification result. Agents never impersonate humans: every produced object carries its attribution chain."
