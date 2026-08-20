@@ -52,11 +52,17 @@
 
 ## 4. 分期路线（对齐 M13.7 交付 DAG）
 
-1. **P1 基础（随 M13.7-C）**：token 三层 + 双档 + 手动主题；gheader 任务型导航；badge 协议全集；idchip；states 四态铺开。
-2. **P2 阅读主径（随 M13.6-E / M13.7-E）**：workspace 六视角、claim 详情（serif/DAG 列表切换/状态摘要）、explore、landing 重写。
-3. **P3 Agent 闭环（随 M13.7-D）**：agent-center 向导、agent-activity、handoff sheet、归属链全站铺开。
-4. **P4 个人与社区（随 M13.7-B/E）**：profile、settings 五分区、notifications、command-palette。
+1. **P1 基础（随 M13.7-C）**：token 三层 + 双档 + 手动主题；gheader 任务型导航；badge 协议全集；idchip；states 四态铺开。**已落地（PR #58）。**
+2. **P2 阅读主径（随 M13.6-E / M13.7-E）**：workspace 六视角、claim 详情（serif/DAG 列表切换/状态摘要）、explore、landing 重写。**已落地（PR #58 + #59）。**
+3. **P3 Agent 闭环（随 M13.7-D）**：agent-center 向导、agent-activity、handoff sheet、归属链全站铺开。**已落地（PR #58 + #59）。**
+4. **P4 个人与社区（随 M13.7-B/E）**：profile、settings 五分区、notifications、command-palette。**已落地（PR #58 + #59）。**
 5. **P5 增量**：07 章「未来界面候选」按需补规格。
+
+### 4.1 视觉保真度追加轮（PR #59，2026-08-19）
+
+PR #59 在 P1-P4 骨架之上按设计稿逐区块补齐视觉层：Home 变化流（critical/quiet 组 + 级别着色计数徽标 + 上下文栏）、Landing 真实示例卡（证据分组计数 + 归属链）、Explore 排序侧栏 + tab 计数 + 标题 hydrate、Work 五 tab + 角色分布 + 行级 handoff、workspace serif 阅读态 + revision 钉住链接 + frontier 导出、claim 页头重构（serif 陈述 + Frontier 徽标 + 事件 hash）+ 内联 revision diff + 可导航证据计数、profile 头像 hero + RoleBar + 可读列表、events 图标时间线 + 技术详情折叠、/design 目录新原语展示、DAG 栈切换为 d3-dag Sugiyama + React Flow（移除 cytoscape）、M13.6 宪章测试冻结 handoff 主动作 / 表单降为回退。
+
+数据门控面（后端就位即可填充，UI 侧已有诚实占位）：watchlist 个性化、挑战列表 API、agent registry、ORCID OAuth、图 API 的 14 种边类型返回、通知 reason 行。
 
 ## 5. 验证门禁
 

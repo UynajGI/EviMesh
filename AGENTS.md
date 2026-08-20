@@ -27,6 +27,8 @@ registry mirrors. Use the direct `node` commands above.
   points only (design book `docs/design/02-color-language.md`).
 - **The Claim graph is a DAG** of 14 typed directed edges, never a
   parent-child tree; graph views must ship a keyboard-reachable list view.
+  The graph uses d3-dag Sugiyama layout + React Flow (design book 00 §5.3);
+  do not reintroduce cytoscape.
 - **Agents never impersonate humans.** Every agent-produced item carries its
   attribution chain; agents draft, humans sign.
 - **Single UI system.** Web styling follows the M13.8 tokens in
