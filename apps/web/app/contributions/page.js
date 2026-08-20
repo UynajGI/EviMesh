@@ -45,6 +45,7 @@ export default function ContributionsPage() {
   }
 
   useEffect(() => { load(); }, []);
+  useEffect(() => { document.title = 'Contributions · EviMesh'; }, []);
 
   const overallCounts = useMemo(() => {
     const counts = Object.fromEntries(CONTRIBUTION_ROLES.map((role) => [role, 0]));

@@ -45,7 +45,11 @@ function ReadableField({ value }) {
   }
   if (Array.isArray(value)) {
     if (value.length === 0) return <p className="mt-2 text-sm text-muted-foreground">None recorded.</p>;
-    return (
+    useEffect(() => {
+    const label = claim.claimId ?? '';
+    document.title = label ? `${String(label).slice(0, 48)} · EviMesh` : 'EviMesh';
+  }, [claim]);
+  return (
       <ul className="mt-2 divide-y divide-border rounded-lg border border-border">
         {value.map((entry, index) => (
           <li className="px-4 py-2.5 text-sm" key={index}>

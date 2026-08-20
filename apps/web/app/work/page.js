@@ -59,6 +59,10 @@ async function fetchList(path) {
   return payload.items ?? [];
 }
 
+function toRelativeTime(value) {
+  return <span title={value ?? undefined}>{relativeTime(value)}</span>;
+}
+
 function relativeTime(value) {
   const timestamp = Date.parse(value ?? '');
   if (Number.isNaN(timestamp)) return '';
@@ -139,6 +143,7 @@ export default function WorkPage() {
   }
 
   useEffect(() => { load(); }, []);
+  useEffect(() => { document.title = 'Work · EviMesh'; }, []);
 
   const roleCounts = useMemo(() => {
     const counts = Object.fromEntries(CONTRIBUTION_ROLES.map((role) => [role, 0]));
@@ -334,7 +339,7 @@ export default function WorkPage() {
                           <p className="font-mono text-xs uppercase tracking-wide text-muted-foreground">{type}</p>
                           <div className="mt-1.5 flex flex-wrap items-center gap-2">
                             <IdChip value={event.eventId} />
-                            <span className="ml-auto text-xs tabular-nums text-muted-foreground">{relativeTime(event.createdAt)}</span>
+                            <span className="ml-auto text-xs tabular-nums text-muted-foreground">{toRelativeTime(event.createdAt)}</span>
                           </div>
                         </div>
                       </li>

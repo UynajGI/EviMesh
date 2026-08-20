@@ -10,6 +10,10 @@ import { PageContainer, PageHeader } from '@/components/ui/page';
 
 const CLOSED_STATES = new Set(['resolved', 'archived', 'rejected']);
 
+function toRelativeTime(value) {
+  return <span title={value ?? undefined}>{relativeTime(value)}</span>;
+}
+
 function relativeTime(value) {
   const timestamp = Date.parse(value ?? '');
   if (Number.isNaN(timestamp)) return 'Activity time unavailable';
@@ -78,6 +82,7 @@ export default function HomePage() {
   }
 
   useEffect(() => { load(); }, []);
+  useEffect(() => { document.title = 'Home · EviMesh'; }, []);
   /* Observation window derives from live time (client), not a frozen string. */
   useEffect(() => {
     setWindowStart(new Date(Date.now() - 7 * 24 * 60 * 60_000));
@@ -133,7 +138,7 @@ export default function HomePage() {
                     key={claim.claimId}
                     level="attention"
                     meta={<StatusBadge state={claim.state} />}
-                    time={relativeTime(claim.createdAt)}
+                    time={toRelativeTime(claim.createdAt)}
                     what="Claim moving through verification"
                     why="Receipts record outcomes, independence, and findings. Open the claim to see the exact revision, evidence groups, and any unresolved finding."
                   />
@@ -153,7 +158,7 @@ export default function HomePage() {
                     key={question.questionId}
                     level="update"
                     meta={<StatusBadge state={question.state} />}
-                    time={relativeTime(question.createdAt)}
+                    time={toRelativeTime(question.createdAt)}
                     what="Open question seeking answers"
                     why="Each question carries its research contract, frontier membership, and claim graph in the six-view workspace."
                   />
@@ -173,7 +178,7 @@ export default function HomePage() {
                     key={frontier.snapshotId}
                     level="frontier"
                     meta={<span className="text-sm font-medium tabular-nums">Frontier #{frontier.sequence}</span>}
-                    time={relativeTime(frontier.createdAt)}
+                    time={toRelativeTime(frontier.createdAt)}
                     what="Frontier snapshot published"
                     why="Snapshots are immutable: the member set is frozen at publication and stays linkable forever."
                   />
@@ -193,7 +198,7 @@ export default function HomePage() {
                     key={`${task.taskId}-${task.tag}`}
                     level="task"
                     meta={<span className="rounded-full border border-border bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{task.tag}</span>}
-                    time={relativeTime(task.createdAt)}
+                    time={toRelativeTime(task.createdAt)}
                     what="Open task to pick up"
                     why="CPU-only and under-60-minute work suitable for a first attempt."
                   />

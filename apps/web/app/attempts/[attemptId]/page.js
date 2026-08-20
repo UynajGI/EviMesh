@@ -18,6 +18,10 @@ async function request(path) {
   return payload;
 }
 
+function toRelativeTime(value) {
+  return <span title={value ?? undefined}>{relativeTime(value)}</span>;
+}
+
 function relativeTime(value) {
   const timestamp = Date.parse(value ?? '');
   if (Number.isNaN(timestamp)) return '';
@@ -69,6 +73,10 @@ export default function AttemptDetailPage({ params }) {
     attempt.runId ? { label: 'Run', href: null, value: attempt.runId } : null,
   ].filter(Boolean);
 
+  useEffect(() => {
+    const label = attempt?.attemptId ?? '';
+    document.title = label ? `${String(label).slice(0, 48)} · EviMesh` : 'EviMesh';
+  }, [attempt]);
   return (
     <PageContainer>
       <nav aria-label="Breadcrumb" className="mb-4 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
@@ -146,7 +154,7 @@ export default function AttemptDetailPage({ params }) {
                 <div className="flex flex-wrap items-center gap-3 px-5 py-3" key={event.eventId}>
                   <span className="font-mono text-xs text-muted-foreground">{event.eventType ?? 'event'}</span>
                   <IdChip value={event.eventId} />
-                  <span className="ml-auto text-xs tabular-nums text-muted-foreground">{relativeTime(event.createdAt)}</span>
+                  <span className="ml-auto text-xs tabular-nums text-muted-foreground">{toRelativeTime(event.createdAt)}</span>
                 </div>
               ))}
             </Card>

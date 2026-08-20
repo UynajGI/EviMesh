@@ -97,6 +97,7 @@ function ExploreView() {
   }
 
   useEffect(() => { load(); }, []);
+  useEffect(() => { document.title = 'Explore · EviMesh'; }, []);
 
   const results = useMemo(() => {
     const needle = query.trim().toLowerCase();

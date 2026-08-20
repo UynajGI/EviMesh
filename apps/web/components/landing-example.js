@@ -22,6 +22,10 @@ async function fetchJson(path) {
  * its claim states instead of inventing a demo. Falls back to the honest
  * descriptive card when the API is empty or unreachable.
  */
+function toRelativeTime(value) {
+  return <span title={value ?? undefined}>{relativeTime(value)}</span>;
+}
+
 function relativeTime(value) {
   const timestamp = Date.parse(value ?? '');
   if (Number.isNaN(timestamp)) return '';
@@ -85,7 +89,7 @@ export function LandingExample({ fallback }) {
           <StatusBadge state={question.state} label="question" />
           {frontier ? <span className="text-xs tabular-nums text-muted-foreground">Frontier #{frontier.sequence}</span> : null}
           <span className="text-xs tabular-nums text-muted-foreground">project {question.projectId}</span>
-          {revision.createdAt ? <span className="text-xs tabular-nums text-muted-foreground">{relativeTime(revision.createdAt)}</span> : null}
+          {revision.createdAt ? <span className="text-xs tabular-nums text-muted-foreground">{toRelativeTime(revision.createdAt)}</span> : null}
         </div>
         <IdChip value={question.questionId} />
       </div>

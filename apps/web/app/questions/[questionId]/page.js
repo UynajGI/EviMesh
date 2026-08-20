@@ -32,6 +32,10 @@ async function request(path) {
   return body;
 }
 
+function toRelativeTime(value) {
+  return <span title={value ?? undefined}>{relativeTime(value)}</span>;
+}
+
 function relativeTime(value) {
   const timestamp = Date.parse(value ?? '');
   if (Number.isNaN(timestamp)) return '';
@@ -169,6 +173,10 @@ export default function QuestionDetailPage({ params }) {
     return top;
   }, null);
 
+  useEffect(() => {
+    const label = currentRevision?.title ?? '';
+    document.title = label ? `${String(label).slice(0, 48)} · EviMesh` : 'EviMesh';
+  }, [currentRevision]);
   return (
     <PageContainer wide>
       <nav aria-label="Breadcrumb" className="mb-4 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
@@ -217,9 +225,9 @@ export default function QuestionDetailPage({ params }) {
             <button className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-accent-foreground/90" onClick={() => setHandoffOpen(true)} type="button">Continue with an agent</button>
           </div>
         )}
-        description={currentRevision.statement}
+        description={<span className="font-serif">{currentRevision.statement}</span>}
         eyebrow={`Question · r${sharedRev ?? currentRevision.revision ?? 1}`}
-        title={currentRevision.title}
+        title={<span className="font-serif">{currentRevision.title}</span>}
       />
 
       <div className="mt-5 flex flex-wrap items-center gap-3">
@@ -454,7 +462,7 @@ export default function QuestionDetailPage({ params }) {
                         <p className="font-mono text-xs uppercase tracking-wide text-muted-foreground">{type}</p>
                         <div className="mt-1.5 flex flex-wrap items-center gap-2">
                           <IdChip value={event.eventId} />
-                          <span className="ml-auto text-xs tabular-nums text-muted-foreground">{relativeTime(event.createdAt)}</span>
+                          <span className="ml-auto text-xs tabular-nums text-muted-foreground">{toRelativeTime(event.createdAt)}</span>
                         </div>
                         {event.actorId ? (
                           <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
