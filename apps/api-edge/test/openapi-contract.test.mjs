@@ -11,6 +11,7 @@ test("publishes the current API route contract", () => {
   assert.equal(document.info.title, "EviMesh API Edge");
   assert.equal(document.info.version, "0.3.0");
   assert.deepEqual(Object.keys(document.paths).sort(), [
+    "/actors",
     "/actors/{actorId}",
     "/api-tokens",
     "/api-tokens/{tokenId}",

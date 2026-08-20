@@ -23,7 +23,7 @@ import { getEvidence, listEvidence, EvidenceQueryError } from './evidence-query.
 import { getRun, listRuns, RunQueryError } from './run-query.mjs';
 import { getChallenge, ChallengeQueryError } from './challenge-query.mjs';
 import { getAttempt, AttemptQueryError } from './attempt-query.mjs';
-import { getContribution, ContributionQueryError } from './contribution-query.mjs';
+import { getContribution, listActors, ContributionQueryError } from './contribution-query.mjs';
 import { listResearchEvents, ResearchEventQueryError } from './research-event-query.mjs';
 import { exportResearchEventRangeNdjson, ResearchEventExportError } from './research-event-export.mjs';
 import { getResearchEventInclusionProof, ResearchEventProofError } from './research-event-proof.mjs';
@@ -438,6 +438,7 @@ app.post('/questions', async (context) => {
       projectId: body.projectId,
       title: body.title,
       statement: body.statement,
+      topics: body.topics,
       researchContract: body.researchContract,
       eventFactory: questionEventFactory,
     });
@@ -658,6 +659,15 @@ app.get('/challenges/:challengeId', async (context) => {
 app.get('/attempts/:attemptId', async (context) => {
   try { return context.json(await getAttempt({ repository, attemptId: context.req.param('attemptId') })); }
   catch (error) { if (error instanceof AttemptQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status); throw error; }
+});
+
+app.get('/actors', async (context) => {
+  try {
+    return context.json(await listActors({ repository, limit: pagedLimit(context) }));
+  } catch (error) {
+    if (error instanceof ContributionQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status);
+    throw error;
+  }
 });
 
 app.get('/actors/:actorId', async (context) => {

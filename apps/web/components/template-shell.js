@@ -3,17 +3,19 @@
 /*
  * M13.8 product shell (docs/design/05-core-ui-spec.md): a quiet top header with
  * task-based primary navigation (Home / Explore / Work / Agent / Docs), global
- * search entry, manual theme toggle, and a mobile drawer. Object routes stay
- * reachable as Explore/Work destinations, never as top-level navigation.
+ * search entry, notifications entry, manual theme toggle, G-key chords, and a
+ * mobile drawer. Object routes stay reachable as Explore/Work destinations,
+ * never as top-level navigation.
  */
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
 import {
-  BookOpen, Bot, Briefcase, Compass, House, LogIn, Menu, Search, X,
+  Bell, BookOpen, Bot, Briefcase, Compass, House, LogIn, Menu, Search, X,
 } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { CommandPalette } from '@/components/command-palette';
+import { OfflineBanner } from '@/components/offline-banner';
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
@@ -23,6 +25,33 @@ const NAV_ITEMS = [
   { href: '/agent', label: 'Agent', icon: Bot },
   { href: '/docs', label: 'Docs', icon: BookOpen },
 ];
+
+/* G-key chords (mockup palette footer): g then h/e/w/a/d navigates. The
+ * pending-g window is short so plain typing is never swallowed. */
+const G_CHORDS = { h: '/home', e: '/explore', w: '/work', a: '/agent', d: '/agent.md' };
+
+function useGChords() {
+  const router = useRouter();
+  const pendingG = useRef(false);
+  useEffect(() => {
+    function onKeyDown(event) {
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
+      const inField = /^(INPUT|TEXTAREA|SELECT)$/.test(event.target?.tagName ?? '') || event.target?.isContentEditable;
+      if (inField) { pendingG.current = false; return; }
+      const key = event.key.toLowerCase();
+      if (pendingG.current && G_CHORDS[key]) {
+        event.preventDefault();
+        pendingG.current = false;
+        router.push(G_CHORDS[key]);
+        return;
+      }
+      pendingG.current = key === 'g';
+      if (pendingG.current) setTimeout(() => { pendingG.current = false; }, 900);
+    }
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [router]);
+}
 
 function isActive(pathname, href) {
   if (href === '/home') return pathname === '/home' || pathname === '/';
@@ -56,10 +85,60 @@ function GlobalNav({ pathname, onNavigate }) {
 export function TemplateShell({ children }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  useGChords();
 
   if (pathname === '/login' || pathname === '/sign-in') return children;
 
   const close = () => setMobileOpen(false);
+
+  /*
+   * Anonymous landing header (design book 05 §1): the signed-out shell is a
+   * reduced Explore / Agent / Docs nav with a quiet sign-in button, without
+   * the signed-in search, notifications, and account affordances.
+   */
+  if (pathname === '/') {
+    return (
+      <div className="flex min-h-screen flex-col bg-background text-foreground">
+        <a
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:border focus:border-border focus:bg-card focus:px-4 focus:py-2 focus:text-sm"
+          href="#main-content"
+        >
+          Skip to main content
+        </a>
+        <OfflineBanner />
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b border-border bg-card px-4 sm:px-6">
+          <Link className="inline-flex items-center gap-2 text-base font-semibold tracking-tight" href="/">
+            <span aria-hidden="true" className="grid size-5 place-items-center rounded-sm bg-primary text-xs font-bold text-primary-foreground">E</span>
+            EviMesh
+          </Link>
+          <nav aria-label="Primary" className="hidden items-center gap-1 md:flex">
+            {NAV_ITEMS.filter(({ href }) => ['/explore', '/agent', '/docs'].includes(href)).map(({ href, label, icon: Icon }) => (
+              <Link
+                aria-current={isActive(pathname, href) ? 'page' : undefined}
+                className={cn(
+                  'inline-flex h-8 items-center gap-2 rounded-md px-3 text-sm font-medium transition-colors',
+                  isActive(pathname, href) ? 'bg-accent text-accent-foreground font-semibold' : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                )}
+                href={href}
+                key={href}
+              >
+                <Icon aria-hidden="true" size={15} />
+                {label}
+              </Link>
+            ))}
+          </nav>
+          <div className="flex-1" />
+          <ThemeToggle />
+          <Link className="inline-flex h-8 items-center rounded-md border border-border bg-card px-3 text-sm font-medium hover:bg-muted" href="/login">
+            <LogIn aria-hidden="true" size={14} />
+            Sign in
+          </Link>
+        </header>
+        <main id="main-content" className="flex-1">{children}</main>
+        <CommandPalette />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
@@ -69,6 +148,8 @@ export function TemplateShell({ children }) {
       >
         Skip to main content
       </a>
+
+      <OfflineBanner />
 
       <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b border-border bg-card px-4 sm:px-6">
         <button
@@ -99,6 +180,25 @@ export function TemplateShell({ children }) {
         </Link>
 
         <ThemeToggle />
+
+        {/* Notifications entry (mockup gheader iconbtn). No unread badge:
+            an unread API does not exist, so nothing is ever implied. */}
+        <Link
+          aria-label="Notifications"
+          className="inline-flex size-8 items-center justify-center rounded-md border border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
+          href="/notifications"
+        >
+          <Bell aria-hidden="true" size={15} />
+        </Link>
+
+        {/* Account chip: settings entry until web sign-in ships a real menu. */}
+        <Link
+          className="inline-flex h-8 items-center gap-2 rounded-md border border-border bg-card px-2.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+          href="/settings"
+        >
+          <span aria-hidden="true" className="grid size-5 place-items-center rounded-full bg-accent text-[10px] font-semibold text-accent-foreground">?</span>
+          Account
+        </Link>
 
         <Link
           className="inline-flex h-8 items-center gap-2 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-accent-foreground/90"

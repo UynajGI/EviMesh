@@ -31,13 +31,35 @@ test('landing never fakes live data or sells a score', async () => {
 });
 
 test('home renders attention-tiered sections with status badges and copyable ids', async () => {
-  const page = await read('../app/home/page.js');
+  const [page, item] = await Promise.all([read('../app/home/page.js'), read('../components/change-item.js')]);
   assert.match(page, /attention priority, never the truth/);
   assert.match(page, /StatusBadge/);
-  assert.match(page, /IdChip/);
+  assert.match(item, /IdChip/);
+  assert.match(item, /grid-cols-\[2rem_minmax\(0,1fr\)\]/);
   for (const section of ['Open questions', 'Claims awaiting verification', 'Latest frontiers', 'Newcomer tasks']) {
     assert.match(page, new RegExp(section));
   }
+  // Context rail copy stays locked (Codex review suggestion).
+  for (const rail of ['My work', 'Agent connection', 'Event audit']) {
+    assert.match(page, new RegExp(rail), `home rail missing ${rail}`);
+  }
+});
+
+test('landing shows a real live example with a graceful fallback', async () => {
+  const [page, example] = await Promise.all([read('../app/page.js'), read('../components/landing-example.js')]);
+  assert.match(page, /<LandingExample/);
+  assert.match(page, /fallback={/);
+  assert.match(example, /\/questions\?limit=8/);
+  assert.match(example, /claim.questionId === question.questionId/);
+  assert.match(example, /frontier\/latest/);
+  assert.doesNotMatch(page, /Frontier snapshot #\d+/);
+});
+
+test('workspace activity renders an icon timeline keyed by event type', async () => {
+  const page = await read('../app/questions/[questionId]/page.js');
+  assert.match(page, /type\.startsWith\('frontier'\) \? Mountain/);
+  assert.match(page, /rounded-full bg-muted/);
+  assert.match(page, /font-mono text-xs uppercase tracking-wide/);
 });
 
 test('explore is one search surface with type filters and honest ordering', async () => {
@@ -280,8 +302,172 @@ test('agent center and handoffs use registered MCP tools and CLI commands', asyn
   }
 });
 
-test('command palette Enter executes the active command before search fallback', async () => {
+test('command palette Enter executes the active row before search fallback', async () => {
   const palette = await read('../components/command-palette.js');
-  assert.match(palette, /if \(results\[active\]\) \{\s*go\(results\[active\]\.href\);/);
+  // Enter prefers the highlighted row; rows may be navigation or actions.
+  assert.match(palette, /if \(results\[active\]\) \{\s*run\(results\[active\]\);/);
   assert.match(palette, /\/explore\?q=/);
+  // Mockup groups: actions (permalink copy), theme, and a bounded object search.
+  assert.match(palette, /group: 'Actions'/);
+  assert.match(palette, /copy-permalink/);
+  assert.match(palette, /group: 'Theme'/);
+  assert.match(palette, /theme-light/);
+  assert.match(palette, /group: 'Objects'/);
+  assert.match(palette, /OBJECT_SOURCES/);
+  assert.match(palette, /limit=20/);
+});
+
+test('web reads, agents write: handoff is the primary action, forms are fallback', async () => {
+  const [work, task] = await Promise.all([
+    read('../app/work/page.js'),
+    read('../app/tasks/[taskId]/page.js'),
+  ]);
+  // Work: handoff primary above the demoted manual fallback.
+  assert.match(work, /Hand new work to your agent/);
+  assert.match(work, /Manual submission \(fallback for no-agent and accessibility paths\)/);
+  assert.match(work, /<HandoffSheet/);
+  for (const href of ['/questions/new', '/claims/new', '/evidence/new', '/challenges/new', '/runs/new', '/verification/receipt/new']) {
+    assert.ok(work.includes(`href: '${href}'`), `fallback must stay reachable: ${href}`);
+  }
+  // Task detail: agent handoff primary; manual attempt explicitly labeled fallback.
+  assert.match(task, /Run this task with an agent/);
+  assert.match(task, /<HandoffSheet/);
+  assert.match(task, /manual fallback/);
+  assert.match(task, /Start Attempt/);
+});
+
+test('design chapters 03/04/08 land in production: truncation, motion, states', async () => {
+  const [globals, dialog, chip, feedback, shell] = await Promise.all([
+    read('../app/globals.css'),
+    read('../components/ui/dialog.js'),
+    read('../components/ui/idchip.js'),
+    read('../components/ui/feedback.js'),
+    read('../components/template-shell.js'),
+  ]);
+  // 04 §6: global reduced-motion kill-switch and dialog M8 enter.
+  assert.match(globals, /prefers-reduced-motion: reduce/);
+  assert.match(dialog, /evimesh-dialog-enter/);
+  assert.match(globals, /evimesh-dialog-enter 160ms/);
+  // 03 §4: prefix + first-6 + ellipsis + last-4 truncation.
+  assert.match(chip, /value\.slice\(0, underscore \+ 6\)/);
+  assert.match(chip, /value\.slice\(-4\)/);
+  // 08 §1: blank family carries icon discs; denied exists; offline banner is mounted.
+  for (const icon of ['Inbox', 'CircleAlert', 'Lock']) assert.ok(feedback.includes(icon), `blank family missing ${icon}`);
+  assert.match(feedback, /export function DeniedState/);
+  assert.match(feedback, /missing scope/);
+  assert.match(shell, /<OfflineBanner \/>/);
+  const banner = await read('../components/offline-banner.js');
+  assert.match(banner, /navigator\.onLine/);
+  assert.match(banner, /addEventListener\('online'/);
+});
+
+test('mockup-vs-production row actions and attribution land', async () => {
+  const [claim, workspace, work, explore] = await Promise.all([
+    read('../app/claims/[claimId]/page.js'),
+    read('../app/questions/[questionId]/page.js'),
+    read('../app/work/page.js'),
+    read('../app/explore/page.js'),
+  ]);
+  // Claim fields render readable first; raw JSON moves into technical details.
+  assert.match(claim, /function ReadableField/);
+  assert.match(claim, /Raw structured fields/);
+  assert.match(claim, /ReadableField value=\{currentRevision\.scope\}/);
+  // Workspace activity carries actor attribution links (mockup Activity tab).
+  assert.match(workspace, /Contributed by/);
+  assert.ok(workspace.includes('encodeURIComponent(event.actorId)'), 'attribution must link to the contributor record');
+  // Work and Explore rows carry the per-row agent handoff (mockup row actions).
+  for (const [name, page] of [['work', work], ['explore', explore]]) {
+    assert.match(page, /Hand to agent/, `${name} rows missing the handoff action`);
+    assert.match(page, /rowHandoff/);
+    assert.match(page, /<HandoffSheet/);
+  }
+});
+
+/*
+ * Full-mockup audit pass (docs/design/html, 17 mockups): sections the first
+ * fidelity pass missed. Each block freezes one mockup section against its
+ * production implementation.
+ */
+
+test('home rail carries the local recently-visited card (mockup 最近访问)', async () => {
+  const [lib, home, question, claim, project] = await Promise.all([
+    read('../lib/visit-history.mjs'),
+    read('../app/home/page.js'),
+    read('../app/questions/[questionId]/page.js'),
+    read('../app/claims/[claimId]/page.js'),
+    read('../app/projects/[projectId]/page.js'),
+  ]);
+  assert.match(lib, /evimesh\.visit-history\.v1/);
+  assert.match(lib, /const CAP = 8/);
+  assert.match(lib, /export function recordVisit/);
+  assert.match(lib, /export function readVisitHistory/);
+  assert.match(lib, /export function useVisitRecord/);
+  // The history never leaves the browser.
+  assert.match(lib, /typeof window === 'undefined'/);
+  assert.doesNotMatch(lib, /fetch\(/);
+  assert.match(home, /Recently visited/);
+  assert.match(home, /readVisitHistory/);
+  assert.match(home, /Local to this browser only; never uploaded/);
+  // Every object detail page records its visit once a readable label exists.
+  for (const [name, page, kind] of [['question', question, 'question'], ['claim', claim, 'claim'], ['project', project, 'project']]) {
+    assert.ok(page.includes('useVisitRecord('), `${name} page never records visits`);
+    assert.ok(page.includes(`kind: '${kind}'`), `${name} page records the wrong kind`);
+  }
+});
+
+test('explore ships the derived researchers tab and the 30-day window (mockup 研究者 / 筛选)', async () => {
+  const page = await read('../app/explore/page.js');
+  assert.match(page, /\{ id: 'researcher', label: 'Researchers' \}/);
+  assert.match(page, /Last 30 days/);
+  // Researchers derive from real attribution only; ordering is recency, never counts.
+  assert.match(page, /createdBy/);
+  assert.match(page, /Derived from attribution on the currently loaded questions and claims/);
+  assert.match(page, /entry points, never contribution scores/);
+  assert.match(page, /Date\.parse\(right\.lastWhen \?\? 0\) - Date\.parse\(left\.lastWhen \?\? 0\)/);
+  assert.doesNotMatch(page, /sort\([^)]*count[^)]*\)/);
+});
+
+test('agent center carries Read with an agent and Security and revocation (mockup ac-read / ac-security)', async () => {
+  const page = await read('../app/agent/page.js');
+  assert.match(page, /Read with an agent/);
+  assert.match(page, /Argument, Evidence, Verification, Frontier/);
+  assert.match(page, /resume the same context from a web handoff sheet/);
+  // The tool table lists tool, category, and write level columns.
+  for (const header of ['<th scope="col" className="px-4 py-2.5 font-medium">Tool</th>', '>Category</th>', '>Write level</th>', '>What it does</th>']) {
+    assert.ok(page.includes(header), `tool table missing column ${header}`);
+  }
+  assert.match(page, /Security and revocation/);
+  assert.match(page, /Scopes are least-privilege by default/);
+  assert.match(page, /Revocation is one page away/);
+  assert.match(page, /Tokens never travel in pages/);
+  assert.match(page, /Token hygiene/);
+  assert.match(page, /environment-variable placeholders/);
+});
+
+test('contributor page renders the signed contribution timeline, projects, and agents rail (mockup 公开贡献 / 参与的项目 / 她的 Agent)', async () => {
+  const page = await read('../app/contributors/[actorId]/page.js');
+  assert.match(page, /Public contributions/);
+  assert.match(page, /By role and time; never ranked, never scored/);
+  assert.match(page, /data\.statements/);
+  assert.match(page, /\.slice\(0, 12\)/);
+  assert.match(page, /Projects involved/);
+  assert.match(page, /PROJECT_HYDRATE_LIMIT = 6/);
+  assert.match(page, /objectType === 'project'/);
+  assert.match(page, /Agents acting for this contributor/);
+  // The agents rail is an honest data gate, never fabricated agent cards.
+  assert.match(page, /No agent registry exposed yet/);
+  assert.match(page, /once the agent registry is exposed through the public API/);
+});
+
+test('workspace summary ships disputes and verification blocks with real findings (mockup 主要争议与验证阻塞)', async () => {
+  const page = await read('../app/questions/[questionId]/page.js');
+  assert.match(page, /Disputes and verification blocks/);
+  assert.match(page, /Attention level only/);
+  // Findings hydrate from receipts for attention claims only, bounded both ways.
+  assert.match(page, /attentionClaimIds\.slice\(0, 6\)/);
+  assert.match(page, /rows\.slice\(0, 10\)/);
+  assert.match(page, /finding\.severity === 'critical' \|\| finding\.severity === 'major'/);
+  assert.match(page, /hydrateReceiptFindings\(API, groups\.flat\(\)\)/);
+  // Challenge rows stay gated behind the public API, honestly.
+  assert.match(page, /Challenge tracking lives on each claim; open challenges are listed there/);
 });

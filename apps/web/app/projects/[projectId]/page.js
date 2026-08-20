@@ -7,6 +7,7 @@ import { Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
 import { PageContainer, PageHeader } from '@/components/ui/page';
 import { FrontierTimeline } from '@/components/frontier-timeline';
 import { ProjectEventStream } from '@/components/project-event-stream';
+import { useVisitRecord } from '@/lib/visit-history';
 
 const API = process.env.NEXT_PUBLIC_EVIMESH_API_URL;
 const TABS = ['Overview', 'Questions', 'Tasks', 'Claims', 'Frontier', 'Activity'];
@@ -51,6 +52,8 @@ export default function ProjectDetailPage({ params }) {
   }
 
   useEffect(() => { if (projectId) load(); }, [projectId]);
+  /* Local recently-visited rail on Home records this page once its name is known. */
+  useVisitRecord({ href: projectId ? `/projects/${projectId}` : null, label: data?.project?.currentRevision?.name ?? null, kind: 'project' });
 
   if (error) return <PageContainer><ErrorState message={error} onRetry={load} /></PageContainer>;
   if (!data) return <PageContainer><Skeleton className="h-32 w-full" /><Skeleton className="mt-6 h-96 w-full" /></PageContainer>;

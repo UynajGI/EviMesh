@@ -232,6 +232,16 @@ with a manual toggle, the six-view question workspace, agent handoff sheets
 as the default write interaction, a command palette, and the connection
 center at `/agent` with the manual served as Markdown at `/agent.md`.
 
+The M13.8 fidelity pass (PR #59) closes the mockup-to-production gap section
+by section: the awareness stream with critical/quiet groups on Home, serif
+claim statements with revision-pinned permalinks, the d3-dag Sugiyama +
+React Flow dependency graph with a keyboard-equivalent list view, level-tinted
+icon circles and role bars, per-state badge icons, the offline banner and
+denied state, and the manual-fallback demotion of web write forms per the
+M13.6 charter. Remaining data-gated surfaces (watchlist personalization,
+challenge lists, the agent registry, ORCID OAuth) carry honest empty states
+documented in the design book's implementation map.
+
 The Web preview workflow in [`.github/workflows/web-preview.yml`](.github/workflows/web-preview.yml)
 deploys `apps/web/public` to the `evimesh-web-dev` Cloudflare Pages project for
 same-repository pull requests. It requires `CLOUDFLARE_API_TOKEN` and

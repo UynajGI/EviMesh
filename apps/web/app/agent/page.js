@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Bot, Check, Code, FileText, Plug, TerminalSquare } from 'lucide-react';
 import { Alert } from '@/components/ui/feedback';
 import { IdChip } from '@/components/ui/idchip';
@@ -57,6 +57,21 @@ const TOOL_CATALOG = [
   { name: 'submit_verification', kind: 'Publish', write: 'confirm', note: 'Submit a signed VerificationReceipt' },
 ];
 
+const SECURITY_ROWS = [
+  {
+    title: 'Scopes are least-privilege by default',
+    body: 'Read access covers public objects only. Draft scope lets an agent prepare work; every publish step still demands an explicit confirm and, for signed submissions, a human signing key.',
+  },
+  {
+    title: 'Revocation is one page away',
+    body: 'Grants and personal access tokens are listed and revocable under Settings at any time. Revoking takes effect on the next request; drafts already published keep their attribution chain.',
+  },
+  {
+    title: 'Tokens never travel in pages',
+    body: 'Tokens and authorization credentials never appear in examples, URLs, logs, or handoff sheets. Every documented example uses environment-variable placeholders instead of real credentials.',
+  },
+];
+
 const writeVariant = { read: 'status-success', confirm: 'status-warning', 'confirm-sign': 'emphasis-danger' };
 
 /*
@@ -71,6 +86,42 @@ export default function AgentCenterPage() {
   const [copied, setCopied] = useState(false);
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [doneThrough, setDoneThrough] = useState(2);
+  /* Live grants (mockup 当前授权): personal access tokens with their scopes
+   * and last activity, read through the signed-in session. */
+  const [grants, setGrants] = useState('signed-out');
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      let session = null;
+      try {
+        const { createBrowserSupabaseClient } = await import('@/lib/supabase-browser');
+        ({ data: { session } } = await createBrowserSupabaseClient().auth.getSession());
+      } catch { /* anonymous */ }
+      if (!session) { if (!cancelled) setGrants('signed-out'); return; }
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_EVIMESH_API_URL}/api-tokens`, { headers: { authorization: `Bearer ${session.access_token}` } });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.message ?? 'grants are unavailable');
+        if (!cancelled) setGrants((payload.tokens ?? payload.items ?? []).filter((token) => !token.revokedAt));
+      } catch {
+        if (!cancelled) setGrants('unavailable');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  async function revokeGrant(token) {
+    try {
+      const { createBrowserSupabaseClient } = await import('@/lib/supabase-browser');
+      const { data } = await createBrowserSupabaseClient().auth.getSession();
+      const response = await fetch(`${process.env.NEXT_PUBLIC_EVIMESH_API_URL}/api-tokens/${token.tokenId}`, { headers: { authorization: `Bearer ${data.session.access_token}` }, method: 'DELETE' });
+      if (!response.ok) throw new Error('revoke failed');
+      setGrants((current) => Array.isArray(current) ? current.filter((entry) => entry.tokenId !== token.tokenId) : current);
+    } catch {
+      /* the Settings page remains the authoritative revocation surface */
+    }
+  }
 
   async function copyConfig() {
     try {
@@ -113,8 +164,20 @@ export default function AgentCenterPage() {
         title="Connect your agent"
       />
 
+      {/* Mockup ac navlist: section anchors for the page's five surfaces. */}
+      <nav aria-label="Sections" className="mt-6 flex flex-wrap gap-2 text-sm">
+        {[
+          ['#ac-connect', 'Connection steps'],
+          ['#ac-clients', 'Choose a client'],
+          ['#ac-read', 'Read with an agent'],
+          ['#ac-security', 'Security and revocation'],
+        ].map(([href, label]) => (
+          <a className="rounded-md border border-border bg-card px-3 py-1.5 font-medium text-muted-foreground hover:text-foreground" href={href} key={href}>{label}</a>
+        ))}
+      </nav>
+
       <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
-        <section aria-label="Connection steps">
+        <section aria-label="Connection steps" id="ac-connect">
           <ol className="relative">
             {STEPS.map((step, index) => {
               const done = index < doneThrough;
@@ -154,16 +217,19 @@ export default function AgentCenterPage() {
         </section>
 
         <aside className="grid gap-4" aria-label="Client and security">
-          <div className="grid gap-3">
+          <div className="grid gap-3" id="ac-clients">
             {[
-              { icon: Bot, title: 'MCP clients', body: 'Codex, Claude, Cursor via the connector config above.' },
+              { icon: Bot, title: 'MCP clients', body: 'Codex, Claude, Cursor via the connector config above.', recommended: true },
               { icon: TerminalSquare, title: 'sq CLI', body: 'npm install --global @evimesh/cli, then sq config init.' },
               { icon: Code, title: 'SDK', body: 'Embed EviMesh objects into your own agent orchestration.' },
-            ].map(({ icon: Icon, title, body }) => (
-              <div className="flex gap-3 rounded-lg border border-border bg-card p-4" key={title}>
+            ].map(({ icon: Icon, title, body, recommended }) => (
+              <div className={cn('flex gap-3 rounded-lg border p-4', recommended ? 'border-primary bg-card' : 'border-border bg-card')} key={title}>
                 <Icon aria-hidden="true" className="mt-0.5 text-muted-foreground" size={18} />
-                <div>
-                  <p className="text-sm font-medium">{title}</p>
+                <div className="min-w-0">
+                  <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
+                    {title}
+                    {recommended ? <span className="rounded-full border border-status-accent-border bg-status-accent-bg px-2 py-0.5 text-[11px] font-medium text-status-accent-fg">recommended path</span> : null}
+                  </p>
                   <p className="mt-0.5 text-xs text-muted-foreground">{body}</p>
                 </div>
               </div>
@@ -172,22 +238,7 @@ export default function AgentCenterPage() {
 
           <div className="rounded-lg border border-border bg-card p-4">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Tool catalog</h2>
-            <p className="mt-1 text-xs text-muted-foreground">Names match the registered MCP tool definitions; write tools demand explicit consent. Frontiers are read as resources, for example evimesh://projects/&#123;projectId&#125;/frontier/latest.</p>
-            <ul className="mt-3 divide-y divide-border">
-              {TOOL_CATALOG.map((tool) => (
-                <li className="flex flex-wrap items-center gap-2 py-2" key={tool.name}>
-                  <code className="font-mono text-xs">{tool.name}</code>
-                  <span className={cn(
-                    'inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium',
-                    writeVariant[tool.write] === 'status-success' && 'border-status-success-border bg-status-success-bg text-status-success-fg',
-                    writeVariant[tool.write] === 'status-warning' && 'border-status-warning-border bg-status-warning-bg text-status-warning-fg',
-                    writeVariant[tool.write] === 'emphasis-danger' && 'border-transparent bg-emphasis-danger text-emphasis-foreground',
-                  )}>
-                    {tool.write === 'read' ? 'read-only' : tool.write === 'confirm' ? 'confirm required' : 'confirm + signature'}
-                  </span>
-                </li>
-              ))}
-            </ul>
+            <p className="mt-1 text-xs text-muted-foreground">The full table — tool, category, and write level — lives under “Read with an agent” below. Write tools demand explicit consent; frontiers are read as resources, for example evimesh://projects/&#123;projectId&#125;/frontier/latest.</p>
           </div>
 
           <Alert
@@ -205,6 +256,100 @@ export default function AgentCenterPage() {
           </div>
         </aside>
       </div>
+
+      <section aria-labelledby="read-with-agent-heading" className="mt-12" id="ac-read">
+        <h2 className="text-xl font-semibold tracking-tight" id="read-with-agent-heading">Read with an agent</h2>
+        <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+          An agent that never contributed to EviMesh can still read it correctly: object semantics, the four reading
+          perspectives (Argument, Evidence, Verification, Frontier), which MCP resources are read-only discovery, which
+          tools write and therefore require an explicit confirm, how to check revisions and signatures, and how to
+          resume the same context from a web handoff sheet.
+        </p>
+        <div className="mt-4 overflow-x-auto rounded-lg border border-border">
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/50 text-left">
+                <th scope="col" className="px-4 py-2.5 font-medium">Tool</th>
+                <th scope="col" className="px-4 py-2.5 font-medium">Category</th>
+                <th scope="col" className="px-4 py-2.5 font-medium">Write level</th>
+                <th scope="col" className="px-4 py-2.5 font-medium">What it does</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border bg-card">
+              {TOOL_CATALOG.map((tool) => (
+                <tr key={tool.name}>
+                  <td className="px-4 py-2.5 font-mono text-xs">{tool.name}</td>
+                  <td className="px-4 py-2.5">{tool.kind}</td>
+                  <td className="px-4 py-2.5">
+                    <span className={cn(
+                      'inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium',
+                      writeVariant[tool.write] === 'status-success' && 'border-status-success-border bg-status-success-bg text-status-success-fg',
+                      writeVariant[tool.write] === 'status-warning' && 'border-status-warning-border bg-status-warning-bg text-status-warning-fg',
+                      writeVariant[tool.write] === 'emphasis-danger' && 'border-transparent bg-emphasis-danger text-emphasis-foreground',
+                    )}>
+                      {tool.write === 'read' ? 'read-only' : tool.write === 'confirm' ? 'confirm required' : 'confirm + signature'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2.5 text-muted-foreground">{tool.note}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="agent-security-heading" className="mt-12" id="ac-security">
+        <h2 className="text-xl font-semibold tracking-tight" id="agent-security-heading">Security and revocation</h2>
+        <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+          The authorization model in three rules, plus your live grants.
+        </p>
+
+        {/* Mockup 当前授权 rowlist: real personal access tokens from the
+            signed-in session; scopes, last activity, revoke inline. */}
+        {grants === 'signed-out' ? (
+          <p className="mt-4 rounded-lg border border-border bg-card px-5 py-4 text-sm text-muted-foreground">
+            Signed out: your live grant list loads here after sign-in. The rules below already hold either way.
+          </p>
+        ) : grants === 'unavailable' ? (
+          <p className="mt-4 rounded-lg border border-border bg-card px-5 py-4 text-sm text-muted-foreground">
+            Grants are temporarily unavailable. <Link className="text-primary hover:underline" href="/settings/tokens">Review them in Settings →</Link>
+          </p>
+        ) : grants.length === 0 ? (
+          <p className="mt-4 rounded-lg border border-border bg-card px-5 py-4 text-sm text-muted-foreground">
+            No active tokens. Agent connections normally start with browser device authorization; create a token only for automation.
+          </p>
+        ) : (
+          <ul className="mt-4 divide-y divide-border rounded-lg border border-border bg-card" aria-label="Active grants">
+            {grants.map((grant) => (
+              <li className="flex flex-wrap items-center gap-3 px-5 py-3.5" key={grant.tokenId}>
+                <span className="font-mono text-sm tabular-nums">{grant.tokenPrefix}</span>
+                <span className="font-mono text-xs text-muted-foreground">{(grant.scopes ?? []).join(' · ')}</span>
+                <span className="ml-auto text-xs tabular-nums text-muted-foreground">last used {grant.lastUsedAt ? String(grant.lastUsedAt).slice(0, 10) : 'never'}</span>
+                <Link className="text-xs text-primary hover:underline" href="/settings/tokens">adjust scope</Link>
+                <button className="rounded-md border border-border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground" onClick={() => revokeGrant(grant)} type="button">Revoke</button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <div className="mt-3 flex flex-wrap gap-3">
+          <Link className="text-sm font-medium text-primary hover:underline" href="/settings/tokens">Review or revoke tokens and scopes in Settings →</Link>
+        </div>
+        <div className="mt-4 grid gap-4 lg:grid-cols-3">
+          {SECURITY_ROWS.map((row) => (
+            <div className="rounded-lg border border-border bg-card p-4" key={row.title}>
+              <h3 className="text-sm font-semibold">{row.title}</h3>
+              <p className="mt-1.5 text-xs leading-5 text-muted-foreground">{row.body}</p>
+            </div>
+          ))}
+        </div>
+        <Alert
+          className="mt-4"
+          description="Tokens and authorization credentials never appear in examples, URLs, logs, or handoffs. Documented examples use environment-variable placeholders only."
+          title="Token hygiene"
+          variant="info"
+        />
+      </section>
     </PageContainer>
   );
 }

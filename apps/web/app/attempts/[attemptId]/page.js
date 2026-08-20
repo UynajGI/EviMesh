@@ -2,10 +2,12 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { Bot, Check, Share2, UserRound } from 'lucide-react';
 import { Card, CardContent, StatusBadge } from '@/components/ui/data';
-import { Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
+import { Alert, Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
 import { IdChip } from '@/components/ui/idchip';
-import { PageContainer, PageHeader } from '@/components/ui/page';
+import { PageContainer } from '@/components/ui/page';
+import { cn } from '@/lib/utils';
 
 const API = process.env.NEXT_PUBLIC_EVIMESH_API_URL;
 
@@ -14,6 +16,10 @@ async function request(path) {
   const payload = await response.json();
   if (!response.ok) throw new Error(payload.message ?? 'Attempt data is unavailable.');
   return payload;
+}
+
+function toRelativeTime(value) {
+  return <span title={value ?? undefined}>{relativeTime(value)}</span>;
 }
 
 function relativeTime(value) {
@@ -34,7 +40,9 @@ export default function AttemptDetailPage({ params }) {
   const [attemptId, setAttemptId] = useState(null);
   const [data, setData] = useState(null);
   const [events, setEvents] = useState([]);
+  const [agentRecord, setAgentRecord] = useState(null);
   const [error, setError] = useState(null);
+  const [shared, setShared] = useState(false);
 
   useEffect(() => { Promise.resolve(params).then(({ attemptId: value }) => setAttemptId(value)); }, [params]);
 
@@ -44,12 +52,23 @@ export default function AttemptDetailPage({ params }) {
       const payload = await request(`/attempts/${attemptId}`);
       setData(payload);
       request(`/events?objectType=attempt&objectId=${attemptId}&limit=20`).then((body) => setEvents(body.items ?? [])).catch(() => setEvents([]));
+      /* Agent identity card + public output (mockup 身份卡 / 公开产出):
+       * the actors endpoint returns the identity card row; self-declared
+       * fields are null until the actor owner records them. */
+      const act = payload.attempt?.actor ?? payload.attempt?.actorId ?? payload.attempt?.createdBy;
+      if (typeof act === 'string' && act.trim()) {
+        request(`/actors/${encodeURIComponent(act)}`).then(setAgentRecord).catch(() => setAgentRecord(null));
+      }
     } catch (reason) {
       setError(reason.message);
     }
   }
 
   useEffect(() => { if (attemptId) load(); }, [attemptId]);
+  useEffect(() => {
+    const label = data?.attempt?.attemptId ?? attemptId ?? '';
+    document.title = label ? `${String(label).slice(0, 48)} · EviMesh` : 'EviMesh';
+  }, [data, attemptId]);
 
   if (error) return <PageContainer><ErrorState message={error} onRetry={load} /></PageContainer>;
   if (!data) return <PageContainer><Skeleton className="h-24 w-full" /><Skeleton className="mt-6 h-64 w-full" /></PageContainer>;
@@ -58,6 +77,8 @@ export default function AttemptDetailPage({ params }) {
   const actor = attempt.actor ?? attempt.actorId ?? attempt.createdBy;
   const actorIsAgent = typeof actor === 'string' && /agent|bot|atlas|merope/i.test(actor);
   const revision = attempt.attemptRevision ?? attempt.revision;
+  /* Identity card fields from the actors endpoint; null stays "not stated". */
+  const card = agentRecord?.actor ?? {};
   const links = [
     attempt.taskId ? { label: 'Task', href: `/tasks/${attempt.taskId}`, value: attempt.taskId } : null,
     attempt.claimId ? { label: 'Claim', href: `/claims/${attempt.claimId}`, value: attempt.claimId } : null,
@@ -82,11 +103,35 @@ export default function AttemptDetailPage({ params }) {
         <span aria-current="page" className="tabular-nums">{attempt.attemptId ?? attemptId}</span>
       </nav>
 
-      <PageHeader
-        description="One attributable research attempt. Agents draft; humans approve what gets signed. Attribution chains are part of the record, not metadata."
-        eyebrow={`Attempt${revision ? ` · r${revision}` : ''}`}
-        title="Attempt trail"
-      />
+      <header className="flex flex-wrap items-start justify-between gap-5">
+        <div className="flex min-w-0 items-start gap-5">
+          <span aria-hidden="true" className={cn('grid size-16 shrink-0 place-items-center rounded-full', actorIsAgent ? 'bg-muted text-muted-foreground' : 'bg-accent text-accent-foreground')}>
+            {actorIsAgent ? <Bot size={28} /> : <UserRound size={28} />}
+          </span>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              {actorIsAgent ? <StatusBadge state="update" label="agent" /> : null}
+              <StatusBadge state="active_question" label="attributed attempt" />
+            </div>
+            <h1 className="mt-2 text-2xl font-semibold tracking-tight">Attempt trail{revision ? ' · r' + revision : ''}</h1>
+            <p className="mt-3 max-w-2xl text-sm text-muted-foreground">One attributable research attempt. Agents draft; humans approve what gets signed. Attribution chains are part of the record, not metadata.</p>
+          </div>
+        </div>
+        <button
+          className="inline-flex h-9 shrink-0 items-center gap-2 rounded-md border border-border bg-card px-3 text-sm font-medium hover:bg-muted"
+          onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(window.location.href);
+              setShared(true);
+              setTimeout(() => setShared(false), 2000);
+            } catch { /* unavailable */ }
+          }}
+          type="button"
+        >
+          {shared ? <Check aria-hidden="true" size={14} /> : <Share2 aria-hidden="true" size={14} />}
+          {shared ? 'Link copied' : 'Share trail'}
+        </button>
+      </header>
 
       <div className="mt-5 flex flex-wrap items-center gap-3">
         <StatusBadge state={attempt.state ?? attempt.status ?? 'active'} />
@@ -119,15 +164,82 @@ export default function AttemptDetailPage({ params }) {
                 <div className="flex flex-wrap items-center gap-3 px-5 py-3" key={event.eventId}>
                   <span className="font-mono text-xs text-muted-foreground">{event.eventType ?? 'event'}</span>
                   <IdChip value={event.eventId} />
-                  <span className="ml-auto text-xs tabular-nums text-muted-foreground">{relativeTime(event.createdAt)}</span>
+                  <span className="ml-auto text-xs tabular-nums text-muted-foreground">{toRelativeTime(event.createdAt)}</span>
                 </div>
               ))}
             </Card>
           )}
           <Link className="mt-3 inline-block text-sm text-muted-foreground hover:text-foreground" href="/events">Full event audit →</Link>
+          <p className="mt-2 text-xs text-muted-foreground">Publishing always waits for a human sign-off; a pending confirmation pauses the trail instead of publishing on the agent's own authority.</p>
         </section>
 
-        <aside aria-label="Attempt context">
+        {/* Mockup 这个 Agent 的公开产出: produced/used attribution edges from
+         * the actors endpoint. Only rendered when the actor resolves. */}
+        {actorIsAgent && agentRecord ? (
+          <section aria-labelledby="output-heading" className="min-w-0">
+            <h2 className="mb-3 text-lg font-semibold" id="output-heading">This agent's public output</h2>
+            {(agentRecord.produced ?? []).length === 0 && (agentRecord.used ?? []).length === 0 ? (
+              <Empty title="No public output yet" description="Objects this agent produced or used will appear here as signed attribution edges." />
+            ) : (
+              <Card className="divide-y divide-border">
+                {[...(agentRecord.produced ?? []), ...(agentRecord.used ?? [])].slice(0, 10).map((edge, index) => (
+                  <div className="flex flex-wrap items-center gap-3 px-5 py-3" key={`${edge.objectType}-${edge.objectId}-${index}`}>
+                    <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{edge.edgeType ?? 'linked'}</span>
+                    <span className="text-xs text-muted-foreground">{edge.objectType}</span>
+                    <IdChip value={edge.objectId} />
+                    {edge.objectType === 'claim' ? <Link className="text-xs text-primary hover:underline" href={`/claims/${edge.objectId}`}>open</Link> : null}
+                    {edge.objectType === 'question' ? <Link className="text-xs text-primary hover:underline" href={`/questions/${edge.objectId}`}>open</Link> : null}
+                    {edge.objectType === 'project' ? <Link className="text-xs text-primary hover:underline" href={`/projects/${edge.objectId}`}>open</Link> : null}
+                    {edge.objectType === 'task' ? <Link className="text-xs text-primary hover:underline" href={`/tasks/${edge.objectId}`}>open</Link> : null}
+                  </div>
+                ))}
+              </Card>
+            )}
+          </section>
+        ) : null}
+
+        <aside aria-label="Attempt context" className="grid gap-4 content-start">
+          {/* Mockup 身份卡: what the public API can attest today, with the
+           * self-declaration boundary stated instead of faked. */}
+          {typeof actor === 'string' ? (
+            <Card>
+              <div className="border-b border-border px-5 py-3">
+                <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Identity card</h2>
+              </div>
+              <CardContent className="grid gap-2.5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Actor</span>
+                  <IdChip value={actor} />
+                  <Link className="text-xs text-primary hover:underline" href={`/contributors/${encodeURIComponent(actor)}`}>record</Link>
+                </div>
+                {agentRecord?.roles?.length > 0 ? (
+                  <p className="flex flex-wrap items-center gap-2 text-sm">
+                    <span className="text-xs text-muted-foreground">Roles</span>
+                    {agentRecord.roles.slice(0, 6).map((role) => <StatusBadge key={role.role} label={role.role} state="update" />)}
+                  </p>
+                ) : null}
+                <dl className="grid gap-1.5 text-sm">
+                  <div className="flex gap-2"><dt className="w-28 shrink-0 text-xs text-muted-foreground">Type</dt><dd className="text-xs">{card.actorType ?? 'not stated'}</dd></div>
+                  <div className="flex gap-2"><dt className="w-28 shrink-0 text-xs text-muted-foreground">Last activity</dt><dd className="text-xs">{data?.traceSummary?.lastEventAt ? new Date(data.traceSummary.lastEventAt).toISOString().slice(0, 16).replace('T', ' ') : 'no events yet'}</dd></div>
+                  <div className="flex gap-2"><dt className="w-28 shrink-0 text-xs text-muted-foreground">Model</dt><dd className="font-mono text-xs">{card.modelName ?? 'not stated'}</dd></div>
+                  <div className="flex gap-2"><dt className="w-28 shrink-0 text-xs text-muted-foreground">Runtime</dt><dd className="font-mono text-xs">{card.runtime ?? 'not stated'}</dd></div>
+                  <div className="flex gap-2"><dt className="w-28 shrink-0 text-xs text-muted-foreground">Scope</dt><dd className="font-mono text-xs">{card.scope ?? 'not stated'}</dd></div>
+                  <div className="flex gap-2"><dt className="w-28 shrink-0 text-xs text-muted-foreground">Signing key</dt><dd className="font-mono text-xs">{card.publicKeyFingerprint ?? 'not stated'}</dd></div>
+                  {card.ownerActorId ? (
+                    <div className="flex gap-2">
+                      <dt className="w-28 shrink-0 text-xs text-muted-foreground">Acts for</dt>
+                      <dd className="text-xs"><Link className="text-primary hover:underline" href={`/contributors/${encodeURIComponent(card.ownerActorId)}`}>{card.ownerActorId}</Link></dd>
+                    </div>
+                  ) : null}
+                </dl>
+                <Alert
+                  description="A self-reported model is a declaration, never a verification result. Agents never impersonate humans: every produced object carries its attribution chain."
+                  title="Self-declared, not verified"
+                  variant="info"
+                />
+              </CardContent>
+            </Card>
+          ) : null}
           <Card>
             <div className="border-b border-border px-5 py-3">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Linked objects</h2>

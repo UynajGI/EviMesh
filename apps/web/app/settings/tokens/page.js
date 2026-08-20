@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/data';
 import { Confirm } from '@/components/ui/dialog';
-import { Alert, Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
+import { Alert, DeniedState, Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
 import { Label } from '@/components/ui/form';
 import { PageContainer, PageHeader } from '@/components/ui/page';
 import { Checkbox } from '@/components/ui/selection';
@@ -26,6 +26,7 @@ export default function TokensPage() {
   const [scopes, setScopes] = useState(['profile:read']);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [needsAuth, setNeedsAuth] = useState(false);
   const [creating, setCreating] = useState(false);
   const [copied, setCopied] = useState(false);
   const [revokeTarget, setRevokeTarget] = useState(null);
@@ -33,7 +34,14 @@ export default function TokensPage() {
 
   async function load() {
     setError(null);
-    try { setTokens(await call('/api-tokens')); } catch (reason) { setError(reason.message); } finally { setLoading(false); }
+    try {
+      /* No session is a scope boundary, not a server failure (08 §1 denied):
+       * name it and offer the re-authentication path. */
+      const { data } = await createBrowserSupabaseClient().auth.getSession();
+      if (!data.session) { setNeedsAuth(true); setTokens([]); return; }
+      setNeedsAuth(false);
+      setTokens(await call('/api-tokens'));
+    } catch (reason) { setError(reason.message); } finally { setLoading(false); }
   }
 
   useEffect(() => { load(); }, []);
@@ -74,7 +82,17 @@ export default function TokensPage() {
 
   return <PageContainer><PageHeader eyebrow="Account security" title="API tokens" description="Create scoped tokens for the SDK and CLI. A new token is shown exactly once." />
     {error ? <ErrorState className="mt-8" message={error} onRetry={load} /> : null}
-    {loading ? <Skeleton className="mt-8 h-48 w-full" /> : <>
+    {needsAuth ? (
+      <DeniedState
+        className="mt-8"
+        description="Token management requires a signed-in session. Re-authenticate to list, create, or revoke tokens; agent connections can also start from browser device authorization."
+        scope="authenticated session"
+        title="Re-authentication needed"
+        action={<a className="rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground" href="/login">Sign in</a>}
+        actionLabel="Sign in"
+      />
+    ) : null}
+    {loading ? <Skeleton className="mt-8 h-48 w-full" /> : !needsAuth ? <>
       <section className="mt-8 rounded-lg border border-border bg-card p-5" aria-labelledby="create-token-heading">
         <h2 id="create-token-heading" className="text-lg font-semibold">Create a token</h2>
         <fieldset className="mt-4 grid gap-3 sm:grid-cols-2"><legend className="text-sm font-medium">Scopes</legend>{TOKEN_SCOPES.map((scope) => <label className="flex items-center gap-2 text-sm" key={scope}><Checkbox checked={scopes.includes(scope)} onChange={toggleScope(scope)} />{scope}</label>)}</fieldset>
@@ -83,9 +101,34 @@ export default function TokensPage() {
       </section>
       <section className="mt-8" aria-labelledby="tokens-heading">
         <h2 id="tokens-heading" className="text-lg font-semibold">Active tokens</h2>
-        {tokens.length === 0 ? <Empty className="mt-4" title="No tokens yet" description="Tokens you create for the SDK and CLI will appear here." /> : <ul className="mt-4 space-y-3">{tokens.map((token) => <li className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card p-4" key={token.tokenId}><div><p className="font-mono text-sm tabular-nums">{token.tokenPrefix}</p><div className="mt-2 flex flex-wrap gap-2">{(token.scopes ?? []).map((scope) => <Badge key={scope} variant="info">{scope}</Badge>)}{token.expiresAt ? <span className="text-xs tabular-nums text-muted-foreground">expires {token.expiresAt}</span> : <span className="text-xs text-muted-foreground">never expires</span>}</div></div><Button size="sm" variant="outline" className="text-destructive" onClick={() => setRevokeTarget(token)}>Revoke</Button></li>)}</ul>}
+        {tokens.length === 0 ? (
+          <Empty
+            className="mt-4"
+            action={<a className="rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground" href="/agent">Connect an agent first</a>}
+            description="Tokens are the advanced path. Agent connections start with browser device authorization instead — tokens you create for the SDK and CLI will appear here."
+            title="No tokens yet"
+          />
+        ) : <ul className="mt-4 space-y-3">{tokens.map((token) => {
+          const revoked = Boolean(token.revokedAt);
+          const expired = !revoked && token.expiresAt && Date.parse(token.expiresAt) < Date.now();
+          const status = revoked ? 'revoked' : expired ? 'expired' : 'active';
+          return <li className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card p-4" key={token.tokenId}>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="font-mono text-sm tabular-nums">{token.tokenPrefix}</p>
+                <Badge variant={revoked || expired ? 'default' : 'success'}>{status}</Badge>
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                {(token.scopes ?? []).map((scope) => <Badge key={scope} variant="info">{scope}</Badge>)}
+                {token.expiresAt ? <span className="text-xs tabular-nums text-muted-foreground">expires {String(token.expiresAt).slice(0, 10)}</span> : <span className="text-xs text-muted-foreground">never expires</span>}
+                <span className="text-xs tabular-nums text-muted-foreground">last used {token.lastUsedAt ? String(token.lastUsedAt).slice(0, 10) : 'never'}</span>
+              </div>
+            </div>
+            {!revoked ? <Button size="sm" variant="outline" className="text-destructive" onClick={() => setRevokeTarget(token)}>Revoke</Button> : null}
+          </li>;
+        })}</ul>}
       </section>
-    </>}
+    </> : null}
     <Confirm open={Boolean(revokeTarget)} onOpenChange={(open) => { if (!open) setRevokeTarget(null); }} title="Revoke this token?" description={`The token ${revokeTarget?.tokenPrefix ?? ''} will stop working immediately and cannot be restored.`} confirmLabel="Revoke token" destructive onConfirm={revoke} loading={revoking} />
   </PageContainer>;
 }

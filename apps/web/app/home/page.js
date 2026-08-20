@@ -1,13 +1,19 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { IdChip } from '@/components/ui/idchip';
-import { StatusBadge } from '@/components/ui/data';
-import { Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
-import { PageContainer, PageHeader, SectionHeader } from '@/components/ui/page';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { Activity, Bot, Clock, ListFilter, ListTodo } from 'lucide-react';
+import { ChangeGroup, ChangeItem } from '@/components/change-item';
+import { StatusBadge } from '@/components/ui/data';
+import { DeniedState, Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
+import { PageContainer, PageHeader } from '@/components/ui/page';
+import { readVisitHistory } from '@/lib/visit-history';
 
 const CLOSED_STATES = new Set(['resolved', 'archived', 'rejected']);
+
+function toRelativeTime(value) {
+  return <span title={value ?? undefined}>{relativeTime(value)}</span>;
+}
 
 function relativeTime(value) {
   const timestamp = Date.parse(value ?? '');
@@ -20,10 +26,10 @@ function relativeTime(value) {
 }
 
 /*
- * Signed-in Home (M13.8 05-core-ui-spec.md §2). Sections are grouped by
- * attention level; statuses are text-first badges; ids are copyable chips.
- * Until per-user watchlists exist, this is the honest live view of open
- * research, and the tiers below express attention priority, never truth.
+ * Signed-in Home (design book 05 §2): an awareness stream grouped by
+ * attention level (icon + tone first, what / why / basis after), with a
+ * context rail. Until per-user watchlists exist this is the honest live view;
+ * levels express attention priority, never the truth of a claim.
  */
 export default function HomePage() {
   const [questions, setQuestions] = useState([]);
@@ -31,108 +37,290 @@ export default function HomePage() {
   const [frontiers, setFrontiers] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [windowStart, setWindowStart] = useState(null);
   const [error, setError] = useState(null);
+  /* Recently visited is local-only (mockup home rail 最近访问): it rehydrates
+   * on mount and on refocus so a visit in another tab shows up here. */
+  const [visits, setVisits] = useState([]);
+  const [requestId, setRequestId] = useState(null);
+  useEffect(() => {
+    setVisits(readVisitHistory());
+    const onFocus = () => setVisits(readVisitHistory());
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, []);
 
   async function load() {
     setLoading(true);
     setError(null);
+    setRequestId(null);
     try {
+      /* Shared reader: API errors keep their request id so the error state
+       * stays traceable (design book 08 §1: error · retryable and traceable). */
+      const getJson = async (path) => {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_EVIMESH_API_URL}${path}`);
+        const payload = await response.json();
+        if (!response.ok) {
+          const failure = new Error(payload.message ?? `${path} is unavailable.`);
+          failure.requestId = payload.requestId ?? null;
+          throw failure;
+        }
+        return payload;
+      };
       const [questionItems, taskGroups, projectItems, claimGroups] = await Promise.all([
-        fetch(`${process.env.NEXT_PUBLIC_EVIMESH_API_URL}/questions?limit=20`).then(async (response) => {
-          const payload = await response.json();
-          if (!response.ok) throw new Error(payload.message ?? 'Questions are unavailable.');
-          return payload.items ?? [];
-        }),
-        Promise.all(['cpu-only', 'under-60-min'].map((tag) => fetch(`${process.env.NEXT_PUBLIC_EVIMESH_API_URL}/tasks?status=open&tag=${tag}&limit=6`).then(async (response) => {
-          const payload = await response.json();
-          if (!response.ok) throw new Error(payload.message ?? 'Tasks are unavailable.');
-          return (payload.items ?? []).map((task) => ({ ...task, tag }));
-        }))),
-        fetch(`${process.env.NEXT_PUBLIC_EVIMESH_API_URL}/projects?limit=6`).then(async (response) => {
-          const payload = await response.json();
-          if (!response.ok) throw new Error(payload.message ?? 'Projects are unavailable.');
-          return payload.items ?? [];
-        }).then((projects) => Promise.all(projects.map(async (project) => {
-          const response = await fetch(`${process.env.NEXT_PUBLIC_EVIMESH_API_URL}/projects/${project.projectId}/frontier/latest`);
-          const payload = await response.json();
-          if (!response.ok) throw new Error(payload.message ?? 'Frontiers are unavailable.');
-          return payload.frontier ? { project, frontier: payload.frontier } : null;
-        }))),
-        Promise.all(['under_verification', 'provisionally_accepted'].map((status) => fetch(`${process.env.NEXT_PUBLIC_EVIMESH_API_URL}/claims?status=${status}&limit=6`).then(async (response) => {
-          const payload = await response.json();
-          if (!response.ok) throw new Error(payload.message ?? 'Claims are unavailable.');
-          return payload.items ?? [];
-        }))),
+        getJson('/questions?limit=100').then((payload) => payload.items ?? []),
+        Promise.all(['cpu-only', 'under-60-min'].map((tag) => getJson(`/tasks?status=open&tag=${tag}&limit=6`).then((payload) => (payload.items ?? []).map((task) => ({ ...task, tag }))))),
+        getJson('/projects?limit=6').then((payload) => payload.items ?? [])
+          .then((projects) => Promise.all(projects.map(async (project) => ({
+            project,
+            frontier: (await getJson(`/projects/${project.projectId}/frontier/latest`)).frontier ?? null,
+          })))),
+        Promise.all(['under_verification', 'provisionally_accepted'].map((status) => getJson(`/claims?status=${status}&limit=100`).then((payload) => payload.items ?? []))),
       ]);
+      const frontierItems = projectItems.filter((entry) => entry.frontier);
       setQuestions(questionItems.filter((question) => !CLOSED_STATES.has(question.state)).sort((left, right) => Date.parse(right.createdAt ?? 0) - Date.parse(left.createdAt ?? 0)).slice(0, 6));
       setTasks(taskGroups.flat().slice(0, 6));
-      setFrontiers(projectItems.filter(Boolean));
+      setFrontiers(frontierItems);
       setClaims(claimGroups.flat().sort((left, right) => Date.parse(right.createdAt ?? 0) - Date.parse(left.createdAt ?? 0)).slice(0, 6));
     } catch (reason) {
       setError(reason.message);
+      setRequestId(reason.requestId ?? null);
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => { load(); }, []);
+  useEffect(() => { document.title = 'Home · EviMesh'; }, []);
+  /* Observation window derives from live time (client), not a frozen string. */
+  useEffect(() => {
+    setWindowStart(new Date(Date.now() - 7 * 24 * 60 * 60_000));
+  }, []);
+
+  const inWindow = (value) => windowStart === null || !value || Date.parse(value) >= windowStart.getTime();
+  const visibleQuestions = questions.filter((q) => inWindow(q.createdAt));
+  const visibleClaims = claims.filter((c) => inWindow(c.createdAt));
+  const visibleFrontiers = frontiers.filter((f) => inWindow(f.frontier.createdAt));
+  const visibleTasks = tasks.filter((t) => inWindow(t.createdAt));
+
+  /* Critical level (mockup chg-critical): claims that flipped to refuted or
+   * contested inside the window need immediate attention. */
+  const CRITICAL_STATES = new Set(['refuted', 'retracted', 'contested', 'dependency_tainted']);
+  const criticalClaims = visibleClaims.filter((claim) => CRITICAL_STATES.has(claim.state));
+
+  /* Quiet level (mockup chg-quiet): open questions with no qualifying events
+   * in the window (no claims, no frontier movement). */
+  const claimsByQuestion = new Map();
+  for (const claim of visibleClaims) {
+    if (claim.questionId) claimsByQuestion.set(claim.questionId, (claimsByQuestion.get(claim.questionId) ?? 0) + 1);
+  }
+  const quietQuestions = visibleQuestions.filter((question) => !claimsByQuestion.has(question.questionId));
+
+  const rail = [
+    {
+      icon: ListTodo,
+      title: 'My work',
+      href: '/work',
+      cta: 'Go to Work',
+      rows: [
+        { label: 'Claims awaiting your verification', count: visibleClaims.length, badge: 'accent' },
+        { label: 'Open tasks to pick up', count: visibleTasks.length, badge: 'neutral' },
+        { label: 'Frontiers published', count: visibleFrontiers.length, badge: 'neutral' },
+      ],
+    },
+    { icon: Bot, title: 'Agent connection', body: 'Six steps from hearing about EviMesh to a first trusted read. Connected agents and pending human-in-the-loop signatures appear here once web sign-in ships.', href: '/agent', cta: 'Open the center' },
+    { icon: Activity, title: 'Event audit', body: 'Signed research history with hashes, one layer down.', href: '/events', cta: 'Open audit' },
+  ];
 
   return (
-    <PageContainer>
+    <PageContainer wide>
       <PageHeader
         action={(
-          <Link className="inline-flex h-9 items-center rounded-md border border-border bg-card px-3 text-sm font-medium transition-colors hover:bg-muted" href="/work">
-            Go to Work
+          <Link className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-sm font-medium hover:bg-muted" href="/notifications">
+            <ListFilter aria-hidden="true" size={14} />
+            Manage subscriptions
           </Link>
         )}
-        description="Live activity across open research. Sections express attention priority, never the truth of a claim."
+        description={windowStart === null ? 'Live activity across open research, grouped by attention level; levels express attention priority, never the truth of a claim.' : `Observation window: last 7 days (since ${windowStart.toISOString().slice(0, 10)}), filtered to activity inside it. Levels express attention priority, never the truth of a claim.`}
         eyebrow="Home"
         title="What changed in research"
       />
-      {error ? <ErrorState className="mt-10" message={error} onRetry={load} /> : null}
-      <section className="mt-14" aria-labelledby="open-questions-heading">
-        <SectionHeader action={<span className="text-sm text-muted-foreground">Newest activity first</span>} title="Open questions" />
-        {loading ? <Skeleton className="mt-6 h-32 w-full" /> : error ? null : questions.length === 0 ? <Empty className="mt-6" title="No open questions yet" description="Questions that are open for research will appear here." /> : <div className="mt-6 grid gap-4 md:grid-cols-2">{questions.map((question) => (
-          <article className="rounded-lg border border-border bg-card p-5" key={question.questionId}>
-            <div className="flex items-center justify-between gap-3">
-              <StatusBadge state={question.state} />
-              <time className="text-xs tabular-nums text-muted-foreground" dateTime={question.createdAt}>{relativeTime(question.createdAt)}</time>
+      {error ? <ErrorState className="mt-10" message={error} requestId={requestId ?? undefined} onRetry={load} /> : null}
+
+      <div className="mt-2 grid gap-10 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
+        <div className="min-w-0">
+          {criticalClaims.length > 0 ? (
+            <ChangeGroup count={criticalClaims.length} level="critical" title="Needs immediate attention">
+              <div className="divide-y divide-border rounded-lg border border-border bg-card">
+                {criticalClaims.map((claim) => (
+                  <ChangeItem
+                    href={`/claims/${claim.claimId}`}
+                    id={claim.claimId}
+                    idLabel="claim"
+                    key={`critical-${claim.claimId}`}
+                    level="critical"
+                    meta={<StatusBadge state={claim.state} />}
+                    time={toRelativeTime(claim.createdAt)}
+                    what={`Claim entered ${claim.state.replaceAll('_', ' ')}`}
+                    why="Research status or usage premises changed with high impact. Review the exact revision, its challenge, and downstream effects."
+                  />
+                ))}
+              </div>
+            </ChangeGroup>
+          ) : null}
+
+          <ChangeGroup count={visibleClaims.length} level="attention" title="Claims awaiting verification">
+            {loading ? <Skeleton className="h-32 w-full" /> : error ? null : visibleClaims.length === 0 ? <Empty action={<Link className="rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground" href="/explore">Find research to follow</Link>} title="Nothing awaiting verification" description="Claims under verification will appear here as they move through the pipeline." /> : (
+              <div className="divide-y divide-border rounded-lg border border-border bg-card">
+                {visibleClaims.map((claim) => (
+                  <ChangeItem
+                    href={`/claims/${claim.claimId}`}
+                    id={claim.claimId}
+                    idLabel="claim"
+                    key={claim.claimId}
+                    level="attention"
+                    meta={<StatusBadge state={claim.state} />}
+                    time={toRelativeTime(claim.createdAt)}
+                    what="Claim moving through verification"
+                    why="Receipts record outcomes, independence, and findings. Open the claim to see the exact revision, evidence groups, and any unresolved finding."
+                  />
+                ))}
+              </div>
+            )}
+          </ChangeGroup>
+
+          <ChangeGroup count={visibleQuestions.length} level="update" meta="Newest activity first" title="Open questions">
+            {loading ? <Skeleton className="mt-6 h-32 w-full" /> : error ? null : visibleQuestions.length === 0 ? <Empty action={<Link className="rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground" href="/explore">Explore open research</Link>} title="No open questions yet" description="Questions that are open for research will appear here." /> : (
+              <div className="divide-y divide-border rounded-lg border border-border bg-card">
+                {visibleQuestions.map((question) => (
+                  <ChangeItem
+                    href={`/questions/${question.questionId}`}
+                    id={question.questionId}
+                    idLabel="question"
+                    key={question.questionId}
+                    level="update"
+                    meta={<StatusBadge state={question.state} />}
+                    time={toRelativeTime(question.createdAt)}
+                    what="Open question seeking answers"
+                    why="Each question carries its research contract, frontier membership, and claim graph in the six-view workspace."
+                  />
+                ))}
+              </div>
+            )}
+          </ChangeGroup>
+
+          <ChangeGroup count={visibleFrontiers.length} level="frontier" title="Latest frontiers">
+            {loading ? <Skeleton className="mt-6 h-32 w-full" /> : error ? null : visibleFrontiers.length === 0 ? <Empty action={<Link className="rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground" href="/explore">Browse projects</Link>} title="No published frontiers yet" description="Frontier snapshots will appear here once projects publish their first." /> : (
+              <div className="divide-y divide-border rounded-lg border border-border bg-card">
+                {visibleFrontiers.map(({ project, frontier }) => (
+                  <ChangeItem
+                    href={`/projects/${project.projectId}`}
+                    id={frontier.snapshotId}
+                    idLabel="snapshot"
+                    key={frontier.snapshotId}
+                    level="frontier"
+                    meta={<span className="text-sm font-medium tabular-nums">Frontier #{frontier.sequence}</span>}
+                    time={toRelativeTime(frontier.createdAt)}
+                    what="Frontier snapshot published"
+                    why="Snapshots are immutable: the member set is frozen at publication and stays linkable forever."
+                  />
+                ))}
+              </div>
+            )}
+          </ChangeGroup>
+
+          <ChangeGroup count={visibleTasks.length} level="task" title="Newcomer tasks">
+            {loading ? <Skeleton className="mt-6 h-32 w-full" /> : error ? null : visibleTasks.length === 0 ? <Empty action={<Link className="rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground" href="/work">Open the Work queue</Link>} title="No newcomer tasks open" description="CPU-only and under-60-minute tasks will appear here when available." /> : (
+              <div className="divide-y divide-border rounded-lg border border-border bg-card">
+                {visibleTasks.map((task) => (
+                  <ChangeItem
+                    href={`/tasks/${task.taskId}`}
+                    id={task.taskId}
+                    idLabel="task"
+                    key={`${task.taskId}-${task.tag}`}
+                    level="task"
+                    meta={<span className="rounded-full border border-border bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{task.tag}</span>}
+                    time={toRelativeTime(task.createdAt)}
+                    what="Open task to pick up"
+                    why="CPU-only and under-60-minute work suitable for a first attempt."
+                  />
+                ))}
+              </div>
+            )}
+          </ChangeGroup>
+          {quietQuestions.length > 0 ? (
+            <section className="mt-10" aria-label="No qualifying changes">
+              <div className="mb-3 flex items-baseline justify-between gap-4">
+                <h2 className="text-xl font-semibold tracking-tight">No changes in window</h2>
+                <span className="text-sm text-muted-foreground">Quiet means no qualifying events in this window, never safe or uncontested</span>
+              </div>
+              <div className="divide-y divide-border rounded-lg border border-border bg-card">
+                {quietQuestions.slice(0, 4).map((question) => (
+                  <div className="flex items-center gap-3 px-5 py-3" key={question.questionId}>
+                    <span aria-hidden="true" className="grid size-8 place-items-center rounded-full bg-muted text-muted-foreground">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="size-4"><circle cx="12" cy="12" r="10" strokeDasharray="4 3" /></svg>
+                    </span>
+                    <span className="text-sm">Question <Link className="tabular-nums hover:underline" href={`/questions/${question.questionId}`}>{question.questionId}</Link></span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : null}
+        </div>
+
+        <aside aria-label="Context" className="grid gap-3">
+          {/* States matrix (08 §1): the signed-out stream names its scope
+              boundary instead of silently showing a narrower feed. */}
+          <DeniedState
+            className="p-4"
+            description="This stream is network-wide. Your personal watchlist, drafts, and pending signatures need a signed-in scope."
+            scope="signed-in watchlist"
+            title="Signed-out scope"
+            action={<Link className="rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground" href="/login">Sign in</Link>}
+            actionLabel="Sign in"
+          />
+          {rail.map(({ icon: Icon, title, body, rows, href, cta }) => (
+            <div className="rounded-lg border border-border bg-card p-4" key={title}>
+              <div className="flex items-center gap-2">
+                <Icon aria-hidden="true" className="text-muted-foreground" size={16} />
+                <h2 className="text-sm font-semibold">{title}</h2>
+              </div>
+              {rows ? (
+                <ul className="mt-3 grid gap-2">
+                  {rows.map((row) => (
+                    <li className="flex items-center justify-between gap-2 text-xs" key={row.label}>
+                      <span className="text-muted-foreground">{row.label}</span>
+                      <span className="rounded-full border border-border bg-muted px-2 py-0.5 font-medium tabular-nums text-muted-foreground">{row.count}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-1 text-xs text-muted-foreground">{body}</p>
+              )}
+              <Link className="mt-3 inline-block text-xs font-medium text-primary hover:underline" href={href}>{cta} →</Link>
             </div>
-            <h3 className="mt-4 font-medium"><IdChip className="mt-1" value={question.questionId} /><Link className="ml-1 text-xs text-primary hover:underline" href={`/questions/${question.questionId}`}>open</Link></h3>
-            <p className="mt-2 text-sm text-muted-foreground">Project <span className="tabular-nums">{question.projectId}</span></p>
-          </article>
-        ))}</div>}
-      </section>
-      <section className="mt-14" aria-labelledby="verification-claims-heading">
-        <SectionHeader title="Claims awaiting verification" />
-        {loading ? <Skeleton className="mt-6 h-32 w-full" /> : error ? null : claims.length === 0 ? <Empty className="mt-6" title="Nothing awaiting verification" description="Claims under verification will appear here as they move through the pipeline." /> : <div className="mt-6 grid gap-4 md:grid-cols-2">{claims.map((claim) => (
-          <article className="rounded-lg border border-border bg-card p-5" key={claim.claimId}>
-            <StatusBadge state={claim.state} />
-            <h3 className="mt-4 font-medium"><IdChip className="mt-1" value={claim.claimId} /><Link className="ml-1 text-xs text-primary hover:underline" href={`/claims/${claim.claimId}`}>open</Link></h3>
-            <p className="mt-2 text-sm text-muted-foreground">Question <span className="tabular-nums">{claim.questionId ?? 'not linked'}</span></p>
-          </article>
-        ))}</div>}
-      </section>
-      <section className="mt-14" aria-labelledby="frontier-heading">
-        <SectionHeader title="Latest frontiers" />
-        {loading ? <Skeleton className="mt-6 h-32 w-full" /> : error ? null : frontiers.length === 0 ? <Empty className="mt-6" title="No published frontiers yet" description="Frontier snapshots will appear here once projects publish their first." /> : <div className="mt-6 grid gap-4 md:grid-cols-2">{frontiers.map(({ project, frontier }) => (
-          <article className="rounded-lg border border-border bg-card p-5" key={frontier.snapshotId}>
-            <p className="text-sm text-muted-foreground">Project <Link className="tabular-nums hover:underline" href={`/projects/${project.projectId}`}>{project.projectId}</Link></p>
-            <h3 className="mt-3 text-lg font-medium tabular-nums">Frontier #{frontier.sequence}</h3>
-            <p className="mt-2"><IdChip value={frontier.snapshotId} /></p>
-          </article>
-        ))}</div>}
-      </section>
-      <section className="mt-14" aria-labelledby="newcomer-tasks-heading">
-        <SectionHeader title="Newcomer tasks" />
-        {loading ? <Skeleton className="mt-6 h-32 w-full" /> : error ? null : tasks.length === 0 ? <Empty className="mt-6" title="No newcomer tasks open" description="CPU-only and under-60-minute tasks will appear here when available." /> : <div className="mt-6 grid gap-4 md:grid-cols-2">{tasks.map((task) => (
-          <article className="rounded-lg border border-border bg-card p-5" key={`${task.taskId}-${task.tag}`}>
-            <span className="inline-flex items-center rounded-full border border-status-neutral-border bg-status-neutral-bg px-2.5 py-0.5 text-xs font-medium text-status-neutral-fg">{task.tag}</span>
-            <h3 className="mt-4 font-medium"><IdChip className="mt-1" value={task.taskId} /><Link className="ml-1 text-xs text-primary hover:underline" href={`/tasks/${task.taskId}`}>open</Link></h3>
-            <p className="mt-2 text-sm text-muted-foreground">Open in project <span className="tabular-nums">{task.projectId ?? 'not assigned'}</span></p>
-          </article>
-        ))}</div>}
-      </section>
+          ))}
+          {visits.length > 0 ? (
+            <div className="rounded-lg border border-border bg-card p-4" aria-label="Recently visited">
+              <div className="flex items-center gap-2">
+                <Clock aria-hidden="true" className="text-muted-foreground" size={16} />
+                <h2 className="text-sm font-semibold">Recently visited</h2>
+              </div>
+              <ul className="mt-3 grid gap-1">
+                {visits.map((visit) => (
+                  <li key={visit.href}>
+                    <Link className="flex min-w-0 items-baseline gap-2 rounded px-1 py-1 text-xs hover:bg-muted" href={visit.href}>
+                      <span className="shrink-0 rounded-full border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{visit.kind}</span>
+                      <span className="min-w-0 truncate">{visit.label}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-2 text-[10px] text-muted-foreground">Local to this browser only; never uploaded.</p>
+            </div>
+          ) : null}
+        </aside>
+      </div>
     </PageContainer>
   );
 }

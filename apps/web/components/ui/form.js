@@ -1,3 +1,4 @@
+import { Children, cloneElement, isValidElement } from 'react';
 import { cn } from '@/lib/utils';
 
 /* Text form primitives (M13.5-B04): token-based, composable, accessible. */
@@ -30,13 +31,25 @@ export function Error({ className, ...props }) {
   return <p className={cn('text-sm text-destructive', className)} {...props} />;
 }
 
-/** Vertical field group: label, control, help/error. */
+/** Vertical field group: label, control, help/error. The control receives
+ *  aria-invalid and aria-describedby so screen readers announce the state
+ *  (design book 08 §4: errors are named, linked, and never color-only). */
 export function FieldGroup({ label, htmlFor, help, error, children, className }) {
+  const hasError = Boolean(error);
+  const errorId = `${htmlFor}-error`;
+  const helpId = `${htmlFor}-help`;
+  const describedBy = hasError ? errorId : help ? helpId : null;
+  const control = Children.map(children, (child) => {
+    if (!isValidElement(child)) return child;
+    const aria = hasError ? { 'aria-invalid': 'true', 'aria-describedby': describedBy } : describedBy ? { 'aria-describedby': describedBy } : null;
+    return aria ? cloneElement(child, aria) : child;
+  });
+  const message = typeof error === 'string' ? error : error?.message;
   return (
     <div className={cn('flex flex-col gap-2', className)}>
       {label ? <Label htmlFor={htmlFor}>{label}</Label> : null}
-      {children}
-      {error ? <Error id={error.id ?? `${htmlFor}-error`}>{error.message}</Error> : help ? <Help id={`${htmlFor}-help`}>{help}</Help> : null}
+      {control}
+      {hasError ? <Error id={errorId}>{message}</Error> : help ? <Help id={helpId}>{help}</Help> : null}
     </div>
   );
 }

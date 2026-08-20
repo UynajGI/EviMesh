@@ -27,6 +27,8 @@ registry mirrors. Use the direct `node` commands above.
   points only (design book `docs/design/02-color-language.md`).
 - **The Claim graph is a DAG** of 14 typed directed edges, never a
   parent-child tree; graph views must ship a keyboard-reachable list view.
+  The graph uses d3-dag Sugiyama layout + React Flow (design book 00 §5.3);
+  do not reintroduce cytoscape.
 - **Agents never impersonate humans.** Every agent-produced item carries its
   attribution chain; agents draft, humans sign.
 - **Single UI system.** Web styling follows the M13.8 tokens in
@@ -42,6 +44,7 @@ registry mirrors. Use the direct `node` commands above.
 | UI design language, page specs, mockups | `docs/design/` (start at its README) |
 | API contract | `apps/api-edge/openapi.json` |
 | List endpoints don't carry relations | evidence links live on `/evidence/:id` (`claimLinks`), receipt findings on `/verifications/:receiptId`; hydrate via `apps/web/lib/hydrate.mjs` |
+| Actor directory & identity card | `GET /actors` (bounded page), `GET /actors/:id` returns the actor row incl. self-declared agent fields (null = not stated) |
 | Frontier members | only `/projects/:id/frontier/history` hydrates members; `latest` does not, and history pages are ASCENDING |
 | Protocol UX map / lexicon | `docs/m13.6-a/` |
 | Deployment | `.github/workflows/web-production.yml` (main + apps/web paths -> Cloudflare Worker) |

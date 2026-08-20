@@ -102,8 +102,8 @@ test('provides Supabase email and GitHub authentication from the sign-in page', 
 
 test('renders a reusable Cytoscape Claim DAG component', async () => {
   const [dag, verification] = await Promise.all([read('../components/claim-dag.js'), read('../app/verification/page.js')]);
-  assert.match(dag, /import cytoscape from 'cytoscape'/);
-  assert.match(dag, /return \(\) => cy\.destroy\(\)/);
+  assert.match(dag, /from 'd3-dag'/);
+  assert.match(dag, /<ReactFlow/);
   assert.match(dag, /Claim dependency graph/);
   assert.match(verification, /<ClaimDag elements=\{sampleElements\}/);
 });
@@ -126,7 +126,7 @@ test('manages API tokens with one-time secret display', async () => {
 
 test('renders open questions on the homepage by latest available activity', async () => {
   const page = await read('../app/home/page.js');
-  assert.match(page, /\/questions\?limit=20/);
+  assert.match(page, /\/questions\?limit=100/);
   assert.match(page, /CLOSED_STATES/);
   assert.match(page, /Open questions/);
   assert.match(page, /Newest activity first/);
@@ -215,7 +215,7 @@ test('renders a normalized Question preview before submission', async () => {
 test('renders Question details with Contract, state, and Task summaries', async () => {
   const page = await read('../app/questions/[questionId]/page.js');
   assert.match(page, /\/questions\/\$\{questionId\}/);
-  assert.match(page, /Research Contract/);
+  assert.match(page, /Research scope/);
   assert.match(page, /question\.state/);
   assert.match(page, /tasks\.length/);
 });
@@ -295,7 +295,7 @@ test('supports upstream and downstream Claim graph switching', async () => {
 test('renders a Claim DAG state legend with state-derived node colors', async () => {
   const component = await read('../components/claim-dag.js');
   assert.match(component, /CLAIM_STATE_COLORS/);
-  assert.match(component, /background-color.*data\(color\)/);
+  assert.match(component, /background: color/);
   assert.match(component, /Claim state legend/);
 });
 
@@ -304,7 +304,7 @@ test('opens Claim DAG node details with revision and Evidence fields', async () 
   assert.match(component, /Claim node details/);
   assert.match(component, /currentRevision\?\.revision/);
   assert.match(component, /Evidence:/);
-  assert.match(component, /cy\.on\('tap', 'node'/);
+  assert.match(component, /onNodeClick = useCallback/);
 });
 
 test('renders Frontier time travel with fixed members', async () => {

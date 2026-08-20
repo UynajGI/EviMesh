@@ -144,3 +144,50 @@ for (const [risk, signals, code] of [
     );
   });
 }
+
+test("normalizes, trims, dedupes, and bounds question topics", async () => {
+  const { repository, calls } = repositoryFixture();
+  await createQuestion({
+    repository,
+    actorId: "actor-1",
+    actorRole: "maintainer",
+    questionId: "question-1",
+    projectId: "project-1",
+    title: "Does the claim hold?",
+    statement: "A falsifiable research question.",
+    topics: [" reproducibility ", "", "representation learning", "reproducibility"],
+    researchContract: { contractId: "contract-1", revision: 1 },
+    eventFactory: async ({ eventType, payload }) => ({ eventId: "event-1", eventType, payload }),
+  });
+
+  assert.deepEqual(
+    calls.find(([kind]) => kind === "question")[1].topics,
+    ["reproducibility", "representation learning"],
+  );
+});
+
+test("rejects non-string topics, overlong labels, and more than eight", async () => {
+  const { repository } = repositoryFixture();
+  const base = {
+    repository,
+    actorId: "actor-1",
+    actorRole: "maintainer",
+    questionId: "question-1",
+    projectId: "project-1",
+    title: "Title",
+    statement: "Statement",
+    researchContract: { contractId: "contract-1", revision: 1 },
+    eventFactory: () => ({}),
+  };
+  await assert.rejects(createQuestion({ ...base, topics: "reproducibility" }), /topics must be an array/);
+  await assert.rejects(createQuestion({ ...base, topics: [7] }), /topics must be an array/);
+  await assert.rejects(createQuestion({ ...base, topics: ["x".repeat(49)] }), /at most 48 characters/);
+  await assert.rejects(
+    createQuestion({ ...base, topics: ["a", "b", "c", "d", "e", "f", "g", "h", "i"] }),
+    /at most 8 topics/,
+  );
+  /* Omitted topics default to an empty array, never null. */
+  const fresh = repositoryFixture();
+  await createQuestion({ ...base, repository: fresh.repository });
+  assert.deepEqual(fresh.calls.find(([kind]) => kind === "question")[1].topics, []);
+});

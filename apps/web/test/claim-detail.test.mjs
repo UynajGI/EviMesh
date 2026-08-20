@@ -24,7 +24,7 @@ test("claim detail keeps the dependency graph with direction switching", () => {
 
 test("claim detail renders on the page template with recovery", () => {
   assert.match(source, /PageContainer/);
-  assert.match(source, /PageHeader/);
+  assert.match(source, /claim-statement/);
   assert.match(source, /Badge/);
   assert.match(source, /Skeleton/);
   assert.match(source, /ErrorState/);

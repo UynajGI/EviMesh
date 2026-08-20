@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { getContribution, ContributionQueryError } from "../src/contribution-query.mjs";
+import { getContribution, listActors, ContributionQueryError } from "../src/contribution-query.mjs";
 
 test("returns an Actor's roles and produced/used contribution edges", async () => {
   const calls = [];
@@ -39,5 +39,70 @@ test("returns a typed not-found error for an Actor without contribution statemen
   await assert.rejects(
     () => getContribution({ repository, actorId: "actor-missing" }),
     (error) => error instanceof ContributionQueryError && error.code === "CONTRIBUTION_NOT_FOUND" && error.status === 404,
+  );
+});
+
+test("includes the identity card and profile when the repository exposes actor rows", async () => {
+  const repository = {
+    async listContributionStatements() { return [{ statementId: "statement-1", role: "verifier", description: "verified", createdAt: "2026-08-01T00:00:00Z" }]; },
+    async listContributionEdges() { return []; },
+    async getActor(actorId) {
+      return { actorId, actorType: "agent", identityStrength: "self_declared", modelName: "self_declared:glm-4.7", runtime: "oci:repro-env:2026.07", scope: "read · draft", publicKeyFingerprint: "ed25519:9f3a…21c8", ownerActorId: "human-1", createdAt: "2026-08-01T00:00:00Z" };
+    },
+    async getActorProfile() { return { displayName: "atlas-07", bio: null, avatarUrl: null }; },
+  };
+
+  const result = await getContribution({ repository, actorId: "agent-1" });
+
+  assert.equal(result.actor.actorType, "agent");
+  assert.equal(result.actor.identityStrength, "self_declared");
+  assert.equal(result.actor.modelName, "self_declared:glm-4.7");
+  assert.equal(result.actor.runtime, "oci:repro-env:2026.07");
+  assert.equal(result.actor.publicKeyFingerprint, "ed25519:9f3a…21c8");
+  assert.equal(result.actor.ownerActorId, "human-1");
+  assert.equal(result.actor.displayName, "atlas-07");
+});
+
+test("an actor row without statements is readable; missing both stays 404", async () => {
+  const withRowOnly = {
+    async listContributionStatements() { return []; },
+    async listContributionEdges() { return []; },
+    async getActor(actorId) { return { actorId, actorType: "human", identityStrength: "observed" }; },
+    getActorProfile: undefined,
+  };
+  const result = await getContribution({ repository: withRowOnly, actorId: "human-1" });
+  assert.equal(result.actor.actorId, "human-1");
+  assert.deepEqual(result.roles, []);
+
+  const withoutEither = {
+    async listContributionStatements() { return []; },
+    async listContributionEdges() { return []; },
+    async getActor() { return null; },
+  };
+  await assert.rejects(
+    () => getContribution({ repository: withoutEither, actorId: "ghost" }),
+    (error) => error.code === "CONTRIBUTION_NOT_FOUND" && error.status === 404,
+  );
+});
+
+test("listActors returns a bounded, identity-card-shaped directory", async () => {
+  const repository = {
+    async listActors() {
+      return [
+        { actorId: "agent-1", actorType: "agent", identityStrength: "self_declared", modelName: "self_declared:glm-4.7", createdAt: "2026-08-02T00:00:00Z" },
+        { actorId: "human-1", actorType: "human", identityStrength: "verified", createdAt: "2026-08-01T00:00:00Z" },
+      ];
+    },
+  };
+
+  const result = await listActors({ repository, limit: 1 });
+  assert.equal(result.items.length, 1);
+  assert.equal(result.items[0].actorId, "agent-1");
+  assert.equal(result.items[0].modelName, "self_declared:glm-4.7");
+  assert.equal(result.items[0].actorType, "agent");
+
+  await assert.rejects(
+    () => listActors({ repository: {} }),
+    (error) => error.code === "CONTRIBUTION_QUERY_INVALID",
   );
 });

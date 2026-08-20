@@ -117,6 +117,14 @@ ORCID 官方展示规范要求使用 ORCID 官方 iD 图标（不得修改、不
 - 一般身份场景用 `icon-identification-badge`。
 - 展示「已验证 ORCID iD」的合规组件（官方图标 + 完整 URL `https://orcid.org/XXXX-XXXX-XXXX-XXXX` + 可点击 + alt/ARIA）需要单独内嵌 ORCID 官方 SVG（绿色 #A6CE39，深色背景用反白版），该 SVG 从 ORCID 官方品牌资产获取，不进入 Phosphor sprite。
 
+### 6.6 生产适配注记（React 应用）
+
+静态设计稿用 Phosphor sprite（file:// 直开的约束）；生产 React 应用使用仓库既有依赖 lucide-react 承载同一映射：
+- 家族单一（仅 lucide）、currentColor、装饰图标 aria-hidden——规则不变。
+- 尺寸阶对齐：12px（徽标内/复制按钮）、14-16px（按钮/导航/时间线圆）、20px（空态主图标）。
+- 本章 6.4 的 symbol 清单在生产中对应同义 lucide 图标（icon-flask → FlaskConical、icon-mountains → Mountain 等），状态映射见 apps/web/components/ui/data.js 的 STATE_ICONS。
+- ORCID 官方图标例外条款不变：合规组件仍须内嵌官方 SVG。
+
 ## 7. 文案排印禁令
 
 1. 可见文案禁止 em-dash、en-dash 与中文破折号；用句号、逗号、冒号、括号或换行替代。

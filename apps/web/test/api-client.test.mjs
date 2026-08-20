@@ -26,7 +26,7 @@ test("api client carries the traceable request ID", () => {
 
 test("ErrorState surfaces an optional request ID", () => {
   assert.match(feedback, /requestId/);
-  assert.match(feedback, /request_id: \{requestId\}/);
+  assert.match(feedback, /request id: \{requestId\}/);
 });
 
 test("claims list consumes apiFetch and shows the request ID on failure", () => {

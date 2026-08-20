@@ -6,7 +6,7 @@ import { readFile } from "node:fs/promises";
 const source = await readFile(new URL("../app/questions/[questionId]/page.js", import.meta.url), "utf8");
 
 test("question detail shows contract, revision, and frontier relationship", () => {
-  assert.match(source, /Research Contract/);
+  assert.match(source, /Research scope/);
   assert.match(source, /contract\.revision/);
   assert.match(source, /frontier\/latest/);
   assert.match(source, /Frontier #/);

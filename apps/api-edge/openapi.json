@@ -5,7 +5,11 @@
     "version": "0.3.0",
     "description": "Public Cloudflare Worker API entrypoint for EviMesh."
   },
-  "servers": [{ "url": "https://api.evimesh.com" }],
+  "servers": [
+    {
+      "url": "https://api.evimesh.com"
+    }
+  ],
   "paths": {
     "/health": {
       "get": {
@@ -14,7 +18,13 @@
         "responses": {
           "200": {
             "description": "Service is healthy.",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HealthResponse" } } }
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -26,11 +36,23 @@
         "responses": {
           "200": {
             "description": "Platform public keys.",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PlatformPublicKeysResponse" } } }
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformPublicKeysResponse"
+                }
+              }
+            }
           },
           "503": {
             "description": "Platform public keys are unavailable.",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -39,11 +61,47 @@
       "post": {
         "operationId": "importWitnessReceipt",
         "summary": "Import a third-party witness receipt signing a checkpoint root",
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/WitnessReceiptRequest" } } } },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WitnessReceiptRequest"
+              }
+            }
+          }
+        },
         "responses": {
-          "201": { "description": "Witness receipt stored.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ObjectResponse" } } } },
-          "400": { "description": "Receipt is invalid or the signature did not verify.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
-          "404": { "description": "Checkpoint not found.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "201": {
+            "description": "Witness receipt stored.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Receipt is invalid or the signature did not verify.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Checkpoint not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -51,15 +109,31 @@
       "get": {
         "operationId": "getAuthenticatedActor",
         "summary": "Read the authenticated Supabase subject",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "responses": {
           "200": {
             "description": "Authenticated subject.",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AuthMeResponse" } } }
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthMeResponse"
+                }
+              }
+            }
           },
           "401": {
             "description": "Authentication is missing or invalid.",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -68,10 +142,37 @@
       "post": {
         "operationId": "startDeviceAuthorization",
         "summary": "Start an RFC-8628 device authorization grant for the CLI",
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DeviceAuthorizationRequest" } } } },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeviceAuthorizationRequest"
+              }
+            }
+          }
+        },
         "responses": {
-          "200": { "description": "Device authorization started.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DeviceAuthorizationResponse" } } } },
-          "400": { "description": "Invalid device authorization request.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DeviceAuthErrorResponse" } } } }
+          "200": {
+            "description": "Device authorization started.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceAuthorizationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid device authorization request.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceAuthErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -79,13 +180,62 @@
       "post": {
         "operationId": "approveDeviceAuthorization",
         "summary": "Bind one user code to the authenticated Actor after browser confirmation",
-        "security": [{ "bearerAuth": [] }],
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DeviceApprovalRequest" } } } },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeviceApprovalRequest"
+              }
+            }
+          }
+        },
         "responses": {
-          "200": { "description": "User code approved.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DeviceApprovalResponse" } } } },
-          "401": { "description": "Authentication is missing or invalid.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
-          "404": { "description": "User code not found or expired.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DeviceAuthErrorResponse" } } } },
-          "409": { "description": "User code was already used.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DeviceAuthErrorResponse" } } } }
+          "200": {
+            "description": "User code approved.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceApprovalResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is missing or invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "User code not found or expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceAuthErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "User code was already used.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceAuthErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -93,11 +243,47 @@
       "post": {
         "operationId": "exchangeDeviceToken",
         "summary": "Exchange an approved device code for one limited-scope CLI token",
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DeviceTokenRequest" } } } },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeviceTokenRequest"
+              }
+            }
+          }
+        },
         "responses": {
-          "200": { "description": "Limited CLI token issued.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DeviceTokenResponse" } } } },
-          "400": { "description": "Device code is pending, expired, or invalid.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DeviceAuthErrorResponse" } } } },
-          "503": { "description": "Device token issuance is not configured.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DeviceAuthErrorResponse" } } } }
+          "200": {
+            "description": "Limited CLI token issued.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceTokenResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Device code is pending, expired, or invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceAuthErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Device token issuance is not configured.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceAuthErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -105,20 +291,73 @@
       "get": {
         "operationId": "getOwnProfile",
         "summary": "Read the authenticated Actor profile",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "responses": {
-          "200": { "description": "Actor profile.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ObjectResponse" } } } },
-          "401": { "description": "Authentication is missing or invalid.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "200": {
+            "description": "Actor profile.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is missing or invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       },
       "patch": {
         "operationId": "updateOwnProfile",
         "summary": "Update the authenticated Actor profile",
-        "security": [{ "bearerAuth": [] }],
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object" } } } },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
         "responses": {
-          "200": { "description": "Updated profile.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ObjectResponse" } } } },
-          "401": { "description": "Authentication is missing or invalid.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "200": {
+            "description": "Updated profile.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is missing or invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -126,11 +365,42 @@
       "post": {
         "operationId": "registerSigningKey",
         "summary": "Register the authenticated Actor's active Ed25519 public key",
-        "security": [{ "bearerAuth": [] }],
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RegisterSigningKeyRequest" } } } },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterSigningKeyRequest"
+              }
+            }
+          }
+        },
         "responses": {
-          "201": { "description": "Signing key registered.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ObjectResponse" } } } },
-          "401": { "description": "Authentication is missing or invalid.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "201": {
+            "description": "Signing key registered.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is missing or invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -138,20 +408,73 @@
       "get": {
         "operationId": "listApiTokens",
         "summary": "List the authenticated Actor's API tokens",
-        "security": [{ "bearerAuth": [] }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "responses": {
-          "200": { "description": "API tokens.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ObjectResponse" } } } },
-          "401": { "description": "Authentication is missing or invalid.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "200": {
+            "description": "API tokens.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is missing or invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       },
       "post": {
         "operationId": "createApiToken",
         "summary": "Create a scoped API token; the plaintext value is returned once",
-        "security": [{ "bearerAuth": [] }],
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateApiTokenRequest" } } } },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateApiTokenRequest"
+              }
+            }
+          }
+        },
         "responses": {
-          "201": { "description": "API token created.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ObjectResponse" } } } },
-          "401": { "description": "Authentication is missing or invalid.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "201": {
+            "description": "API token created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is missing or invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -159,11 +482,43 @@
       "delete": {
         "operationId": "revokeApiToken",
         "summary": "Revoke one of the authenticated Actor's API tokens",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "name": "tokenId", "in": "path", "required": true, "schema": { "type": "string", "minLength": 1 } }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tokenId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
         "responses": {
-          "200": { "description": "API token revoked.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ObjectResponse" } } } },
-          "401": { "description": "Authentication is missing or invalid.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "200": {
+            "description": "API token revoked.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is missing or invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -172,23 +527,83 @@
         "operationId": "listProjects",
         "summary": "List Projects with cursor pagination",
         "parameters": [
-          { "name": "state", "in": "query", "required": false, "schema": { "type": "string" } },
-          { "$ref": "#/components/parameters/LimitParam" },
-          { "$ref": "#/components/parameters/CursorParam" }
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/LimitParam"
+          },
+          {
+            "$ref": "#/components/parameters/CursorParam"
+          }
         ],
         "responses": {
-          "200": { "description": "Project page.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PagedResponse" } } } }
+          "200": {
+            "description": "Project page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagedResponse"
+                }
+              }
+            }
+          }
         }
       },
       "post": {
         "operationId": "createProject",
         "summary": "Create a Project and its first revision",
-        "security": [{ "bearerAuth": [] }],
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateProjectRequest" } } } },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProjectRequest"
+              }
+            }
+          }
+        },
         "responses": {
-          "201": { "description": "Project created.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ObjectResponse" } } } },
-          "401": { "description": "Authentication is missing or invalid.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
-          "503": { "description": "Project creation is not configured.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "201": {
+            "description": "Project created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is missing or invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Project creation is not configured.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -196,10 +611,38 @@
       "get": {
         "operationId": "getProject",
         "summary": "Read one Project with its current revision and revision etag",
-        "parameters": [{ "name": "projectId", "in": "path", "required": true, "schema": { "type": "string", "minLength": 1 } }],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
         "responses": {
-          "200": { "description": "Project detail.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/EtagObjectResponse" } } } },
-          "404": { "description": "Project not found.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "200": {
+            "description": "Project detail.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EtagObjectResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -207,16 +650,66 @@
       "post": {
         "operationId": "reviseProject",
         "summary": "Append a Project revision guarded by If-Match",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          { "name": "projectId", "in": "path", "required": true, "schema": { "type": "string", "minLength": 1 } },
-          { "$ref": "#/components/parameters/IfMatchParam" }
+        "security": [
+          {
+            "bearerAuth": []
+          }
         ],
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object" } } } },
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "$ref": "#/components/parameters/IfMatchParam"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
         "responses": {
-          "201": { "description": "Project revision appended.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ObjectResponse" } } } },
-          "401": { "description": "Authentication is missing or invalid.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
-          "412": { "description": "If-Match does not match the current revision.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "201": {
+            "description": "Project revision appended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is missing or invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "If-Match does not match the current revision.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -224,10 +717,38 @@
       "get": {
         "operationId": "getLatestFrontier",
         "summary": "Read the latest published FrontierSnapshot for one Project",
-        "parameters": [{ "name": "projectId", "in": "path", "required": true, "schema": { "type": "string", "minLength": 1 } }],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
         "responses": {
-          "200": { "description": "Latest Frontier.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ObjectResponse" } } } },
-          "404": { "description": "No Frontier has been published.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "200": {
+            "description": "Latest Frontier.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No Frontier has been published.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -236,12 +757,33 @@
         "operationId": "listFrontierHistory",
         "summary": "List published FrontierSnapshots with fixed Claim members",
         "parameters": [
-          { "name": "projectId", "in": "path", "required": true, "schema": { "type": "string", "minLength": 1 } },
-          { "$ref": "#/components/parameters/LimitParam" },
-          { "$ref": "#/components/parameters/CursorParam" }
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "$ref": "#/components/parameters/LimitParam"
+          },
+          {
+            "$ref": "#/components/parameters/CursorParam"
+          }
         ],
         "responses": {
-          "200": { "description": "Frontier history page.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PagedResponse" } } } }
+          "200": {
+            "description": "Frontier history page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagedResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -250,14 +792,65 @@
         "operationId": "diffFrontiers",
         "summary": "Compare two FrontierSnapshots of one Project",
         "parameters": [
-          { "name": "projectId", "in": "path", "required": true, "schema": { "type": "string", "minLength": 1 } },
-          { "name": "fromSnapshotId", "in": "query", "required": true, "schema": { "type": "string", "minLength": 1 } },
-          { "name": "toSnapshotId", "in": "query", "required": true, "schema": { "type": "string", "minLength": 1 } }
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "fromSnapshotId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "toSnapshotId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
         ],
         "responses": {
-          "200": { "description": "Frontier diff.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ObjectResponse" } } } },
-          "404": { "description": "Frontier snapshot not found.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
-          "409": { "description": "Snapshots belong to different projects.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "200": {
+            "description": "Frontier diff.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Frontier snapshot not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Snapshots belong to different projects.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -266,24 +859,91 @@
         "operationId": "listQuestions",
         "summary": "List Questions with cursor pagination",
         "parameters": [
-          { "name": "projectId", "in": "query", "required": false, "schema": { "type": "string" } },
-          { "name": "state", "in": "query", "required": false, "schema": { "type": "string" } },
-          { "$ref": "#/components/parameters/LimitParam" },
-          { "$ref": "#/components/parameters/CursorParam" }
+          {
+            "name": "projectId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/LimitParam"
+          },
+          {
+            "$ref": "#/components/parameters/CursorParam"
+          }
         ],
         "responses": {
-          "200": { "description": "Question page.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PagedResponse" } } } }
+          "200": {
+            "description": "Question page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagedResponse"
+                }
+              }
+            }
+          }
         }
       },
       "post": {
         "operationId": "createQuestion",
         "summary": "Create a Question and its ResearchContract reference",
-        "security": [{ "bearerAuth": [] }],
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateQuestionRequest" } } } },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateQuestionRequest"
+              }
+            }
+          }
+        },
         "responses": {
-          "201": { "description": "Question created.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ObjectResponse" } } } },
-          "401": { "description": "Authentication is missing or invalid.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
-          "503": { "description": "Question creation is not configured.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "201": {
+            "description": "Question created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is missing or invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Question creation is not configured.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -291,10 +951,38 @@
       "get": {
         "operationId": "getQuestion",
         "summary": "Read one Question with its Contract revision",
-        "parameters": [{ "name": "questionId", "in": "path", "required": true, "schema": { "type": "string", "minLength": 1 } }],
+        "parameters": [
+          {
+            "name": "questionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
         "responses": {
-          "200": { "description": "Question detail.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ObjectResponse" } } } },
-          "404": { "description": "Question not found.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "200": {
+            "description": "Question detail.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Question not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -302,12 +990,53 @@
       "post": {
         "operationId": "transitionQuestion",
         "summary": "Move one Question through its state machine",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "name": "questionId", "in": "path", "required": true, "schema": { "type": "string", "minLength": 1 } }],
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TransitionRequest" } } } },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "questionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransitionRequest"
+              }
+            }
+          }
+        },
         "responses": {
-          "201": { "description": "Question state changed.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ObjectResponse" } } } },
-          "409": { "description": "State transition is not allowed.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "201": {
+            "description": "Question state changed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "State transition is not allowed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -316,26 +1045,107 @@
         "operationId": "listTasks",
         "summary": "List Tasks with cursor pagination and filters",
         "parameters": [
-          { "name": "projectId", "in": "query", "required": false, "schema": { "type": "string" } },
-          { "name": "status", "in": "query", "required": false, "schema": { "type": "string" } },
-          { "name": "type", "in": "query", "required": false, "schema": { "type": "string" } },
-          { "name": "tag", "in": "query", "required": false, "schema": { "type": "string" } },
-          { "$ref": "#/components/parameters/LimitParam" },
-          { "$ref": "#/components/parameters/CursorParam" }
+          {
+            "name": "projectId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/LimitParam"
+          },
+          {
+            "$ref": "#/components/parameters/CursorParam"
+          }
         ],
         "responses": {
-          "200": { "description": "Task page.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PagedResponse" } } } }
+          "200": {
+            "description": "Task page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagedResponse"
+                }
+              }
+            }
+          }
         }
       },
       "post": {
         "operationId": "createTask",
         "summary": "Create a Task and its first revision",
-        "security": [{ "bearerAuth": [] }],
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateTaskRequest" } } } },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTaskRequest"
+              }
+            }
+          }
+        },
         "responses": {
-          "201": { "description": "Task created.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ObjectResponse" } } } },
-          "401": { "description": "Authentication is missing or invalid.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
-          "503": { "description": "Task creation is not configured.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "201": {
+            "description": "Task created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is missing or invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Task creation is not configured.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -343,10 +1153,38 @@
       "get": {
         "operationId": "getTask",
         "summary": "Read one Task with its current revision, dependencies, leases, and revision etag",
-        "parameters": [{ "name": "taskId", "in": "path", "required": true, "schema": { "type": "string", "minLength": 1 } }],
+        "parameters": [
+          {
+            "name": "taskId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
         "responses": {
-          "200": { "description": "Task detail.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/EtagObjectResponse" } } } },
-          "404": { "description": "Task not found.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "200": {
+            "description": "Task detail.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EtagObjectResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Task not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -355,13 +1193,61 @@
         "operationId": "getTaskContext",
         "summary": "Read the immutable ContextBundle for one Task and mode",
         "parameters": [
-          { "name": "taskId", "in": "path", "required": true, "schema": { "type": "string", "minLength": 1 } },
-          { "name": "mode", "in": "query", "required": true, "schema": { "type": "string", "enum": ["frontier", "full_trace", "adversarial", "blind"] } }
+          {
+            "name": "taskId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "mode",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "frontier",
+                "full_trace",
+                "adversarial",
+                "blind"
+              ]
+            }
+          }
         ],
         "responses": {
-          "200": { "description": "Immutable ContextBundle metadata.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ContextBundleResponse" } } } },
-          "400": { "description": "Invalid Task ID or ContextBundle mode.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
-          "404": { "description": "No matching ContextBundle exists.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "200": {
+            "description": "Immutable ContextBundle metadata.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContextBundleResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Task ID or ContextBundle mode.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No matching ContextBundle exists.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -369,13 +1255,63 @@
       "post": {
         "operationId": "startAttempt",
         "summary": "Start an Attempt against one Task and ContextBundle",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "name": "taskId", "in": "path", "required": true, "schema": { "type": "string", "minLength": 1 } }],
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/StartAttemptRequest" } } } },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "taskId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartAttemptRequest"
+              }
+            }
+          }
+        },
         "responses": {
-          "201": { "description": "Attempt started.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ObjectResponse" } } } },
-          "401": { "description": "Authentication is missing or invalid.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
-          "503": { "description": "Attempt creation is not configured.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "201": {
+            "description": "Attempt started.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is missing or invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Attempt creation is not configured.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -383,22 +1319,95 @@
       "post": {
         "operationId": "acquireTaskLease",
         "summary": "Acquire the soft lease for one Task",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "name": "taskId", "in": "path", "required": true, "schema": { "type": "string", "minLength": 1 } }],
-        "requestBody": { "required": false, "content": { "application/json": { "schema": { "type": "object" } } } },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "taskId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
         "responses": {
-          "201": { "description": "Lease acquired.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ObjectResponse" } } } },
-          "503": { "description": "Lease operations are not configured.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "201": {
+            "description": "Lease acquired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Lease operations are not configured.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       },
       "delete": {
         "operationId": "releaseTaskLease",
         "summary": "Release the authenticated Actor's soft lease for one Task",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "name": "taskId", "in": "path", "required": true, "schema": { "type": "string", "minLength": 1 } }],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "taskId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
         "responses": {
-          "200": { "description": "Lease released.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ObjectResponse" } } } },
-          "503": { "description": "Lease operations are not configured.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "200": {
+            "description": "Lease released.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Lease operations are not configured.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -406,10 +1415,38 @@
       "get": {
         "operationId": "getAttempt",
         "summary": "Read one Attempt with its bounded public trace summary",
-        "parameters": [{ "name": "attemptId", "in": "path", "required": true, "schema": { "type": "string", "minLength": 1 } }],
+        "parameters": [
+          {
+            "name": "attemptId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
         "responses": {
-          "200": { "description": "Attempt detail.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ObjectResponse" } } } },
-          "404": { "description": "Attempt not found.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "200": {
+            "description": "Attempt detail.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Attempt not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -417,12 +1454,53 @@
       "post": {
         "operationId": "transitionAttempt",
         "summary": "Move one Attempt through its state machine",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "name": "attemptId", "in": "path", "required": true, "schema": { "type": "string", "minLength": 1 } }],
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TransitionRequest" } } } },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "attemptId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransitionRequest"
+              }
+            }
+          }
+        },
         "responses": {
-          "201": { "description": "Attempt state changed.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ObjectResponse" } } } },
-          "409": { "description": "State transition is not allowed.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "201": {
+            "description": "Attempt state changed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "State transition is not allowed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -430,12 +1508,53 @@
       "post": {
         "operationId": "recordTraceEvent",
         "summary": "Append one public-summary TraceEvent to an Attempt",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "name": "attemptId", "in": "path", "required": true, "schema": { "type": "string", "minLength": 1 } }],
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TraceEventRequest" } } } },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "attemptId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TraceEventRequest"
+              }
+            }
+          }
+        },
         "responses": {
-          "201": { "description": "Trace event recorded.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ObjectResponse" } } } },
-          "409": { "description": "Attempt is not accepting trace events.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "201": {
+            "description": "Trace event recorded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Attempt is not accepting trace events.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -444,25 +1563,99 @@
         "operationId": "listClaims",
         "summary": "List Claims with cursor pagination and filters",
         "parameters": [
-          { "name": "projectId", "in": "query", "required": false, "schema": { "type": "string" } },
-          { "name": "status", "in": "query", "required": false, "schema": { "type": "string" } },
-          { "name": "tag", "in": "query", "required": false, "schema": { "type": "string" } },
-          { "$ref": "#/components/parameters/LimitParam" },
-          { "$ref": "#/components/parameters/CursorParam" }
+          {
+            "name": "projectId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/LimitParam"
+          },
+          {
+            "$ref": "#/components/parameters/CursorParam"
+          }
         ],
         "responses": {
-          "200": { "description": "Claim page.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PagedResponse" } } } }
+          "200": {
+            "description": "Claim page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagedResponse"
+                }
+              }
+            }
+          }
         }
       },
       "post": {
         "operationId": "createClaim",
         "summary": "Create a Claim and its first hypothesis revision",
-        "security": [{ "bearerAuth": [] }],
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateClaimRequest" } } } },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateClaimRequest"
+              }
+            }
+          }
+        },
         "responses": {
-          "201": { "description": "Claim created.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ObjectResponse" } } } },
-          "401": { "description": "Authentication is missing or invalid.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
-          "503": { "description": "Claim creation is not configured.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "201": {
+            "description": "Claim created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is missing or invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Claim creation is not configured.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -470,10 +1663,38 @@
       "get": {
         "operationId": "getClaim",
         "summary": "Read one Claim with its current revision, status policy, and revision etag",
-        "parameters": [{ "name": "claimId", "in": "path", "required": true, "schema": { "type": "string", "minLength": 1 } }],
+        "parameters": [
+          {
+            "name": "claimId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
         "responses": {
-          "200": { "description": "Claim detail.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/EtagObjectResponse" } } } },
-          "404": { "description": "Claim not found.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "200": {
+            "description": "Claim detail.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EtagObjectResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Claim not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -482,13 +1703,59 @@
         "operationId": "getClaimGraph",
         "summary": "Read the bounded upstream or downstream dependency graph for one Claim",
         "parameters": [
-          { "name": "claimId", "in": "path", "required": true, "schema": { "type": "string", "minLength": 1 } },
-          { "name": "direction", "in": "query", "required": false, "schema": { "type": "string", "enum": ["upstream", "downstream"] } },
-          { "name": "maxDepth", "in": "query", "required": false, "schema": { "type": "integer", "minimum": 1, "maximum": 32 } }
+          {
+            "name": "claimId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "direction",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "upstream",
+                "downstream"
+              ]
+            }
+          },
+          {
+            "name": "maxDepth",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 32
+            }
+          }
         ],
         "responses": {
-          "200": { "description": "Claim dependency graph.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ObjectResponse" } } } },
-          "404": { "description": "Claim not found.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "200": {
+            "description": "Claim dependency graph.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Claim not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -497,12 +1764,46 @@
         "operationId": "getClaimRevision",
         "summary": "Read one immutable Claim revision",
         "parameters": [
-          { "name": "claimId", "in": "path", "required": true, "schema": { "type": "string", "minLength": 1 } },
-          { "name": "revision", "in": "path", "required": true, "schema": { "type": "integer", "minimum": 1 } }
+          {
+            "name": "claimId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "revision",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
         ],
         "responses": {
-          "200": { "description": "Claim revision.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ObjectResponse" } } } },
-          "404": { "description": "Claim revision not found.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "200": {
+            "description": "Claim revision.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Claim revision not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -510,16 +1811,66 @@
       "post": {
         "operationId": "reviseClaim",
         "summary": "Append a Claim revision guarded by If-Match",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          { "name": "claimId", "in": "path", "required": true, "schema": { "type": "string", "minLength": 1 } },
-          { "$ref": "#/components/parameters/IfMatchParam" }
+        "security": [
+          {
+            "bearerAuth": []
+          }
         ],
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object" } } } },
+        "parameters": [
+          {
+            "name": "claimId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "$ref": "#/components/parameters/IfMatchParam"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
         "responses": {
-          "201": { "description": "Claim revision appended.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ObjectResponse" } } } },
-          "404": { "description": "Claim revision not found.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
-          "412": { "description": "If-Match does not match the current revision.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "201": {
+            "description": "Claim revision appended.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Claim revision not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "If-Match does not match the current revision.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -527,15 +1878,56 @@
       "post": {
         "operationId": "transitionClaim",
         "summary": "Move one Claim through its epistemic state machine",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          { "name": "claimId", "in": "path", "required": true, "schema": { "type": "string", "minLength": 1 } },
-          { "$ref": "#/components/parameters/IfMatchParam" }
+        "security": [
+          {
+            "bearerAuth": []
+          }
         ],
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TransitionRequest" } } } },
+        "parameters": [
+          {
+            "name": "claimId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "$ref": "#/components/parameters/IfMatchParam"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransitionRequest"
+              }
+            }
+          }
+        },
         "responses": {
-          "201": { "description": "Claim state changed.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ObjectResponse" } } } },
-          "409": { "description": "State transition is not allowed.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "201": {
+            "description": "Claim state changed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "State transition is not allowed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -544,13 +1936,51 @@
         "operationId": "listClaimVerifications",
         "summary": "List VerificationReceipts for one Claim",
         "parameters": [
-          { "name": "claimId", "in": "path", "required": true, "schema": { "type": "string", "minLength": 1 } },
-          { "name": "outcome", "in": "query", "required": false, "schema": { "type": "string" } },
-          { "name": "contextMode", "in": "query", "required": false, "schema": { "type": "string" } },
-          { "name": "actorId", "in": "query", "required": false, "schema": { "type": "string" } }
+          {
+            "name": "claimId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "outcome",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "contextMode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "actorId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
         "responses": {
-          "200": { "description": "Verification receipts.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ObjectResponse" } } } }
+          "200": {
+            "description": "Verification receipts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -559,23 +1989,81 @@
         "operationId": "listArtifacts",
         "summary": "List Artifacts with cursor pagination and filters",
         "parameters": [
-          { "name": "artifactType", "in": "query", "required": false, "schema": { "type": "string" } },
-          { "name": "createdBy", "in": "query", "required": false, "schema": { "type": "string" } },
-          { "$ref": "#/components/parameters/LimitParam" },
-          { "$ref": "#/components/parameters/CursorParam" }
+          {
+            "name": "artifactType",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "createdBy",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/LimitParam"
+          },
+          {
+            "$ref": "#/components/parameters/CursorParam"
+          }
         ],
         "responses": {
-          "200": { "description": "Artifact page.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PagedResponse" } } } }
+          "200": {
+            "description": "Artifact page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagedResponse"
+                }
+              }
+            }
+          }
         }
       },
       "post": {
         "operationId": "createArtifact",
         "summary": "Create an Artifact with its first immutable revision and location",
-        "security": [{ "bearerAuth": [] }],
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateArtifactRequest" } } } },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateArtifactRequest"
+              }
+            }
+          }
+        },
         "responses": {
-          "201": { "description": "Artifact created.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ObjectResponse" } } } },
-          "503": { "description": "Artifact creation is not configured.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "201": {
+            "description": "Artifact created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Artifact creation is not configured.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -583,11 +2071,47 @@
       "post": {
         "operationId": "planArtifactUpload",
         "summary": "Plan a signed single-object upload for one Artifact revision",
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UploadPlanRequest" } } } },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadPlanRequest"
+              }
+            }
+          }
+        },
         "responses": {
-          "201": { "description": "Upload plan.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UploadPlanResponse" } } } },
-          "400": { "description": "Invalid upload plan input.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
-          "503": { "description": "Artifact upload is not configured.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "201": {
+            "description": "Upload plan.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadPlanResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid upload plan input.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Artifact upload is not configured.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -595,10 +2119,38 @@
       "get": {
         "operationId": "getArtifact",
         "summary": "Read one Artifact with its current revision and locations",
-        "parameters": [{ "name": "artifactId", "in": "path", "required": true, "schema": { "type": "string", "minLength": 1 } }],
+        "parameters": [
+          {
+            "name": "artifactId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
         "responses": {
-          "200": { "description": "Artifact detail.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ObjectResponse" } } } },
-          "404": { "description": "Artifact not found.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "200": {
+            "description": "Artifact detail.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Artifact not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -607,12 +2159,46 @@
         "operationId": "getArtifactRevision",
         "summary": "Read one immutable Artifact revision",
         "parameters": [
-          { "name": "artifactId", "in": "path", "required": true, "schema": { "type": "string", "minLength": 1 } },
-          { "name": "revision", "in": "path", "required": true, "schema": { "type": "integer", "minimum": 1 } }
+          {
+            "name": "artifactId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "revision",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
         ],
         "responses": {
-          "200": { "description": "Artifact revision.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ObjectResponse" } } } },
-          "404": { "description": "Artifact revision not found.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "200": {
+            "description": "Artifact revision.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Artifact revision not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -621,23 +2207,81 @@
         "operationId": "listEvidence",
         "summary": "List Evidence with cursor pagination and filters",
         "parameters": [
-          { "name": "evidenceType", "in": "query", "required": false, "schema": { "type": "string" } },
-          { "name": "claimId", "in": "query", "required": false, "schema": { "type": "string" } },
-          { "$ref": "#/components/parameters/LimitParam" },
-          { "$ref": "#/components/parameters/CursorParam" }
+          {
+            "name": "evidenceType",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "claimId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/LimitParam"
+          },
+          {
+            "$ref": "#/components/parameters/CursorParam"
+          }
         ],
         "responses": {
-          "200": { "description": "Evidence page.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PagedResponse" } } } }
+          "200": {
+            "description": "Evidence page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagedResponse"
+                }
+              }
+            }
+          }
         }
       },
       "post": {
         "operationId": "createEvidence",
         "summary": "Create Evidence pinned to one Artifact revision",
-        "security": [{ "bearerAuth": [] }],
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateEvidenceRequest" } } } },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateEvidenceRequest"
+              }
+            }
+          }
+        },
         "responses": {
-          "201": { "description": "Evidence created.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ObjectResponse" } } } },
-          "503": { "description": "Evidence creation is not configured.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "201": {
+            "description": "Evidence created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Evidence creation is not configured.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -645,10 +2289,38 @@
       "get": {
         "operationId": "getEvidence",
         "summary": "Read one Evidence object with its Claim links",
-        "parameters": [{ "name": "evidenceId", "in": "path", "required": true, "schema": { "type": "string", "minLength": 1 } }],
+        "parameters": [
+          {
+            "name": "evidenceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
         "responses": {
-          "200": { "description": "Evidence detail.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ObjectResponse" } } } },
-          "404": { "description": "Evidence not found.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "200": {
+            "description": "Evidence detail.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Evidence not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -656,12 +2328,53 @@
       "post": {
         "operationId": "linkEvidenceClaim",
         "summary": "Link Evidence to one fixed ClaimRevision",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [{ "name": "evidenceId", "in": "path", "required": true, "schema": { "type": "string", "minLength": 1 } }],
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LinkEvidenceRequest" } } } },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "evidenceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinkEvidenceRequest"
+              }
+            }
+          }
+        },
         "responses": {
-          "201": { "description": "Evidence linked.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ObjectResponse" } } } },
-          "404": { "description": "Evidence or Claim revision not found.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "201": {
+            "description": "Evidence linked.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Evidence or Claim revision not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -670,24 +2383,91 @@
         "operationId": "listRuns",
         "summary": "List Runs with cursor pagination and filters",
         "parameters": [
-          { "name": "taskId", "in": "query", "required": false, "schema": { "type": "string" } },
-          { "name": "actorId", "in": "query", "required": false, "schema": { "type": "string" } },
-          { "$ref": "#/components/parameters/LimitParam" },
-          { "$ref": "#/components/parameters/CursorParam" }
+          {
+            "name": "taskId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "actorId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/LimitParam"
+          },
+          {
+            "$ref": "#/components/parameters/CursorParam"
+          }
         ],
         "responses": {
-          "200": { "description": "Run page.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PagedResponse" } } } }
+          "200": {
+            "description": "Run page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagedResponse"
+                }
+              }
+            }
+          }
         }
       },
       "post": {
         "operationId": "createRun",
         "summary": "Record one Run receipt with immutable input and output references",
-        "security": [{ "bearerAuth": [] }],
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateRunRequest" } } } },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRunRequest"
+              }
+            }
+          }
+        },
         "responses": {
-          "201": { "description": "Run recorded.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ObjectResponse" } } } },
-          "409": { "description": "Output artifact revisions are not hash-verified.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
-          "503": { "description": "Run creation is not configured.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "201": {
+            "description": "Run recorded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Output artifact revisions are not hash-verified.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Run creation is not configured.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -695,10 +2475,38 @@
       "get": {
         "operationId": "getRun",
         "summary": "Read one Run receipt with its inputs and outputs",
-        "parameters": [{ "name": "runId", "in": "path", "required": true, "schema": { "type": "string", "minLength": 1 } }],
+        "parameters": [
+          {
+            "name": "runId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
         "responses": {
-          "200": { "description": "Run detail.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ObjectResponse" } } } },
-          "404": { "description": "Run not found.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "200": {
+            "description": "Run detail.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Run not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -706,11 +2514,42 @@
       "post": {
         "operationId": "prepareVerification",
         "summary": "Prepare the canonical signing bytes for one VerificationReceipt",
-        "security": [{ "bearerAuth": [] }],
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PrepareVerificationRequest" } } } },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrepareVerificationRequest"
+              }
+            }
+          }
+        },
         "responses": {
-          "200": { "description": "Signing bytes prepared.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ObjectResponse" } } } },
-          "404": { "description": "Claim or contract revision not found.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "200": {
+            "description": "Signing bytes prepared.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Claim or contract revision not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -718,12 +2557,52 @@
       "post": {
         "operationId": "submitVerification",
         "summary": "Submit one VerificationReceipt with findings and verifier contribution",
-        "security": [{ "bearerAuth": [] }],
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SubmitVerificationRequest" } } } },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitVerificationRequest"
+              }
+            }
+          }
+        },
         "responses": {
-          "201": { "description": "Verification receipt submitted.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ObjectResponse" } } } },
-          "422": { "description": "Verification type or context mode is not allowed by the contract.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
-          "503": { "description": "Verification submission is not configured.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "201": {
+            "description": "Verification receipt submitted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Verification type or context mode is not allowed by the contract.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Verification submission is not configured.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -731,10 +2610,38 @@
       "get": {
         "operationId": "getVerificationReceipt",
         "summary": "Read one VerificationReceipt with its findings",
-        "parameters": [{ "name": "receiptId", "in": "path", "required": true, "schema": { "type": "string", "minLength": 1 } }],
+        "parameters": [
+          {
+            "name": "receiptId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
         "responses": {
-          "200": { "description": "Verification receipt.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ObjectResponse" } } } },
-          "404": { "description": "Verification receipt not found.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "200": {
+            "description": "Verification receipt.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Verification receipt not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -742,12 +2649,52 @@
       "post": {
         "operationId": "createChallenge",
         "summary": "Create a Challenge locking one target ClaimRevision",
-        "security": [{ "bearerAuth": [] }],
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateChallengeRequest" } } } },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateChallengeRequest"
+              }
+            }
+          }
+        },
         "responses": {
-          "201": { "description": "Challenge created.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ObjectResponse" } } } },
-          "404": { "description": "Target Claim revision not found.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
-          "503": { "description": "Challenge creation is not configured.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "201": {
+            "description": "Challenge created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Target Claim revision not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Challenge creation is not configured.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -755,10 +2702,38 @@
       "get": {
         "operationId": "getChallenge",
         "summary": "Read one Challenge with impacts, linked Evidence, and revision etag",
-        "parameters": [{ "name": "challengeId", "in": "path", "required": true, "schema": { "type": "string", "minLength": 1 } }],
+        "parameters": [
+          {
+            "name": "challengeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
         "responses": {
-          "200": { "description": "Challenge detail.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/EtagObjectResponse" } } } },
-          "404": { "description": "Challenge not found.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "200": {
+            "description": "Challenge detail.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EtagObjectResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Challenge not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -766,15 +2741,98 @@
       "post": {
         "operationId": "transitionChallenge",
         "summary": "Move one Challenge through its state machine",
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          { "name": "challengeId", "in": "path", "required": true, "schema": { "type": "string", "minLength": 1 } },
-          { "$ref": "#/components/parameters/IfMatchParam" }
+        "security": [
+          {
+            "bearerAuth": []
+          }
         ],
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TransitionRequest" } } } },
+        "parameters": [
+          {
+            "name": "challengeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "$ref": "#/components/parameters/IfMatchParam"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransitionRequest"
+              }
+            }
+          }
+        },
         "responses": {
-          "201": { "description": "Challenge state changed.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ObjectResponse" } } } },
-          "409": { "description": "State transition is not allowed.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "201": {
+            "description": "Challenge state changed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "State transition is not allowed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/actors": {
+      "get": {
+        "operationId": "listActors",
+        "summary": "List the actor directory (researchers, agents, services) newest first",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 100
+            },
+            "description": "Bounded page size; the directory is ordered by creation and stable ids, so no cursor is needed."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Actor directory entries with self-declared identity-card fields (null means not stated).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActorDirectoryResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Actor directory reads are not configured on this deployment.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -782,10 +2840,38 @@
       "get": {
         "operationId": "getActorContribution",
         "summary": "Read one Actor's contribution roles and attribution edges",
-        "parameters": [{ "name": "actorId", "in": "path", "required": true, "schema": { "type": "string", "minLength": 1 } }],
+        "parameters": [
+          {
+            "name": "actorId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
         "responses": {
-          "200": { "description": "Contribution profile.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ObjectResponse" } } } },
-          "404": { "description": "No contribution statements exist.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "200": {
+            "description": "Contribution profile.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No contribution statements exist.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -794,17 +2880,74 @@
         "operationId": "listResearchEvents",
         "summary": "List formal ResearchEvents with filters and cursor pagination",
         "parameters": [
-          { "name": "objectType", "in": "query", "required": false, "schema": { "type": "string" } },
-          { "name": "objectId", "in": "query", "required": false, "schema": { "type": "string" } },
-          { "name": "actorId", "in": "query", "required": false, "schema": { "type": "string" } },
-          { "name": "eventType", "in": "query", "required": false, "schema": { "type": "string" } },
-          { "name": "createdAfter", "in": "query", "required": false, "schema": { "type": "string", "format": "date-time" } },
-          { "name": "createdBefore", "in": "query", "required": false, "schema": { "type": "string", "format": "date-time" } },
-          { "$ref": "#/components/parameters/LimitParam" },
-          { "$ref": "#/components/parameters/CursorParam" }
+          {
+            "name": "objectType",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "objectId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "actorId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "eventType",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "createdAfter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "createdBefore",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/LimitParam"
+          },
+          {
+            "$ref": "#/components/parameters/CursorParam"
+          }
         ],
         "responses": {
-          "200": { "description": "Event page.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PagedResponse" } } } }
+          "200": {
+            "description": "Event page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagedResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -813,12 +2956,46 @@
         "operationId": "exportResearchEvents",
         "summary": "Export a contiguous ResearchEvent range as NDJSON",
         "parameters": [
-          { "name": "firstEventId", "in": "query", "required": true, "schema": { "type": "string", "minLength": 1 } },
-          { "name": "lastEventId", "in": "query", "required": true, "schema": { "type": "string", "minLength": 1 } }
+          {
+            "name": "firstEventId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "lastEventId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
         ],
         "responses": {
-          "200": { "description": "NDJSON event export.", "content": { "application/x-ndjson": { "schema": { "type": "string" } } } },
-          "409": { "description": "Event range is not contiguous.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "200": {
+            "description": "NDJSON event export.",
+            "content": {
+              "application/x-ndjson": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Event range is not contiguous.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -826,10 +3003,38 @@
       "get": {
         "operationId": "getResearchEventProof",
         "summary": "Read the Merkle inclusion proof for one Event under a published checkpoint",
-        "parameters": [{ "name": "eventId", "in": "path", "required": true, "schema": { "type": "string", "minLength": 1 } }],
+        "parameters": [
+          {
+            "name": "eventId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
         "responses": {
-          "200": { "description": "Inclusion proof.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ObjectResponse" } } } },
-          "404": { "description": "No published checkpoint covers the Event.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "200": {
+            "description": "Inclusion proof.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No published checkpoint covers the Event.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -837,10 +3042,38 @@
       "get": {
         "operationId": "getMerkleCheckpoint",
         "summary": "Read one signed Merkle checkpoint root, range, and signature",
-        "parameters": [{ "name": "checkpointId", "in": "path", "required": true, "schema": { "type": "string", "minLength": 1 } }],
+        "parameters": [
+          {
+            "name": "checkpointId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
         "responses": {
-          "200": { "description": "Merkle checkpoint.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ObjectResponse" } } } },
-          "404": { "description": "Checkpoint not found.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "200": {
+            "description": "Merkle checkpoint.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Checkpoint not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -848,10 +3081,38 @@
       "get": {
         "operationId": "getMergeProposal",
         "summary": "Read one MergeProposal with satisfied and unsatisfied policy conditions",
-        "parameters": [{ "name": "proposalId", "in": "path", "required": true, "schema": { "type": "string", "minLength": 1 } }],
+        "parameters": [
+          {
+            "name": "proposalId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
         "responses": {
-          "200": { "description": "Merge proposal.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ObjectResponse" } } } },
-          "404": { "description": "Merge proposal not found.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "200": {
+            "description": "Merge proposal.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Merge proposal not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -860,354 +3121,1042 @@
         "operationId": "getObjectProvenance",
         "summary": "Read the Actor to Event to Object to Frontier provenance path for one revision",
         "parameters": [
-          { "name": "objectType", "in": "path", "required": true, "schema": { "type": "string", "minLength": 1 } },
-          { "name": "objectId", "in": "path", "required": true, "schema": { "type": "string", "minLength": 1 } },
-          { "name": "revision", "in": "query", "required": true, "schema": { "type": "integer", "minimum": 1 } }
+          {
+            "name": "objectType",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "objectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "revision",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
         ],
         "responses": {
-          "200": { "description": "Provenance path.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ObjectResponse" } } } },
-          "404": { "description": "Complete provenance path not found.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+          "200": {
+            "description": "Provenance path.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Complete provenance path not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
         }
       }
     }
   },
   "components": {
     "securitySchemes": {
-      "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "JWT" }
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
     },
     "parameters": {
-      "LimitParam": { "name": "limit", "in": "query", "required": false, "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 } },
-      "CursorParam": { "name": "cursor", "in": "query", "required": false, "schema": { "type": "string" } },
-      "IfMatchParam": { "name": "If-Match", "in": "header", "required": true, "schema": { "type": "string", "minLength": 1 } }
+      "LimitParam": {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 20
+        }
+      },
+      "CursorParam": {
+        "name": "cursor",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "IfMatchParam": {
+        "name": "If-Match",
+        "in": "header",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "schemas": {
       "HealthResponse": {
         "type": "object",
-        "required": ["service", "status", "environment"],
+        "required": [
+          "service",
+          "status",
+          "environment"
+        ],
         "properties": {
-          "service": { "const": "evimesh-api-edge" },
-          "status": { "const": "ok" },
-          "environment": { "type": "string" }
+          "service": {
+            "const": "evimesh-api-edge"
+          },
+          "status": {
+            "const": "ok"
+          },
+          "environment": {
+            "type": "string"
+          }
         },
         "additionalProperties": false
       },
       "AuthMeResponse": {
         "type": "object",
-        "required": ["subject", "email"],
+        "required": [
+          "subject",
+          "email"
+        ],
         "properties": {
-          "subject": { "type": "string", "minLength": 1 },
-          "email": { "type": ["string", "null"] }
+          "subject": {
+            "type": "string",
+            "minLength": 1
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
         },
         "additionalProperties": false
       },
       "DeviceAuthorizationRequest": {
         "type": "object",
-        "required": ["client_id"],
-        "properties": { "client_id": { "type": "string", "minLength": 1 } }
+        "required": [
+          "client_id"
+        ],
+        "properties": {
+          "client_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
       },
       "DeviceAuthorizationResponse": {
         "type": "object",
-        "required": ["device_code", "user_code", "verification_uri", "interval", "expires_in"],
+        "required": [
+          "device_code",
+          "user_code",
+          "verification_uri",
+          "interval",
+          "expires_in"
+        ],
         "properties": {
-          "device_code": { "type": "string", "minLength": 1 },
-          "user_code": { "type": "string", "minLength": 1 },
-          "verification_uri": { "type": "string", "minLength": 1 },
-          "interval": { "type": "integer", "minimum": 1 },
-          "expires_in": { "type": "integer", "minimum": 1 }
+          "device_code": {
+            "type": "string",
+            "minLength": 1
+          },
+          "user_code": {
+            "type": "string",
+            "minLength": 1
+          },
+          "verification_uri": {
+            "type": "string",
+            "minLength": 1
+          },
+          "interval": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "expires_in": {
+            "type": "integer",
+            "minimum": 1
+          }
         }
       },
       "DeviceApprovalRequest": {
         "type": "object",
-        "required": ["user_code"],
-        "properties": { "user_code": { "type": "string", "minLength": 1 } }
+        "required": [
+          "user_code"
+        ],
+        "properties": {
+          "user_code": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
       },
       "DeviceApprovalResponse": {
         "type": "object",
-        "required": ["status"],
+        "required": [
+          "status"
+        ],
         "properties": {
-          "status": { "const": "approved" },
-          "device_code": { "type": ["string", "null"] }
+          "status": {
+            "const": "approved"
+          },
+          "device_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
         }
       },
       "DeviceTokenRequest": {
         "type": "object",
-        "required": ["device_code"],
-        "properties": { "device_code": { "type": "string", "minLength": 1 } }
+        "required": [
+          "device_code"
+        ],
+        "properties": {
+          "device_code": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
       },
       "DeviceTokenResponse": {
         "type": "object",
-        "required": ["access_token", "scopes"],
+        "required": [
+          "access_token",
+          "scopes"
+        ],
         "properties": {
-          "access_token": { "type": "string", "minLength": 1 },
-          "scopes": { "type": "array", "items": { "type": "string" } },
-          "token_id": { "type": ["string", "null"] }
+          "access_token": {
+            "type": "string",
+            "minLength": 1
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "token_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
         }
       },
       "DeviceAuthErrorResponse": {
         "type": "object",
-        "required": ["error"],
+        "required": [
+          "error"
+        ],
         "properties": {
-          "error": { "type": "string", "minLength": 1 },
-          "error_description": { "type": "string" }
+          "error": {
+            "type": "string",
+            "minLength": 1
+          },
+          "error_description": {
+            "type": "string"
+          }
         },
         "additionalProperties": false
       },
       "PlatformPublicKeysResponse": {
         "type": "object",
-        "required": ["active_key_id", "keys"],
+        "required": [
+          "active_key_id",
+          "keys"
+        ],
         "properties": {
-          "active_key_id": { "type": "string", "minLength": 1 },
+          "active_key_id": {
+            "type": "string",
+            "minLength": 1
+          },
           "keys": {
             "type": "array",
             "minItems": 1,
-            "items": { "$ref": "#/components/schemas/PlatformPublicKey" }
+            "items": {
+              "$ref": "#/components/schemas/PlatformPublicKey"
+            }
           }
         },
         "additionalProperties": false
       },
       "PlatformPublicKey": {
         "type": "object",
-        "required": ["key_id", "algorithm", "public_key"],
+        "required": [
+          "key_id",
+          "algorithm",
+          "public_key"
+        ],
         "properties": {
-          "key_id": { "type": "string", "minLength": 1 },
-          "algorithm": { "const": "Ed25519" },
-          "public_key": { "type": "string", "minLength": 1 }
+          "key_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "algorithm": {
+            "const": "Ed25519"
+          },
+          "public_key": {
+            "type": "string",
+            "minLength": 1
+          }
         },
         "additionalProperties": false
       },
       "ContextBundleResponse": {
         "type": "object",
-        "required": ["contextBundleId", "taskId", "taskRevision", "frontierSnapshotId", "mode", "manifest", "contentHash", "storageUri"],
+        "required": [
+          "contextBundleId",
+          "taskId",
+          "taskRevision",
+          "frontierSnapshotId",
+          "mode",
+          "manifest",
+          "contentHash",
+          "storageUri"
+        ],
         "properties": {
-          "contextBundleId": { "type": "string" },
-          "taskId": { "type": "string" },
-          "taskRevision": { "type": "integer", "minimum": 1 },
-          "frontierSnapshotId": { "type": "string" },
-          "mode": { "type": "string", "enum": ["frontier", "full_trace", "adversarial", "blind"] },
-          "manifest": { "type": "object" },
-          "contentHash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
-          "storageUri": { "type": "string", "format": "uri" }
+          "contextBundleId": {
+            "type": "string"
+          },
+          "taskId": {
+            "type": "string"
+          },
+          "taskRevision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "frontierSnapshotId": {
+            "type": "string"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "frontier",
+              "full_trace",
+              "adversarial",
+              "blind"
+            ]
+          },
+          "manifest": {
+            "type": "object"
+          },
+          "contentHash": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          },
+          "storageUri": {
+            "type": "string",
+            "format": "uri"
+          }
         },
         "additionalProperties": false
       },
       "ErrorResponse": {
         "type": "object",
-        "required": ["code", "message", "request_id"],
+        "required": [
+          "code",
+          "message",
+          "request_id"
+        ],
         "properties": {
-          "code": { "type": "string" },
-          "message": { "type": "string" },
-          "request_id": { "type": "string" }
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "request_id": {
+            "type": "string"
+          }
         },
         "additionalProperties": false
       },
       "ClientSignatureEnvelope": {
         "type": "object",
-        "required": ["schema", "event_type", "payload", "nonce", "signing_bytes_hash", "signature"],
+        "required": [
+          "schema",
+          "event_type",
+          "payload",
+          "nonce",
+          "signing_bytes_hash",
+          "signature"
+        ],
         "properties": {
-          "schema": { "const": "srp.client-signature-envelope.v1" },
-          "event_type": { "type": "string", "minLength": 1 },
-          "payload": { "type": "object" },
-          "nonce": { "type": "string", "pattern": "^[A-Za-z0-9_-]{16,128}$" },
-          "signing_bytes_hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+          "schema": {
+            "const": "srp.client-signature-envelope.v1"
+          },
+          "event_type": {
+            "type": "string",
+            "minLength": 1
+          },
+          "payload": {
+            "type": "object"
+          },
+          "nonce": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{16,128}$"
+          },
+          "signing_bytes_hash": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          },
           "signature": {
             "type": "object",
-            "required": ["algorithm", "key_id", "value"],
+            "required": [
+              "algorithm",
+              "key_id",
+              "value"
+            ],
             "properties": {
-              "algorithm": { "const": "Ed25519" },
-              "key_id": { "type": "string", "minLength": 1 },
-              "value": { "type": "string", "minLength": 1 }
+              "algorithm": {
+                "const": "Ed25519"
+              },
+              "key_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "value": {
+                "type": "string",
+                "minLength": 1
+              }
             }
           }
         }
       },
       "WitnessReceiptRequest": {
         "type": "object",
-        "required": ["receipt", "publicKey"],
+        "required": [
+          "receipt",
+          "publicKey"
+        ],
         "properties": {
           "receipt": {
             "type": "object",
-            "required": ["schema", "checkpointId", "rootHash", "witnessId", "signedAt", "signature"],
+            "required": [
+              "schema",
+              "checkpointId",
+              "rootHash",
+              "witnessId",
+              "signedAt",
+              "signature"
+            ],
             "properties": {
-              "schema": { "const": "evimesh.witness-checkpoint.v1" },
-              "checkpointId": { "type": "string", "minLength": 1 },
-              "rootHash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
-              "witnessId": { "type": "string", "minLength": 1 },
-              "signedAt": { "type": "string", "format": "date-time" },
+              "schema": {
+                "const": "evimesh.witness-checkpoint.v1"
+              },
+              "checkpointId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "rootHash": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "witnessId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "signedAt": {
+                "type": "string",
+                "format": "date-time"
+              },
               "signature": {
                 "type": "object",
-                "required": ["algorithm", "key_id", "value"],
+                "required": [
+                  "algorithm",
+                  "key_id",
+                  "value"
+                ],
                 "properties": {
-                  "algorithm": { "const": "Ed25519" },
-                  "key_id": { "type": "string", "minLength": 1 },
-                  "value": { "type": "string", "minLength": 1 }
+                  "algorithm": {
+                    "const": "Ed25519"
+                  },
+                  "key_id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "value": {
+                    "type": "string",
+                    "minLength": 1
+                  }
                 }
               }
             }
           },
-          "publicKey": { "type": "string", "minLength": 1 }
+          "publicKey": {
+            "type": "string",
+            "minLength": 1
+          }
         }
       },
       "PagedResponse": {
         "type": "object",
-        "required": ["items"],
+        "required": [
+          "items"
+        ],
         "properties": {
-          "items": { "type": "array", "items": { "type": "object" } },
-          "nextCursor": { "type": ["string", "null"] }
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
         }
       },
-      "ObjectResponse": { "type": "object" },
+      "ObjectResponse": {
+        "type": "object"
+      },
       "EtagObjectResponse": {
         "type": "object",
-        "required": ["etag"],
-        "properties": { "etag": { "type": "string", "pattern": "^W/\".+$" } }
+        "required": [
+          "etag"
+        ],
+        "properties": {
+          "etag": {
+            "type": "string",
+            "pattern": "^W/\".+$"
+          }
+        }
       },
       "TransitionRequest": {
         "type": "object",
-        "required": ["toState"],
-        "properties": { "toState": { "type": "string", "minLength": 1 } },
+        "required": [
+          "toState"
+        ],
+        "properties": {
+          "toState": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
         "additionalProperties": false
       },
       "RegisterSigningKeyRequest": {
         "type": "object",
-        "required": ["keyId", "publicKey"],
-        "properties": { "keyId": { "type": "string", "minLength": 1 }, "publicKey": { "type": "string", "minLength": 1 } }
+        "required": [
+          "keyId",
+          "publicKey"
+        ],
+        "properties": {
+          "keyId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "publicKey": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
       },
       "CreateApiTokenRequest": {
         "type": "object",
         "properties": {
-          "scopes": { "type": "array", "items": { "type": "string" } },
-          "expiresAt": { "type": ["string", "null"], "format": "date-time" }
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "expiresAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
         }
       },
       "CreateProjectRequest": {
         "type": "object",
-        "required": ["projectId", "name", "summary", "license"],
+        "required": [
+          "projectId",
+          "name",
+          "summary",
+          "license"
+        ],
         "properties": {
-          "projectId": { "type": "string", "minLength": 1 },
-          "name": { "type": "string", "minLength": 1 },
-          "summary": { "type": "string", "minLength": 1 },
-          "license": { "type": "string", "minLength": 1 },
-          "maintainerIds": { "type": "array", "items": { "type": "string" } }
+          "projectId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1
+          },
+          "license": {
+            "type": "string",
+            "minLength": 1
+          },
+          "maintainerIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
         }
       },
       "CreateQuestionRequest": {
         "type": "object",
-        "required": ["questionId", "projectId", "title", "statement"],
+        "required": [
+          "questionId",
+          "projectId",
+          "title",
+          "statement"
+        ],
         "properties": {
-          "questionId": { "type": "string", "minLength": 1 },
-          "projectId": { "type": "string", "minLength": 1 },
-          "title": { "type": "string", "minLength": 1 },
-          "statement": { "type": "string", "minLength": 1 },
-          "researchContract": { "type": ["object", "null"] }
+          "questionId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "projectId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "statement": {
+            "type": "string",
+            "minLength": 1
+          },
+          "researchContract": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "topics": {
+            "type": "array",
+            "maxItems": 8,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 48
+            },
+            "description": "Optional subject-area navigation labels (design book: Explore 主题). Never a taxonomy or a scoring dimension."
+          }
         }
       },
       "CreateTaskRequest": {
         "type": "object",
-        "required": ["taskId", "title", "description", "outputs", "acceptance", "contextMode"],
+        "required": [
+          "taskId",
+          "title",
+          "description",
+          "outputs",
+          "acceptance",
+          "contextMode"
+        ],
         "properties": {
-          "taskId": { "type": "string", "minLength": 1 },
-          "questionId": { "type": ["string", "null"] },
-          "title": { "type": "string", "minLength": 1 },
-          "description": { "type": "string", "minLength": 1 },
-          "inputs": { "type": "array", "items": { "type": "object" } },
-          "outputs": { "type": ["object", "array"] },
-          "acceptance": { "type": ["object", "array"] },
-          "contextMode": { "type": "string", "enum": ["frontier", "full_trace", "adversarial", "blind"] }
+          "taskId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "questionId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "inputs": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "outputs": {
+            "type": [
+              "object",
+              "array"
+            ]
+          },
+          "acceptance": {
+            "type": [
+              "object",
+              "array"
+            ]
+          },
+          "contextMode": {
+            "type": "string",
+            "enum": [
+              "frontier",
+              "full_trace",
+              "adversarial",
+              "blind"
+            ]
+          }
         }
       },
       "StartAttemptRequest": {
         "type": "object",
-        "required": ["attemptId", "contextBundleId", "contextMode"],
+        "required": [
+          "attemptId",
+          "contextBundleId",
+          "contextMode"
+        ],
         "properties": {
-          "attemptId": { "type": "string", "minLength": 1 },
-          "contextBundleId": { "type": "string", "minLength": 1 },
-          "contextMode": { "type": "string", "enum": ["frontier", "full_trace", "adversarial", "blind"] }
+          "attemptId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "contextBundleId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "contextMode": {
+            "type": "string",
+            "enum": [
+              "frontier",
+              "full_trace",
+              "adversarial",
+              "blind"
+            ]
+          }
         }
       },
       "TraceEventRequest": {
         "type": "object",
-        "required": ["eventId", "eventType", "payload"],
+        "required": [
+          "eventId",
+          "eventType",
+          "payload"
+        ],
         "properties": {
-          "eventId": { "type": "string", "minLength": 1 },
-          "eventType": { "type": "string", "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9]*)+$" },
-          "payload": { "type": "object" },
-          "hash": { "type": ["string", "null"] },
-          "signature": { "type": ["object", "null"] },
-          "parents": { "type": "array", "items": { "type": "string" } }
+          "eventId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "eventType": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9]*)+$"
+          },
+          "payload": {
+            "type": "object"
+          },
+          "hash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "signature": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "parents": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
         }
       },
       "CreateClaimRequest": {
         "type": "object",
-        "required": ["claimId", "statement", "scope", "falsification"],
+        "required": [
+          "claimId",
+          "statement",
+          "scope",
+          "falsification"
+        ],
         "properties": {
-          "claimId": { "type": "string", "minLength": 1 },
-          "questionId": { "type": ["string", "null"] },
-          "statement": { "type": "string", "minLength": 1 },
-          "scope": { "type": ["object", "array"] },
-          "assumptions": { "type": ["object", "array"] },
-          "falsification": { "type": ["object", "array"] },
-          "signatureEnvelope": { "$ref": "#/components/schemas/ClientSignatureEnvelope" }
+          "claimId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "questionId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "statement": {
+            "type": "string",
+            "minLength": 1
+          },
+          "scope": {
+            "type": [
+              "object",
+              "array"
+            ]
+          },
+          "assumptions": {
+            "type": [
+              "object",
+              "array"
+            ]
+          },
+          "falsification": {
+            "type": [
+              "object",
+              "array"
+            ]
+          },
+          "signatureEnvelope": {
+            "$ref": "#/components/schemas/ClientSignatureEnvelope"
+          }
         }
       },
       "CreateArtifactRequest": {
         "type": "object",
-        "required": ["artifactId", "artifactType", "rawHash", "sizeBytes", "mediaType", "license", "locationId", "location"],
+        "required": [
+          "artifactId",
+          "artifactType",
+          "rawHash",
+          "sizeBytes",
+          "mediaType",
+          "license",
+          "locationId",
+          "location"
+        ],
         "properties": {
-          "artifactId": { "type": "string", "minLength": 1 },
-          "artifactType": { "type": "string", "enum": ["code", "dataset", "document", "figure", "proof", "notebook", "container", "model", "report", "other"] },
-          "rawHash": { "type": "string", "pattern": "^sha256:[0-9a-fA-F]{64}$" },
-          "semanticHash": { "type": ["string", "null"], "pattern": "^sha256:[0-9a-fA-F]{64}$" },
-          "sizeBytes": { "type": "integer", "minimum": 0 },
-          "mediaType": { "type": "string", "pattern": "^[^\\s/]+/[^\\s/]+$" },
-          "license": { "type": "string", "minLength": 1 },
-          "description": { "type": ["string", "null"] },
-          "locationId": { "type": "string", "minLength": 1 },
-          "location": { "type": "string", "format": "uri" }
+          "artifactId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "artifactType": {
+            "type": "string",
+            "enum": [
+              "code",
+              "dataset",
+              "document",
+              "figure",
+              "proof",
+              "notebook",
+              "container",
+              "model",
+              "report",
+              "other"
+            ]
+          },
+          "rawHash": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-fA-F]{64}$"
+          },
+          "semanticHash": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^sha256:[0-9a-fA-F]{64}$"
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "mediaType": {
+            "type": "string",
+            "pattern": "^[^\\s/]+/[^\\s/]+$"
+          },
+          "license": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "locationId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "location": {
+            "type": "string",
+            "format": "uri"
+          }
         }
       },
       "UploadPlanRequest": {
         "type": "object",
-        "required": ["artifactId", "revision", "rawHash", "sizeBytes", "mediaType", "fileName"],
+        "required": [
+          "artifactId",
+          "revision",
+          "rawHash",
+          "sizeBytes",
+          "mediaType",
+          "fileName"
+        ],
         "properties": {
-          "artifactId": { "type": "string", "minLength": 1 },
-          "revision": { "type": "integer", "minimum": 1 },
-          "rawHash": { "type": "string", "pattern": "^sha256:[0-9a-fA-F]{64}$" },
-          "sizeBytes": { "type": "integer", "minimum": 0 },
-          "mediaType": { "type": "string", "minLength": 1 },
-          "fileName": { "type": "string", "minLength": 1 }
+          "artifactId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "rawHash": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-fA-F]{64}$"
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "mediaType": {
+            "type": "string",
+            "minLength": 1
+          },
+          "fileName": {
+            "type": "string",
+            "minLength": 1
+          }
         }
       },
       "UploadPlanResponse": {
         "type": "object",
-        "required": ["uploadType", "key", "sizeBytes", "mediaType", "issuedAt", "expiresAt", "url"],
+        "required": [
+          "uploadType",
+          "key",
+          "sizeBytes",
+          "mediaType",
+          "issuedAt",
+          "expiresAt",
+          "url"
+        ],
         "properties": {
-          "uploadType": { "const": "single" },
-          "key": { "type": "string", "minLength": 1 },
-          "sizeBytes": { "type": "integer", "minimum": 0 },
-          "mediaType": { "type": "string", "minLength": 1 },
-          "issuedAt": { "type": "string", "format": "date-time" },
-          "expiresAt": { "type": "string", "format": "date-time" },
-          "url": { "type": "string", "format": "uri" }
+          "uploadType": {
+            "const": "single"
+          },
+          "key": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "mediaType": {
+            "type": "string",
+            "minLength": 1
+          },
+          "issuedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          }
         }
       },
       "CreateEvidenceRequest": {
         "type": "object",
-        "required": ["evidenceId", "evidenceType", "artifactId", "artifactRevision"],
+        "required": [
+          "evidenceId",
+          "evidenceType",
+          "artifactId",
+          "artifactRevision"
+        ],
         "properties": {
-          "evidenceId": { "type": "string", "minLength": 1 },
-          "evidenceType": { "type": "string", "enum": ["formal_proof", "numerical_result", "experimental_result", "dataset", "literature_support", "counterexample", "benchmark", "statistical_analysis", "code_test", "negative_result", "expert_assessment"] },
-          "artifactId": { "type": "string", "minLength": 1 },
-          "artifactRevision": { "type": "integer", "minimum": 1 },
-          "runId": { "type": ["string", "null"] },
+          "evidenceId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "evidenceType": {
+            "type": "string",
+            "enum": [
+              "formal_proof",
+              "numerical_result",
+              "experimental_result",
+              "dataset",
+              "literature_support",
+              "counterexample",
+              "benchmark",
+              "statistical_analysis",
+              "code_test",
+              "negative_result",
+              "expert_assessment"
+            ]
+          },
+          "artifactId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "artifactRevision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "runId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "links": {
             "type": "array",
             "items": {
               "type": "object",
-              "required": ["claimId", "claimRevision", "relationType"],
+              "required": [
+                "claimId",
+                "claimRevision",
+                "relationType"
+              ],
               "properties": {
-                "claimId": { "type": "string", "minLength": 1 },
-                "claimRevision": { "type": "integer", "minimum": 1 },
-                "relationType": { "type": "string", "enum": ["supports", "refutes", "qualifies", "reproduces"] }
+                "claimId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "claimRevision": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "relationType": {
+                  "type": "string",
+                  "enum": [
+                    "supports",
+                    "refutes",
+                    "qualifies",
+                    "reproduces"
+                  ]
+                }
               }
             }
           }
@@ -1215,101 +4164,427 @@
       },
       "LinkEvidenceRequest": {
         "type": "object",
-        "required": ["claimId", "claimRevision", "relationType"],
+        "required": [
+          "claimId",
+          "claimRevision",
+          "relationType"
+        ],
         "properties": {
-          "claimId": { "type": "string", "minLength": 1 },
-          "claimRevision": { "type": "integer", "minimum": 1 },
-          "relationType": { "type": "string", "enum": ["supports", "refutes", "qualifies", "reproduces"] }
+          "claimId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "claimRevision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "relationType": {
+            "type": "string",
+            "enum": [
+              "supports",
+              "refutes",
+              "qualifies",
+              "reproduces"
+            ]
+          }
         }
       },
       "CreateRunRequest": {
         "type": "object",
-        "required": ["runId", "taskId", "contextBundleId", "sourceCode", "container", "command", "environment", "hardware", "randomSeed", "startedAt", "endedAt", "exitCode", "signature"],
+        "required": [
+          "runId",
+          "taskId",
+          "contextBundleId",
+          "sourceCode",
+          "container",
+          "command",
+          "environment",
+          "hardware",
+          "randomSeed",
+          "startedAt",
+          "endedAt",
+          "exitCode",
+          "signature"
+        ],
         "properties": {
-          "runId": { "type": "string", "minLength": 1 },
-          "taskId": { "type": "string", "minLength": 1 },
-          "contextBundleId": { "type": "string", "minLength": 1 },
-          "sourceCode": { "type": "string", "minLength": 1 },
-          "container": { "type": "string", "pattern": "^(?:oci:)?[^\\s@]+@sha256:[a-fA-F0-9]{64}$" },
-          "command": { "type": "string", "minLength": 1 },
-          "args": { "type": "array", "items": { "type": "string" } },
-          "environment": { "type": "object" },
-          "hardware": { "type": "object" },
-          "randomSeed": { "type": "object" },
-          "startedAt": { "type": "string", "format": "date-time" },
-          "endedAt": { "type": "string", "format": "date-time" },
-          "networkAccess": { "type": "boolean" },
-          "exitCode": { "type": "integer" },
-          "signature": { "type": "string", "minLength": 1 },
-          "inputs": { "type": "array", "items": { "$ref": "#/components/schemas/ArtifactRevisionRef" } },
-          "outputs": { "type": "array", "items": { "$ref": "#/components/schemas/ArtifactRevisionRef" } },
-          "signatureEnvelope": { "$ref": "#/components/schemas/ClientSignatureEnvelope" }
+          "runId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "taskId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "contextBundleId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sourceCode": {
+            "type": "string",
+            "minLength": 1
+          },
+          "container": {
+            "type": "string",
+            "pattern": "^(?:oci:)?[^\\s@]+@sha256:[a-fA-F0-9]{64}$"
+          },
+          "command": {
+            "type": "string",
+            "minLength": 1
+          },
+          "args": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "environment": {
+            "type": "object"
+          },
+          "hardware": {
+            "type": "object"
+          },
+          "randomSeed": {
+            "type": "object"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "networkAccess": {
+            "type": "boolean"
+          },
+          "exitCode": {
+            "type": "integer"
+          },
+          "signature": {
+            "type": "string",
+            "minLength": 1
+          },
+          "inputs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ArtifactRevisionRef"
+            }
+          },
+          "outputs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ArtifactRevisionRef"
+            }
+          },
+          "signatureEnvelope": {
+            "$ref": "#/components/schemas/ClientSignatureEnvelope"
+          }
         }
       },
       "ArtifactRevisionRef": {
         "type": "object",
-        "required": ["artifactId", "artifactRevision"],
+        "required": [
+          "artifactId",
+          "artifactRevision"
+        ],
         "properties": {
-          "artifactId": { "type": "string", "minLength": 1 },
-          "artifactRevision": { "type": "integer", "minimum": 1 }
+          "artifactId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "artifactRevision": {
+            "type": "integer",
+            "minimum": 1
+          }
         }
       },
       "PrepareVerificationRequest": {
         "type": "object",
-        "required": ["claimId", "claimRevision", "contractId", "contractRevision", "nonce"],
+        "required": [
+          "claimId",
+          "claimRevision",
+          "contractId",
+          "contractRevision",
+          "nonce"
+        ],
         "properties": {
-          "claimId": { "type": "string", "minLength": 1 },
-          "claimRevision": { "type": "integer", "minimum": 1 },
-          "contractId": { "type": "string", "minLength": 1 },
-          "contractRevision": { "type": "integer", "minimum": 1 },
-          "nonce": { "type": "string", "pattern": "^[A-Za-z0-9_-]{16,128}$" }
+          "claimId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "claimRevision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "contractId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "contractRevision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "nonce": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{16,128}$"
+          }
         }
       },
       "SubmitVerificationRequest": {
         "type": "object",
-        "required": ["receiptId", "runId", "claimId", "claimRevision", "contractId", "contractRevision", "outcome", "verificationTypes", "contextMode", "sawExpectedOutputs", "implementationRelation", "dataRelation", "modelFamily", "contributionStatementId"],
+        "required": [
+          "receiptId",
+          "runId",
+          "claimId",
+          "claimRevision",
+          "contractId",
+          "contractRevision",
+          "outcome",
+          "verificationTypes",
+          "contextMode",
+          "sawExpectedOutputs",
+          "implementationRelation",
+          "dataRelation",
+          "modelFamily",
+          "contributionStatementId"
+        ],
         "properties": {
-          "receiptId": { "type": "string", "minLength": 1 },
-          "runId": { "type": "string", "minLength": 1 },
-          "claimId": { "type": "string", "minLength": 1 },
-          "claimRevision": { "type": "integer", "minimum": 1 },
-          "contractId": { "type": "string", "minLength": 1 },
-          "contractRevision": { "type": "integer", "minimum": 1 },
-          "outcome": { "type": "string", "enum": ["supports", "refutes", "qualifies", "inconclusive"] },
-          "verificationTypes": { "type": "array", "minItems": 1, "items": { "type": "string" } },
-          "contextMode": { "type": "string", "enum": ["frontier", "full_trace", "adversarial", "blind"] },
-          "sawExpectedOutputs": { "type": "boolean" },
-          "implementationRelation": { "type": "string", "minLength": 1 },
-          "dataRelation": { "type": "string", "minLength": 1 },
-          "modelFamily": { "type": "string", "minLength": 1 },
-          "contributionStatementId": { "type": "string", "minLength": 1 },
+          "receiptId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "runId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "claimId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "claimRevision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "contractId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "contractRevision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "supports",
+              "refutes",
+              "qualifies",
+              "inconclusive"
+            ]
+          },
+          "verificationTypes": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            }
+          },
+          "contextMode": {
+            "type": "string",
+            "enum": [
+              "frontier",
+              "full_trace",
+              "adversarial",
+              "blind"
+            ]
+          },
+          "sawExpectedOutputs": {
+            "type": "boolean"
+          },
+          "implementationRelation": {
+            "type": "string",
+            "minLength": 1
+          },
+          "dataRelation": {
+            "type": "string",
+            "minLength": 1
+          },
+          "modelFamily": {
+            "type": "string",
+            "minLength": 1
+          },
+          "contributionStatementId": {
+            "type": "string",
+            "minLength": 1
+          },
           "findings": {
             "type": "array",
             "items": {
               "type": "object",
-              "required": ["findingId", "severity", "code"],
+              "required": [
+                "findingId",
+                "severity",
+                "code"
+              ],
               "properties": {
-                "findingId": { "type": "string", "minLength": 1 },
-                "severity": { "type": "string", "enum": ["critical", "major", "warning", "note"] },
-                "code": { "type": "string", "minLength": 1 },
-                "details": { "type": "object" }
+                "findingId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "severity": {
+                  "type": "string",
+                  "enum": [
+                    "critical",
+                    "major",
+                    "warning",
+                    "note"
+                  ]
+                },
+                "code": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "details": {
+                  "type": "object"
+                }
               }
             }
           },
-          "signatureEnvelope": { "$ref": "#/components/schemas/ClientSignatureEnvelope" }
+          "signatureEnvelope": {
+            "$ref": "#/components/schemas/ClientSignatureEnvelope"
+          }
         }
       },
       "CreateChallengeRequest": {
         "type": "object",
-        "required": ["challengeId", "targetClaimId", "targetClaimRevision", "reason", "impact"],
+        "required": [
+          "challengeId",
+          "targetClaimId",
+          "targetClaimRevision",
+          "reason",
+          "impact"
+        ],
         "properties": {
-          "challengeId": { "type": "string", "minLength": 1 },
-          "targetClaimId": { "type": "string", "minLength": 1 },
-          "targetClaimRevision": { "type": "integer", "minimum": 1 },
-          "reason": { "type": "string", "minLength": 1 },
-          "impact": { "type": ["object", "array"] },
-          "proposedResolution": { "type": ["string", "null"] },
-          "signatureEnvelope": { "$ref": "#/components/schemas/ClientSignatureEnvelope" }
+          "challengeId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "targetClaimId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "targetClaimRevision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          },
+          "impact": {
+            "type": [
+              "object",
+              "array"
+            ]
+          },
+          "proposedResolution": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "signatureEnvelope": {
+            "$ref": "#/components/schemas/ClientSignatureEnvelope"
+          }
+        }
+      },
+      "ActorDirectoryResponse": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ActorIdentityCard"
+            }
+          }
+        }
+      },
+      "ActorIdentityCard": {
+        "type": "object",
+        "required": [
+          "actorId"
+        ],
+        "properties": {
+          "actorId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "actorType": {
+            "type": "string",
+            "enum": [
+              "human",
+              "agent",
+              "organization",
+              "service",
+              "maintainer",
+              "witness"
+            ],
+            "description": "null when the deployment does not expose actor rows."
+          },
+          "identityStrength": {
+            "type": "string",
+            "enum": [
+              "verified",
+              "observed",
+              "self_declared",
+              "unknown"
+            ]
+          },
+          "displayName": {
+            "type": "string",
+            "nullable": true
+          },
+          "bio": {
+            "type": "string",
+            "nullable": true
+          },
+          "avatarUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "modelName": {
+            "type": "string",
+            "nullable": true,
+            "description": "Self-declared model identifier, e.g. self_declared:glm-4.7. Null means not stated."
+          },
+          "runtime": {
+            "type": "string",
+            "nullable": true,
+            "description": "Self-declared runtime image."
+          },
+          "scope": {
+            "type": "string",
+            "nullable": true,
+            "description": "Self-declared capability scope."
+          },
+          "publicKeyFingerprint": {
+            "type": "string",
+            "nullable": true,
+            "description": "Display fingerprint of the public signing key."
+          },
+          "ownerActorId": {
+            "type": "string",
+            "nullable": true,
+            "description": "Owning human actor for agents."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
         }
       }
     }

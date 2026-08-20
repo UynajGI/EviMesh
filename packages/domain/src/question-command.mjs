@@ -29,6 +29,33 @@ function normalizeContractReference(reference) {
   return { contractId, revision: reference.revision };
 }
 
+/*
+ * Subject-area topics (UI design book: Explore 主题). Optional navigation
+ * labels: bounded per question, plain text, unique, never a taxonomy or a
+ * scoring dimension.
+ */
+const TOPIC_LIMIT = 8;
+const TOPIC_MAX_LENGTH = 48;
+
+function normalizeTopics(topics) {
+  if (topics === undefined || topics === null) return [];
+  if (!Array.isArray(topics)) throw new QuestionCommandError("topics must be an array of strings");
+  const normalized = [];
+  for (const topic of topics) {
+    if (typeof topic !== "string") throw new QuestionCommandError("topics must be an array of strings");
+    const label = topic.trim();
+    if (label.length === 0) continue;
+    if (label.length > TOPIC_MAX_LENGTH) {
+      throw new QuestionCommandError("each topic must be at most " + TOPIC_MAX_LENGTH + " characters");
+    }
+    if (!normalized.includes(label)) normalized.push(label);
+  }
+  if (normalized.length > TOPIC_LIMIT) {
+    throw new QuestionCommandError("at most " + TOPIC_LIMIT + " topics per question");
+  }
+  return normalized;
+}
+
 function assertAutomaticPublicationAllowed({ riskSignals } = {}) {
   const classification = classifyQuestionRisk({ signals: riskSignals });
   if (canAutoPublishQuestion(classification)) return classification;
@@ -54,6 +81,7 @@ export async function createQuestion({
   projectId,
   title,
   statement,
+  topics,
   researchContract,
   eventFactory,
 } = {}) {
@@ -76,7 +104,7 @@ export async function createQuestion({
   }
   assertProjectRoleForAction({ actorRole, requiredRole: "maintainer" });
 
-  const question = { questionId, projectId, state: "draft", createdBy: actorId };
+  const question = { questionId, projectId, state: "draft", createdBy: actorId, topics: normalizeTopics(topics) };
   const revision = {
     questionId,
     revision: 1,
