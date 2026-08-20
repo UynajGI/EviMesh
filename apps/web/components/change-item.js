@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Clock, FlaskConical, Mountain, ShieldQuestion } from 'lucide-react';
+import { Clock, FlaskConical, Mountain, OctagonAlert, ShieldQuestion } from 'lucide-react';
 import { IdChip } from '@/components/ui/idchip';
 import { cn } from '@/lib/utils';
 
@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
  * link. Levels express attention priority, never a verdict.
  */
 const LEVELS = {
+  critical: { icon: OctagonAlert, ring: 'border border-status-danger-border bg-status-danger-bg text-status-danger-fg', label: 'critical' },
   attention: { icon: ShieldQuestion, ring: 'bg-status-warning-bg text-status-warning-fg', label: 'attention' },
   update: { icon: FlaskConical, ring: 'bg-status-info-bg text-status-info-fg', label: 'update' },
   frontier: { icon: Mountain, ring: 'bg-status-accent-bg text-status-accent-fg', label: 'update' },

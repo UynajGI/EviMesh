@@ -114,7 +114,13 @@ export default function ContributorDetailPage({ params }) {
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <IdChip label="actor" value={actor.actorId ?? actorId} />
             {typeof actor.orcidId === 'string' && actor.orcidId ? (
-              <a className="font-mono text-xs text-muted-foreground hover:text-foreground" href={`https://orcid.org/${actor.orcidId}`} rel="noopener">orcid.org/{actor.orcidId}</a>
+              <a className="inline-flex items-center gap-1.5 font-mono text-xs text-muted-foreground hover:text-foreground" href={`https://orcid.org/${actor.orcidId}`} rel="noopener">
+                {/* ORCID iD mark. No verified badge: verification status is not
+                    carried by the actors API, and an unverified iD must never
+                    render as verified (hard boundary). */}
+                <span aria-hidden="true" className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-status-success-bg text-[8px] font-bold text-status-success-fg">iD</span>
+                orcid.org/{actor.orcidId}
+              </a>
             ) : null}
           </div>
         </div>
@@ -176,6 +182,7 @@ export default function ContributorDetailPage({ params }) {
                   <p className="text-sm">{statement.description}</p>
                   <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                     <StatusBadge label={statement.role ?? 'contributor'} state={CONTRIBUTION_ROLES.includes(statement.role) ? statement.role : 'contributor'} />
+                    <span className="font-mono tabular-nums">{statement.statementId}</span>
                     <span className="tabular-nums">{statement.createdAt ? new Date(statement.createdAt).toISOString().slice(0, 10) : 'time unavailable'}</span>
                   </div>
                 </div>

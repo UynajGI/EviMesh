@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { Activity, Bot, Clock, ListFilter, ListTodo } from 'lucide-react';
 import { ChangeGroup, ChangeItem } from '@/components/change-item';
 import { StatusBadge } from '@/components/ui/data';
-import { Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
+import { DeniedState, Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
 import { PageContainer, PageHeader } from '@/components/ui/page';
 import { readVisitHistory } from '@/lib/visit-history';
 
@@ -42,6 +42,7 @@ export default function HomePage() {
   /* Recently visited is local-only (mockup home rail 最近访问): it rehydrates
    * on mount and on refocus so a visit in another tab shows up here. */
   const [visits, setVisits] = useState([]);
+  const [requestId, setRequestId] = useState(null);
   useEffect(() => {
     setVisits(readVisitHistory());
     const onFocus = () => setVisits(readVisitHistory());
@@ -52,40 +53,38 @@ export default function HomePage() {
   async function load() {
     setLoading(true);
     setError(null);
+    setRequestId(null);
     try {
+      /* Shared reader: API errors keep their request id so the error state
+       * stays traceable (design book 08 §1: error · retryable and traceable). */
+      const getJson = async (path) => {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_EVIMESH_API_URL}${path}`);
+        const payload = await response.json();
+        if (!response.ok) {
+          const failure = new Error(payload.message ?? `${path} is unavailable.`);
+          failure.requestId = payload.requestId ?? null;
+          throw failure;
+        }
+        return payload;
+      };
       const [questionItems, taskGroups, projectItems, claimGroups] = await Promise.all([
-        fetch(`${process.env.NEXT_PUBLIC_EVIMESH_API_URL}/questions?limit=100`).then(async (response) => {
-          const payload = await response.json();
-          if (!response.ok) throw new Error(payload.message ?? 'Questions are unavailable.');
-          return payload.items ?? [];
-        }),
-        Promise.all(['cpu-only', 'under-60-min'].map((tag) => fetch(`${process.env.NEXT_PUBLIC_EVIMESH_API_URL}/tasks?status=open&tag=${tag}&limit=6`).then(async (response) => {
-          const payload = await response.json();
-          if (!response.ok) throw new Error(payload.message ?? 'Tasks are unavailable.');
-          return (payload.items ?? []).map((task) => ({ ...task, tag }));
-        }))),
-        fetch(`${process.env.NEXT_PUBLIC_EVIMESH_API_URL}/projects?limit=6`).then(async (response) => {
-          const payload = await response.json();
-          if (!response.ok) throw new Error(payload.message ?? 'Projects are unavailable.');
-          return payload.items ?? [];
-        }).then((projects) => Promise.all(projects.map(async (project) => {
-          const response = await fetch(`${process.env.NEXT_PUBLIC_EVIMESH_API_URL}/projects/${project.projectId}/frontier/latest`);
-          const payload = await response.json();
-          if (!response.ok) throw new Error(payload.message ?? 'Frontiers are unavailable.');
-          return payload.frontier ? { project, frontier: payload.frontier } : null;
-        }))),
-        Promise.all(['under_verification', 'provisionally_accepted'].map((status) => fetch(`${process.env.NEXT_PUBLIC_EVIMESH_API_URL}/claims?status=${status}&limit=100`).then(async (response) => {
-          const payload = await response.json();
-          if (!response.ok) throw new Error(payload.message ?? 'Claims are unavailable.');
-          return payload.items ?? [];
-        }))),
+        getJson('/questions?limit=100').then((payload) => payload.items ?? []),
+        Promise.all(['cpu-only', 'under-60-min'].map((tag) => getJson(`/tasks?status=open&tag=${tag}&limit=6`).then((payload) => (payload.items ?? []).map((task) => ({ ...task, tag }))))),
+        getJson('/projects?limit=6').then((payload) => payload.items ?? [])
+          .then((projects) => Promise.all(projects.map(async (project) => ({
+            project,
+            frontier: (await getJson(`/projects/${project.projectId}/frontier/latest`)).frontier ?? null,
+          })))),
+        Promise.all(['under_verification', 'provisionally_accepted'].map((status) => getJson(`/claims?status=${status}&limit=100`).then((payload) => payload.items ?? []))),
       ]);
+      const frontierItems = projectItems.filter((entry) => entry.frontier);
       setQuestions(questionItems.filter((question) => !CLOSED_STATES.has(question.state)).sort((left, right) => Date.parse(right.createdAt ?? 0) - Date.parse(left.createdAt ?? 0)).slice(0, 6));
       setTasks(taskGroups.flat().slice(0, 6));
-      setFrontiers(projectItems.filter(Boolean));
+      setFrontiers(frontierItems);
       setClaims(claimGroups.flat().sort((left, right) => Date.parse(right.createdAt ?? 0) - Date.parse(left.createdAt ?? 0)).slice(0, 6));
     } catch (reason) {
       setError(reason.message);
+      setRequestId(reason.requestId ?? null);
     } finally {
       setLoading(false);
     }
@@ -129,7 +128,7 @@ export default function HomePage() {
         { label: 'Frontiers published', count: visibleFrontiers.length, badge: 'neutral' },
       ],
     },
-    { icon: Bot, title: 'Agent connection', body: 'Six steps from hearing about EviMesh to a first trusted read.', href: '/agent', cta: 'Open the center' },
+    { icon: Bot, title: 'Agent connection', body: 'Six steps from hearing about EviMesh to a first trusted read. Connected agents and pending human-in-the-loop signatures appear here once web sign-in ships.', href: '/agent', cta: 'Open the center' },
     { icon: Activity, title: 'Event audit', body: 'Signed research history with hashes, one layer down.', href: '/events', cta: 'Open audit' },
   ];
 
@@ -146,7 +145,7 @@ export default function HomePage() {
         eyebrow="Home"
         title="What changed in research"
       />
-      {error ? <ErrorState className="mt-10" message={error} onRetry={load} /> : null}
+      {error ? <ErrorState className="mt-10" message={error} requestId={requestId ?? undefined} onRetry={load} /> : null}
 
       <div className="mt-2 grid gap-10 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
         <div className="min-w-0">
@@ -159,7 +158,7 @@ export default function HomePage() {
                     id={claim.claimId}
                     idLabel="claim"
                     key={`critical-${claim.claimId}`}
-                    level="attention"
+                    level="critical"
                     meta={<StatusBadge state={claim.state} />}
                     time={toRelativeTime(claim.createdAt)}
                     what={`Claim entered ${claim.state.replaceAll('_', ' ')}`}
@@ -171,7 +170,7 @@ export default function HomePage() {
           ) : null}
 
           <ChangeGroup count={visibleClaims.length} level="attention" title="Claims awaiting verification">
-            {loading ? <Skeleton className="h-32 w-full" /> : error ? null : visibleClaims.length === 0 ? <Empty title="Nothing awaiting verification" description="Claims under verification will appear here as they move through the pipeline." /> : (
+            {loading ? <Skeleton className="h-32 w-full" /> : error ? null : visibleClaims.length === 0 ? <Empty action={<Link className="rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground" href="/explore">Find research to follow</Link>} title="Nothing awaiting verification" description="Claims under verification will appear here as they move through the pipeline." /> : (
               <div className="divide-y divide-border rounded-lg border border-border bg-card">
                 {visibleClaims.map((claim) => (
                   <ChangeItem
@@ -191,7 +190,7 @@ export default function HomePage() {
           </ChangeGroup>
 
           <ChangeGroup count={visibleQuestions.length} level="update" meta="Newest activity first" title="Open questions">
-            {loading ? <Skeleton className="mt-6 h-32 w-full" /> : error ? null : visibleQuestions.length === 0 ? <Empty title="No open questions yet" description="Questions that are open for research will appear here." /> : (
+            {loading ? <Skeleton className="mt-6 h-32 w-full" /> : error ? null : visibleQuestions.length === 0 ? <Empty action={<Link className="rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground" href="/explore">Explore open research</Link>} title="No open questions yet" description="Questions that are open for research will appear here." /> : (
               <div className="divide-y divide-border rounded-lg border border-border bg-card">
                 {visibleQuestions.map((question) => (
                   <ChangeItem
@@ -211,7 +210,7 @@ export default function HomePage() {
           </ChangeGroup>
 
           <ChangeGroup count={visibleFrontiers.length} level="frontier" title="Latest frontiers">
-            {loading ? <Skeleton className="mt-6 h-32 w-full" /> : error ? null : visibleFrontiers.length === 0 ? <Empty title="No published frontiers yet" description="Frontier snapshots will appear here once projects publish their first." /> : (
+            {loading ? <Skeleton className="mt-6 h-32 w-full" /> : error ? null : visibleFrontiers.length === 0 ? <Empty action={<Link className="rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground" href="/explore">Browse projects</Link>} title="No published frontiers yet" description="Frontier snapshots will appear here once projects publish their first." /> : (
               <div className="divide-y divide-border rounded-lg border border-border bg-card">
                 {visibleFrontiers.map(({ project, frontier }) => (
                   <ChangeItem
@@ -231,7 +230,7 @@ export default function HomePage() {
           </ChangeGroup>
 
           <ChangeGroup count={visibleTasks.length} level="task" title="Newcomer tasks">
-            {loading ? <Skeleton className="mt-6 h-32 w-full" /> : error ? null : visibleTasks.length === 0 ? <Empty title="No newcomer tasks open" description="CPU-only and under-60-minute tasks will appear here when available." /> : (
+            {loading ? <Skeleton className="mt-6 h-32 w-full" /> : error ? null : visibleTasks.length === 0 ? <Empty action={<Link className="rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground" href="/work">Open the Work queue</Link>} title="No newcomer tasks open" description="CPU-only and under-60-minute tasks will appear here when available." /> : (
               <div className="divide-y divide-border rounded-lg border border-border bg-card">
                 {visibleTasks.map((task) => (
                   <ChangeItem
@@ -270,6 +269,16 @@ export default function HomePage() {
         </div>
 
         <aside aria-label="Context" className="grid gap-3">
+          {/* States matrix (08 §1): the signed-out stream names its scope
+              boundary instead of silently showing a narrower feed. */}
+          <DeniedState
+            className="p-4"
+            description="This stream is network-wide. Your personal watchlist, drafts, and pending signatures need a signed-in scope."
+            scope="signed-in watchlist"
+            title="Signed-out scope"
+            action={<Link className="rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground" href="/login">Sign in</Link>}
+            actionLabel="Sign in"
+          />
           {rail.map(({ icon: Icon, title, body, rows, href, cta }) => (
             <div className="rounded-lg border border-border bg-card p-4" key={title}>
               <div className="flex items-center gap-2">

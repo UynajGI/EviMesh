@@ -42,6 +42,7 @@ export function HandoffSheet({
   intent,
   objectType,
   objectId,
+  objectTitle,
   revision,
   view,
   scopes = [],
@@ -70,7 +71,13 @@ export function HandoffSheet({
 
         <dl className="mt-5 grid gap-2 text-sm sm:grid-cols-[max-content_1fr] sm:gap-x-5">
           <dt className="text-muted-foreground">Object</dt>
-          <dd className="flex flex-wrap items-center gap-2"><IdChip value={objectId} />{revision ? <span className="font-mono text-xs text-muted-foreground">r{revision}</span> : null}</dd>
+          <dd className="min-w-0">
+            <span className="flex flex-wrap items-center gap-2">
+              {objectTitle ? <span className="min-w-0 max-w-[42ch] truncate font-medium" title={objectTitle}>{objectTitle}</span> : null}
+              <IdChip value={objectId} />
+              {revision ? <span className="font-mono text-xs text-muted-foreground">r{revision}</span> : null}
+            </span>
+          </dd>
           <dt className="text-muted-foreground">View</dt><dd>{view ?? 'default'}</dd>
           <dt className="text-muted-foreground">Permalink</dt>
           <dd className="min-w-0"><span className="block truncate font-mono text-xs text-muted-foreground" title={permalink}>{permalink || 'current page'}</span></dd>
@@ -123,6 +130,14 @@ export function HandoffSheet({
           title="No credentials travel with this handoff"
           variant="info"
         />
+        {/* Mockup primary action: one obvious way back to the page. */}
+        <button
+          className="mt-4 inline-flex h-9 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-accent-foreground/90"
+          onClick={() => onOpenChange?.(false)}
+          type="button"
+        >
+          Done, back to the page
+        </button>
       </DialogContent>
     </Dialog>
   );

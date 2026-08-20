@@ -32,6 +32,13 @@ function JsonBlock({ value }) {
   return <pre className="mt-3 overflow-x-auto rounded-lg bg-muted p-4 text-xs leading-6">{JSON.stringify(value ?? [], null, 2)}</pre>;
 }
 
+/** Newest timestamp of a sparse list, rendered as a short date. */
+function latestStamp(values) {
+  const stamps = values.filter(Boolean).map((value) => Date.parse(value)).filter((stamp) => !Number.isNaN(stamp));
+  if (stamps.length === 0) return 'unavailable';
+  return new Date(Math.max(...stamps)).toISOString().slice(0, 10);
+}
+
 /*
  * Design book 05 §6 / 09 §2.5 deflist pattern: strings render as prose lines,
  * arrays render as a quiet hairline list, objects fall back to a definition
@@ -46,11 +53,7 @@ function ReadableField({ value }) {
   }
   if (Array.isArray(value)) {
     if (value.length === 0) return <p className="mt-2 text-sm text-muted-foreground">None recorded.</p>;
-    useEffect(() => {
-    const label = claim.claimId ?? '';
-    document.title = label ? `${String(label).slice(0, 48)} · EviMesh` : 'EviMesh';
-  }, [claim]);
-  return (
+    return (
       <ul className="mt-2 divide-y divide-border rounded-lg border border-border">
         {value.map((entry, index) => (
           <li className="px-4 py-2.5 text-sm" key={index}>
@@ -87,12 +90,14 @@ function ClaimDetailView({ params }) {
   const [frontierMembership, setFrontierMembership] = useState(null);
   const [data, setData] = useState(null);
   const [graph, setGraph] = useState(null);
-  const [direction, setDirection] = useState('downstream');
+  /* Mockup default: upstream — "what does this claim depend on". */
+  const [direction, setDirection] = useState('upstream');
   const [graphView, setGraphView] = useState('graph');
   const [handoffOpen, setHandoffOpen] = useState(false);
   const [watched, setWatched] = useState(false);
   const [shared, setShared] = useState(false);
   const [revisionDiff, setRevisionDiff] = useState(null);
+  const [revisionList, setRevisionList] = useState(null);
   const [evidence, setEvidence] = useState([]);
   const [receipts, setReceipts] = useState([]);
   const [error, setError] = useState(null);
@@ -135,6 +140,22 @@ function ClaimDetailView({ params }) {
         } catch { /* frontier context unavailable */ }
       }
       setData(payload);
+      /* Append-only revision list (mockup 修订历史): bounded walk of the
+       * revision detail endpoint, oldest first. The full field diff page
+       * stays the deeper comparison surface. */
+      const total = payload.currentRevision?.revision;
+      if (Number.isInteger(total) && total >= 1) {
+        const bounds = Math.min(total, 8);
+        Promise.all(Array.from({ length: bounds }, (_, index) => bounds - index).map(async (revisionNumber) => {
+          try {
+            const detail = await request(`/claims/${claimId}/revisions/${revisionNumber}`);
+            const row = detail.revision ?? detail.claimRevision ?? detail ?? {};
+            return { revision: revisionNumber, createdAt: row.createdAt ?? null, createdBy: row.createdBy ?? null, statement: row.statement ?? null };
+          } catch {
+            return { revision: revisionNumber, createdAt: null, createdBy: null, statement: null };
+          }
+        })).then((rows) => setRevisionList(rows));
+      }
       /* Inline revision diff preview (mockup r(n) vs r(n-1) statement lines):
        * hydrate the current and previous revision when both exist. */
       const revision = payload.currentRevision?.revision;
@@ -161,6 +182,10 @@ function ClaimDetailView({ params }) {
     try { setWatched(localStorage.getItem(`evimesh-watch-claim-${claimId}`) === '1'); } catch { /* unavailable */ }
   }, [claimId]);
   useEffect(() => { if (claimId) request(`/claims/${claimId}/graph?direction=${direction}&maxDepth=3`).then(setGraph).catch((reason) => setError(reason.message)); }, [claimId, direction]);
+  useEffect(() => {
+    const label = data?.currentRevision?.statement ?? claimId ?? '';
+    document.title = label ? `${String(label).slice(0, 48)} · EviMesh` : 'EviMesh';
+  }, [data, claimId]);
   /* Local recently-visited rail on Home records this page once its statement is known. */
   useVisitRecord({
     href: claimId ? `/claims/${claimId}` : null,
@@ -309,7 +334,7 @@ function ClaimDetailView({ params }) {
           </section>
 
           <section aria-labelledby="graph-heading">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <div className="mb-1 flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-lg font-semibold" id="graph-heading">Claim dependency graph</h2>
               <div className="flex flex-wrap gap-2">
                 <div className="flex gap-1" role="tablist" aria-label="Graph or list view">
@@ -332,6 +357,7 @@ function ClaimDetailView({ params }) {
                 </div>
               </div>
             </div>
+            <p className="mb-3 text-sm text-muted-foreground">{direction === 'upstream' ? 'Upstream: what this claim depends on.' : 'Downstream: what depends on this claim.'} The claim graph is a DAG of typed edges, never a tree.</p>
             {graphView === 'graph' ? <ClaimDag elements={dagElements} /> : (
               <div>
                 {graphEntries.length === 0 ? (
@@ -359,11 +385,26 @@ function ClaimDetailView({ params }) {
             <h2 className="mb-3 text-lg font-semibold" id="revisions-heading">Revision history</h2>
             <Card>
               <CardContent>
-                <p className="font-mono text-sm tabular-nums">Revision {currentRevision.revision}</p>
-                <p className="mt-2 text-sm text-muted-foreground">Current immutable revision; previous revisions are linked by `supersedes`.</p>
-                {currentRevision.supersedes ? <p className="mt-2 text-xs text-muted-foreground">Supersedes revision {currentRevision.supersedes}.</p> : null}
+                <p className="font-mono text-sm tabular-nums">Revision {currentRevision.revision} (current)</p>
+                <p className="mt-2 text-sm text-muted-foreground">Revisions are immutable and append-only; nothing is ever edited in place.</p>
+                {revisionList && revisionList.length > 0 ? (
+                  <ol className="mt-3 divide-y divide-border rounded-lg border border-border">
+                    {revisionList.map((row) => (
+                      <li className="flex flex-wrap items-baseline gap-3 px-4 py-2.5 text-sm" key={row.revision}>
+                        <span className="font-mono text-xs tabular-nums text-muted-foreground">r{row.revision}</span>
+                        {row.revision === currentRevision.revision ? <span className="rounded-full border border-status-accent-border bg-status-accent-bg px-2 py-0.5 text-[11px] font-medium text-status-accent-fg">current</span> : null}
+                        {row.createdBy ? <Link className="text-xs text-muted-foreground hover:text-foreground" href={`/contributors/${encodeURIComponent(row.createdBy)}`}>by {row.createdBy}</Link> : null}
+                        {row.createdAt ? <span className="ml-auto text-xs tabular-nums text-muted-foreground">{new Date(row.createdAt).toISOString().slice(0, 10)}</span> : null}
+                      </li>
+                    ))}
+                  </ol>
+                ) : null}
+                {currentRevision.revision > 8 ? <p className="mt-2 text-xs text-muted-foreground">Showing the newest 8 of {currentRevision.revision} revisions; older ones stay addressable by revision number.</p> : null}
+                <div className="mt-3 flex flex-wrap gap-3">
+                  <Link className="text-sm font-medium text-primary hover:underline" href={`/claims/${claim.claimId}/diff`}>Compare any two revisions field by field →</Link>
+                </div>
                 {revisionDiff ? (
-                  <div className="mt-3">
+                  <div className="mt-4">
                     <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Statement diff r{revisionDiff.previous} to r{currentRevision.revision}</p>
                     <pre className="overflow-x-auto rounded-md border border-border font-mono text-xs leading-5">
                       <span className="block bg-status-danger-bg px-3 py-1.5 text-status-danger-fg line-through">- {revisionDiff.from}</span>
@@ -373,6 +414,96 @@ function ClaimDetailView({ params }) {
                 ) : null}
               </CardContent>
             </Card>
+          </section>
+
+          {/* Mockup claim.html 证据 section: rows grouped by relation, each
+              row carrying its provenance (artifact / run) and date. Counts in
+              the rail stay entry points; the rows live here. */}
+          <section aria-labelledby="evidence-heading">
+            <h2 className="mb-1 text-lg font-semibold" id="evidence-heading">Evidence by relation</h2>
+            <p className="mb-3 max-w-2xl text-sm text-muted-foreground">Each group is a navigation entry point, never a score. Evidence links target exact claim revisions.</p>
+            {evidence.length === 0 ? (
+              <Empty title="No evidence linked yet" description="Evidence linked to this claim will appear here grouped by its relation to the claim." />
+            ) : (
+              <div className="grid gap-2">
+                {RELATIONS.map((relation) => {
+                  const rows = evidenceFor(relation);
+                  return (
+                    <details className="rounded-lg border border-border bg-card" key={relation}>
+                      <summary className="flex cursor-pointer flex-wrap items-center gap-3 px-5 py-3 text-sm font-medium">
+                        <StatusBadge state={relation} />
+                        <span className="tabular-nums text-muted-foreground">{rows.length} item{rows.length === 1 ? '' : 's'}</span>
+                        <span className="ml-auto text-xs text-muted-foreground">show rows</span>
+                      </summary>
+                      {rows.length === 0 ? (
+                        <p className="border-t border-border px-5 py-3 text-sm text-muted-foreground">No {relation} evidence recorded yet.</p>
+                      ) : (
+                        <ul className="divide-y divide-border border-t border-border">
+                          {rows.map((item) => (
+                            <li className="flex flex-wrap items-center gap-3 px-5 py-3 text-sm" key={item.evidenceId}>
+                              <IdChip value={item.evidenceId} />
+                              {item.evidenceType ? <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">{item.evidenceType}</span> : null}
+                              {item.artifactId ? <span className="font-mono text-xs text-muted-foreground">artifact {item.artifactId}</span> : null}
+                              {item.runId ? <span className="font-mono text-xs text-muted-foreground">run {item.runId}</span> : null}
+                              {item.createdAt ? <span className="ml-auto text-xs tabular-nums text-muted-foreground">{new Date(item.createdAt).toISOString().slice(0, 10)}</span> : null}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </details>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
+          {/* Mockup claim.html 验证回执 section: fielded receipts with per-
+              finding severity rows; receipts never collapse into a score. */}
+          <section aria-labelledby="receipts-heading">
+            <h2 className="mb-1 text-lg font-semibold" id="receipts-heading">Verification receipts</h2>
+            <p className="mb-3 max-w-2xl text-sm text-muted-foreground">Every receipt records its outcome, verification types, context mode, and findings as fields.</p>
+            {receipts.length === 0 ? (
+              <Empty title="No receipts yet" description="Verification receipts for this claim will appear here as verifiers submit them." />
+            ) : (
+              <div className="grid gap-3">
+                {receipts.slice(0, 10).map((receipt) => (
+                  <Card key={receipt.receiptId}>
+                    <CardContent>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <StatusBadge state={receipt.outcome} />
+                        <IdChip label="receipt" value={receipt.receiptId} />
+                        {receipt.createdAt ? <span className="ml-auto text-xs tabular-nums text-muted-foreground">{new Date(receipt.createdAt).toISOString().slice(0, 10)}</span> : null}
+                      </div>
+                      <dl className="mt-3 grid gap-x-6 gap-y-1.5 text-sm sm:grid-cols-[max-content_1fr]">
+                        {receipt.verificationTypes ? <><dt className="text-muted-foreground">Verification types</dt><dd className="font-mono text-xs">{receipt.verificationTypes.join(' · ')}</dd></> : null}
+                        {receipt.contextMode ? <><dt className="text-muted-foreground">Context mode</dt><dd className="font-mono text-xs">{receipt.contextMode}</dd></> : null}
+                        {receipt.implementationRelation ? <><dt className="text-muted-foreground">Implementation</dt><dd className="font-mono text-xs">{receipt.implementationRelation}</dd></> : null}
+                        {receipt.dataRelation ? <><dt className="text-muted-foreground">Data</dt><dd className="font-mono text-xs">{receipt.dataRelation}</dd></> : null}
+                        {receipt.modelFamily ? <><dt className="text-muted-foreground">Model family</dt><dd className="font-mono text-xs">{receipt.modelFamily}</dd></> : null}
+                        {typeof receipt.sawExpectedOutputs === 'boolean' ? <><dt className="text-muted-foreground">Expected outputs</dt><dd>{receipt.sawExpectedOutputs ? 'verifier saw expected outputs' : 'blind: expected outputs not shown'}</dd></> : null}
+                      </dl>
+                      {(receipt.findings ?? []).length > 0 ? (
+                        <ul className="mt-3 divide-y divide-border rounded-lg border border-border">
+                          {receipt.findings.map((finding, index) => (
+                            <li className="flex flex-wrap items-center gap-3 px-4 py-2.5 text-sm" key={`${receipt.receiptId}-finding-${index}`}>
+                              <span className={cn(
+                                'inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium',
+                                finding.severity === 'critical' ? 'border-transparent bg-emphasis-danger text-emphasis-foreground' : 'border-status-warning-border bg-status-warning-bg text-status-warning-fg',
+                              )}>
+                                {finding.severity}
+                              </span>
+                              <span className="font-mono text-xs">{finding.code}</span>
+                              <span className="min-w-0 flex-1 text-muted-foreground">{finding.summary ?? finding.detail ?? finding.message ?? 'Recorded on the receipt'}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : null}
+                    </CardContent>
+                  </Card>
+                ))}
+                {receipts.length > 10 ? <p className="text-xs text-muted-foreground">Showing the newest 10 of {receipts.length} receipts.</p> : null}
+              </div>
+            )}
           </section>
 
           <section aria-labelledby="technical-heading">
@@ -432,6 +563,23 @@ function ClaimDetailView({ params }) {
                     <StatusBadge state={topFinding === 'critical' ? 'critical' : 'attention'} label={topFinding} />
                   </div>
                 ) : null}
+              </div>
+              {frontierMembership ? (
+                <div>
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Frontier membership</h3>
+                  <p className="mt-2 text-sm tabular-nums">Frontier #{frontierMembership.sequence} · this claim at r{frontierMembership.revision}</p>
+                  <Link className="mt-1 inline-block text-xs text-primary hover:underline" href={`/projects/${claim.projectId ?? ''}`}>Open the project frontier →</Link>
+                </div>
+              ) : null}
+              <div>
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Latest activity</h3>
+                <p className="mt-2 text-xs tabular-nums text-muted-foreground">
+                  Latest evidence: {evidence.length > 0 ? latestStamp(evidence.map((item) => item.createdAt)) : 'none yet'}
+                </p>
+                <p className="mt-1 text-xs tabular-nums text-muted-foreground">
+                  Latest receipt: {receipts.length > 0 ? latestStamp(receipts.map((item) => item.createdAt)) : 'none yet'}
+                </p>
+                <p className="mt-2 text-xs text-muted-foreground">Challenges track on the claim record; an open-challenge listing needs a public challenges API.</p>
               </div>
               <p className="text-xs text-muted-foreground">Counts are entry points, never scores. Every number opens onto the exact revision, receipt, or event behind it.</p>
             </CardContent>

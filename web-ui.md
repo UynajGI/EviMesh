@@ -26,7 +26,7 @@ drafts, validated JSON/ZIP bundle export, and JSON/ZIP bundle import.
 
 ## Tests and build
 
-Run the web suite with `node --test` inside `apps/web` (215 tests, including
+Run the web suite with `node --test` inside `apps/web` (231 tests, including
 the dual-theme token contrast gate) and build with
 `node node_modules/next/dist/bin/next build`. Prefer these direct commands
 over `pnpm build` / `pnpm test`, which trigger a pnpm dependency

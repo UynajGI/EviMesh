@@ -128,8 +128,20 @@ export default function AgentCenterPage() {
         title="Connect your agent"
       />
 
+      {/* Mockup ac navlist: section anchors for the page's five surfaces. */}
+      <nav aria-label="Sections" className="mt-6 flex flex-wrap gap-2 text-sm">
+        {[
+          ['#ac-connect', 'Connection steps'],
+          ['#ac-clients', 'Choose a client'],
+          ['#ac-read', 'Read with an agent'],
+          ['#ac-security', 'Security and revocation'],
+        ].map(([href, label]) => (
+          <a className="rounded-md border border-border bg-card px-3 py-1.5 font-medium text-muted-foreground hover:text-foreground" href={href} key={href}>{label}</a>
+        ))}
+      </nav>
+
       <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
-        <section aria-label="Connection steps">
+        <section aria-label="Connection steps" id="ac-connect">
           <ol className="relative">
             {STEPS.map((step, index) => {
               const done = index < doneThrough;
@@ -169,16 +181,19 @@ export default function AgentCenterPage() {
         </section>
 
         <aside className="grid gap-4" aria-label="Client and security">
-          <div className="grid gap-3">
+          <div className="grid gap-3" id="ac-clients">
             {[
-              { icon: Bot, title: 'MCP clients', body: 'Codex, Claude, Cursor via the connector config above.' },
+              { icon: Bot, title: 'MCP clients', body: 'Codex, Claude, Cursor via the connector config above.', recommended: true },
               { icon: TerminalSquare, title: 'sq CLI', body: 'npm install --global @evimesh/cli, then sq config init.' },
               { icon: Code, title: 'SDK', body: 'Embed EviMesh objects into your own agent orchestration.' },
-            ].map(({ icon: Icon, title, body }) => (
-              <div className="flex gap-3 rounded-lg border border-border bg-card p-4" key={title}>
+            ].map(({ icon: Icon, title, body, recommended }) => (
+              <div className={cn('flex gap-3 rounded-lg border p-4', recommended ? 'border-primary bg-card' : 'border-border bg-card')} key={title}>
                 <Icon aria-hidden="true" className="mt-0.5 text-muted-foreground" size={18} />
-                <div>
-                  <p className="text-sm font-medium">{title}</p>
+                <div className="min-w-0">
+                  <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
+                    {title}
+                    {recommended ? <span className="rounded-full border border-status-accent-border bg-status-accent-bg px-2 py-0.5 text-[11px] font-medium text-status-accent-fg">recommended path</span> : null}
+                  </p>
                   <p className="mt-0.5 text-xs text-muted-foreground">{body}</p>
                 </div>
               </div>
@@ -206,7 +221,7 @@ export default function AgentCenterPage() {
         </aside>
       </div>
 
-      <section aria-labelledby="read-with-agent-heading" className="mt-12">
+      <section aria-labelledby="read-with-agent-heading" className="mt-12" id="ac-read">
         <h2 className="text-xl font-semibold tracking-tight" id="read-with-agent-heading">Read with an agent</h2>
         <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
           An agent that never contributed to EviMesh can still read it correctly: object semantics, the four reading
@@ -247,11 +262,14 @@ export default function AgentCenterPage() {
         </div>
       </section>
 
-      <section aria-labelledby="agent-security-heading" className="mt-12">
+      <section aria-labelledby="agent-security-heading" className="mt-12" id="ac-security">
         <h2 className="text-xl font-semibold tracking-tight" id="agent-security-heading">Security and revocation</h2>
         <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
           The authorization model in three rules. Live grant lists appear here once web sign-in ships; the rules already hold.
         </p>
+        <div className="mt-3 flex flex-wrap gap-3">
+          <Link className="text-sm font-medium text-primary hover:underline" href="/settings/tokens">Review or revoke tokens and scopes in Settings →</Link>
+        </div>
         <div className="mt-4 grid gap-4 lg:grid-cols-3">
           {SECURITY_ROWS.map((row) => (
             <div className="rounded-lg border border-border bg-card p-4" key={row.title}>

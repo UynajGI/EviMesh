@@ -6,7 +6,7 @@ import {
   Activity, Bot, FileCheck2, FlaskConical, GitPullRequestArrow, History, Scale, ShieldCheck,
 } from 'lucide-react';
 import { Card, CardContent, StatusBadge } from '@/components/ui/data';
-import { Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
+import { Alert, Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
 import { IdChip } from '@/components/ui/idchip';
 import { PageContainer, PageHeader } from '@/components/ui/page';
 import { RoleBar, CONTRIBUTION_ROLES } from '@/components/role-bar';
@@ -92,6 +92,7 @@ export default function WorkPage() {
   const [handoffOpen, setHandoffOpen] = useState(false);
   const [rowHandoff, setRowHandoff] = useState(null);
   const [openTasks, setTasks] = useState(null);
+  const [blockedTasks, setBlockedTasks] = useState(null);
   const [verificationClaims, setVerificationClaims] = useState(null);
   const [events, setEvents] = useState(null);
   const [scopedActor, setScopedActor] = useState(null);
@@ -126,6 +127,11 @@ export default function WorkPage() {
     fetchList('/claims?status=under_verification&limit=10')
       .then(setVerificationClaims)
       .catch((reason) => setError(reason.message));
+    /* Blocked tasks (mockup blocked · 等待上游): quiet section with the
+     * unlock explanation; bounded to six rows. */
+    fetchList('/tasks?status=blocked&limit=6')
+      .then(setBlockedTasks)
+      .catch(() => setBlockedTasks([]));
     (async () => {
       try {
         let actorId = null;
@@ -251,23 +257,52 @@ export default function WorkPage() {
             </Card>
           )}
           <Link className="mt-3 inline-block text-sm text-muted-foreground hover:text-foreground" href="/tasks">Full task board →</Link>
+          {blockedTasks !== null && blockedTasks.length > 0 ? (
+            <div className="mt-6">
+              <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Blocked · waiting upstream</h3>
+              <Card className="divide-y divide-border">
+                {blockedTasks.map((task) => (
+                  <div className="flex flex-wrap items-center gap-3 px-5 py-3" key={task.taskId}>
+                    <StatusBadge state="blocked" label="blocked" />
+                    <IdChip value={task.taskId} /><Link className="text-xs text-primary hover:underline" href={`/tasks/${task.taskId}`}>open</Link>
+                    <span className="ml-auto text-xs text-muted-foreground">unblocks when its upstream dependency resolves</span>
+                  </div>
+                ))}
+              </Card>
+            </div>
+          ) : null}
         </section>
       ) : null}
 
       {tab === 'verify' ? (
         <section className="mt-6" aria-label="Verification queue">
+          {/* Mockup verification-queue policy note: no aggregate score, and
+              blind verifications never see expected outputs. */}
+          <Alert
+            className="mb-4"
+            description="Receipts record outcomes, verification types, and findings as fields — they never collapse into a total score. Blind verifications (context mode blind) run without seeing the expected outputs; submissions sign with your signing key."
+            title="How verification works here"
+            variant="info"
+          />
           {verificationClaims === null ? <Skeleton className="h-24 w-full" /> : verificationClaims.length === 0 ? (
             <Empty description="Claims under verification will appear here with their contracts." title="Nothing in verification" />
           ) : (
             <Card className="divide-y divide-border">
               {verificationClaims.map((claim) => (
-                <article className="flex flex-wrap items-center gap-3 px-5 py-4" key={claim.claimId}>
-                  <StatusBadge state={claim.state} />
-                  <IdChip value={claim.claimId} />
-                  <Link className="text-xs font-medium text-primary hover:underline" href={`/claims/${claim.claimId}`}>open</Link>
-                  <button className="rounded-md border border-border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground" onClick={() => setRowHandoff({ objectType: 'claim', objectId: claim.claimId, intent: 'Verify this claim with your agent', kind: 'claim' })} type="button">Hand to agent</button>
-                  <Link className="text-xs text-muted-foreground hover:text-foreground" href="/verification/receipt/new">manual receipt</Link>
-                  <span className="ml-auto text-xs text-muted-foreground">receipts record outcomes and findings, never a score</span>
+                <article className="grid gap-1.5 px-5 py-4" key={claim.claimId}>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <StatusBadge state={claim.state} />
+                    <IdChip value={claim.claimId} />
+                    <Link className="text-xs font-medium text-primary hover:underline" href={`/claims/${claim.claimId}`}>open</Link>
+                    <button className="rounded-md border border-border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground" onClick={() => setRowHandoff({ objectType: 'claim', objectId: claim.claimId, intent: 'Verify this claim with your agent', kind: 'claim' })} type="button">Hand to agent</button>
+                    <Link className="text-xs text-muted-foreground hover:text-foreground" href="/verification/receipt/new">manual receipt</Link>
+                    <span className="ml-auto text-xs text-muted-foreground">receipts record outcomes and findings, never a score</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                    {claim.questionId ? <Link className="hover:text-foreground" href={`/questions/${claim.questionId}`}>question {claim.questionId}</Link> : null}
+                    {claim.createdBy ? <Link className="hover:text-foreground" href={`/contributors/${encodeURIComponent(claim.createdBy)}`}>by {claim.createdBy}</Link> : null}
+                    <span>verification types and context mode are recorded on the receipt</span>
+                  </div>
                 </article>
               ))}
             </Card>
@@ -294,8 +329,10 @@ export default function WorkPage() {
             </div>
             <CardContent>
               <p className="text-sm text-muted-foreground">The claim editor keeps browser-local IndexedDB drafts with JSON/ZIP bundle import and export.</p>
-              <div className="mt-3 flex gap-2">
+              <p className="mt-2 text-xs text-muted-foreground">Saved locally · not linked to a revision until signed · agent attribution is recorded when an agent drafted it.</p>
+              <div className="mt-3 flex flex-wrap gap-2">
                 <Link className="rounded-md border border-border bg-card px-3 py-2 text-sm font-medium hover:bg-muted" href="/claims/new">Continue editing</Link>
+                <Link className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-accent-foreground/90" href="/claims/new">Review and sign</Link>
               </div>
             </CardContent>
           </Card>
@@ -305,6 +342,7 @@ export default function WorkPage() {
             </div>
             <CardContent>
               <p className="text-sm text-muted-foreground">Run receipts save locally as you fill environment, command, seed, and outputs.</p>
+              <p className="mt-2 text-xs text-muted-foreground">Missing before submit: artifact hashes and exit codes are validated at submission time.</p>
               <div className="mt-3 flex gap-2">
                 <Link className="rounded-md border border-border bg-card px-3 py-2 text-sm font-medium hover:bg-muted" href="/runs/new">Continue filling</Link>
               </div>

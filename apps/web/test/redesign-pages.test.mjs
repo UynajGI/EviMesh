@@ -302,10 +302,19 @@ test('agent center and handoffs use registered MCP tools and CLI commands', asyn
   }
 });
 
-test('command palette Enter executes the active command before search fallback', async () => {
+test('command palette Enter executes the active row before search fallback', async () => {
   const palette = await read('../components/command-palette.js');
-  assert.match(palette, /if \(results\[active\]\) \{\s*go\(results\[active\]\.href\);/);
+  // Enter prefers the highlighted row; rows may be navigation or actions.
+  assert.match(palette, /if \(results\[active\]\) \{\s*run\(results\[active\]\);/);
   assert.match(palette, /\/explore\?q=/);
+  // Mockup groups: actions (permalink copy), theme, and a bounded object search.
+  assert.match(palette, /group: 'Actions'/);
+  assert.match(palette, /copy-permalink/);
+  assert.match(palette, /group: 'Theme'/);
+  assert.match(palette, /theme-light/);
+  assert.match(palette, /group: 'Objects'/);
+  assert.match(palette, /OBJECT_SOURCES/);
+  assert.match(palette, /limit=20/);
 });
 
 test('web reads, agents write: handoff is the primary action, forms are fallback', async () => {

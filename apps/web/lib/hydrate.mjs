@@ -28,26 +28,46 @@ async function fetchJson(api, path) {
   return payload;
 }
 
-/** Attach `claimLinks` to every evidence row; falls back to row.links if present. */
+/** Attach `claimLinks` to every evidence row; falls back to row.links if
+ *  present. The same detail read also carries the artifact/run attribution
+ *  and description the list rows omit, so rows can render their provenance. */
 export async function hydrateEvidenceLinks(api, evidenceItems) {
   return chunkMap(evidenceItems, async (item) => {
     if (Array.isArray(item.claimLinks) || Array.isArray(item.links)) return item;
     try {
       const detail = await fetchJson(api, `/evidence/${item.evidenceId}`);
-      return { ...item, claimLinks: detail.claimLinks ?? [] };
+      return {
+        ...item,
+        claimLinks: detail.claimLinks ?? [],
+        artifactId: item.artifactId ?? detail.artifactId ?? null,
+        runId: item.runId ?? detail.runId ?? null,
+        description: item.description ?? detail.description ?? null,
+        createdAt: item.createdAt ?? detail.createdAt ?? null,
+      };
     } catch {
       return { ...item, claimLinks: [] };
     }
   });
 }
 
-/** Attach `findings` to every verification receipt row. */
+/** Attach `findings` to every verification receipt row. The same detail read
+ *  carries the fielded receipt (verification types, context mode, relations),
+ *  so receipts render fields instead of collapsing into a verdict badge. */
 export async function hydrateReceiptFindings(api, receiptItems) {
   return chunkMap(receiptItems, async (receipt) => {
     if (Array.isArray(receipt.findings)) return receipt;
     try {
       const detail = await fetchJson(api, `/verifications/${receipt.receiptId}`);
-      return { ...receipt, findings: detail.findings ?? [] };
+      return {
+        ...receipt,
+        findings: detail.findings ?? [],
+        verificationTypes: receipt.verificationTypes ?? detail.verificationTypes ?? null,
+        contextMode: receipt.contextMode ?? detail.contextMode ?? null,
+        implementationRelation: receipt.implementationRelation ?? detail.implementationRelation ?? null,
+        dataRelation: receipt.dataRelation ?? detail.dataRelation ?? null,
+        modelFamily: receipt.modelFamily ?? detail.modelFamily ?? null,
+        sawExpectedOutputs: receipt.sawExpectedOutputs ?? detail.sawExpectedOutputs ?? null,
+      };
     } catch {
       return { ...receipt, findings: [] };
     }

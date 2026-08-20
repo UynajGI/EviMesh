@@ -37,16 +37,25 @@ async function hydrateTitle(item) {
   try {
     if (item.kind === 'question') {
       const detail = await fetchJson(`/questions/${item.id}`);
-      return detail.currentRevision?.title ?? null;
+      /* Mockup result cards carry a muted summary line under the title. */
+      const revision = detail.currentRevision ?? {};
+      const summary = revision.statement ?? revision.description ?? null;
+      return {
+        title: revision.title ?? null,
+        summary: summary ? `${String(summary).slice(0, 120)}${summary.length > 120 ? '…' : ''}` : null,
+      };
     }
     if (item.kind === 'claim') {
       const detail = await fetchJson(`/claims/${item.id}`);
       const statement = detail.currentRevision?.statement ?? null;
-      return statement ? `${statement.slice(0, 90)}${statement.length > 90 ? '…' : ''}` : null;
+      return {
+        title: statement ? `${statement.slice(0, 90)}${statement.length > 90 ? '…' : ''}` : null,
+        summary: null,
+      };
     }
-    return null;
+    return { title: null, summary: null };
   } catch {
-    return null;
+    return { title: null, summary: null };
   }
 }
 
@@ -69,6 +78,8 @@ function ExploreView() {
   const [type, setType] = useState('all');
   const [sort, setSort] = useState('recent');
   const [last30, setLast30] = useState(false);
+  const [joinable, setJoinable] = useState(false);
+  const [openTaskQuestions, setOpenTaskQuestions] = useState(null);
   const [rowHandoff, setRowHandoff] = useState(null);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -89,8 +100,16 @@ function ExploreView() {
         ...claims.map((claim) => ({ kind: 'claim', id: claim.claimId, state: claim.state, when: claim.createdAt, questionId: claim.questionId, createdBy: claim.createdBy })),
       ];
       setItems(base);
-      const heads = await Promise.all(base.slice(0, HYDRATE_LIMIT).map(async (item) => ({ ...item, title: await hydrateTitle(item) })));
+      const heads = await Promise.all(base.slice(0, HYDRATE_LIMIT).map(async (item) => ({ ...item, ...(await hydrateTitle(item)) })));
       setItems([...heads, ...base.slice(HYDRATE_LIMIT)]);
+      /* 可参与 filter dimension (mockup): questions with at least one open
+       * task, derived from one bounded task-list read. */
+      try {
+        const openTasks = await fetchList('/tasks?status=open&limit=100');
+        setOpenTaskQuestions(new Set(openTasks.map((task) => task.questionId).filter(Boolean)));
+      } catch {
+        setOpenTaskQuestions(new Set());
+      }
     } catch (reason) {
       setError(reason.message);
     } finally {
@@ -133,13 +152,14 @@ function ExploreView() {
     }
     return windowed
       .filter((item) => (type === 'all' || item.kind === type))
+      .filter((item) => !joinable || (item.kind === 'question' && openTaskQuestions?.has(item.id)))
       .filter((item) => !needle || item.id.toLowerCase().includes(needle) || (item.projectId ?? '').toLowerCase().includes(needle))
       .sort((left, right) => {
         if (sort === 'title') return String(left.title ?? left.id).localeCompare(String(right.title ?? right.id));
         return Date.parse(right.when ?? 0) - Date.parse(left.when ?? 0);
       })
       .slice(0, 40);
-  }, [windowed, researchers, query, type, sort]);
+  }, [windowed, researchers, query, type, sort, joinable, openTaskQuestions]);
 
   const hrefFor = (item) => (item.kind === 'question' ? `/questions/${item.id}` : item.kind === 'project' ? `/projects/${item.id}` : `/claims/${item.id}`);
 
@@ -193,6 +213,17 @@ function ExploreView() {
           >
             Last 30 days
           </button>
+          <button
+            aria-pressed={joinable}
+            className={cn(
+              'inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-md border px-3 text-sm font-medium transition-colors',
+              joinable ? 'border-primary bg-accent text-accent-foreground' : 'border-border bg-card text-muted-foreground hover:text-foreground',
+            )}
+            onClick={() => setJoinable((value) => !value)}
+            type="button"
+          >
+            Open to participate
+          </button>
         </div>
       </div>
 
@@ -240,6 +271,8 @@ function ExploreView() {
                     <Link className="text-xs font-medium text-primary hover:underline" href={hrefFor(item)}>open</Link>
                     <button className="rounded-md border border-border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground" onClick={() => setRowHandoff(item)} type="button">Hand to agent</button>
                   </div>
+                  {item.summary ? <p className="max-w-[70ch] truncate text-sm text-muted-foreground">{item.summary}</p> : null}
+                  {joinable && item.kind === 'question' && openTaskQuestions?.has(item.id) ? <p className="text-xs text-muted-foreground">open tasks available to pick up</p> : null}
                   <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                     <IdChip value={item.id} />
                     {item.createdBy ? <Link className="hover:text-foreground" href={`/contributors/${encodeURIComponent(item.createdBy)}`}>by {item.createdBy}</Link> : null}
@@ -257,7 +290,7 @@ function ExploreView() {
           )}
           {!loading && !error ? (
             <p className="mt-3 text-sm text-muted-foreground">
-              Ordered by recent activity. Sorting never expresses research value or support.
+              {results.length} of {windowed.length} loaded object{windowed.length === 1 ? '' : 's'} shown. Ordered by recent activity. Sorting never expresses research value or support. Stable ids live in each result row.
             </p>
           ) : null}
         </div>

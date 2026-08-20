@@ -153,5 +153,16 @@ export function ClaimDag({ elements }) {
     {selectedNode && view === 'graph' && <aside aria-label="Claim node details" className="mt-4 rounded-lg border border-border bg-card p-4"><div className="flex items-center justify-between gap-3"><h3 className="font-mono text-sm tabular-nums">{selectedNode.id}</h3><button className="rounded-md border border-border px-2 py-1 text-xs" type="button" onClick={() => { setSelectedNode(null); setSelectedDetail(null); }}>Close</button></div><p className="mt-2 text-xs uppercase tracking-wide text-muted-foreground">State: {selectedNode.state ?? 'unknown'}</p><p className="mt-3 text-sm">Revision: {selectedDetail?.currentRevision?.revision ?? selectedNode.revision ?? 'Unavailable'}</p><p className="mt-2 text-sm">Evidence: {Array.isArray(evidence) ? evidence.length : 0} linked items</p>{Array.isArray(evidence) && evidence.length > 0 && <pre className="mt-3 overflow-x-auto rounded-lg bg-muted p-3 text-xs leading-6">{JSON.stringify(evidence, null, 2)}</pre>}</aside>}
     <p className="mt-2 text-xs text-muted-foreground">Edge traversal scope: the graph API walks depends_on relations today; the full fourteen-type argument graph needs an API enrichment to expose per-edge relation types.</p>
     <div aria-label="Claim state legend" className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">{Object.keys(CLAIM_STATE_COLORS).map((state) => <span className="inline-flex items-center gap-2" key={state}><span aria-hidden="true" className="h-3 w-3 rounded-full" style={{ backgroundColor: CLAIM_STATE_COLORS[state] }} />{state.replaceAll('_', ' ')}</span>)}</div>
+    {/* Edge family legend (design book 02: five DAG edge families). Today only
+        the structural family can appear; the rest color themselves once the
+        graph API returns their relation types. */}
+    <div aria-label="DAG edge family legend" className="mt-2 flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">
+      {[['positive', 'supports'], ['negative', 'refutes'], ['qualify', 'qualifies'], ['structural', 'depends on'], ['lineage', 'reproduces / derives']].map(([family, label]) => (
+        <span className="inline-flex items-center gap-2" key={family}>
+          <span aria-hidden="true" className="h-1 w-4 rounded-full" style={{ backgroundColor: `var(--evimesh-dag-${family}, var(--evimesh-border))` }} />
+          {label}
+        </span>
+      ))}
+    </div>
   </div>;
 }

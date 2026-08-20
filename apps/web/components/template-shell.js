@@ -3,14 +3,15 @@
 /*
  * M13.8 product shell (docs/design/05-core-ui-spec.md): a quiet top header with
  * task-based primary navigation (Home / Explore / Work / Agent / Docs), global
- * search entry, manual theme toggle, and a mobile drawer. Object routes stay
- * reachable as Explore/Work destinations, never as top-level navigation.
+ * search entry, notifications entry, manual theme toggle, G-key chords, and a
+ * mobile drawer. Object routes stay reachable as Explore/Work destinations,
+ * never as top-level navigation.
  */
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
 import {
-  BookOpen, Bot, Briefcase, Compass, House, LogIn, Menu, Search, X,
+  Bell, BookOpen, Bot, Briefcase, Compass, House, LogIn, Menu, Search, X,
 } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { CommandPalette } from '@/components/command-palette';
@@ -24,6 +25,33 @@ const NAV_ITEMS = [
   { href: '/agent', label: 'Agent', icon: Bot },
   { href: '/docs', label: 'Docs', icon: BookOpen },
 ];
+
+/* G-key chords (mockup palette footer): g then h/e/w/a/d navigates. The
+ * pending-g window is short so plain typing is never swallowed. */
+const G_CHORDS = { h: '/home', e: '/explore', w: '/work', a: '/agent', d: '/agent.md' };
+
+function useGChords() {
+  const router = useRouter();
+  const pendingG = useRef(false);
+  useEffect(() => {
+    function onKeyDown(event) {
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
+      const inField = /^(INPUT|TEXTAREA|SELECT)$/.test(event.target?.tagName ?? '') || event.target?.isContentEditable;
+      if (inField) { pendingG.current = false; return; }
+      const key = event.key.toLowerCase();
+      if (pendingG.current && G_CHORDS[key]) {
+        event.preventDefault();
+        pendingG.current = false;
+        router.push(G_CHORDS[key]);
+        return;
+      }
+      pendingG.current = key === 'g';
+      if (pendingG.current) setTimeout(() => { pendingG.current = false; }, 900);
+    }
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [router]);
+}
 
 function isActive(pathname, href) {
   if (href === '/home') return pathname === '/home' || pathname === '/';
@@ -57,6 +85,7 @@ function GlobalNav({ pathname, onNavigate }) {
 export function TemplateShell({ children }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  useGChords();
 
   if (pathname === '/login' || pathname === '/sign-in') return children;
 
@@ -151,6 +180,25 @@ export function TemplateShell({ children }) {
         </Link>
 
         <ThemeToggle />
+
+        {/* Notifications entry (mockup gheader iconbtn). No unread badge:
+            an unread API does not exist, so nothing is ever implied. */}
+        <Link
+          aria-label="Notifications"
+          className="inline-flex size-8 items-center justify-center rounded-md border border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
+          href="/notifications"
+        >
+          <Bell aria-hidden="true" size={15} />
+        </Link>
+
+        {/* Account chip: settings entry until web sign-in ships a real menu. */}
+        <Link
+          className="inline-flex h-8 items-center gap-2 rounded-md border border-border bg-card px-2.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+          href="/settings"
+        >
+          <span aria-hidden="true" className="grid size-5 place-items-center rounded-full bg-accent text-[10px] font-semibold text-accent-foreground">?</span>
+          Account
+        </Link>
 
         <Link
           className="inline-flex h-8 items-center gap-2 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-accent-foreground/90"

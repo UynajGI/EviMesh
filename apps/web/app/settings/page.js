@@ -86,6 +86,14 @@ export default function SettingsPage() {
           <section aria-labelledby="s-identities-heading" id="s-identities">
             <h2 className="text-lg font-semibold" id="s-identities-heading">Connected identities</h2>
             <p className="mt-1 text-sm text-muted-foreground">Sign-in identities for this account. Unlinking always requires re-authentication and is written to the security audit.</p>
+            {/* Mockup identity-collision warning: an iD bound to another account
+                pauses linking rather than silently merging identities. */}
+            <Alert
+              className="mt-3 max-w-2xl"
+              description="If an ORCID or GitHub iD is already bound to another account, linking pauses and asks you to resolve it explicitly. Identities are never silently merged or reassigned."
+              title="One iD, one account"
+              variant="warning"
+            />
             <div className="mt-4 max-w-2xl divide-y divide-border rounded-lg border border-border bg-card">
               {identities === null ? <p className="px-5 py-4 text-sm text-muted-foreground">Loading identities…</p> : identities.length === 0 ? (
                 <p className="px-5 py-4 text-sm text-muted-foreground">No external identities connected. Sign in and connect from the login page.</p>

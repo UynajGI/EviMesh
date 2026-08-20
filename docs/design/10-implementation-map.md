@@ -70,6 +70,12 @@ PR #59 在 P1-P4 骨架之上按设计稿逐区块补齐视觉层：Home 变化�
 
 本轮确认的剩余数据门控（协议或 API 尚无对应字段，不做虚构渲染）：Explore 主题 rail（协议对象不携带学科标签）、研究者目录 beyond 派生视图（无 actor 列表端点）、agent 身份卡的 model/scope/密钥指纹字段（actors 端点仅返回贡献数据）、`/agent` 实时授权列表（web 登录态未接入）、Home「Agent 连接」卡的实时 agent 状态与待签名计数、挑战列表行（挑战仅有按 id 详情）。
 
+### 4.3 块级对照轮（PR #59，2026-08-20 第二轮）
+
+7 个并行审计对 17 个设计稿 + 05-09 章规格做块级（行/徽标/meta/按钮级）对照后补齐：修复 3 处崩溃级缺陷（claims 页 ReadableField 数组分支内嵌游离 useEffect；attempts/questions 页 document.title useEffect 位于条件 return 之后导致 hook 顺序违规）、命令面板补齐动作组（复制 permalink）/主题组/对象组（每类型 20 条有界实读）并实现 G 和弦导航、顶栏通知铃铛与账户 chip、handoff 对象标题行与主关闭按钮、表单 aria-invalid/aria-describedby 接线、DAG 边五族图例、claims 页论证图默认 upstream + append-only 修订列表（有界 8）+ 修订对比页入口 + 按关系可展开证据行（含 artifact/run 归属）+ 字段化回执（verificationTypes/contextMode/盲验证说明/逐条 findings）+ 侧栏 Frontier 行与最近活动、workspace 页 acceptance 行/Argument 主张陈述水合（有界 10）/任务标题水合（有界 6）/证据行归属/污染 danger alert/回执字段化、work 页验证策略 alert/blocked 任务区/验证行 question 与归属 meta/草稿卡 meta 与审阅签名 CTA、explore 可参与筛选（开放任务派生）/结果摘要行/计数说明行、home 页 requestId 贯穿/四处空态 CTA/登录范围 denied 卡/agent 卡门控文案、attempts 页身份卡（可用字段实数据 + 未暴露字段门控行 + 自报声明 alert）/公开产出（produced/used 边）/HITL 说明、contributor ORCID iD 标识（无验证徽标，硬边界）/时间线 statement id、settings iD 冲突警示/Token 表 last used 与 active-expired-revoked 状态/未登录 denied 态/空态设备授权引导/密钥轮换说明、agent 页分区锚点导航/MCP 推荐路径徽标/scope 调整入口。新增机械性防回归测试：全站 page.js 禁止 hook 出现在条件 return 之后。
+
+本轮确认的协议级门控（不做虚构渲染，与 §4.2 一致并新增）：claim revision 的 semantic_hash/raw_hash/policy 列（DB 无此列）、任务 lease 剩余时间（列表不含 lease）、actor 类型与 agent 人类区分（actors API 不返回 actorType）、settings profile 的 affiliation/研究领域字段（profile API 不接受）、token 命名与创建时间列（API 无 name/createdAt）、活跃会话列表（无会话 API）、快照内状态列（members 仅含 revision）、最近变化排序维度（列表无 updatedAt）。
+
 ## 5. 验证门禁
 
 - 双主题 token 对比度测试扩到全部双档对（沿用 `test/token-contrast.test.mjs` 模式）。
