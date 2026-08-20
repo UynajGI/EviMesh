@@ -12,6 +12,7 @@ import { Badge, Card, CardContent, StatusBadge } from '@/components/ui/data';
 import { Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
 import { IdChip } from '@/components/ui/idchip';
 import { hydrateEvidenceLinks, hydrateReceiptFindings, evidenceRelations } from '@/lib/hydrate';
+import { useVisitRecord } from '@/lib/visit-history';
 import { PageContainer } from '@/components/ui/page';
 import { Check, Eye, Share2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -160,6 +161,12 @@ function ClaimDetailView({ params }) {
     try { setWatched(localStorage.getItem(`evimesh-watch-claim-${claimId}`) === '1'); } catch { /* unavailable */ }
   }, [claimId]);
   useEffect(() => { if (claimId) request(`/claims/${claimId}/graph?direction=${direction}&maxDepth=3`).then(setGraph).catch((reason) => setError(reason.message)); }, [claimId, direction]);
+  /* Local recently-visited rail on Home records this page once its statement is known. */
+  useVisitRecord({
+    href: claimId ? `/claims/${claimId}` : null,
+    label: data?.currentRevision?.statement ? `${String(data.currentRevision.statement).slice(0, 70)}${data.currentRevision.statement.length > 70 ? '…' : ''}` : null,
+    kind: 'claim',
+  });
 
   if (error) return <PageContainer><ErrorState message={error} onRetry={load} /></PageContainer>;
   if (!data) return <PageContainer><Skeleton className="h-32 w-full" /><Skeleton className="mt-6 h-96 w-full" /></PageContainer>;

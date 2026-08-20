@@ -57,6 +57,21 @@ const TOOL_CATALOG = [
   { name: 'submit_verification', kind: 'Publish', write: 'confirm', note: 'Submit a signed VerificationReceipt' },
 ];
 
+const SECURITY_ROWS = [
+  {
+    title: 'Scopes are least-privilege by default',
+    body: 'Read access covers public objects only. Draft scope lets an agent prepare work; every publish step still demands an explicit confirm and, for signed submissions, a human signing key.',
+  },
+  {
+    title: 'Revocation is one page away',
+    body: 'Grants and personal access tokens are listed and revocable under Settings at any time. Revoking takes effect on the next request; drafts already published keep their attribution chain.',
+  },
+  {
+    title: 'Tokens never travel in pages',
+    body: 'Tokens and authorization credentials never appear in examples, URLs, logs, or handoff sheets. Every documented example uses environment-variable placeholders instead of real credentials.',
+  },
+];
+
 const writeVariant = { read: 'status-success', confirm: 'status-warning', 'confirm-sign': 'emphasis-danger' };
 
 /*
@@ -172,22 +187,7 @@ export default function AgentCenterPage() {
 
           <div className="rounded-lg border border-border bg-card p-4">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Tool catalog</h2>
-            <p className="mt-1 text-xs text-muted-foreground">Names match the registered MCP tool definitions; write tools demand explicit consent. Frontiers are read as resources, for example evimesh://projects/&#123;projectId&#125;/frontier/latest.</p>
-            <ul className="mt-3 divide-y divide-border">
-              {TOOL_CATALOG.map((tool) => (
-                <li className="flex flex-wrap items-center gap-2 py-2" key={tool.name}>
-                  <code className="font-mono text-xs">{tool.name}</code>
-                  <span className={cn(
-                    'inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium',
-                    writeVariant[tool.write] === 'status-success' && 'border-status-success-border bg-status-success-bg text-status-success-fg',
-                    writeVariant[tool.write] === 'status-warning' && 'border-status-warning-border bg-status-warning-bg text-status-warning-fg',
-                    writeVariant[tool.write] === 'emphasis-danger' && 'border-transparent bg-emphasis-danger text-emphasis-foreground',
-                  )}>
-                    {tool.write === 'read' ? 'read-only' : tool.write === 'confirm' ? 'confirm required' : 'confirm + signature'}
-                  </span>
-                </li>
-              ))}
-            </ul>
+            <p className="mt-1 text-xs text-muted-foreground">The full table — tool, category, and write level — lives under “Read with an agent” below. Write tools demand explicit consent; frontiers are read as resources, for example evimesh://projects/&#123;projectId&#125;/frontier/latest.</p>
           </div>
 
           <Alert
@@ -205,6 +205,68 @@ export default function AgentCenterPage() {
           </div>
         </aside>
       </div>
+
+      <section aria-labelledby="read-with-agent-heading" className="mt-12">
+        <h2 className="text-xl font-semibold tracking-tight" id="read-with-agent-heading">Read with an agent</h2>
+        <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+          An agent that never contributed to EviMesh can still read it correctly: object semantics, the four reading
+          perspectives (Argument, Evidence, Verification, Frontier), which MCP resources are read-only discovery, which
+          tools write and therefore require an explicit confirm, how to check revisions and signatures, and how to
+          resume the same context from a web handoff sheet.
+        </p>
+        <div className="mt-4 overflow-x-auto rounded-lg border border-border">
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/50 text-left">
+                <th scope="col" className="px-4 py-2.5 font-medium">Tool</th>
+                <th scope="col" className="px-4 py-2.5 font-medium">Category</th>
+                <th scope="col" className="px-4 py-2.5 font-medium">Write level</th>
+                <th scope="col" className="px-4 py-2.5 font-medium">What it does</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border bg-card">
+              {TOOL_CATALOG.map((tool) => (
+                <tr key={tool.name}>
+                  <td className="px-4 py-2.5 font-mono text-xs">{tool.name}</td>
+                  <td className="px-4 py-2.5">{tool.kind}</td>
+                  <td className="px-4 py-2.5">
+                    <span className={cn(
+                      'inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium',
+                      writeVariant[tool.write] === 'status-success' && 'border-status-success-border bg-status-success-bg text-status-success-fg',
+                      writeVariant[tool.write] === 'status-warning' && 'border-status-warning-border bg-status-warning-bg text-status-warning-fg',
+                      writeVariant[tool.write] === 'emphasis-danger' && 'border-transparent bg-emphasis-danger text-emphasis-foreground',
+                    )}>
+                      {tool.write === 'read' ? 'read-only' : tool.write === 'confirm' ? 'confirm required' : 'confirm + signature'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2.5 text-muted-foreground">{tool.note}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="agent-security-heading" className="mt-12">
+        <h2 className="text-xl font-semibold tracking-tight" id="agent-security-heading">Security and revocation</h2>
+        <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+          The authorization model in three rules. Live grant lists appear here once web sign-in ships; the rules already hold.
+        </p>
+        <div className="mt-4 grid gap-4 lg:grid-cols-3">
+          {SECURITY_ROWS.map((row) => (
+            <div className="rounded-lg border border-border bg-card p-4" key={row.title}>
+              <h3 className="text-sm font-semibold">{row.title}</h3>
+              <p className="mt-1.5 text-xs leading-5 text-muted-foreground">{row.body}</p>
+            </div>
+          ))}
+        </div>
+        <Alert
+          className="mt-4"
+          description="Tokens and authorization credentials never appear in examples, URLs, logs, or handoffs. Documented examples use environment-variable placeholders only."
+          title="Token hygiene"
+          variant="info"
+        />
+      </section>
     </PageContainer>
   );
 }

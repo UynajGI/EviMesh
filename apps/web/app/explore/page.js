@@ -18,6 +18,7 @@ const TYPES = [
   { id: 'question', label: 'Questions' },
   { id: 'project', label: 'Projects' },
   { id: 'claim', label: 'Claims' },
+  { id: 'researcher', label: 'Researchers' },
 ];
 
 async function fetchJson(path) {
@@ -67,6 +68,7 @@ function ExploreView() {
   const [query, setQuery] = useState(searchParams.get('q') ?? '');
   const [type, setType] = useState('all');
   const [sort, setSort] = useState('recent');
+  const [last30, setLast30] = useState(false);
   const [rowHandoff, setRowHandoff] = useState(null);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -99,9 +101,37 @@ function ExploreView() {
   useEffect(() => { load(); }, []);
   useEffect(() => { document.title = 'Explore · EviMesh'; }, []);
 
+  /* Date-window filter (mockup 筛选：近 30 天): applied client-side to the
+   * loaded page of results; it never invents items outside the loaded set. */
+  const windowed = useMemo(() => {
+    if (!last30) return items;
+    const since = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    return items.filter((item) => !item.when || Date.parse(item.when) >= since);
+  }, [items, last30]);
+
+  /* Researchers are derived from the createdBy attribution already present on
+   * questions and claims (mockup 研究者 tab). There is no actor directory
+   * endpoint yet, so this stays a derived, bounded view of current results. */
+  const researchers = useMemo(() => {
+    const byActor = new Map();
+    for (const item of windowed) {
+      const actor = item.createdBy;
+      if (!actor) continue;
+      const entry = byActor.get(actor) ?? { actorId: actor, count: 0, lastWhen: null };
+      entry.count += 1;
+      if (!entry.lastWhen || Date.parse(item.when ?? 0) > Date.parse(entry.lastWhen)) entry.lastWhen = item.when;
+      byActor.set(actor, entry);
+    }
+    /* Recency order, never contribution counts: counts stay navigation aids. */
+    return [...byActor.values()].sort((left, right) => Date.parse(right.lastWhen ?? 0) - Date.parse(left.lastWhen ?? 0));
+  }, [windowed]);
+
   const results = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    return items
+    if (type === 'researcher') {
+      return researchers.filter((entry) => !needle || entry.actorId.toLowerCase().includes(needle)).slice(0, 40);
+    }
+    return windowed
       .filter((item) => (type === 'all' || item.kind === type))
       .filter((item) => !needle || item.id.toLowerCase().includes(needle) || (item.projectId ?? '').toLowerCase().includes(needle))
       .sort((left, right) => {
@@ -109,7 +139,7 @@ function ExploreView() {
         return Date.parse(right.when ?? 0) - Date.parse(left.when ?? 0);
       })
       .slice(0, 40);
-  }, [items, query, type, sort]);
+  }, [windowed, researchers, query, type, sort]);
 
   const hrefFor = (item) => (item.kind === 'question' ? `/questions/${item.id}` : item.kind === 'project' ? `/projects/${item.id}` : `/claims/${item.id}`);
 
@@ -130,26 +160,39 @@ function ExploreView() {
           type="search"
           value={query}
         />
-        <div className="flex gap-1 overflow-x-auto" role="tablist" aria-label="Result type">
-          {TYPES.map((entry) => {
-            const total = entry.id === 'all' ? items.length : items.filter((item) => item.kind === entry.id).length;
-            return (
-              <button
-                aria-selected={type === entry.id}
-                className={cn(
-                  'inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-md border px-3 text-sm font-medium transition-colors',
-                  type === entry.id ? 'border-primary bg-accent text-accent-foreground' : 'border-border bg-card text-muted-foreground hover:text-foreground',
-                )}
-                key={entry.id}
-                onClick={() => setType(entry.id)}
-                role="tab"
-                type="button"
-              >
-                {entry.label}
-                <span className="rounded-full border border-border bg-muted px-1.5 text-[11px] font-medium tabular-nums text-muted-foreground">{total}</span>
-              </button>
-            );
-          })}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex gap-1 overflow-x-auto" role="tablist" aria-label="Result type">
+            {TYPES.map((entry) => {
+              const total = entry.id === 'all' ? windowed.length : entry.id === 'researcher' ? researchers.length : windowed.filter((item) => item.kind === entry.id).length;
+              return (
+                <button
+                  aria-selected={type === entry.id}
+                  className={cn(
+                    'inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-md border px-3 text-sm font-medium transition-colors',
+                    type === entry.id ? 'border-primary bg-accent text-accent-foreground' : 'border-border bg-card text-muted-foreground hover:text-foreground',
+                  )}
+                  key={entry.id}
+                  onClick={() => setType(entry.id)}
+                  role="tab"
+                  type="button"
+                >
+                  {entry.label}
+                  <span className="rounded-full border border-border bg-muted px-1.5 text-[11px] font-medium tabular-nums text-muted-foreground">{total}</span>
+                </button>
+              );
+            })}
+          </div>
+          <button
+            aria-pressed={last30}
+            className={cn(
+              'inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-md border px-3 text-sm font-medium transition-colors',
+              last30 ? 'border-primary bg-accent text-accent-foreground' : 'border-border bg-card text-muted-foreground hover:text-foreground',
+            )}
+            onClick={() => setLast30((value) => !value)}
+            type="button"
+          >
+            Last 30 days
+          </button>
         </div>
       </div>
 
@@ -169,6 +212,20 @@ function ExploreView() {
               description="No objects match the current search and filters. Try a shorter stable id or another type."
               title="Nothing matches yet"
             />
+          ) : type === 'researcher' ? (
+            <Card className="divide-y divide-border">
+              {results.map((entry) => (
+                <article className="flex flex-wrap items-center gap-3 px-5 py-4 hover:bg-muted/50" key={entry.actorId}>
+                  <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-full bg-accent text-sm font-semibold text-accent-foreground">
+                    {entry.actorId.slice(0, 1).toUpperCase()}
+                  </span>
+                  <Link className="min-w-0 flex-1 truncate font-medium hover:underline" href={`/contributors/${encodeURIComponent(entry.actorId)}`}>{entry.actorId}</Link>
+                  <span className="text-xs tabular-nums text-muted-foreground">{entry.count} linked object{entry.count === 1 ? '' : 's'}</span>
+                  <Link className="text-xs font-medium text-primary hover:underline" href={`/contributors/${encodeURIComponent(entry.actorId)}`}>open</Link>
+                </article>
+              ))}
+              <p className="px-5 py-3 text-xs text-muted-foreground">Derived from attribution on the currently loaded questions and claims. Object counts are entry points, never contribution scores.</p>
+            </Card>
           ) : (
             <Card className="divide-y divide-border">
               {results.map((item) => (

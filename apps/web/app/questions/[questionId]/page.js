@@ -4,11 +4,12 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Card, CardContent, StatusBadge } from '@/components/ui/data';
 import { HandoffSheet } from '@/components/handoff-sheet';
-import { Alert, Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
+import { Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
 import { Check, Eye, Flag, FlaskConical, History, Mountain, Share2 } from 'lucide-react';
 import { IdChip } from '@/components/ui/idchip';
 import { hydrateEvidenceLinks, hydrateReceiptFindings, evidenceRelations } from '@/lib/hydrate';
 import { PageContainer, PageHeader } from '@/components/ui/page';
+import { useVisitRecord } from '@/lib/visit-history';
 import { cn } from '@/lib/utils';
 
 const API = process.env.NEXT_PUBLIC_EVIMESH_API_URL;
@@ -61,6 +62,7 @@ export default function QuestionDetailPage({ params }) {
   const [data, setData] = useState(null);
   const [evidence, setEvidence] = useState(null);
   const [receipts, setReceipts] = useState(null);
+  const [attentionFindings, setAttentionFindings] = useState(null);
   const [error, setError] = useState(null);
 
   useEffect(() => { Promise.resolve(params).then(({ questionId: value }) => setQuestionId(value)); }, [params]);
@@ -129,6 +131,9 @@ export default function QuestionDetailPage({ params }) {
     try { setWatched(localStorage.getItem(`evimesh-watch-${questionId}`) === '1'); } catch { /* unavailable */ }
   }, [questionId]);
 
+  /* Local recently-visited rail on Home records this page once its title is known. */
+  useVisitRecord({ href: questionId ? `/questions/${questionId}` : null, label: data?.currentRevision?.title ?? null, kind: 'question' });
+
   /* Evidence and receipts load lazily, once, on their first tab view.
    * They cover every claim of this question (up to the list ceiling of 100). */
   const claimIds = (data?.claims ?? []).map((claim) => claim.claimId);
@@ -149,6 +154,28 @@ export default function QuestionDetailPage({ params }) {
       .then(setReceipts)
       .catch(() => setReceipts([]));
   }, [view, data, receipts, claimIds.join(',')]);
+
+  /* Summary-view "disputes and verification blocks" (mockup 主要争议与验证
+   * 阻断): contested claims plus major/critical receipt findings, hydrated for
+   * attention claims only and bounded. Challenge rows stay gated: challenge
+   * lists are not exposed by the public API yet. */
+  const attentionClaimIds = (data?.claims ?? []).filter((claim) => ATTENTION_STATES.has(claim.state)).map((claim) => claim.claimId);
+  useEffect(() => {
+    if (view !== 'summary' || attentionFindings !== null || attentionClaimIds.length === 0) return;
+    setAttentionFindings('loading');
+    Promise.all(attentionClaimIds.slice(0, 6).map((id) => request(`/claims/${id}/verifications`).then((body) => body.items ?? body.receipts ?? []).catch(() => [])))
+      .then((groups) => hydrateReceiptFindings(API, groups.flat()))
+      .then((loaded) => {
+        const rows = [];
+        for (const receipt of loaded) {
+          for (const finding of receipt.findings ?? []) {
+            if (finding.severity === 'critical' || finding.severity === 'major') rows.push({ finding, receiptId: receipt.receiptId });
+          }
+        }
+        setAttentionFindings(rows.slice(0, 10));
+      })
+      .catch(() => setAttentionFindings([]));
+  }, [view, attentionFindings, attentionClaimIds.join(',')]);
 
   if (error) return <PageContainer><ErrorState message={error} onRetry={load} /></PageContainer>;
   if (!data) return <PageContainer><Skeleton className="h-32 w-full" /><Skeleton className="mt-6 h-96 w-full" /></PageContainer>;
@@ -262,12 +289,40 @@ export default function QuestionDetailPage({ params }) {
 
       {view === 'summary' ? (
         <div className="mt-6 grid gap-4">
-          {attentionClaims.length > 0 ? (
-            <Alert
-              description={`${attentionClaims.length} claim(s) in this question are contested, refuted, or tainted. Attention level only; it is not a verdict on the question.`}
-              title="Needs a closer look"
-              variant="warning"
-            />
+          {attentionClaims.length > 0 || (Array.isArray(attentionFindings) && attentionFindings.length > 0) ? (
+            <Card>
+              <div className="border-b border-border px-5 py-3">
+                <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Disputes and verification blocks</h2>
+                <p className="mt-1 text-xs text-muted-foreground">Attention level only — this is not a verdict on the question.</p>
+              </div>
+              <ol className="divide-y divide-border">
+                {attentionClaims.map((claim) => (
+                  <li className="flex flex-wrap items-center gap-3 px-5 py-3" key={claim.claimId}>
+                    <StatusBadge state={claim.state} />
+                    <Link className="min-w-0 flex-1 truncate text-sm hover:underline" href={`/claims/${claim.claimId}`}>Claim {claim.claimId}</Link>
+                    <span className="text-xs text-muted-foreground">Usage premises affected</span>
+                  </li>
+                ))}
+                {attentionFindings === 'loading' ? (
+                  <li className="px-5 py-3 text-sm text-muted-foreground">Loading receipt findings…</li>
+                ) : (Array.isArray(attentionFindings) ? attentionFindings : []).map(({ finding, receiptId }) => (
+                  <li className="flex flex-wrap items-center gap-3 px-5 py-3" key={`${receiptId}-${finding.code}`}>
+                    <span className={cn(
+                      'inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium',
+                      finding.severity === 'critical' ? 'border-transparent bg-emphasis-danger text-emphasis-foreground' : 'border-status-warning-border bg-status-warning-bg text-status-warning-fg',
+                    )}>
+                      {finding.severity}
+                    </span>
+                    <span className="min-w-0 flex-1 text-sm">
+                      <span className="font-mono text-xs">{finding.code}</span>
+                      <span className="ml-2 text-muted-foreground">{finding.summary ?? finding.detail ?? finding.message ?? 'Severity recorded on the receipt'}</span>
+                    </span>
+                    <IdChip label="receipt" value={receiptId} />
+                  </li>
+                ))}
+                <li className="px-5 py-2.5 text-xs text-muted-foreground">Challenge tracking lives on each claim; open challenges are listed there.</li>
+              </ol>
+            </Card>
           ) : null}
           <div className="grid gap-4 lg:grid-cols-2">
             <Card>

@@ -2,11 +2,12 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { Activity, Bot, ListFilter, ListTodo } from 'lucide-react';
+import { Activity, Bot, Clock, ListFilter, ListTodo } from 'lucide-react';
 import { ChangeGroup, ChangeItem } from '@/components/change-item';
 import { StatusBadge } from '@/components/ui/data';
 import { Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
 import { PageContainer, PageHeader } from '@/components/ui/page';
+import { readVisitHistory } from '@/lib/visit-history';
 
 const CLOSED_STATES = new Set(['resolved', 'archived', 'rejected']);
 
@@ -38,6 +39,15 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [windowStart, setWindowStart] = useState(null);
   const [error, setError] = useState(null);
+  /* Recently visited is local-only (mockup home rail 最近访问): it rehydrates
+   * on mount and on refocus so a visit in another tab shows up here. */
+  const [visits, setVisits] = useState([]);
+  useEffect(() => {
+    setVisits(readVisitHistory());
+    const onFocus = () => setVisits(readVisitHistory());
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, []);
 
   async function load() {
     setLoading(true);
@@ -281,6 +291,25 @@ export default function HomePage() {
               <Link className="mt-3 inline-block text-xs font-medium text-primary hover:underline" href={href}>{cta} →</Link>
             </div>
           ))}
+          {visits.length > 0 ? (
+            <div className="rounded-lg border border-border bg-card p-4" aria-label="Recently visited">
+              <div className="flex items-center gap-2">
+                <Clock aria-hidden="true" className="text-muted-foreground" size={16} />
+                <h2 className="text-sm font-semibold">Recently visited</h2>
+              </div>
+              <ul className="mt-3 grid gap-1">
+                {visits.map((visit) => (
+                  <li key={visit.href}>
+                    <Link className="flex min-w-0 items-baseline gap-2 rounded px-1 py-1 text-xs hover:bg-muted" href={visit.href}>
+                      <span className="shrink-0 rounded-full border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{visit.kind}</span>
+                      <span className="min-w-0 truncate">{visit.label}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-2 text-[10px] text-muted-foreground">Local to this browser only; never uploaded.</p>
+            </div>
+          ) : null}
         </aside>
       </div>
     </PageContainer>
