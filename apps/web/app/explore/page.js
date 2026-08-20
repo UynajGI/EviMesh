@@ -84,7 +84,7 @@ function ExploreView() {
       const base = [
         ...questions.map((question) => ({ kind: 'question', id: question.questionId, state: question.state, when: question.createdAt, projectId: question.projectId })),
         ...projects.map((project) => ({ kind: 'project', id: project.projectId, state: project.state ?? 'active', when: project.createdAt })),
-        ...claims.map((claim) => ({ kind: 'claim', id: claim.claimId, state: claim.state, when: claim.createdAt, questionId: claim.questionId })),
+        ...claims.map((claim) => ({ kind: 'claim', id: claim.claimId, state: claim.state, when: claim.createdAt, questionId: claim.questionId, createdBy: claim.createdBy })),
       ];
       setItems(base);
       const heads = await Promise.all(base.slice(0, HYDRATE_LIMIT).map(async (item) => ({ ...item, title: await hydrateTitle(item) })));
@@ -185,6 +185,7 @@ function ExploreView() {
                   </div>
                   <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                     <IdChip value={item.id} />
+                    {item.createdBy ? <Link className="hover:text-foreground" href={`/contributors/${encodeURIComponent(item.createdBy)}`}>by {item.createdBy}</Link> : null}
                     {item.projectId ? <span className="tabular-nums">project {item.projectId}</span> : null}
                     {item.when ? (
                       <span className="flex items-center gap-1 tabular-nums">

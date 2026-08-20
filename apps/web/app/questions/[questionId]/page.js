@@ -316,7 +316,12 @@ export default function QuestionDetailPage({ params }) {
                 ))}
               </Card>
             )}
-            <Link className="mt-3 inline-block text-sm text-muted-foreground hover:text-foreground" href="/work">Claim work in Work →</Link>
+            <div className="mt-3 flex flex-wrap gap-4">
+            <Link className="text-sm text-muted-foreground hover:text-foreground" href="/work">Claim work in Work →</Link>
+            {frontier ? (
+              <Link className="text-sm text-muted-foreground hover:text-foreground" href={`/projects/${question.projectId}/frontier/${frontier.snapshotId}`}>Export frontier bundle →</Link>
+            ) : null}
+          </div>
           </section>
         </div>
       ) : null}

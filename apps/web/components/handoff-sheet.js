@@ -99,6 +99,24 @@ export function HandoffSheet({
           </div>
         </div>
 
+        <div className="flex flex-wrap gap-2">
+          <button
+            className="inline-flex h-8 items-center gap-2 rounded-md border border-border bg-card px-3 text-xs font-medium hover:bg-muted"
+            onClick={() => {
+              const payload = { intent, objectType, objectId, revision: revision ?? null, view: view ?? null, permalink, scopes, cli, mcp, task: naturalLanguage, continuation: permalink };
+              const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `evimesh-handoff-${objectType}-${objectId}.json`;
+              a.click();
+              URL.revokeObjectURL(url);
+            }}
+            type="button"
+          >
+            Download handoff JSON
+          </button>
+        </div>
         <Alert
           className="mt-5"
           description="The CLI reads auth from its local config; MCP clients use their own security context. Tokens never appear in handoffs, URLs, or logs."

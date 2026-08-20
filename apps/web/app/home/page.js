@@ -94,6 +94,19 @@ export default function HomePage() {
   const visibleFrontiers = frontiers.filter((f) => inWindow(f.frontier.createdAt));
   const visibleTasks = tasks.filter((t) => inWindow(t.createdAt));
 
+  /* Critical level (mockup chg-critical): claims that flipped to refuted or
+   * contested inside the window need immediate attention. */
+  const CRITICAL_STATES = new Set(['refuted', 'retracted', 'contested', 'dependency_tainted']);
+  const criticalClaims = visibleClaims.filter((claim) => CRITICAL_STATES.has(claim.state));
+
+  /* Quiet level (mockup chg-quiet): open questions with no qualifying events
+   * in the window (no claims, no frontier movement). */
+  const claimsByQuestion = new Map();
+  for (const claim of visibleClaims) {
+    if (claim.questionId) claimsByQuestion.set(claim.questionId, (claimsByQuestion.get(claim.questionId) ?? 0) + 1);
+  }
+  const quietQuestions = visibleQuestions.filter((question) => !claimsByQuestion.has(question.questionId));
+
   const rail = [
     {
       icon: ListTodo,
@@ -127,6 +140,26 @@ export default function HomePage() {
 
       <div className="mt-2 grid gap-10 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
         <div className="min-w-0">
+          {criticalClaims.length > 0 ? (
+            <ChangeGroup count={criticalClaims.length} level="critical" title="Needs immediate attention">
+              <div className="divide-y divide-border rounded-lg border border-border bg-card">
+                {criticalClaims.map((claim) => (
+                  <ChangeItem
+                    href={`/claims/${claim.claimId}`}
+                    id={claim.claimId}
+                    idLabel="claim"
+                    key={`critical-${claim.claimId}`}
+                    level="attention"
+                    meta={<StatusBadge state={claim.state} />}
+                    time={toRelativeTime(claim.createdAt)}
+                    what={`Claim entered ${claim.state.replaceAll('_', ' ')}`}
+                    why="Research status or usage premises changed with high impact. Review the exact revision, its challenge, and downstream effects."
+                  />
+                ))}
+              </div>
+            </ChangeGroup>
+          ) : null}
+
           <ChangeGroup count={visibleClaims.length} level="attention" title="Claims awaiting verification">
             {loading ? <Skeleton className="h-32 w-full" /> : error ? null : visibleClaims.length === 0 ? <Empty title="Nothing awaiting verification" description="Claims under verification will appear here as they move through the pipeline." /> : (
               <div className="divide-y divide-border rounded-lg border border-border bg-card">
@@ -206,6 +239,24 @@ export default function HomePage() {
               </div>
             )}
           </ChangeGroup>
+          {quietQuestions.length > 0 ? (
+            <section className="mt-10" aria-label="No qualifying changes">
+              <div className="mb-3 flex items-baseline justify-between gap-4">
+                <h2 className="text-xl font-semibold tracking-tight">No changes in window</h2>
+                <span className="text-sm text-muted-foreground">Quiet means no qualifying events in this window, never safe or uncontested</span>
+              </div>
+              <div className="divide-y divide-border rounded-lg border border-border bg-card">
+                {quietQuestions.slice(0, 4).map((question) => (
+                  <div className="flex items-center gap-3 px-5 py-3" key={question.questionId}>
+                    <span aria-hidden="true" className="grid size-8 place-items-center rounded-full bg-muted text-muted-foreground">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="size-4"><circle cx="12" cy="12" r="10" strokeDasharray="4 3" /></svg>
+                    </span>
+                    <span className="text-sm">Question <Link className="tabular-nums hover:underline" href={`/questions/${question.questionId}`}>{question.questionId}</Link></span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : null}
         </div>
 
         <aside aria-label="Context" className="grid gap-3">

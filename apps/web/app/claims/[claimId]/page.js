@@ -83,6 +83,7 @@ function ClaimDetailView({ params }) {
   const searchParams = useSearchParams();
   const pinnedRevision = Number.parseInt(searchParams.get('rev') ?? '', 10);
   const [pinnedRevisionData, setPinnedRevisionData] = useState(null);
+  const [frontierMembership, setFrontierMembership] = useState(null);
   const [data, setData] = useState(null);
   const [graph, setGraph] = useState(null);
   const [direction, setDirection] = useState('downstream');
@@ -116,6 +117,22 @@ function ClaimDetailView({ params }) {
        * (claimLinks) and receipt findings on /verifications/:receiptId. */
       setEvidence(await hydrateEvidenceLinks(API, evidenceItems));
       setReceipts(await hydrateReceiptFindings(API, receiptItems));
+      /* Frontier membership: check the question's latest frontier members. */
+      if (payload.claim?.questionId) {
+        try {
+          const qDetail = await request(`/questions/${payload.claim.questionId}`);
+          const projectId = qDetail.question?.projectId;
+          if (projectId) {
+            const frontier = await request(`/projects/${projectId}/frontier/latest`).then((body) => body.frontier).catch(() => null);
+            if (frontier?.snapshotId) {
+              const history = await request(`/projects/${projectId}/frontier/history?limit=100`).then((body) => body.items ?? []).catch(() => []);
+              const match = history.find((snapshot) => snapshot.snapshotId === frontier.snapshotId);
+              const members = (match?.members ?? []).filter((member) => member.claimId === payload.claim.claimId);
+              setFrontierMembership(members.length > 0 ? { sequence: frontier.sequence, revision: members[0].claimRevision } : null);
+            }
+          }
+        } catch { /* frontier context unavailable */ }
+      }
       setData(payload);
       /* Inline revision diff preview (mockup r(n) vs r(n-1) statement lines):
        * hydrate the current and previous revision when both exist. */
@@ -193,6 +210,11 @@ function ClaimDetailView({ params }) {
           ) : null}
           <div className="flex flex-wrap items-center gap-3">
             <StatusBadge state={claim.state} label="claim" />
+            {frontierMembership ? (
+              <span className="inline-flex items-center gap-1 rounded-full border border-status-success-border bg-status-success-bg px-2.5 py-0.5 text-xs font-medium text-status-success-fg">
+                Frontier #{frontierMembership.sequence} · member
+              </span>
+            ) : null}
             <Badge variant="default">revision r{currentRevision.revision}</Badge>
             <IdChip label="claim" value={claim.claimId} />
           </div>
@@ -354,6 +376,8 @@ function ClaimDetailView({ params }) {
                   <dt className="text-muted-foreground">Stable id</dt><dd className="font-mono tabular-nums">{claim.claimId}</dd>
                   <dt className="text-muted-foreground">Current revision</dt><dd className="font-mono tabular-nums">r{currentRevision.revision}</dd>
                   <dt className="text-muted-foreground">Next allowed states</dt><dd className="font-mono tabular-nums">{statusPolicy.allowedTransitions.join(', ') || 'No transitions'}</dd>
+                  <dt className="text-muted-foreground">Latest event</dt><dd className="font-mono tabular-nums">{data.lastEvent?.eventId ?? 'unavailable'}</dd>
+                  <dt className="text-muted-foreground">Event hash</dt><dd className="break-all font-mono tabular-nums text-xs">{data.lastEvent?.hash ?? 'via event audit'}</dd>
                 </dl>
                 <p className="mb-2 mt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Raw structured fields</p>
                 <div className="grid gap-3">
