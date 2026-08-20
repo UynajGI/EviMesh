@@ -279,3 +279,13 @@ test('questions carry bounded topic tags through creation', async () => {
   assert.ok(openapi.includes('"topics"'), 'openapi must document topics');
   assert.ok(openapi.includes('ActorDirectoryResponse'), 'openapi must document the actor directory');
 });
+
+test('settings offer the ORCID OAuth connect only when the provider is enabled', async () => {
+  const settings = await read('../app/settings/page.js');
+  assert.match(settings, /auth\/v1\/settings/);
+  assert.match(settings, /orcidEnabled/);
+  assert.match(settings, /settings\?\.external\?\.orcid === true/);
+  assert.match(settings, /linkIdentity\(\{ provider: 'orcid'/);
+  assert.match(settings, /Connect ORCID \(OAuth\)/);
+  assert.match(settings, /Enable the ORCID provider in the Supabase dashboard/);
+});
