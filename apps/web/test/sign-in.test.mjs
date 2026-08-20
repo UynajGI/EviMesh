@@ -10,7 +10,10 @@ test('login renders provider buttons from the live auth configuration', () => {
   // the backend would reject, and ORCID appears the moment it is enabled.
   assert.match(login, /auth\/v1\/settings/);
   assert.match(login, /settings\?\.external/);
-  assert.match(login, /PROVIDER_LABELS = \{ github: 'GitHub', orcid: 'ORCID' \}/);
+  assert.match(login, /google: 'Google'/);
+  // Unknown enabled providers still render generically, never filtered out.
+  assert.match(login, /PROVIDER_LABELS\[provider\] \?\? provider\.charAt\(0\)\.toUpperCase\(\) \+ provider\.slice\(1\)/);
+  assert.match(login, /PROVIDER_ICONS\[provider\] \?\? Globe/);
   assert.match(login, /providerButtons/);
   assert.match(login, /signInWithOAuth\(\{ provider, /);
   assert.match(login, /No external sign-in provider is enabled yet/);
@@ -22,6 +25,8 @@ test('login offers magic link, password, and account creation', () => {
   assert.match(login, /signInWithPassword/);
   assert.match(login, /auth\.signUp/);
   assert.match(login, /Create account/);
+  assert.match(login, /New to EviMesh?/);
+  assert.match(login, /Create an account →/);
   assert.match(login, /disabled=\{pending !== null\}/);
 });
 
