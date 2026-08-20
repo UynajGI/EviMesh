@@ -36,6 +36,11 @@ export default function SettingsPage() {
   const [identities, setIdentities] = useState(null);
   const [message, setMessage] = useState(null);
   const [saving, setSaving] = useState(false);
+  /* ORCID connect (design book 06 §2): offered only when the Supabase
+   * project actually has the ORCID OAuth provider enabled — the button set
+   * follows the backend, it never advertises what would fail. */
+  const [orcidEnabled, setOrcidEnabled] = useState(false);
+  const [connecting, setConnecting] = useState(false);
 
   useEffect(() => {
     profileRequest('/profile').then(setProfile).catch((error) => setMessage(error.message));
@@ -49,7 +54,29 @@ export default function SettingsPage() {
       if (provider && provider !== 'email') entries.push({ kind: provider, label: meta.user_name ?? meta.full_name ?? meta.name ?? provider, verified: true });
       setIdentities(entries);
     }).catch(() => setIdentities([]));
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (url && key) {
+      fetch(`${url}/auth/v1/settings`, { headers: { apikey: key, authorization: `Bearer ${key}` } })
+        .then((response) => (response.ok ? response.json() : null))
+        .then((settings) => { setOrcidEnabled(settings?.external?.orcid === true); })
+        .catch(() => { setOrcidEnabled(false); });
+    }
   }, []);
+
+  /* Linking attaches the ORCID identity to the signed-in account; the
+   * collision warning above is enforced by re-authenticating both sides. */
+  async function connectOrcid() {
+    setConnecting(true);
+    try {
+      const { error } = await createBrowserSupabaseClient().auth.linkIdentity({ provider: 'orcid', options: { redirectTo: `${window.location.origin}/settings` } });
+      if (error) throw error;
+    } catch (error) {
+      setMessage(`ORCID connect failed: ${error.message}`);
+    } finally {
+      setConnecting(false);
+    }
+  }
 
   async function save(event) {
     event.preventDefault();
@@ -107,7 +134,11 @@ export default function SettingsPage() {
               <div className="flex flex-wrap items-center gap-3 px-5 py-3">
                 <span className="text-sm font-medium">ORCID</span>
                 <span className="text-sm text-muted-foreground">Not connected</span>
-                <span className="ml-auto text-xs text-muted-foreground">OAuth only: a manually typed iD can never show as verified</span>
+                {orcidEnabled ? (
+                  <Button className="ml-auto" onClick={connectOrcid} size="sm" type="button" loading={connecting}>Connect ORCID (OAuth)</Button>
+                ) : (
+                  <span className="ml-auto text-xs text-muted-foreground">OAuth only: a manually typed iD can never show as verified. Enable the ORCID provider in the Supabase dashboard to offer the OAuth connect flow.</span>
+                )}
               </div>
             </div>
           </section>

@@ -89,14 +89,15 @@ test('provides loading skeletons for each main product route', async () => {
   for (const loading of [root, projects, tasks, verification, contributions]) assert.match(loading, /PageSkeleton/);
 });
 
-test('provides Supabase email and GitHub authentication from the sign-in page', async () => {
+test('provides configured-provider and email authentication from the sign-in page', async () => {
   const [client, page, legacy] = await Promise.all([read('../lib/supabase-browser.js'), read('../app/login/page.js'), read('../app/sign-in/page.js')]);
   assert.match(client, /createClient\(url, key\)/);
   assert.match(client, /NEXT_PUBLIC_SUPABASE_URL/);
   assert.match(page, /signInWithPassword/);
-  assert.match(page, /signInWithOAuth\(\{ provider: 'github'/);
-  assert.match(page, /Continue with GitHub/);
-  assert.match(page, /Login to your account/);
+  assert.match(page, /signInWithOtp/);
+  assert.match(page, /auth\/v1\/settings/);
+  assert.match(page, /Continue with \$\{label\}/);
+  assert.match(page, /Sign in to your account/);
   assert.match(legacy, /redirect\('\/login'\)/);
 });
 
