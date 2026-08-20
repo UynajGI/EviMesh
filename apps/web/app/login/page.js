@@ -12,11 +12,16 @@
  */
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { ArrowLeft, BadgeCheck, Eye, EyeOff, Fingerprint, GitFork, Mail, Network, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, BadgeCheck, Eye, EyeOff, Fingerprint, GitFork, Globe, Mail, Network, ShieldCheck } from 'lucide-react';
 import { createBrowserSupabaseClient } from '@/lib/supabase-browser';
 
+/* Known providers get their icon and display name; anything else the
+ * backend enables still renders, generically — the button set follows the
+ * live configuration instead of a hardcoded allowlist. */
 const PROVIDER_ICONS = { github: GitFork, orcid: Fingerprint };
-const PROVIDER_LABELS = { github: 'GitHub', orcid: 'ORCID' };
+const PROVIDER_LABELS = { github: 'GitHub', orcid: 'ORCID', google: 'Google' };
+const providerName = (provider) => PROVIDER_LABELS[provider] ?? provider.charAt(0).toUpperCase() + provider.slice(1);
+const providerIcon = (provider) => PROVIDER_ICONS[provider] ?? Globe;
 
 export default function LoginPage() {
   const [message, setMessage] = useState(null);
@@ -86,8 +91,7 @@ export default function LoginPage() {
   }
 
   const providerButtons = (providers ?? [])
-    .filter((provider) => PROVIDER_LABELS[provider])
-    .map((provider) => ({ provider, label: PROVIDER_LABELS[provider], Icon: PROVIDER_ICONS[provider] }));
+    .map((provider) => ({ provider, label: providerName(provider), Icon: providerIcon(provider) }));
 
   return (
     <main className="grid min-h-screen bg-background text-foreground lg:grid-cols-2">
@@ -162,6 +166,14 @@ export default function LoginPage() {
           </form>
 
           {message ? <p aria-live="polite" className="mt-5 rounded-lg border border-border bg-muted px-4 py-3 text-sm" role="alert">{message}</p> : null}
+
+          {/* Registration stays one obvious step away, not a hidden tab. */}
+          <p className="mt-5 text-center text-sm text-muted-foreground">
+            {mode === 'signup' ? 'Already have an account?' : 'New to EviMesh?'}
+            <button className="ml-1 font-medium text-primary hover:underline" onClick={() => setMode(mode === 'signup' ? 'magic' : 'signup')} type="button">
+              {mode === 'signup' ? 'Sign in instead' : 'Create an account →'}
+            </button>
+          </p>
 
           <div className="mt-8 rounded-xl border border-border bg-muted p-4">
             <div className="flex gap-3"><ShieldCheck aria-hidden="true" className="mt-0.5 shrink-0 text-status-success-fg" size={18} /><p className="text-xs leading-5 text-muted-foreground"><strong className="text-foreground">Research identity is separate from login.</strong> Sign-in authenticates your account; ORCID is connected and verified from Settings via OAuth — a manually typed iD is never shown as verified.</p></div>
