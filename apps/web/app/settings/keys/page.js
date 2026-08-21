@@ -38,7 +38,7 @@ export default function SigningKeysPage() {
       {message ? <p aria-live="polite" className="mt-5 text-sm text-muted-foreground">{message}</p> : null}
       <Alert
         className="mt-8"
-        description="To rotate, register a new key above: old keys stay valid for in-flight signatures until you revoke them from the API. A key list endpoint and an active-session view ship with the auth surface; until then, this page registers and rotates keys only."
+        description="Register a new key to rotate; old keys stay valid until revoked."
         title="Rotation keeps old keys until revoked"
         variant="info"
       />

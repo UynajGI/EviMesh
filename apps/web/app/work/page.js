@@ -265,7 +265,6 @@ export default function WorkPage() {
                   <div className="flex flex-wrap items-center gap-3 px-5 py-3" key={task.taskId}>
                     <StatusBadge state="blocked" label="blocked" />
                     <IdChip value={task.taskId} /><Link className="text-xs text-primary hover:underline" href={`/tasks/${task.taskId}`}>open</Link>
-                    <span className="ml-auto text-xs text-muted-foreground">unblocks when its upstream dependency resolves</span>
                   </div>
                 ))}
               </Card>
@@ -280,7 +279,7 @@ export default function WorkPage() {
               blind verifications never see expected outputs. */}
           <Alert
             className="mb-4"
-            description="Receipts record outcomes, verification types, and findings as fields — they never collapse into a total score. Blind verifications (context mode blind) run without seeing the expected outputs; submissions sign with your signing key."
+            description="Receipts record outcomes and findings — never a total score. Blind verifications run without expected outputs."
             title="How verification works here"
             variant="info"
           />
@@ -301,7 +300,6 @@ export default function WorkPage() {
                   <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                     {claim.questionId ? <Link className="hover:text-foreground" href={`/questions/${claim.questionId}`}>question {claim.questionId}</Link> : null}
                     {claim.createdBy ? <Link className="hover:text-foreground" href={`/contributors/${encodeURIComponent(claim.createdBy)}`}>by {claim.createdBy}</Link> : null}
-                    <span>verification types and context mode are recorded on the receipt</span>
                   </div>
                 </article>
               ))}
@@ -329,7 +327,6 @@ export default function WorkPage() {
             </div>
             <CardContent>
               <p className="text-sm text-muted-foreground">The claim editor keeps browser-local IndexedDB drafts with JSON/ZIP bundle import and export.</p>
-              <p className="mt-2 text-xs text-muted-foreground">Saved locally · not linked to a revision until signed · agent attribution is recorded when an agent drafted it.</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <Link className="rounded-md border border-border bg-card px-3 py-2 text-sm font-medium hover:bg-muted" href="/claims/new">Continue editing</Link>
                 <Link className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-accent-foreground/90" href="/claims/new">Review and sign</Link>
@@ -342,7 +339,6 @@ export default function WorkPage() {
             </div>
             <CardContent>
               <p className="text-sm text-muted-foreground">Run receipts save locally as you fill environment, command, seed, and outputs.</p>
-              <p className="mt-2 text-xs text-muted-foreground">Missing before submit: artifact hashes and exit codes are validated at submission time.</p>
               <div className="mt-3 flex gap-2">
                 <Link className="rounded-md border border-border bg-card px-3 py-2 text-sm font-medium hover:bg-muted" href="/runs/new">Continue filling</Link>
               </div>

@@ -170,7 +170,6 @@ export default function AttemptDetailPage({ params }) {
             </Card>
           )}
           <Link className="mt-3 inline-block text-sm text-muted-foreground hover:text-foreground" href="/events">Full event audit →</Link>
-          <p className="mt-2 text-xs text-muted-foreground">Publishing always waits for a human sign-off; a pending confirmation pauses the trail instead of publishing on the agent's own authority.</p>
         </section>
 
         {/* Mockup 这个 Agent 的公开产出: produced/used attribution edges from
@@ -233,7 +232,7 @@ export default function AttemptDetailPage({ params }) {
                   ) : null}
                 </dl>
                 <Alert
-                  description="A self-reported model is a declaration, never a verification result. Agents never impersonate humans: every produced object carries its attribution chain."
+                  description="A self-reported model is a declaration, not a verification result."
                   title="Self-declared, not verified"
                   variant="info"
                 />
@@ -253,9 +252,6 @@ export default function AttemptDetailPage({ params }) {
                   {link.href ? <span className="flex flex-wrap items-center gap-2"><IdChip value={link.value} /><Link className="text-xs text-primary hover:underline" href={link.href}>open</Link></span> : <IdChip value={link.value} />}
                 </div>
               ))}
-              <p className="text-xs text-muted-foreground">
-                Failed, paused, or abandoned attempts keep their links: they still carry research signal.
-              </p>
             </CardContent>
           </Card>
         </aside>

@@ -238,7 +238,7 @@ export default function AgentCenterPage() {
 
           <div className="rounded-lg border border-border bg-card p-4">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Tool catalog</h2>
-            <p className="mt-1 text-xs text-muted-foreground">The full table — tool, category, and write level — lives under “Read with an agent” below. Write tools demand explicit consent; frontiers are read as resources, for example evimesh://projects/&#123;projectId&#125;/frontier/latest.</p>
+            <p className="mt-1 text-xs text-muted-foreground">Full table under “Read with an agent” below; write tools demand explicit consent.</p>
           </div>
 
           <Alert
@@ -301,14 +301,14 @@ export default function AgentCenterPage() {
       <section aria-labelledby="agent-security-heading" className="mt-12" id="ac-security">
         <h2 className="text-xl font-semibold tracking-tight" id="agent-security-heading">Security and revocation</h2>
         <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-          The authorization model in three rules, plus your live grants.
+          The authorization model and your live grants.
         </p>
 
         {/* Mockup 当前授权 rowlist: real personal access tokens from the
             signed-in session; scopes, last activity, revoke inline. */}
         {grants === 'signed-out' ? (
           <p className="mt-4 rounded-lg border border-border bg-card px-5 py-4 text-sm text-muted-foreground">
-            Signed out: your live grant list loads here after sign-in. The rules below already hold either way.
+            Sign in to see your live grants.
           </p>
         ) : grants === 'unavailable' ? (
           <p className="mt-4 rounded-lg border border-border bg-card px-5 py-4 text-sm text-muted-foreground">
@@ -316,7 +316,7 @@ export default function AgentCenterPage() {
           </p>
         ) : grants.length === 0 ? (
           <p className="mt-4 rounded-lg border border-border bg-card px-5 py-4 text-sm text-muted-foreground">
-            No active tokens. Agent connections normally start with browser device authorization; create a token only for automation.
+            No active tokens.
           </p>
         ) : (
           <ul className="mt-4 divide-y divide-border rounded-lg border border-border bg-card" aria-label="Active grants">
@@ -345,7 +345,7 @@ export default function AgentCenterPage() {
         </div>
         <Alert
           className="mt-4"
-          description="Tokens and authorization credentials never appear in examples, URLs, logs, or handoffs. Documented examples use environment-variable placeholders only."
+          description="Tokens never appear in examples, URLs, logs, or handoffs; examples use environment-variable placeholders."
           title="Token hygiene"
           variant="info"
         />

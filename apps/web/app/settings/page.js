@@ -137,7 +137,7 @@ export default function SettingsPage() {
                 {orcidEnabled ? (
                   <Button className="ml-auto" onClick={connectOrcid} size="sm" type="button" loading={connecting}>Connect ORCID (OAuth)</Button>
                 ) : (
-                  <span className="ml-auto text-xs text-muted-foreground">OAuth only: a manually typed iD can never show as verified. Enable the ORCID provider in the Supabase dashboard to offer the OAuth connect flow.</span>
+                  <span className="ml-auto text-xs text-muted-foreground">OAuth only. Enable the ORCID provider to connect.</span>
                 )}
               </div>
             </div>

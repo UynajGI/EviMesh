@@ -328,7 +328,7 @@ export default function QuestionDetailPage({ params }) {
         <div className="mt-6 grid gap-4">
           {taintedFrontierMembers.length > 0 ? (
             <Alert
-              description={`${taintedFrontierMembers.length} frontier member claim${taintedFrontierMembers.length === 1 ? ' is' : 's are'} dependency-tainted. Usage premises inherited from this snapshot must be re-checked; the frozen member list itself never changes.`}
+              description={`${taintedFrontierMembers.length} frontier member claim${taintedFrontierMembers.length === 1 ? ' is' : 's are'} dependency-tainted. Usage premises inherited from this snapshot must be re-checked.`}
               title="Frontier contamination"
               variant="destructive"
             />
@@ -461,7 +461,7 @@ export default function QuestionDetailPage({ params }) {
         <section className="mt-6" aria-labelledby="argument-heading">
           <h2 className="mb-1 text-lg font-semibold" id="argument-heading">Argument</h2>
           <p className="mb-4 max-w-2xl text-sm text-muted-foreground">
-            Claims relate through fourteen directed edge types forming a DAG, never a parent-child tree. Each claim page carries its graph and an equivalent list view.
+            Claims form a DAG of typed edges, never a tree; each claim page carries its graph and an equivalent list view.
           </p>
           {claims.length === 0 ? <Empty title="No claims yet" description="Claims raised under this question will appear here." /> : (
             <Card className="divide-y divide-border">
@@ -489,7 +489,7 @@ export default function QuestionDetailPage({ params }) {
       {view === 'evidence' ? (
         <section className="mt-6" aria-labelledby="evidence-heading">
           <h2 className="mb-1 text-lg font-semibold" id="evidence-heading">Evidence</h2>
-          <p className="mb-4 max-w-2xl text-sm text-muted-foreground">Evidence binds to an exact claim revision through supports, refutes, qualifies, or reproduces. Grouped counts are navigation, not a score.</p>
+          <p className="mb-4 max-w-2xl text-sm text-muted-foreground">Links target exact claim revisions; grouped counts are navigation, not a score.</p>
           {evidence === 'loading' ? <Skeleton className="h-40 w-full" /> : evidence === null || evidence.length === 0 ? (
             <Empty title="No evidence linked yet" description="Evidence attached to this question's claims will appear here, grouped by relation." />
           ) : (
@@ -532,8 +532,7 @@ export default function QuestionDetailPage({ params }) {
         <section className="mt-6 grid gap-4" aria-labelledby="verification-heading">
           <div>
             <h2 className="mb-1 text-lg font-semibold" id="verification-heading">Verification receipts</h2>
-            <p className="mb-4 max-w-2xl text-sm text-muted-foreground">Each receipt records an outcome, verification types, independence, and findings. Receipts never collapse into a single score.</p>
-            {receipts === 'loading' ? <Skeleton className="h-32 w-full" /> : receipts === null || receipts.length === 0 ? (
+              {receipts === 'loading' ? <Skeleton className="h-32 w-full" /> : receipts === null || receipts.length === 0 ? (
               <Empty title="No receipts yet" description="Verification receipts for this question's claims will appear here." />
             ) : (
               <Card className="divide-y divide-border">
@@ -578,7 +577,7 @@ export default function QuestionDetailPage({ params }) {
             <h2 className="mb-3 text-lg font-semibold">Challenges</h2>
             <Empty
               action={<Link className="rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground" href="/challenges/new">Raise a challenge</Link>}
-              description="Challenges are tracked per claim revision. Open the target claim to read an active challenge and its impact; raising one is always reachable from here."
+              description="Challenges track on each claim revision; raise one from here."
               title="Challenge tracking lives on each claim"
             />
           </div>

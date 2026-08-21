@@ -85,7 +85,7 @@ export default function TokensPage() {
     {needsAuth ? (
       <DeniedState
         className="mt-8"
-        description="Token management requires a signed-in session. Re-authenticate to list, create, or revoke tokens; agent connections can also start from browser device authorization."
+        description="Sign in to manage tokens."
         scope="authenticated session"
         title="Re-authentication needed"
         action={<a className="rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground" href="/login">Sign in</a>}
@@ -105,7 +105,7 @@ export default function TokensPage() {
           <Empty
             className="mt-4"
             action={<a className="rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground" href="/agent">Connect an agent first</a>}
-            description="Tokens are the advanced path. Agent connections start with browser device authorization instead — tokens you create for the SDK and CLI will appear here."
+            description="Tokens you create for the SDK and CLI will appear here."
             title="No tokens yet"
           />
         ) : <ul className="mt-4 space-y-3">{tokens.map((token) => {

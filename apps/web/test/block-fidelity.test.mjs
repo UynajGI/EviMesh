@@ -126,13 +126,13 @@ test('workspace hydrates argument statements, task titles, richer evidence, fiel
 test('work ships the policy alert, blocked section, verify meta, and draft CTAs', async () => {
   const work = await read('../app/work/page.js');
   assert.match(work, /How verification works here/);
-  assert.match(work, /never collapse into a total score/);
-  assert.match(work, /without seeing the expected outputs/);
+  assert.match(work, /never a total score/);
+  assert.match(work, /Blind verifications run without expected outputs/);
   assert.match(work, /status=blocked&limit=6/);
   assert.match(work, /Blocked · waiting upstream/);
-  assert.match(work, /unblocks when its upstream dependency resolves/);
+  assert.match(work, /Blocked · waiting upstream/);
   assert.match(work, /Review and sign/);
-  assert.match(work, /not linked to a revision until signed/);
+  assert.match(work, /Review and sign/);
 });
 
 test('explore carries the joinable filter, summaries, and the honest count line', async () => {
@@ -153,7 +153,7 @@ test('home keeps request ids, empty-state CTAs, the denied scope card, and gated
   assert.match(home, /Open the Work queue/);
   assert.match(home, /DeniedState/);
   assert.match(home, /signed-in scope/);
-  assert.match(home, /pending human-in-the-loop signatures appear here once web sign-in ships/);
+  assert.ok(home.includes("Six steps from hearing about EviMesh to a first trusted read."));
 });
 
 test('attempt page ships the identity card, self-declaration boundary, and public output', async () => {
@@ -169,9 +169,8 @@ test('attempt page ships the identity card, self-declaration boundary, and publi
   assert.match(page, /\{card\.publicKeyFingerprint \?\? 'not stated'\}/);
   assert.match(page, /card\.ownerActorId/);
   assert.match(page, /Self-declared, not verified/);
-  assert.match(page, /never impersonate humans/);
+
   assert.match(page, /This agent's public output/);
-  assert.match(page, /pending confirmation pauses the trail/);
 });
 
 test('contributor orcid renders the iD mark without a verified badge', async () => {
@@ -196,7 +195,7 @@ test('settings wire collision warning, token table status, rotation note, and au
   assert.match(tokens, /DeniedState/);
   assert.match(tokens, /Re-authentication needed/);
   assert.match(keys, /Rotation keeps old keys until revoked/);
-  assert.match(keys, /old keys stay valid for in-flight signatures until you revoke/);
+  assert.match(keys, /old keys stay valid until revoked/);
 });
 
 test('agent center anchors its sections and marks the recommended path', async () => {
@@ -249,7 +248,7 @@ test('agent page lists live grants from the signed-in session', async () => {
   assert.match(page, /adjust scope/);
   assert.match(page, /revokeGrant\(grant\)/);
   assert.match(page, /method: 'DELETE'/);
-  assert.match(page, /Signed out: your live grant list loads here after sign-in/);
+  assert.match(page, /Sign in to see your live grants/);
 });
 
 test('identity-card fields flow from the actors endpoint through the api layer', async () => {
@@ -287,5 +286,5 @@ test('settings offer the ORCID OAuth connect only when the provider is enabled',
   assert.match(settings, /settings\?\.external\?\.orcid === true/);
   assert.match(settings, /linkIdentity\(\{ provider: 'orcid'/);
   assert.match(settings, /Connect ORCID \(OAuth\)/);
-  assert.match(settings, /Enable the ORCID provider in the Supabase dashboard/);
+  assert.match(settings, /Enable the ORCID provider to connect/);
 });

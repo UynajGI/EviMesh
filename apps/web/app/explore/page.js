@@ -287,7 +287,7 @@ function ExploreView() {
           ) : type === 'topic' ? (
             <Card className="divide-y divide-border">
               {results.length === 0 ? (
-                <p className="px-5 py-4 text-sm text-muted-foreground">No topic tags recorded on the loaded questions yet. Topics arrive with new questions.</p>
+                <p className="px-5 py-4 text-sm text-muted-foreground">No topic tags yet.</p>
               ) : results.map((topic) => (
                 <article className="flex flex-wrap items-center gap-3 px-5 py-4 hover:bg-muted/50" key={topic.label}>
                   <span aria-hidden="true" className="rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">topic</span>
@@ -363,7 +363,7 @@ function ExploreView() {
         <aside aria-label="Topics" className="rounded-lg border border-border bg-card p-4">
           <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Topics</h2>
           {topics.length === 0 ? (
-            <p className="mt-3 text-xs text-muted-foreground">No topic tags on the loaded questions yet. Topics arrive with new questions.</p>
+            <p className="mt-3 text-xs text-muted-foreground">No topic tags yet.</p>
           ) : (
             <ul className="mt-3 grid gap-1.5">
               {topics.slice(0, 8).map((topic) => (

@@ -128,7 +128,7 @@ export default function HomePage() {
         { label: 'Frontiers published', count: visibleFrontiers.length, badge: 'neutral' },
       ],
     },
-    { icon: Bot, title: 'Agent connection', body: 'Six steps from hearing about EviMesh to a first trusted read. Connected agents and pending human-in-the-loop signatures appear here once web sign-in ships.', href: '/agent', cta: 'Open the center' },
+    { icon: Bot, title: 'Agent connection', body: 'Six steps from hearing about EviMesh to a first trusted read.', href: '/agent', cta: 'Open the center' },
     { icon: Activity, title: 'Event audit', body: 'Signed research history with hashes, one layer down.', href: '/events', cta: 'Open audit' },
   ];
 
@@ -273,7 +273,7 @@ export default function HomePage() {
               boundary instead of silently showing a narrower feed. */}
           <DeniedState
             className="p-4"
-            description="This stream is network-wide. Your personal watchlist, drafts, and pending signatures need a signed-in scope."
+            description="Your watchlist, drafts, and pending signatures need a signed-in scope."
             scope="signed-in watchlist"
             title="Signed-out scope"
             action={<Link className="rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground" href="/login">Sign in</Link>}
@@ -316,8 +316,7 @@ export default function HomePage() {
                   </li>
                 ))}
               </ul>
-              <p className="mt-2 text-[10px] text-muted-foreground">Local to this browser only; never uploaded.</p>
-            </div>
+              </div>
           ) : null}
         </aside>
       </div>

@@ -126,7 +126,7 @@ export function HandoffSheet({
         </div>
         <Alert
           className="mt-5"
-          description="The CLI reads auth from its local config; MCP clients use their own security context. Tokens never appear in handoffs, URLs, or logs."
+          description="The CLI reads auth from its local config; tokens never appear in handoffs."
           title="No credentials travel with this handoff"
           variant="info"
         />
