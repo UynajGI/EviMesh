@@ -13,7 +13,10 @@ test('login renders provider buttons from the live auth configuration', () => {
   assert.match(login, /google: 'Google'/);
   // Unknown enabled providers still render generically, never filtered out.
   assert.match(login, /PROVIDER_LABELS\[provider\] \?\? provider\.charAt\(0\)\.toUpperCase\(\) \+ provider\.slice\(1\)/);
-  assert.match(login, /PROVIDER_ICONS\[provider\] \?\? Globe/);
+  // Official brand marks, not generic lucide stand-ins (design book 06).
+  assert.match(login, /github: GithubMark, orcid: OrcidMark, google: GoogleMark/);
+  assert.match(login, /brand-marks/);
+  assert.doesNotMatch(login, /GitFork|Fingerprint/);
   assert.match(login, /providerButtons/);
   assert.match(login, /signInWithOAuth\(\{ provider, /);
   assert.match(login, /No external provider is enabled/);

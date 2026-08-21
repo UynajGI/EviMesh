@@ -175,7 +175,7 @@ test('attempt page ships the identity card, self-declaration boundary, and publi
 
 test('contributor orcid renders the iD mark without a verified badge', async () => {
   const page = await read('../app/contributors/[actorId]/page.js');
-  assert.match(page, /aria-hidden="true" className="inline-flex h-4 w-4/);
+  assert.ok(page.includes("<OrcidMark size={16} />"));
   assert.match(page, /orcid\.org\/\$\{actor\.orcidId\}/);
   assert.doesNotMatch(page, /<Badge[^>]*>\s*verified\s*<\/Badge>/);
   assert.match(page, /statement\.statementId/);
@@ -287,4 +287,16 @@ test('settings offer the ORCID OAuth connect only when the provider is enabled',
   assert.match(settings, /linkIdentity\(\{ provider: 'orcid'/);
   assert.match(settings, /Connect ORCID \(OAuth\)/);
   assert.match(settings, /Enable the ORCID provider to connect/);
+});
+
+test('brand marks carry the official provider marks', async () => {
+  const marks = await read('../components/brand-marks.js');
+  // GitHub octocat path, Google four-color G, ORCID green disc with white iD.
+  assert.match(marks, /export function GithubMark/);
+  assert.match(marks, /export function GoogleMark/);
+  assert.match(marks, /export function OrcidMark/);
+  assert.match(marks, /#4285F4/);
+  assert.match(marks, /#34A853/);
+  assert.match(marks, /#A6CE39/);
+  assert.ok(marks.includes(">iD</text>"));
 });
