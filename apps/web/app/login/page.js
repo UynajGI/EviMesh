@@ -12,16 +12,17 @@
  */
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Eye, EyeOff, Fingerprint, GitFork, Globe, Network } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff, Globe, Network } from 'lucide-react';
+import { GithubMark, GoogleMark, OrcidMark } from '@/components/brand-marks';
 import { createBrowserSupabaseClient } from '@/lib/supabase-browser';
 
 /* Known providers get their icon and display name; anything else the
  * backend enables still renders, generically — the button set follows the
  * live configuration instead of a hardcoded allowlist. */
-const PROVIDER_ICONS = { github: GitFork, orcid: Fingerprint };
+const PROVIDER_ICONS = { github: GithubMark, orcid: OrcidMark, google: GoogleMark };
 const PROVIDER_LABELS = { github: 'GitHub', orcid: 'ORCID', google: 'Google' };
 const providerName = (provider) => PROVIDER_LABELS[provider] ?? provider.charAt(0).toUpperCase() + provider.slice(1);
-const providerIcon = (provider) => PROVIDER_ICONS[provider] ?? Globe;
+const providerIcon = (provider) => PROVIDER_ICONS[provider] ?? null;
 
 export default function LoginPage() {
   const [message, setMessage] = useState(null);
@@ -117,7 +118,7 @@ export default function LoginPage() {
                   onClick={() => loginWithProvider(provider)}
                   type="button"
                 >
-                  <Icon aria-hidden="true" size={19} />
+                  {Icon ? <Icon size={19} /> : <Globe aria-hidden="true" size={19} />}
                   {pending === provider ? 'Redirecting…' : `Continue with ${label}`}
                 </button>
               ))}

@@ -115,10 +115,11 @@ export default function ContributorDetailPage({ params }) {
             <IdChip label="actor" value={actor.actorId ?? actorId} />
             {typeof actor.orcidId === 'string' && actor.orcidId ? (
               <a className="inline-flex items-center gap-1.5 font-mono text-xs text-muted-foreground hover:text-foreground" href={`https://orcid.org/${actor.orcidId}`} rel="noopener">
-                {/* ORCID iD mark. No verified badge: verification status is not
-                    carried by the actors API, and an unverified iD must never
-                    render as verified (hard boundary). */}
-                <span aria-hidden="true" className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-status-success-bg text-[8px] font-bold text-status-success-fg">iD</span>
+                {/* Official ORCID iD mark (design book 06 hard-compliance).
+                    No verified badge: verification status is not carried by
+                    the actors API, and an unverified iD must never render as
+                    verified (hard boundary). */}
+                <OrcidMark size={16} />
                 orcid.org/{actor.orcidId}
               </a>
             ) : null}
