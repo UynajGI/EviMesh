@@ -1255,6 +1255,11 @@ app.onError((error, context) => {
       issues: error.issues,
     }, 400);
   }
+  /* Typed failures (query and repository errors carry code + status) keep
+   * their semantics instead of collapsing into an opaque 500. */
+  if (error instanceof Error && typeof error.status === "number" && typeof error.code === "string") {
+    return context.json(errorBody(error.code, error.message, context.get("requestId")), error.status);
+  }
   console.error("api request failed", error);
   return context.json(errorBody("internal_error", "internal server error", context.get("requestId")), 500);
 });

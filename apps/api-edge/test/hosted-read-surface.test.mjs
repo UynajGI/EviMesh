@@ -102,3 +102,41 @@ test("frontier membership resolves to its snapshots for provenance", async () =>
   assert.equal(snapshots.length, 1);
   assert.equal(snapshots[0].sequence, 12);
 });
+
+test("task tag and type filters resolve through current task revisions", async () => {
+  const responses = [
+    /* taskRevisions (revision.desc): newest first per task. */
+    [
+      { task_id: "t1", revision: 2, task_type: "reproduction", tags: ["cpu-only"] },
+      { task_id: "t1", revision: 1, task_type: "reproduction", tags: [] },
+      { task_id: "t2", revision: 1, task_type: "general", tags: ["under-60-min"] },
+    ],
+    /* tasks rows. */
+    [
+      { task_id: "t1", state: "open", question_id: "q1" },
+      { task_id: "t2", state: "open", question_id: "q1" },
+    ],
+  ];
+  let call = 0;
+  const repository = createSupabaseReadRepository({
+    url: "https://example.supabase.co",
+    publishableKey: "anon",
+    fetchImpl: async () => new Response(JSON.stringify(responses[call++ % responses.length]), { headers: { "content-type": "application/json" } }),
+  });
+  const tagged = await repository.listTasks({ status: "open", tag: "cpu-only" });
+  assert.deepEqual(tagged.map((row) => row.taskId), ["t1"]);
+  const typed = await repository.listTasks({ status: "open", type: "general" });
+  assert.deepEqual(typed.map((row) => row.taskId), ["t2"]);
+});
+
+test("typed repository errors surface with their status, never as opaque 500s", async () => {
+  const repository = createSupabaseReadRepository({
+    url: "https://example.supabase.co",
+    publishableKey: "anon",
+    fetchImpl: async () => new Response(JSON.stringify({ message: "boom" }), { status: 502, headers: { "content-type": "application/json" } }),
+  });
+  await assert.rejects(
+    () => repository.listQuestions(),
+    (error) => error.status === 503 && error.code === "SUPABASE_READ_UNAVAILABLE",
+  );
+});

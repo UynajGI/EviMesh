@@ -245,11 +245,23 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
     getResearchContractRevision: (contractId, revision) => getOne("researchContractRevisions", { contract_id: contractId, revision }),
 
     async listTasks({ projectId = null, status = null, type = null, tag = null } = {}) {
-      if (type !== null) unsupportedFilter("task type");
-      if (tag !== null) unsupportedFilter("task tag");
+      /* Task type and tags live on task revisions, not the task projection:
+       * resolve each task's current revision and filter on it, matching the
+       * self-hosted semantics instead of rejecting the filter. */
+      let currentByTask = null;
+      if ((type !== null && type !== undefined) || (tag !== null && tag !== undefined)) {
+        const revisions = await list("taskRevisions");
+        currentByTask = new Map();
+        for (const revision of revisions) {
+          if (!currentByTask.has(revision.taskId)) currentByTask.set(revision.taskId, revision);
+        }
+      }
       const rows = await list("tasks", { state: status });
+      let filtered = rows;
+      if (type !== null && type !== undefined) filtered = filtered.filter((row) => currentByTask.get(row.taskId)?.taskType === type);
+      if (tag !== null && tag !== undefined) filtered = filtered.filter((row) => (currentByTask.get(row.taskId)?.tags ?? []).includes(tag));
       const questionIds = await questionIdsForProject(projectId);
-      return questionIds === null ? rows : rows.filter((row) => questionIds.has(row.questionId));
+      return questionIds === null ? filtered : filtered.filter((row) => questionIds.has(row.questionId));
     },
     async getTask(taskId) {
       return getOne("tasks", { task_id: taskId });
