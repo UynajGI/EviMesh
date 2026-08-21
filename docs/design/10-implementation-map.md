@@ -90,3 +90,7 @@ PR #59 在 P1-P4 骨架之上按设计稿逐区块补齐视觉层：Home 变化�
 §4.2/§4.3 中四个「协议层门控」本轮通过 schema/API 扩展真正闭环（迁移 0076）：`questions.topics`（text[] ≤8、GIN 索引、DB CHECK + 领域层校验 + POST /questions 接受 + openapi 记录）驱动 Explore 主题 tab 与主题 rail（按字母序、计数仅入口）；`actors` 表新增 model_name/runtime/scope/public_key_fingerprint/owner_actor_id 五个可空自报字段，`GET /actors/:id` 返回身份卡行（含 actorType/identityStrength/displayName），agent 身份卡改渲染真值、空值如实显示 not stated；新增 `GET /actors` 目录端点（hosted 仓库扩展 actors/actor_profiles/contribution_statements/contribution_edges 四表读取，事实表跳过软删过滤），Explore 研究者 tab 以目录为准、派生计数为补充，旧部署自动回退派生视图；`/agent` Security 节接入登录会话实时拉取 /api-tokens 渲染授权行（scope、最近使用、调整 scope 入口、行内撤销），未登录保持诚实提示。附带修复：hosted 仓库此前未实现 listContributionStatements/listContributionEdges，/actors/:id 在生产会 500——本轮一并接通；无贡献 statements 但有 actor 行的作者不再 404。
 
 此前「渲染出来只能是编造数据」的判断对当时 API 成立；本轮把 API 补上后数据即为真实。写入侧：topics 随 POST /questions 与 frontier bundle prerequisites.questions 行透传；身份卡字段由 actor 所有者在 provision 时记录（hosted 通过 bundle prerequisites.actors 行携带）。
+
+### 4.5 Home 发现流改版（业主指示，2026-08-21）
+
+首页从四级变化流改为推荐式发现流（小红书/B站/头条之形、非其核）：瀑布流卡片网格（question/claim/frontier 三类卡）、话题 chip 筛选（复用 questions.topics）、游标 Load more、Needs attention 横条保留注意级语义、右侧个人栏（My work / 登录范围 / Agent 连接 / 最近访问 / 事件审计）。硬边界不变：唯一排序是时间（最新在前），计数只作入口，无热度/互动/相关性评分——home.html 变化流布局由此 supersede。

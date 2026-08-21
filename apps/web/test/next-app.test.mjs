@@ -125,34 +125,20 @@ test('manages API tokens with one-time secret display', async () => {
   assert.match(page, /Revoke/);
 });
 
-test('renders open questions on the homepage by latest available activity', async () => {
+test('home feed carries questions, claims, frontiers, and tagged newcomer tasks', async () => {
   const page = await read('../app/home/page.js');
-  assert.match(page, /\/questions\?limit=100/);
+  // Questions: closed states stay filtered, cards sorted by time.
   assert.match(page, /CLOSED_STATES/);
-  assert.match(page, /Open questions/);
-  assert.match(page, /Newest activity first/);
-});
-
-test('renders only claims awaiting verification on the homepage', async () => {
-  const page = await read('../app/home/page.js');
-  assert.match(page, /under_verification/);
-  assert.match(page, /provisionally_accepted/);
-  assert.match(page, /Claims awaiting verification/);
-});
-
-test('renders each project latest frontier on the homepage', async () => {
-  const page = await read('../app/home/page.js');
+  assert.match(page, /\/questions\?limit=/);
+  // Claims feed in at full status range (feed, not a verification queue).
+  assert.match(page, /\/claims\?limit=/);
+  // Each project's latest frontier appears as a card.
   assert.match(page, /\/projects\?limit=6/);
   assert.match(page, /frontier\/latest/);
-  assert.match(page, /Latest frontiers/);
   assert.match(page, /Frontier #/);
-});
-
-test('renders tagged newcomer tasks on the homepage', async () => {
-  const page = await read('../app/home/page.js');
+  // Tagged newcomer tasks still feed the My-work rail counts.
   assert.match(page, /\['cpu-only', 'under-60-min'\]/);
   assert.match(page, /tag=\$\{tag\}/);
-  assert.match(page, /Newcomer tasks/);
 });
 
 test('renders project details with Questions, Frontier, and Task summaries', async () => {

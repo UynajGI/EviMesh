@@ -30,18 +30,30 @@ test('landing never fakes live data or sells a score', async () => {
   assert.doesNotMatch(page, /support score|truth score|percentage of support/i);
 });
 
-test('home renders attention-tiered sections with status badges and copyable ids', async () => {
-  const [page, item] = await Promise.all([read('../app/home/page.js'), read('../components/change-item.js')]);
-  assert.match(page, /attention priority, never the truth/);
+test('home is a discovery feed: masonry cards, topic chips, newest-first, no ranking', async () => {
+  const page = await read('../app/home/page.js');
+  // Masonry card stream (owner direction: recommendation-home shape).
+  assert.match(page, /columns-1 gap-4 sm:columns-2 xl:columns-3/);
+  assert.match(page, /break-inside-avoid/);
+  // Card kinds with status badges, serif claims, topic chips.
+  assert.match(page, /kind: 'question'/);
+  assert.match(page, /kind: 'claim'/);
+  assert.match(page, /kind: 'frontier'/);
   assert.match(page, /StatusBadge/);
-  assert.match(item, /IdChip/);
-  assert.match(item, /grid-cols-\[2rem_minmax\(0,1fr\)\]/);
-  for (const section of ['Open questions', 'Claims awaiting verification', 'Latest frontiers', 'Newcomer tasks']) {
-    assert.match(page, new RegExp(section));
-  }
+  assert.match(page, /claim-statement/);
+  assert.match(page, /setTopicFilter/);
+  // Attention strip keeps its level semantics without ranking the feed.
+  assert.match(page, /Needs attention/);
+  assert.match(page, /ATTENTION_STATES/);
+  // The only ordering is time; the no-score boundary stays stated.
+  assert.match(page, /Date.parse\(right.when \?\? 0\) - Date.parse\(left.when \?\? 0\)/);
+  assert.match(page, /Newest first\. Ordering never expresses research value\./);
+  // Load-more uses real cursors.
+  assert.match(page, /nextCursor/);
+  assert.match(page, /Load more/);
   // Context rail copy stays locked (Codex review suggestion).
-  for (const rail of ['My work', 'Agent connection', 'Event audit']) {
-    assert.match(page, new RegExp(rail), `home rail missing ${rail}`);
+  for (const rail of ['My work', 'Agent connection', 'Event audit', 'Recently visited']) {
+    assert.ok(page.includes(rail), 'home rail missing ' + rail);
   }
 });
 
