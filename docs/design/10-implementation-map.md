@@ -94,3 +94,11 @@ PR #59 在 P1-P4 骨架之上按设计稿逐区块补齐视觉层：Home 变化�
 ### 4.5 Home 发现流改版（业主指示，2026-08-21）
 
 首页从四级变化流改为推荐式发现流（小红书/B站/头条之形、非其核）：瀑布流卡片网格（question/claim/frontier 三类卡）、话题 chip 筛选（复用 questions.topics）、游标 Load more、Needs attention 横条保留注意级语义、右侧个人栏（My work / 登录范围 / Agent 连接 / 最近访问 / 事件审计）。硬边界不变：唯一排序是时间（最新在前），计数只作入口，无热度/互动/相关性评分——home.html 变化流布局由此 supersede。
+### 4.6 个人导航信号 + 离线协同过滤（业主指示，2026-08-21）
+
+按业主「点赞收藏 + 协同过滤、算法必须用开源库」的方向落地全栈（业主在 JS 单机库与 Python 离线批训两条路线中拍板后者）：
+
+- **信号层**（迁移 0077）：`engagement_interactions`（actor × object × kind，kind = helpful/favorite/watch/view，唯一索引防重复）；信号是私有导航输入——任何界面永不渲染公开计数。
+- **采集**：api-edge 新增 `PUT/DELETE /interactions/:objectType/:objectId`、`GET /interactions/mine`（Supabase JWT 认证；写路径为 api-edge 转发客户端 token 调 PostgREST，RLS 按 identities 绑定钉死行归属，actors.auth_subject 部分唯一索引防身份劫持）；web 端卡片心形 Useful / Bookmark Save（aria-pressed、乐观切换）、详情页 view 信号（每会话一次）、`/saved` 个人收藏页、403 未开通时自动走 `POST /actors/self` 幂等自开通（补齐了生产此前缺失的用户→actor 绑定路径）。
+- **推荐引擎**：`packages/recommender-training/train.py` 用开源库 implicit 的 ItemItemRecommender（item-item kNN，权重 helpful 5 / favorite 4 / watch 2.5 / view 1；零分填充截断、已交互项双保险过滤、理由行取候选项自身 KNN 行），整表原子替换 `recommendation_cache`。GitHub Actions 每小时批训（`.github/workflows/recommender-training.yml`），生产运行时零 Python；api-edge `GET /recommendations` 只读本 actor 缓存行（无分数出域）。
+- **界面边界**：Home「For you」独立标注区（"From your activity · navigation, not a rating"），不参与主信息流排序（时间序不变）；RLS 同时收紧了 identities（匿名不可读）与 actors 目录（匿名只读 + 插入钉 subject）。

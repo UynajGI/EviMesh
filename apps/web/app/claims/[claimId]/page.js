@@ -13,6 +13,7 @@ import { Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
 import { IdChip } from '@/components/ui/idchip';
 import { hydrateEvidenceLinks, hydrateReceiptFindings, evidenceRelations } from '@/lib/hydrate';
 import { useVisitRecord } from '@/lib/visit-history';
+import { recordView } from '@/lib/interactions';
 import { PageContainer } from '@/components/ui/page';
 import { Check, Eye, Share2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -192,6 +193,8 @@ function ClaimDetailView({ params }) {
     label: data?.currentRevision?.statement ? `${String(data.currentRevision.statement).slice(0, 70)}${data.currentRevision.statement.length > 70 ? '…' : ''}` : null,
     kind: 'claim',
   });
+  /* Best-effort view signal for the personal recommender (once per session). */
+  useEffect(() => { if (claimId) recordView('claim', claimId); }, [claimId]);
 
   if (error) return <PageContainer><ErrorState message={error} onRetry={load} /></PageContainer>;
   if (!data) return <PageContainer><Skeleton className="h-32 w-full" /><Skeleton className="mt-6 h-96 w-full" /></PageContainer>;

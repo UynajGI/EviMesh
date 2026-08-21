@@ -1,4 +1,5 @@
-import { pgEnum, pgTable, text } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
+import { pgEnum, pgTable, text, uniqueIndex } from 'drizzle-orm/pg-core';
 import { createLifecycleColumns } from './conventions.mjs';
 
 export const actorType = pgEnum('actor_type', [
@@ -39,5 +40,12 @@ export const actors = pgTable('actors', {
    * Plain reference by id (no self-referential FK) so imports can restore
    * prerequisites in any order. */
   ownerActorId: text('owner_actor_id'),
+  /* Supabase auth subject (auth.uid()) for actors self-provisioned by a
+   * logged-in user. Pins identity bindings in RLS: a user may only attach
+   * an identity to an actor row created for their own subject. Null for
+   * protocol-imported and agent actors. */
+  authSubject: text('auth_subject'),
   ...createLifecycleColumns(),
-});
+}, (table) => [
+  uniqueIndex('actors_auth_subject_unique').on(table.authSubject).where(sql`auth_subject is not null`),
+]);
