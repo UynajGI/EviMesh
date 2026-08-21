@@ -16,7 +16,7 @@ test('login renders provider buttons from the live auth configuration', () => {
   assert.match(login, /PROVIDER_ICONS\[provider\] \?\? Globe/);
   assert.match(login, /providerButtons/);
   assert.match(login, /signInWithOAuth\(\{ provider, /);
-  assert.match(login, /No external sign-in provider is enabled yet/);
+  assert.match(login, /No external provider is enabled/);
 });
 
 test('login offers magic link, password, and account creation', () => {
@@ -30,12 +30,12 @@ test('login offers magic link, password, and account creation', () => {
   assert.match(login, /disabled=\{pending !== null\}/);
 });
 
-test('login explains privacy and separates account auth from research identity', () => {
-  assert.match(login, /Supabase Auth/);
-  assert.match(login, /never stores your password or OAuth tokens/);
-  assert.match(login, /ORCID is connected and verified from Settings via OAuth/);
-  assert.match(login, /manually typed iD is never shown as verified/);
+test('login keeps only functional copy, no policy chatter', () => {
   assert.match(login, /role="alert"/);
+  // The ORCID/identity explainer and the Supabase footer are gone.
+  assert.doesNotMatch(login, /Research identity is separate from login/);
+  assert.doesNotMatch(login, /never stores your password/);
+  assert.doesNotMatch(login, /manually typed iD/);
 });
 
 test('login stays on the M13.8 token system', () => {

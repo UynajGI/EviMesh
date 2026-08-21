@@ -12,7 +12,7 @@
  */
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { ArrowLeft, BadgeCheck, Eye, EyeOff, Fingerprint, GitFork, Globe, Mail, Network, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff, Fingerprint, GitFork, Globe, Network } from 'lucide-react';
 import { createBrowserSupabaseClient } from '@/lib/supabase-browser';
 
 /* Known providers get their icon and display name; anything else the
@@ -106,7 +106,7 @@ export default function LoginPage() {
           {providers === null ? (
             <div className="h-12 w-full animate-pulse rounded-lg border border-border bg-muted" aria-label="Loading sign-in providers" />
           ) : providerButtons.length === 0 ? (
-            <p className="rounded-lg border border-status-warning-border bg-status-warning-bg px-4 py-3 text-sm text-status-warning-fg">No external sign-in provider is enabled yet. Use email below, or enable a provider in the Supabase dashboard.</p>
+            <p className="rounded-lg border border-status-warning-border bg-status-warning-bg px-4 py-3 text-sm text-status-warning-fg">No external provider is enabled. Use email below.</p>
           ) : (
             <div className="grid gap-3">
               {providerButtons.map(({ provider, label, Icon }) => (
@@ -146,9 +146,7 @@ export default function LoginPage() {
               <label className="mb-2 block text-sm font-medium" htmlFor="email">Email</label>
               <input autoComplete="email" className="h-12 w-full rounded-lg border border-border bg-transparent px-4 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-focus" id="email" name="email" placeholder="researcher@example.org" required type="email" />
             </div>
-            {mode === 'magic' ? (
-              <p className="text-xs leading-5 text-muted-foreground"><Mail aria-hidden="true" className="mr-1 inline align-[-2px]" size={13} />We send a one-time sign-in link — no password needed.</p>
-            ) : (
+            {mode === 'magic' ? null : (
               <div>
                 <div className="mb-2 flex items-center justify-between">
                   <label className="text-sm font-medium" htmlFor="password">{mode === 'signup' ? 'Choose a password' : 'Password'}</label>
@@ -174,12 +172,6 @@ export default function LoginPage() {
               {mode === 'signup' ? 'Sign in instead' : 'Create an account →'}
             </button>
           </p>
-
-          <div className="mt-8 rounded-xl border border-border bg-muted p-4">
-            <div className="flex gap-3"><ShieldCheck aria-hidden="true" className="mt-0.5 shrink-0 text-status-success-fg" size={18} /><p className="text-xs leading-5 text-muted-foreground"><strong className="text-foreground">Research identity is separate from login.</strong> Sign-in authenticates your account; ORCID is connected and verified from Settings via OAuth — a manually typed iD is never shown as verified.</p></div>
-          </div>
-
-          <p className="mt-8 text-center text-xs leading-5 text-muted-foreground">Credentials are handled by Supabase Auth. EviMesh never stores your password or OAuth tokens.</p>
         </div>
       </section>
 
@@ -189,7 +181,7 @@ export default function LoginPage() {
           <span className="mx-auto flex size-16 items-center justify-center rounded-2xl bg-primary text-primary-foreground"><Network aria-hidden="true" size={32} /></span>
           <h2 className="mt-8 text-3xl font-bold tracking-tight">Research records you can inspect, trace, and challenge.</h2>
           <p className="mt-5 leading-7 text-muted-foreground">Move between scientific questions, claim revisions, evidence relationships, verification findings, and the current frontier without losing provenance.</p>
-          <p className="mt-6 inline-flex items-center gap-2 text-xs text-muted-foreground"><BadgeCheck aria-hidden="true" size={14} /> Agents connect separately through device authorization — <Link className="font-medium text-primary hover:underline" href="/agent">open the connection center →</Link></p>
+          <p className="mt-6 text-xs text-muted-foreground"><Link className="font-medium text-primary hover:underline" href="/agent">Connecting an agent? Open the connection center →</Link></p>
         </div>
       </aside>
     </main>

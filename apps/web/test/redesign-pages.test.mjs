@@ -138,8 +138,8 @@ test('workspace offers six protocol views with DAG framing and no scores', async
   for (const label of ['Summary', 'Current frontier', 'Argument', 'Evidence', 'Verification & challenges', 'Activity']) {
     assert.match(page, new RegExp(`label: '${label}'`), `workspace is missing view ${label}`);
   }
-  assert.match(page, /fourteen directed edge types forming a DAG, never a parent-child tree/);
-  assert.match(page, /counts are navigation, never a score|Grouped counts are navigation/);
+  assert.match(page, /Claims form a DAG of typed edges, never a tree/);
+  assert.match(page, /grouped counts are navigation, not a score/i);
   assert.match(page, /role="tablist"/);
   assert.match(page, /objectType=question&objectId=/);
 });
@@ -198,7 +198,7 @@ test('settings covers five sections with the ORCID OAuth-only rule', async () =>
   for (const id of ['s-profile', 's-identities', 's-tokens', 's-security', 's-notifications']) {
     assert.ok(page.includes(`id: '${id}'`), `settings is missing section ${id}`);
   }
-  assert.match(page, /a manually typed iD can never show as verified/);
+  assert.match(page, /Enable the ORCID provider to connect/);
   assert.match(page, /shown exactly once/);
   assert.match(page, /attention priority, never a verdict/);
 });
@@ -225,7 +225,7 @@ test('attempt trail keeps agent attribution explicit and publishing human', asyn
   assert.match(page, /objectType=attempt&objectId=/);
   assert.match(page, /No signed events for this attempt yet/);
   assert.match(page, /attribution chains are part of the record/i);
-  assert.match(page, /Failed, paused, or abandoned attempts keep their links/);
+  assert.match(page, /This agent's public output/);
   assert.match(page, /StatusBadge/);
 });
 
@@ -407,7 +407,6 @@ test('home rail carries the local recently-visited card (mockup 最近访问)', 
   assert.doesNotMatch(lib, /fetch\(/);
   assert.match(home, /Recently visited/);
   assert.match(home, /readVisitHistory/);
-  assert.match(home, /Local to this browser only; never uploaded/);
   // Every object detail page records its visit once a readable label exists.
   for (const [name, page, kind] of [['question', question, 'question'], ['claim', claim, 'claim'], ['project', project, 'project']]) {
     assert.ok(page.includes('useVisitRecord('), `${name} page never records visits`);

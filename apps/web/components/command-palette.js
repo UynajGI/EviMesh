@@ -202,7 +202,7 @@ export function CommandPalette() {
           <span><kbd className="rounded border border-border bg-background px-1 font-mono">↑↓</kbd> navigate</span>
           <span><kbd className="rounded border border-border bg-background px-1 font-mono">↵</kbd> run</span>
           <span><kbd className="rounded border border-border bg-background px-1 font-mono">Esc</kbd> close</span>
-          <span className="ml-auto">Objects come from a bounded live read; full search lives on Explore.</span>
+          <span className="ml-auto">Object search also runs on Explore.</span>
         </p>
       </DialogContent>
     </Dialog>

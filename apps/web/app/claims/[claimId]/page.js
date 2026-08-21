@@ -357,7 +357,7 @@ function ClaimDetailView({ params }) {
                 </div>
               </div>
             </div>
-            <p className="mb-3 text-sm text-muted-foreground">{direction === 'upstream' ? 'Upstream: what this claim depends on.' : 'Downstream: what depends on this claim.'} The claim graph is a DAG of typed edges, never a tree.</p>
+            <p className="mb-3 text-sm text-muted-foreground">{direction === 'upstream' ? 'Upstream: what this claim depends on.' : 'Downstream: what depends on this claim.'}</p>
             {graphView === 'graph' ? <ClaimDag elements={dagElements} /> : (
               <div>
                 {graphEntries.length === 0 ? (
@@ -386,7 +386,7 @@ function ClaimDetailView({ params }) {
             <Card>
               <CardContent>
                 <p className="font-mono text-sm tabular-nums">Revision {currentRevision.revision} (current)</p>
-                <p className="mt-2 text-sm text-muted-foreground">Revisions are immutable and append-only; nothing is ever edited in place.</p>
+                <p className="mt-2 text-sm text-muted-foreground">Immutable and append-only.</p>
                 {revisionList && revisionList.length > 0 ? (
                   <ol className="mt-3 divide-y divide-border rounded-lg border border-border">
                     {revisionList.map((row) => (
@@ -399,7 +399,7 @@ function ClaimDetailView({ params }) {
                     ))}
                   </ol>
                 ) : null}
-                {currentRevision.revision > 8 ? <p className="mt-2 text-xs text-muted-foreground">Showing the newest 8 of {currentRevision.revision} revisions; older ones stay addressable by revision number.</p> : null}
+                {currentRevision.revision > 8 ? <p className="mt-2 text-xs text-muted-foreground">Newest 8 of {currentRevision.revision} revisions.</p> : null}
                 <div className="mt-3 flex flex-wrap gap-3">
                   <Link className="text-sm font-medium text-primary hover:underline" href={`/claims/${claim.claimId}/diff`}>Compare any two revisions field by field →</Link>
                 </div>
@@ -421,7 +421,6 @@ function ClaimDetailView({ params }) {
               the rail stay entry points; the rows live here. */}
           <section aria-labelledby="evidence-heading">
             <h2 className="mb-1 text-lg font-semibold" id="evidence-heading">Evidence by relation</h2>
-            <p className="mb-3 max-w-2xl text-sm text-muted-foreground">Each group is a navigation entry point, never a score. Evidence links target exact claim revisions.</p>
             {evidence.length === 0 ? (
               <Empty title="No evidence linked yet" description="Evidence linked to this claim will appear here grouped by its relation to the claim." />
             ) : (
@@ -461,7 +460,6 @@ function ClaimDetailView({ params }) {
               finding severity rows; receipts never collapse into a score. */}
           <section aria-labelledby="receipts-heading">
             <h2 className="mb-1 text-lg font-semibold" id="receipts-heading">Verification receipts</h2>
-            <p className="mb-3 max-w-2xl text-sm text-muted-foreground">Every receipt records its outcome, verification types, context mode, and findings as fields.</p>
             {receipts.length === 0 ? (
               <Empty title="No receipts yet" description="Verification receipts for this claim will appear here as verifiers submit them." />
             ) : (
@@ -579,9 +577,9 @@ function ClaimDetailView({ params }) {
                 <p className="mt-1 text-xs tabular-nums text-muted-foreground">
                   Latest receipt: {receipts.length > 0 ? latestStamp(receipts.map((item) => item.createdAt)) : 'none yet'}
                 </p>
-                <p className="mt-2 text-xs text-muted-foreground">Challenges track on the claim record; an open-challenge listing needs a public challenges API.</p>
+                <p className="mt-2 text-xs text-muted-foreground">Challenges track on the claim record.</p>
               </div>
-              <p className="text-xs text-muted-foreground">Counts are entry points, never scores. Every number opens onto the exact revision, receipt, or event behind it.</p>
+              <p className="text-xs text-muted-foreground">Counts are entry points, never scores.</p>
             </CardContent>
           </Card>
         </aside>
