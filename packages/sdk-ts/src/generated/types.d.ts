@@ -49,7 +49,7 @@ export type CreateApiTokenRequest = { scopes?: string[]; expiresAt?: string | nu
 
 export type CreateProjectRequest = { projectId: string; name: string; summary: string; license: string; maintainerIds?: string[]; };
 
-export type CreateQuestionRequest = { questionId: string; projectId: string; title: string; statement: string; researchContract?: Record<string, unknown> | null; };
+export type CreateQuestionRequest = { questionId: string; projectId: string; title: string; statement: string; researchContract?: Record<string, unknown> | null; topics?: string[]; };
 
 export type CreateTaskRequest = { taskId: string; questionId?: string | null; title: string; description: string; inputs?: Record<string, unknown>[]; outputs: Record<string, unknown> | unknown[]; acceptance: Record<string, unknown> | unknown[]; contextMode: "frontier" | "full_trace" | "adversarial" | "blind"; };
 
@@ -78,6 +78,12 @@ export type PrepareVerificationRequest = { claimId: string; claimRevision: numbe
 export type SubmitVerificationRequest = { receiptId: string; runId: string; claimId: string; claimRevision: number; contractId: string; contractRevision: number; outcome: "supports" | "refutes" | "qualifies" | "inconclusive"; verificationTypes: string[]; contextMode: "frontier" | "full_trace" | "adversarial" | "blind"; sawExpectedOutputs: boolean; implementationRelation: string; dataRelation: string; modelFamily: string; contributionStatementId: string; findings?: { findingId: string; severity: "critical" | "major" | "warning" | "note"; code: string; details?: Record<string, unknown>; }[]; signatureEnvelope?: ClientSignatureEnvelope; };
 
 export type CreateChallengeRequest = { challengeId: string; targetClaimId: string; targetClaimRevision: number; reason: string; impact: Record<string, unknown> | unknown[]; proposedResolution?: string | null; signatureEnvelope?: ClientSignatureEnvelope; };
+
+export type ActorDirectoryResponse = { items: ActorIdentityCard[]; };
+
+export type ActorIdentityCard = { actorId: string; actorType?: "human" | "agent" | "organization" | "service" | "maintainer" | "witness"; identityStrength?: "verified" | "observed" | "self_declared" | "unknown"; displayName?: string; bio?: string; avatarUrl?: string; modelName?: string; runtime?: string; scope?: string; publicKeyFingerprint?: string; ownerActorId?: string; createdAt?: string; };
+
+export type InteractionRecord = { objectType: "question" | "claim" | "task" | "project"; objectId: string; kind: "helpful" | "favorite" | "watch" | "view"; createdAt?: string; };
 
 export interface EviMeshOperations {
   /** GET /health */
@@ -200,6 +206,8 @@ export interface EviMeshOperations {
   getChallenge: { method: "GET"; path: "/challenges/{challengeId}" };
   /** POST /challenges/{challengeId}/transitions (bearer auth) */
   transitionChallenge: { method: "POST"; path: "/challenges/{challengeId}/transitions" };
+  /** GET /actors */
+  listActors: { method: "GET"; path: "/actors" };
   /** GET /actors/{actorId} */
   getActorContribution: { method: "GET"; path: "/actors/{actorId}" };
   /** GET /events */
@@ -214,6 +222,16 @@ export interface EviMeshOperations {
   getMergeProposal: { method: "GET"; path: "/merge-proposals/{proposalId}" };
   /** GET /provenance/{objectType}/{objectId} */
   getObjectProvenance: { method: "GET"; path: "/provenance/{objectType}/{objectId}" };
+  /** POST /actors/self (bearer auth) */
+  provisionSelfActor: { method: "POST"; path: "/actors/self" };
+  /** PUT /interactions/{objectType}/{objectId} (bearer auth) */
+  recordInteraction: { method: "PUT"; path: "/interactions/{objectType}/{objectId}" };
+  /** DELETE /interactions/{objectType}/{objectId} (bearer auth) */
+  removeInteraction: { method: "DELETE"; path: "/interactions/{objectType}/{objectId}" };
+  /** GET /interactions/mine (bearer auth) */
+  listMyInteractions: { method: "GET"; path: "/interactions/mine" };
+  /** GET /recommendations (bearer auth) */
+  getMyRecommendations: { method: "GET"; path: "/recommendations" };
 }
 
 export type EviMeshOperationId = keyof EviMeshOperations;

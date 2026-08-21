@@ -21,6 +21,8 @@ jobs:
           cache-dependency-path: packages/recommender-training/requirements.txt
       - name: Install trainer dependencies
         run: pip install -r packages/recommender-training/requirements.txt
+      - name: Trainer selftest
+        run: python packages/recommender-training/selftest.py
       - name: Train item-item collaborative filtering
         run: python packages/recommender-training/train.py
         env:

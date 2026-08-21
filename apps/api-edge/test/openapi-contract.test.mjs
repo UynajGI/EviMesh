@@ -12,6 +12,7 @@ test("publishes the current API route contract", () => {
   assert.equal(document.info.version, "0.3.0");
   assert.deepEqual(Object.keys(document.paths).sort(), [
     "/actors",
+    "/actors/self",
     "/actors/{actorId}",
     "/api-tokens",
     "/api-tokens/{tokenId}",
@@ -44,6 +45,8 @@ test("publishes the current API route contract", () => {
     "/evidence/{evidenceId}",
     "/evidence/{evidenceId}/links",
     "/health",
+    "/interactions/mine",
+    "/interactions/{objectType}/{objectId}",
     "/merge-proposals/{proposalId}",
     "/platform/keys",
     "/profile",
@@ -57,6 +60,7 @@ test("publishes the current API route contract", () => {
     "/questions",
     "/questions/{questionId}",
     "/questions/{questionId}/transitions",
+    "/recommendations",
     "/runs",
     "/runs/{runId}",
     "/signing-keys",
