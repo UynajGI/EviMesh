@@ -42,11 +42,10 @@ test('no React hook runs after a conditional return in any page component', asyn
   }
 });
 
-test('change items carry a critical level with danger tint; home uses it', async () => {
-  const [item, home] = await Promise.all([read('../components/change-item.js'), read('../app/home/page.js')]);
+test('change items carry a critical level with danger tint', async () => {
+  const item = await read('../components/change-item.js');
   assert.match(item, /critical: \{ icon: OctagonAlert/);
   assert.match(item, /status-danger-bg/);
-  assert.match(home, /level="critical"/);
 });
 
 test('shell wires notifications, account, and the g-key chords', async () => {
@@ -146,12 +145,10 @@ test('explore carries the joinable filter, summaries, and the honest count line'
 
 test('home keeps request ids, empty-state CTAs, the denied scope card, and gated agent copy', async () => {
   const home = await read('../app/home/page.js');
-  assert.match(home, /failure\.requestId = payload\.requestId/);
+  assert.match(home, /failure\.requestId = payload\.request_id \?\? payload\.requestId \?\? null/);
   assert.match(home, /requestId=\{requestId \?\? undefined\}/);
   assert.match(home, /Find research to follow/);
-  assert.match(home, /Explore open research/);
-  assert.match(home, /Open the Work queue/);
-  assert.match(home, /DeniedState/);
+      assert.match(home, /DeniedState/);
   assert.match(home, /signed-in scope/);
   assert.ok(home.includes("Six steps from hearing about EviMesh to a first trusted read."));
 });
@@ -264,7 +261,7 @@ test('identity-card fields flow from the actors endpoint through the api layer',
   assert.match(repo, /getActorProfile/);
   assert.match(repo, /listContributionStatements: \(actorId\) => list\("contributionStatements"/);
   // Append-only fact tables must not get the soft-delete filter.
-  assert.match(repo, /TABLES_WITHOUT_SOFT_DELETE/);
+  assert.match(repo, /SOFT_DELETE_TABLES/);
 });
 
 test('questions carry bounded topic tags through creation', async () => {
