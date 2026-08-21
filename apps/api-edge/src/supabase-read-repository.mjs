@@ -2,6 +2,9 @@ const TABLES = Object.freeze({
   actors: "actors",
   actorProfiles: "actor_profiles",
   apiTokens: "api_tokens",
+  engagementInteractions: "engagement_interactions",
+  identities: "identities",
+  recommendationCache: "recommendation_cache",
   artifactLocations: "artifact_locations",
   artifactRevisions: "artifact_revisions",
   artifacts: "artifacts",
@@ -68,6 +71,9 @@ const TABLE_ORDERS = Object.freeze({
   actors: "created_at.desc,actor_id.desc",
   actorProfiles: "actor_id.asc",
   apiTokens: "created_at.desc,token_id.desc",
+  engagementInteractions: "created_at.desc,interaction_id.desc",
+  identities: "created_at.desc,identity_id.desc",
+  recommendationCache: "rank.asc,object_type.asc,object_id.asc",
   artifactLocations: "created_at.asc,location_id.asc",
   artifactRevisions: "revision.desc,artifact_id.desc",
   artifacts: "created_at.desc,artifact_id.desc",
@@ -115,7 +121,15 @@ function filterValue(value) {
 
 /* Only mutable-projection tables carry lifecycle columns; the soft-delete
  * filter must not be applied to revision, event, or junction fact tables. */
-const SOFT_DELETE_TABLES = new Set(["actors", "actorProfiles", "artifacts", "attempts", "challenges", "claims", "projects", "questions"]);
+const SOFT_DELETE_TABLES = new Set(["actors", "actorProfiles", "artifacts", "attempts", "challenges", "claims", "identities", "projects", "questions"]);
+
+/* Interaction target tables: id columns differ per object type. */
+const INTERACTION_TARGET_SPECS = Object.freeze({
+  question: { table: "questions", idColumn: "question_id" },
+  claim: { table: "claims", idColumn: "claim_id" },
+  task: { table: "tasks", idColumn: "task_id" },
+  project: { table: "projects", idColumn: "project_id" },
+});
 
 export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = fetch } = {}) {
   const baseUrl = requiredString(url, "Supabase URL").replace(/\/$/, "");
@@ -174,6 +188,33 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
     throw new SupabaseReadRepositoryError(`${name} filtering is not available in the hosted discovery read model`, "SUPABASE_READ_FILTER_UNSUPPORTED", 400);
   }
 
+  /** PostgREST call forwarding the caller's Supabase JWT: row ownership is
+   *  pinned by RLS policies seeing the authenticated role, not by this code. */
+  async function authedRequest(table, { accessToken, method = "GET", body = null, params = {}, prefer = null } = {}) {
+    const endpoint = new URL(`${baseUrl}/rest/v1/${TABLES[table]}`);
+    for (const [key, value] of Object.entries(params)) endpoint.searchParams.set(key, String(value));
+    const headers = { accept: "application/json", apikey: apiKey, authorization: `Bearer ${requiredString(accessToken, "Supabase access token")}` };
+    if (body !== null) headers["content-type"] = "application/json";
+    if (prefer) headers.prefer = prefer;
+    let response;
+    try {
+      response = await fetchImpl(endpoint, { method, headers, body: body === null ? undefined : JSON.stringify(body) });
+    } catch {
+      throw new SupabaseReadRepositoryError("Supabase Data API request failed");
+    }
+    const text = await response.text();
+    let payload = null;
+    if (text) {
+      try { payload = JSON.parse(text); } catch { payload = null; }
+    }
+    return { ok: response.ok, status: response.status, payload };
+  }
+
+  function authedFailure(result, code) {
+    const detail = result.payload ? ` (${JSON.stringify(result.payload).slice(0, 256)})` : "";
+    return new SupabaseReadRepositoryError(`Supabase Data API request failed with ${result.status}${detail}`, code, 502);
+  }
+
   async function claimGraph({ claimId, maxDepth, direction }) {
     const [relations, claims] = await Promise.all([
       list("claimRelations", { relation_type: "depends_on" }),
@@ -229,6 +270,78 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
     listContributionStatementsByIds: (statementIds) => list("contributionStatements", { statement_id: statementIds }),
     listContributionEdgesForObject: ({ objectType, objectId, objectRevision = null }) =>
       list("contributionEdges", { object_type: objectType, object_id: objectId, ...(objectRevision !== null && objectRevision !== undefined ? { object_revision: objectRevision } : {}) }),
+
+    /* ---- engagement signals + recommendations (client-token writes) ---- */
+    async findIdentity(provider, subject, { accessToken = null } = {}) {
+      const rows = accessToken
+        ? (await authedRequest("identities", { accessToken, params: { select: "*", provider: `eq.${provider}`, subject: `eq.${subject}`, deleted_at: "is.null", limit: "1" } })).payload
+        : await query("identities", { filters: { provider, subject }, limit: 1 });
+      const row = Array.isArray(rows) ? rows[0] ?? null : null;
+      return row ? mapRow(row) : null;
+    },
+    async getInteractionTarget(objectType, objectId) {
+      const spec = INTERACTION_TARGET_SPECS[objectType];
+      if (!spec) return null;
+      return getOne(spec.table, { [spec.idColumn]: objectId });
+    },
+    async provisionSelfActor({ accessToken, subject, email = null } = {}) {
+      const existing = await this.findIdentity("supabase", subject, { accessToken });
+      if (existing) {
+        return { actor: await getOne("actors", { actor_id: existing.actorId }), created: false };
+      }
+      const newActorId = `actor_${crypto.randomUUID()}`;
+      const actorInsert = await authedRequest("actors", {
+        accessToken, method: "POST", prefer: "return=representation",
+        body: [{ actor_id: newActorId, actor_type: "human", identity_strength: "self_declared", auth_subject: subject }],
+      });
+      if (!actorInsert.ok) {
+        const raced = await this.findIdentity("supabase", subject, { accessToken });
+        if (raced) return { actor: await getOne("actors", { actor_id: raced.actorId }), created: false };
+        throw authedFailure(actorInsert, "SUPABASE_READ_PROVISION_FAILED");
+      }
+      const identityInsert = await authedRequest("identities", {
+        accessToken, method: "POST", prefer: "return=representation",
+        body: [{ actor_id: newActorId, provider: "supabase", subject, ...(email ? { email } : {}) }],
+      });
+      if (!identityInsert.ok) {
+        const raced = await this.findIdentity("supabase", subject, { accessToken });
+        if (raced) return { actor: await getOne("actors", { actor_id: raced.actorId }), created: false };
+        throw authedFailure(identityInsert, "SUPABASE_READ_PROVISION_FAILED");
+      }
+      const actor = Array.isArray(actorInsert.payload) && actorInsert.payload[0] ? mapRow(actorInsert.payload[0]) : await getOne("actors", { actor_id: newActorId });
+      return { actor, created: true };
+    },
+    async recordInteraction({ accessToken, actorId, objectType, objectId, kind } = {}) {
+      const result = await authedRequest("engagementInteractions", {
+        accessToken, method: "POST", prefer: "resolution=ignore-duplicates",
+        body: [{ interaction_id: `itx_${crypto.randomUUID()}`, actor_id: actorId, object_type: objectType, object_id: objectId, kind }],
+      });
+      if (!result.ok) throw authedFailure(result, "SUPABASE_READ_ENGAGEMENT_WRITE_FAILED");
+      return { recorded: true };
+    },
+    async removeInteraction({ accessToken, actorId, objectType, objectId, kind } = {}) {
+      const result = await authedRequest("engagementInteractions", {
+        accessToken, method: "DELETE",
+        params: { actor_id: `eq.${actorId}`, object_type: `eq.${objectType}`, object_id: `eq.${objectId}`, kind: `eq.${kind}` },
+      });
+      if (!result.ok) throw authedFailure(result, "SUPABASE_READ_ENGAGEMENT_WRITE_FAILED");
+      return { removed: true };
+    },
+    async listInteractionsForActor({ accessToken, actorId, kinds = null } = {}) {
+      const params = { select: "*", actor_id: `eq.${actorId}`, order: "created_at.desc,interaction_id.desc", limit: "500" };
+      if (kinds) params.kind = `in.(${kinds.join(",")})`;
+      const result = await authedRequest("engagementInteractions", { accessToken, params });
+      if (!result.ok) throw authedFailure(result, "SUPABASE_READ_ENGAGEMENT_READ_FAILED");
+      return Array.isArray(result.payload) ? result.payload.map(mapRow) : [];
+    },
+    async listRecommendationsForActor({ accessToken, actorId, limit = 12 } = {}) {
+      const result = await authedRequest("recommendationCache", {
+        accessToken,
+        params: { select: "*", actor_id: `eq.${actorId}`, order: "rank.asc", limit: String(Math.min(Math.max(limit, 1), 24)) },
+      });
+      if (!result.ok) throw authedFailure(result, "SUPABASE_READ_ENGAGEMENT_READ_FAILED");
+      return Array.isArray(result.payload) ? result.payload.map(mapRow) : [];
+    },
 
     /* ---- project / question / task / claim lists and details ---- */
     listProjects: ({ state = null } = {}) => list("projects", { state }),

@@ -2,11 +2,13 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { Activity, Bot, Clock, Compass, ListTodo } from 'lucide-react';
+import { Activity, Bot, Clock, Compass, ListTodo, Sparkles } from 'lucide-react';
 import { DeniedState, Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
 import { StatusBadge } from '@/components/ui/data';
 import { IdChip } from '@/components/ui/idchip';
 import { PageContainer, PageHeader } from '@/components/ui/page';
+import { EngagementActions } from '@/components/engagement-actions';
+import { fetchRecommendations, useMyInteractions } from '@/lib/interactions';
 import { readVisitHistory } from '@/lib/visit-history';
 import { cn } from '@/lib/utils';
 
@@ -61,6 +63,31 @@ export default function HomePage() {
   const [error, setError] = useState(null);
   const [requestId, setRequestId] = useState(null);
   const [visits, setVisits] = useState([]);
+  const [recommendations, setRecommendations] = useState(null);
+  const { has, toggle } = useMyInteractions();
+
+  /* Personal rail: loads after the feed and only exists for signed-in
+   * viewers with trained signal. It never reorders the feed itself. */
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const payload = await fetchRecommendations(12);
+        if (cancelled || !Array.isArray(payload.items) || payload.items.length === 0) return;
+        const heads = await Promise.all(payload.items.map(async (item) => {
+          if (item.objectType === 'question') {
+            try { const detail = await getJson(`/questions/${item.objectId}`); return detail.currentRevision?.title ?? null; } catch { return null; }
+          }
+          if (item.objectType === 'claim') {
+            try { const detail = await getJson(`/claims/${item.objectId}`); const statement = detail.currentRevision?.statement; return statement ? `${statement.slice(0, 90)}${statement.length > 90 ? '…' : ''}` : null; } catch { return null; }
+          }
+          return null;
+        }));
+        if (!cancelled) setRecommendations(payload.items.map((item, position) => ({ ...item, title: heads[position] })));
+      } catch { /* signed out or not trained yet: the rail simply stays away */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     setVisits(readVisitHistory());
@@ -206,6 +233,28 @@ export default function HomePage() {
             </section>
           ) : null}
 
+          {recommendations?.length ? (
+            <section aria-label="For you" className="mb-6">
+              <div className="mb-2 flex items-baseline justify-between gap-2">
+                <h2 className="flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide"><Sparkles aria-hidden="true" size={14} /> For you</h2>
+                <p className="text-[11px] text-muted-foreground">From your activity · navigation, not a rating</p>
+              </div>
+              <div className="flex gap-3 overflow-x-auto pb-1">
+                {recommendations.map((item) => (
+                  <Link
+                    className="min-w-64 shrink-0 rounded-lg border border-primary bg-card px-4 py-3 transition-colors hover:bg-muted"
+                    href={item.objectType === 'question' ? `/questions/${item.objectId}` : item.objectType === 'claim' ? `/claims/${item.objectId}` : `/tasks/${item.objectId}`}
+                    key={`${item.objectType}-${item.objectId}`}
+                  >
+                    <span className="text-[10px] font-medium uppercase tracking-wide text-primary">{item.objectType}</span>
+                    <p className="mt-1 line-clamp-2 text-sm font-medium">{item.title ?? item.objectId}</p>
+                    {item.reason ? <p className="mt-1 line-clamp-1 text-[11px] text-muted-foreground">{item.reason}</p> : null}
+                  </Link>
+                ))}
+              </div>
+            </section>
+          ) : null}
+
           {topics.length > 0 ? (
             <div className="mb-5 flex flex-wrap items-center gap-2" aria-label="Topics">
               <button
@@ -269,6 +318,7 @@ export default function HomePage() {
                     )}
                     <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-2.5">
                       <IdChip label={card.kind === 'frontier' ? 'snapshot' : card.kind} value={card.id} />
+                      {card.kind !== 'frontier' ? <EngagementActions compact has={has} objectId={card.id} objectType={card.kind} onToggle={toggle} /> : null}
                       <Link className="ml-auto text-xs font-medium text-primary hover:underline" href={hrefFor(card)}>open</Link>
                     </div>
                   </article>
@@ -307,6 +357,7 @@ export default function HomePage() {
               ))}
             </ul>
             <Link className="mt-3 inline-block text-xs font-medium text-primary hover:underline" href="/work">Go to Work →</Link>
+            <Link className="mt-1.5 inline-block text-xs font-medium text-primary hover:underline" href="/saved">Saved for later →</Link>
           </div>
 
           {/* States matrix (08 §1): the signed-out surface names its scope

@@ -7,6 +7,7 @@ import { RequestValidationError } from "./validation.mjs";
 import { getPlatformPublicKeys, PlatformPublicKeysError } from './platform-public-keys.mjs';
 import { getOwnProfile, patchOwnProfile } from './profile-api.mjs';
 import { ActorIdentityError, resolveActorForSupabaseClaims } from './actor-identity.mjs';
+import { recordInteraction, removeInteraction, listMyInteractions, getMyRecommendations, provisionSelfActor } from './interaction-query.mjs';
 import { ActorProfileError } from '../../../packages/domain/src/actor-profile.mjs';
 import { ProjectAuthorizationError } from '../../../packages/domain/src/project-authorization.mjs';
 import { registerOwnSigningKey } from './signing-key-api.mjs';
@@ -559,6 +560,61 @@ app.patch('/profile', async (context) => {
     if (status) return context.json(errorBody(error.code ?? 'profile_unavailable', error.message, context.get('requestId')), status);
     throw error;
   }
+});
+
+/* Engagement signals + personal recommendations (owner direction 2026-08-21).
+ * Writes forward the caller's Supabase JWT to PostgREST; RLS pins rows to
+ * the authenticated identity. Signal kinds stay private navigation input —
+ * responses never include aggregate counts or scores. */
+function bearerTokenOf(request) {
+  const match = /^Bearer\s+(.+)$/i.exec(request.headers.get('authorization') ?? '');
+  return match ? match[1] : null;
+}
+
+async function authedActorFor(context) {
+  const accessToken = bearerTokenOf(context.req.raw);
+  const claims = await authenticateRequest(context.req.raw, context.env);
+  const actorId = await resolveActorForSupabaseClaims({ repository, claims, ...(accessToken ? { accessToken } : {}) });
+  return { actorId, accessToken };
+}
+
+app.post('/actors/self', async (context) => {
+  try {
+    const claims = await authenticateRequest(context.req.raw, context.env);
+    return context.json(await provisionSelfActor({ repository, claims, accessToken: bearerTokenOf(context.req.raw) }), 201);
+  } catch (error) { const response = knownFailure(error, context); if (response) return response; throw error; }
+});
+
+app.put('/interactions/:objectType/:objectId', async (context) => {
+  try {
+    const { actorId, accessToken } = await authedActorFor(context);
+    const { kind } = await context.req.json();
+    return context.json(await recordInteraction({ repository, accessToken, actorId, objectType: context.req.param('objectType'), objectId: context.req.param('objectId'), kind }));
+  } catch (error) { const response = knownFailure(error, context); if (response) return response; throw error; }
+});
+
+app.delete('/interactions/:objectType/:objectId', async (context) => {
+  try {
+    const { actorId, accessToken } = await authedActorFor(context);
+    const kind = context.req.query('kind') ?? 'helpful';
+    return context.json(await removeInteraction({ repository, accessToken, actorId, objectType: context.req.param('objectType'), objectId: context.req.param('objectId'), kind }));
+  } catch (error) { const response = knownFailure(error, context); if (response) return response; throw error; }
+});
+
+app.get('/interactions/mine', async (context) => {
+  try {
+    const { actorId, accessToken } = await authedActorFor(context);
+    const kinds = context.req.query('kind') ? context.req.query('kind').split(',').map((entry) => entry.trim()).filter(Boolean) : null;
+    return context.json({ interactions: await listMyInteractions({ repository, accessToken, actorId, kinds }) });
+  } catch (error) { const response = knownFailure(error, context); if (response) return response; throw error; }
+});
+
+app.get('/recommendations', async (context) => {
+  try {
+    const { actorId, accessToken } = await authedActorFor(context);
+    const limit = Number.parseInt(context.req.query('limit') ?? '12', 10);
+    return context.json(await getMyRecommendations({ repository, accessToken, actorId, limit: Number.isInteger(limit) ? limit : 12 }));
+  } catch (error) { const response = knownFailure(error, context); if (response) return response; throw error; }
 });
 
 app.post('/signing-keys', async (context) => {

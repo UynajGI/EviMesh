@@ -2,6 +2,8 @@ import { actors } from './actors.mjs';
 import { actorProfiles } from './actor-profiles.mjs';
 import { apiTokens } from './api-tokens.mjs';
 import { identities } from './identities.mjs';
+import { engagementInteractions } from './engagement-interactions.mjs';
+import { recommendationCache } from './recommendation-cache.mjs';
 import { organizations } from './organizations.mjs';
 import { organizationMembers } from './organization-members.mjs';
 import { projects } from './projects.mjs';
@@ -58,6 +60,9 @@ export { actorProfiles } from './actor-profiles.mjs';
 export { apiTokens } from './api-tokens.mjs';
 export { actors, actorType, identityStrength } from './actors.mjs';
 export { identities } from './identities.mjs';
+export { engagementInteractions } from './engagement-interactions.mjs';
+export { interactionKind } from './engagement-interactions.mjs';
+export { recommendationCache } from './recommendation-cache.mjs';
 export { organizations } from './organizations.mjs';
 export { organizationMembers } from './organization-members.mjs';
 export { projectState, projects } from './projects.mjs';
@@ -113,6 +118,8 @@ export const schema = {
   actors,
   actorProfiles,
   identities,
+  engagementInteractions,
+  recommendationCache,
   signingKeys,
   signatureNonces,
   apiTokens,

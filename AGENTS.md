@@ -24,7 +24,12 @@ registry mirrors. Use the direct `node` commands above.
 
 - **No scores.** Never render evidence counts as percentages, progress bars,
   truth/support scores, likes, or rankings. Counts are navigation entry
-  points only (design book `docs/design/02-color-language.md`).
+  points only (design book `docs/design/02-color-language.md`). One narrow
+  carve-out (2026-08): personal navigation signals — private "helpful" marks
+  and saves (`engagement_interactions`) — never render public counts
+  anywhere, and the offline collaborative filter
+  (`packages/recommender-training/`) feeds only a separately labeled
+  "For you" rail that never reorders the chronological feed.
 - **The Claim graph is a DAG** of 14 typed directed edges, never a
   parent-child tree; graph views must ship a keyboard-reachable list view.
   The graph uses d3-dag Sugiyama layout + React Flow (design book 00 §5.3);

@@ -4,6 +4,8 @@ export { apiTokens } from './api-tokens.mjs';
 export { actorProfiles } from './actor-profiles.mjs';
 export { actorType, actors, identityStrength } from './actors.mjs';
 export { identities } from './identities.mjs';
+export { engagementInteractions, interactionKind } from './engagement-interactions.mjs';
+export { recommendationCache } from './recommendation-cache.mjs';
 export { organizations } from './organizations.mjs';
 export { organizationMembers } from './organization-members.mjs';
 export { projectState, projects } from './projects.mjs';

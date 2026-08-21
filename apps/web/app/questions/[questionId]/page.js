@@ -11,6 +11,7 @@ import { IdChip } from '@/components/ui/idchip';
 import { hydrateEvidenceLinks, hydrateReceiptFindings, evidenceRelations } from '@/lib/hydrate';
 import { PageContainer, PageHeader } from '@/components/ui/page';
 import { useVisitRecord } from '@/lib/visit-history';
+import { recordView } from '@/lib/interactions';
 import { cn } from '@/lib/utils';
 
 const API = process.env.NEXT_PUBLIC_EVIMESH_API_URL;
@@ -136,6 +137,8 @@ export default function QuestionDetailPage({ params }) {
 
   /* Local recently-visited rail on Home records this page once its title is known. */
   useVisitRecord({ href: questionId ? `/questions/${questionId}` : null, label: data?.currentRevision?.title ?? null, kind: 'question' });
+  /* Best-effort view signal for the personal recommender (once per session). */
+  useEffect(() => { if (questionId) recordView('question', questionId); }, [questionId]);
 
   /* Evidence and receipts load lazily, once, on their first tab view.
    * They cover every claim of this question (up to the list ceiling of 100). */
