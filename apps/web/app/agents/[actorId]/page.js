@@ -58,24 +58,23 @@ export default function AgentActivityPage({ params }) {
         const eventPayload = await request(`/events?actorId=${encodeURIComponent(actorId)}&limit=50`);
         setEvents(Array.isArray(eventPayload.items) ? eventPayload.items : []);
       } catch (reason) {
-        setEventError(reason.message);
+        setEventError(reason);
       }
     } catch (reason) {
-      setError(reason.message);
+      setError(reason);
     }
   }
 
   useEffect(() => { load(); }, [actorId]);
 
-  if (error) return <PageContainer><ErrorState message={error} onRetry={load} requestId={error.requestId ?? undefined} /></PageContainer>;
+  if (error) return <PageContainer><ErrorState message={error.message} onRetry={load} requestId={error.requestId ?? undefined} /></PageContainer>;
   if (!data) return <PageContainer><Skeleton className="h-28 w-full" /><Skeleton className="mt-6 h-96 w-full" /></PageContainer>;
 
   const actor = data.actor ?? data;
   const produced = Array.isArray(data.produced) ? data.produced : [];
   const used = Array.isArray(data.used) ? data.used : [];
   const outputs = [...produced, ...used].slice(0, 20);
-  const pendingReview = events.filter((event) => /draft|review|approval|await/i.test(event.eventType ?? event.type ?? ''));
-  const lastEvent = events[0]?.createdAt ?? actor.updatedAt ?? null;
+  const lastEvent = data.lastEventAt ?? events.at(-1)?.createdAt ?? actor.updatedAt ?? null;
   const owner = actor.ownerActorId;
 
   return (
@@ -83,7 +82,7 @@ export default function AgentActivityPage({ params }) {
       <nav aria-label="Breadcrumb" className="mb-4 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
         <Link className="hover:text-foreground" href="/explore">Explore</Link>
         <span aria-hidden="true">/</span>
-        <Link className="hover:text-foreground" href="/people">People</Link>
+        <span>Agents</span>
         <span aria-hidden="true">/</span>
         <span aria-current="page" className="tabular-nums">{display(actor.actorId, actorId)}</span>
       </nav>
@@ -110,7 +109,7 @@ export default function AgentActivityPage({ params }) {
             </div>
             <CardContent>
               <div className="flex items-center gap-2"><Clock3 aria-hidden="true" className="text-muted-foreground" size={16} /><h2 className="text-sm font-semibold">Attempt trail</h2></div>
-              {eventError ? <Alert className="mt-4" description={eventError} title="Activity events are temporarily unavailable" variant="warning" /> : null}
+              {eventError ? <Alert className="mt-4" description={`${eventError.message}${eventError.requestId ? ` · request ${eventError.requestId}` : ''}`} title="Activity events are temporarily unavailable" variant="warning" /> : null}
               {events.length === 0 && !eventError ? (
                 <Empty className="mt-4" action={<Link className="rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground" href="/agent">Open agent center</Link>} description="Formal ResearchEvents for this agent will appear here when the protocol records them. Local planning is not silently presented as network activity." title="No formal events yet" />
               ) : (
@@ -137,7 +136,7 @@ export default function AgentActivityPage({ params }) {
 
           <section aria-labelledby="review-heading" className="mt-8">
             <h2 className="mb-3 text-xl font-semibold tracking-tight" id="review-heading">Human-in-the-loop boundary</h2>
-            {pendingReview.length === 0 ? <Alert description="Agents can draft and prepare work; publication remains a human signing decision. No pending review event is exposed for this actor." title="No pending human checkpoint reported" variant="info" /> : <ul className="divide-y divide-border rounded-lg border border-status-warning-border bg-status-warning-bg">{pendingReview.map((event) => <li className="px-5 py-3 text-sm" key={event.eventId}>{event.eventType} · {event.eventId} · waiting for human confirmation</li>)}</ul>}
+            <Alert description="Agents can draft and prepare work; publication remains a human signing decision. The current public event API does not expose unresolved checkpoint state, so this page does not infer pending approval from historical event names." title="Checkpoint state not exposed" variant="info" />
           </section>
         </div>
 

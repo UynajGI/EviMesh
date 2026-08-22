@@ -5004,6 +5004,11 @@
             "type": "string",
             "format": "date-time",
             "nullable": true
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
           }
         }
       },

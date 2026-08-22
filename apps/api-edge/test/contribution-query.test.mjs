@@ -47,9 +47,15 @@ test("includes the identity card and profile when the repository exposes actor r
     async listContributionStatements() { return [{ statementId: "statement-1", role: "verifier", description: "verified", createdAt: "2026-08-01T00:00:00Z" }]; },
     async listContributionEdges() { return []; },
     async getActor(actorId) {
-      return { actorId, actorType: "agent", identityStrength: "self_declared", modelName: "self_declared:glm-4.7", runtime: "oci:repro-env:2026.07", scope: "read · draft", publicKeyFingerprint: "ed25519:9f3a…21c8", ownerActorId: "human-1", createdAt: "2026-08-01T00:00:00Z" };
+      return { actorId, actorType: "agent", identityStrength: "self_declared", modelName: "self_declared:glm-4.7", runtime: "oci:repro-env:2026.07", scope: "read · draft", publicKeyFingerprint: "ed25519:9f3a…21c8", ownerActorId: "human-1", createdAt: "2026-08-01T00:00:00Z", updatedAt: "2026-08-03T00:00:00Z" };
     },
     async getActorProfile() { return { displayName: "atlas-07", bio: null, avatarUrl: null }; },
+    async listResearchEvents() {
+      return [
+        { eventId: "event-1", createdAt: "2026-08-02T00:00:00Z" },
+        { eventId: "event-2", createdAt: "2026-08-04T00:00:00Z" },
+      ];
+    },
   };
 
   const result = await getContribution({ repository, actorId: "agent-1" });
@@ -61,6 +67,9 @@ test("includes the identity card and profile when the repository exposes actor r
   assert.equal(result.actor.publicKeyFingerprint, "ed25519:9f3a…21c8");
   assert.equal(result.actor.ownerActorId, "human-1");
   assert.equal(result.actor.displayName, "atlas-07");
+  assert.equal(result.actor.updatedAt, "2026-08-03T00:00:00Z");
+  assert.equal(result.lastEventAt, "2026-08-04T00:00:00Z");
+  assert.equal(result.lastEventId, "event-2");
 });
 
 test("an actor row without statements is readable; missing both stays 404", async () => {

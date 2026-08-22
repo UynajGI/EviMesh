@@ -215,6 +215,30 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
     return new SupabaseReadRepositoryError(`Supabase Data API request failed with ${result.status}${detail}`, code, 502);
   }
 
+  /* Relations whose target is the source's prerequisite, origin, or prior
+   * context. For the remaining assertion/assessment relations, the source is
+   * the upstream context of the target. Protocol source/target is never
+   * rewritten; this map only controls reader traversal. */
+  const TARGET_IS_UPSTREAM = new Set([
+    "depends_on",
+    "reproduces",
+    "extends",
+    "supersedes",
+    "derived_from",
+    "uses_method",
+    "uses_dataset",
+    "implements",
+  ]);
+
+  function traversalEndpoints(relation, direction) {
+    const targetIsUpstream = TARGET_IS_UPSTREAM.has(relation.relationType);
+    const upstreamFrom = targetIsUpstream ? relation.sourceClaimId : relation.targetClaimId;
+    const upstreamTo = targetIsUpstream ? relation.targetClaimId : relation.sourceClaimId;
+    return direction === "upstream"
+      ? { from: upstreamFrom, to: upstreamTo }
+      : { from: upstreamTo, to: upstreamFrom };
+  }
+
   async function claimGraph({ claimId, maxDepth, direction }) {
     const [relations, claims] = await Promise.all([
       /* The protocol has fourteen typed ClaimRelation edges. The dependency
@@ -226,8 +250,7 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
     ]);
     const neighbours = new Map();
     for (const relation of relations) {
-      const from = direction === "upstream" ? relation.sourceClaimId : relation.targetClaimId;
-      const to = direction === "upstream" ? relation.targetClaimId : relation.sourceClaimId;
+      const { from, to } = traversalEndpoints(relation, direction);
       const values = neighbours.get(from) ?? [];
       values.push({ to, relation });
       neighbours.set(from, values);

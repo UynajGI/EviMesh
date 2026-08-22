@@ -386,7 +386,7 @@ test('mockup-vs-production row actions and attribution land', async () => {
   assert.match(claim, /ReadableField value=\{currentRevision\.scope\}/);
   // Workspace activity carries actor attribution links (mockup Activity tab).
   assert.match(workspace, /Contributed by/);
-  assert.ok(workspace.includes('encodeURIComponent(event.actorId)'), 'attribution must link to the contributor record');
+  assert.ok(workspace.includes('actorHref(event.actorId)'), 'attribution must use the type-aware contributor route');
   // Work and Explore rows carry the per-row agent handoff (mockup row actions).
   for (const [name, page] of [['work', work], ['explore', explore]]) {
     assert.match(page, /Hand to agent/, `${name} rows missing the handoff action`);

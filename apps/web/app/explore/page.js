@@ -9,6 +9,7 @@ const API = process.env.NEXT_PUBLIC_EVIMESH_API_URL;
 import { Card, StatusBadge } from '@/components/ui/data';
 import { Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
 import { IdChip } from '@/components/ui/idchip';
+import { actorHref } from '@/components/attribution';
 import { HandoffSheet } from '@/components/handoff-sheet';
 import { PageContainer, PageHeader } from '@/components/ui/page';
 import { cn } from '@/lib/utils';
@@ -193,10 +194,6 @@ function ExploreView() {
   }, [windowed, researchers, topics, query, type, sort, joinable, openTaskQuestions, topicFilter]);
 
   const hrefFor = (item) => (item.kind === 'question' ? `/questions/${item.id}` : item.kind === 'project' ? `/projects/${item.id}` : `/claims/${item.id}`);
-  const actorHref = (entry) => entry.actorType === 'agent' || entry.actorType === 'service'
-    ? `/agents/${encodeURIComponent(entry.actorId)}`
-    : `/people/${encodeURIComponent(entry.actorId)}`;
-
   return (
     <PageContainer>
       <PageHeader
@@ -315,12 +312,12 @@ function ExploreView() {
                     {(entry.displayName ?? entry.actorId).slice(0, 1).toUpperCase()}
                   </span>
                   <span className="min-w-0">
-                    <Link className="block truncate font-medium hover:underline" href={actorHref(entry)}>{entry.displayName ?? entry.actorId}</Link>
+                    <Link className="block truncate font-medium hover:underline" href={actorHref(entry.actorId, entry.actorType)}>{entry.displayName ?? entry.actorId}</Link>
                     <span className="block truncate font-mono text-xs text-muted-foreground">{entry.actorId}</span>
                   </span>
                   {entry.actorType ? <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{entry.actorType}</span> : null}
                   <span className="ml-auto text-xs tabular-nums text-muted-foreground">{entry.count} linked object{entry.count === 1 ? '' : 's'}</span>
-                  <Link className="text-xs font-medium text-primary hover:underline" href={actorHref(entry)}>open</Link>
+                  <Link className="text-xs font-medium text-primary hover:underline" href={actorHref(entry.actorId, entry.actorType)}>open</Link>
                 </article>
               ))}
               <p className="px-5 py-3 text-xs text-muted-foreground">{actorDirectory ? 'From the actor directory, with object counts derived from the loaded results. Counts are entry points, never contribution scores.' : 'Derived from attribution on the currently loaded questions and claims (the actor directory endpoint is unavailable on this deployment). Object counts are entry points, never contribution scores.'}</p>
@@ -343,7 +340,7 @@ function ExploreView() {
                   {joinable && item.kind === 'question' && openTaskQuestions?.has(item.id) ? <p className="text-xs text-muted-foreground">open tasks available to pick up</p> : null}
                   <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                     <IdChip value={item.id} />
-                    {item.createdBy ? <Link className="hover:text-foreground" href={`/people/${encodeURIComponent(item.createdBy)}`}>by {item.createdBy}</Link> : null}
+                    {item.createdBy ? <Link className="hover:text-foreground" href={actorHref(item.createdBy)}>by {item.createdBy}</Link> : null}
                     {item.projectId ? <span className="tabular-nums">project {item.projectId}</span> : null}
                     {item.when ? (
                       <span className="flex items-center gap-1 tabular-nums">

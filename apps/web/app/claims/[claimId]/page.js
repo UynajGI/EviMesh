@@ -7,6 +7,7 @@ import { Suspense } from 'react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { ClaimDag } from '@/components/claim-dag';
+import { actorHref } from '@/components/attribution';
 import { HandoffSheet } from '@/components/handoff-sheet';
 import { Badge, Card, CardContent, StatusBadge } from '@/components/ui/data';
 import { Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
@@ -214,15 +215,14 @@ function ClaimDetailView({ params }) {
   const graphRelations = Array.isArray(graph?.edges) ? graph.edges : [];
   const dagEdges = graphRelations.length > 0 ? graphRelations.map((edge, index) => ({
     id: edge.id ?? `${direction}-${edge.sourceClaimId}-${edge.targetClaimId}-${edge.relationType ?? index}`,
-    /* The reader's DAG points from upstream context toward the dependent
-     * claim; the protocol relation retains its source/target in the label. */
-    source: edge.targetClaimId,
-    target: edge.sourceClaimId,
+    /* Reader direction changes traversal, never protocol source/target. */
+    source: edge.sourceClaimId,
+    target: edge.targetClaimId,
     relation: edge.relationType ?? 'depends_on',
   })) : graphEntries.map(({ id }) => ({ id: `${direction}-${id}`, source: direction === 'upstream' ? id : claim.claimId, target: direction === 'upstream' ? claim.claimId : id, relation: 'depends_on' }));
   const dagElements = [{ data: { id: claim.claimId, label: claim.claimId, state: claim.state } }, ...graphEntries.map(({ id, state }) => ({ data: { id, label: id, state } })), ...dagEdges.map((edge) => ({ data: { ...edge, source: edge.source, target: edge.target, relationType: edge.relation } }))];
   const graphListEntries = graphRelations.length > 0 ? graphRelations.map((edge, index) => {
-    const relatedId = direction === 'upstream' ? edge.targetClaimId : edge.sourceClaimId;
+    const relatedId = Array.isArray(edge.path) ? edge.path.at(-1) : direction === 'upstream' ? edge.targetClaimId : edge.sourceClaimId;
     const node = graphNodes.find((item) => (item.claimId ?? item.id) === relatedId);
     return { id: relatedId, relation: edge.relationType ?? 'depends_on', state: node?.state ?? node?.status, key: `${relatedId}-${edge.relationType ?? index}-${index}` };
   }) : graphEntries.map((entry) => ({ ...entry, relation: 'depends_on', key: entry.id }));
@@ -275,7 +275,7 @@ function ClaimDetailView({ params }) {
                 <span aria-hidden="true">·</span>
                 <span className="flex items-center gap-1">
                   drafted by{' '}
-                  <Link className="font-medium text-foreground hover:underline" href={`/people/${encodeURIComponent(currentRevision.createdBy ?? claim.createdBy)}`}>{currentRevision.createdBy ?? claim.createdBy}</Link>
+                  <Link className="font-medium text-foreground hover:underline" href={actorHref(currentRevision.createdBy ?? claim.createdBy)}>{currentRevision.createdBy ?? claim.createdBy}</Link>
                 </span>
               </>
             ) : null}
@@ -411,7 +411,7 @@ function ClaimDetailView({ params }) {
                       <li className="flex flex-wrap items-baseline gap-3 px-4 py-2.5 text-sm" key={row.revision}>
                         <span className="font-mono text-xs tabular-nums text-muted-foreground">r{row.revision}</span>
                         {row.revision === currentRevision.revision ? <span className="rounded-full border border-status-accent-border bg-status-accent-bg px-2 py-0.5 text-[11px] font-medium text-status-accent-fg">current</span> : null}
-                        {row.createdBy ? <Link className="text-xs text-muted-foreground hover:text-foreground" href={`/people/${encodeURIComponent(row.createdBy)}`}>by {row.createdBy}</Link> : null}
+                        {row.createdBy ? <Link className="text-xs text-muted-foreground hover:text-foreground" href={actorHref(row.createdBy)}>by {row.createdBy}</Link> : null}
                         {row.createdAt ? <span className="ml-auto text-xs tabular-nums text-muted-foreground">{new Date(row.createdAt).toISOString().slice(0, 10)}</span> : null}
                       </li>
                     ))}

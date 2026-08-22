@@ -20,6 +20,9 @@ test("claim detail keeps the relation graph with direction switching", () => {
   assert.match(source, /direction=\$\{direction\}/);
   assert.match(source, /Upstream/);
   assert.match(source, /Downstream/);
+  assert.match(source, /source: edge\.sourceClaimId/);
+  assert.match(source, /target: edge\.targetClaimId/);
+  assert.match(source, /edge\.path\.at\(-1\)/);
 });
 
 test("claim detail renders on the page template with recovery", () => {

@@ -5,10 +5,11 @@ import { readFile } from "node:fs/promises";
 const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
 
 test("design route map has canonical public people and agent activity routes", async () => {
-  const [people, agent, explore] = await Promise.all([
+  const [people, agent, explore, attribution] = await Promise.all([
     read("../app/people/[actorId]/page.js"),
     read("../app/agents/[actorId]/page.js"),
     read("../app/explore/page.js"),
+    read("../components/attribution.js"),
   ]);
   assert.match(people, /contributors\/\[actorId\]/);
   for (const wording of ["Agent activity", "Attempt trail", "Public output", "Human-in-the-loop boundary", "Identity card"]) {
@@ -17,8 +18,13 @@ test("design route map has canonical public people and agent activity routes", a
   assert.match(agent, /\/actors\//);
   assert.match(agent, /\/events\?actorId=/);
   assert.match(agent, /Self-declared, not verified/);
-  assert.match(explore, /actorType === 'agent'/);
-  assert.match(explore, /`\/agents\/\$\{encodeURIComponent\(entry.actorId\)\}`/);
+  assert.match(explore, /actorHref\(entry\.actorId, entry\.actorType\)/);
+  assert.match(attribution, /actorType === 'agent'/);
+  assert.match(attribution, /return `\/agents\/\$\{encoded\}`/);
+  assert.match(attribution, /return `\/contributors\/\$\{encoded\}`/);
+  assert.doesNotMatch(agent, /pendingReview|href="\/people"/);
+  assert.match(agent, /data\.lastEventAt \?\? events\.at\(-1\)/);
+  assert.match(agent, /setError\(reason\)/);
 });
 
 test("feedback primitives expose the design-book state classes", async () => {
@@ -52,4 +58,5 @@ test("design inventory primitives expose semantic stream, role, and stepper bloc
   assert.match(attribution, /className="attr__via/);
   assert.match(attribution, /\/agents\//);
   assert.match(attribution, /\/people\//);
+  assert.match(attribution, /\/contributors\//);
 });

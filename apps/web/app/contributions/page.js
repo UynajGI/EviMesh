@@ -7,6 +7,7 @@ import { Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
 import { IdChip } from '@/components/ui/idchip';
 import { PageContainer, PageHeader } from '@/components/ui/page';
 import { RoleBar, CONTRIBUTION_ROLES } from '@/components/role-bar';
+import { actorHref } from '@/components/attribution';
 import { apiFetch } from '@/lib/api-client';
 
 function actorLabel(actorId) {
@@ -25,6 +26,7 @@ function roleForEventType(type) {
 
 export default function ContributionsPage() {
   const [events, setEvents] = useState([]);
+  const [actorTypes, setActorTypes] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [requestId, setRequestId] = useState(null);
@@ -34,8 +36,12 @@ export default function ContributionsPage() {
     setError(null);
     setRequestId(null);
     try {
-      const body = await apiFetch('/events?limit=100');
+      const [body, directory] = await Promise.all([
+        apiFetch('/events?limit=100'),
+        apiFetch('/actors?limit=200').catch(() => ({ items: [] })),
+      ]);
       setEvents(body.items ?? []);
+      setActorTypes(Object.fromEntries((directory.items ?? []).map((actor) => [actor.actorId, actor.actorType])));
     } catch (reason) {
       setError(reason.message);
       setRequestId(reason.requestId ?? null);
@@ -81,7 +87,7 @@ export default function ContributionsPage() {
             <div className="flex flex-wrap items-center gap-3">
               <span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-full bg-accent text-sm font-semibold text-accent-foreground">{entry.actor.slice(0, 1).toUpperCase()}</span>
               <div className="min-w-0">
-                <Link className="block truncate font-medium tabular-nums hover:underline" href={`/people/${encodeURIComponent(entry.actor)}`}>{entry.actor}</Link>
+                <Link className="block truncate font-medium tabular-nums hover:underline" href={actorHref(entry.actor, actorTypes[entry.actor])}>{entry.actor}</Link>
                 <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">{entry.count} {entry.count === 1 ? 'event' : 'events'} · latest {entry.latest ?? 'unknown'}</p>
               </div>
             </div>

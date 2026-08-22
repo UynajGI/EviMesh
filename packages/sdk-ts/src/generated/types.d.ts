@@ -37,6 +37,10 @@ export type WitnessReceiptRequest = { receipt: { schema: "evimesh.witness-checkp
 
 export type PagedResponse = { items: Record<string, unknown>[]; nextCursor?: string | null; };
 
+export type ClaimGraphResponse = { rootClaimId: string; maxDepth: number; nodes: { claimId: string; depth: number; path: string[]; }[]; edges: ClaimGraphEdge[]; };
+
+export type ClaimGraphEdge = { sourceClaimId: string; targetClaimId: string; relationType: "depends_on" | "supports" | "refutes" | "qualifies" | "reproduces" | "extends" | "supersedes" | "contradicts" | "derived_from" | "uses_method" | "uses_dataset" | "implements" | "verifies" | "challenges"; depth: number; path: string[]; };
+
 export type ObjectResponse = Record<string, unknown>;
 
 export type EtagObjectResponse = { etag: string; };
@@ -81,7 +85,7 @@ export type CreateChallengeRequest = { challengeId: string; targetClaimId: strin
 
 export type ActorDirectoryResponse = { items: ActorIdentityCard[]; };
 
-export type ActorIdentityCard = { actorId: string; actorType?: "human" | "agent" | "organization" | "service" | "maintainer" | "witness"; identityStrength?: "verified" | "observed" | "self_declared" | "unknown"; displayName?: string; bio?: string; avatarUrl?: string; modelName?: string; runtime?: string; scope?: string; publicKeyFingerprint?: string; ownerActorId?: string; createdAt?: string; };
+export type ActorIdentityCard = { actorId: string; actorType?: "human" | "agent" | "organization" | "service" | "maintainer" | "witness"; identityStrength?: "verified" | "observed" | "self_declared" | "unknown"; displayName?: string; bio?: string; avatarUrl?: string; modelName?: string; runtime?: string; scope?: string; publicKeyFingerprint?: string; ownerActorId?: string; createdAt?: string; updatedAt?: string; };
 
 export type InteractionRecord = { objectType: "question" | "claim" | "task" | "project"; objectId: string; kind: "helpful" | "favorite" | "watch" | "view"; createdAt?: string; };
 
