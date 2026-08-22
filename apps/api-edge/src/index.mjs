@@ -1096,6 +1096,12 @@ app.post('/runs', async (context) => {
     if (body.actorId !== undefined && body.actorId !== actorId) {
       throw new ActorIdentityError('run actor does not match the authenticated actor', 'ACTOR_IDENTITY_MISMATCH', 403);
     }
+    const activeSigningKey = typeof repository?.findActiveSigningKey === 'function'
+      ? await repository.findActiveSigningKey(actorId)
+      : null;
+    if (!activeSigningKey || activeSigningKey.keyId !== body.signingKeyId) {
+      throw new ActorIdentityError('Run signing key does not belong to the authenticated actor', 'SIGNING_KEY_ID_MISMATCH', 403);
+    }
     const submission = {
       runId: body.runId,
       taskId: body.taskId,

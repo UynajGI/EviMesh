@@ -580,6 +580,7 @@ test("creates Evidence and links it to a fixed ClaimRevision", async () => {
 test("records a Run receipt through the API", async () => {
   const app = createApp({
     repository: identityRepository({
+      findActiveSigningKey: async () => ({ keyId: "key-1", actorId: "actor-1", algorithm: "Ed25519", publicKey: "public-key" }),
       getArtifactRevision: async (artifactId, revision) => ({ artifactId, revision }),
       getArtifactVerification: async () => ({ status: "verified" }),
       insertRun: async (run) => run,
@@ -611,6 +612,14 @@ test("records a Run receipt through the API", async () => {
   const created = await response.json();
   assert.equal(created.run.runId, "run-1");
   assert.equal(created.run.signingKeyId, "key-1");
+
+  const foreignKey = await app.fetch(new Request("https://api.example.test/runs", {
+    method: "POST",
+    headers: { authorization: "Bearer test-token", "content-type": "application/json" },
+    body: JSON.stringify({ signingKeyId: "key-owned-by-another-actor" }),
+  }), {});
+  assert.equal(foreignKey.status, 403);
+  assert.equal((await foreignKey.json()).code, "SIGNING_KEY_ID_MISMATCH");
 
   const mismatch = await app.fetch(new Request("https://api.example.test/runs", {
     method: "POST",
