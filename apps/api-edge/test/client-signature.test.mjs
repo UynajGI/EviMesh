@@ -105,6 +105,7 @@ test("verifies the exact sent payload when optional fields are omitted", async (
   const appendResearchEvent = async (event) => event;
   const repository = {
     findIdentity: async () => ({ actorId: "actor-1" }),
+    getActor: async (actorId) => ({ actorId, actorType: "human" }),
     findActiveSigningKey: async () => ({ keyId: "key-1", actorId: "actor-1", algorithm: "Ed25519", publicKey: keypair.public_key }),
     claimSignatureNonce: async () => true,
     insertClaim,
@@ -139,6 +140,7 @@ test("POST /claims accepts a valid signed envelope and rejects a tampered one", 
   const appendResearchEvent = async (event) => event;
   const repository = {
     findIdentity: async () => ({ actorId: "actor-1" }),
+    getActor: async (actorId) => ({ actorId, actorType: "human" }),
     findActiveSigningKey: async () => ({ keyId: "key-1", actorId: "actor-1", algorithm: "Ed25519", publicKey: keypair.public_key }),
     claimSignatureNonce: async () => true,
     insertClaim,
@@ -220,8 +222,8 @@ test("POST /claims preserves a signed agent drafting attribution and rejects for
     headers: { authorization: "Bearer test-token", "content-type": "application/json" },
     body: JSON.stringify({ ...body, draftedByActorId: "agent-forged", signatureEnvelope: envelope }),
   }), {});
-  assert.equal(forged.status, 400);
-  assert.equal((await forged.json()).code, "CLIENT_SIGNATURE_PAYLOAD_MISMATCH");
+  assert.equal(forged.status, 404);
+  assert.equal((await forged.json()).code, "CLAIM_DRAFTER_NOT_FOUND");
 
   const unknownBody = { ...body, claimId: "claim-unknown", draftedByActorId: "agent-missing" };
   const unknownEnvelope = await makeEnvelope({ keypair, keyId: "key-1", eventType: "claim.created", payload: unknownBody, nonce: "nonce-unknown-agent-0001" });
@@ -285,11 +287,42 @@ test("POST /claims rejects a machine or missing publisher for another agent's dr
   assert.equal(writes.length, 0);
 });
 
+test("POST /claims rejects an agent or service publisher even when draftedByActorId is omitted or self", async () => {
+  const writes = [];
+  for (const actorType of ["agent", "service"]) {
+    for (const draftedByActorId of [undefined, "publisher-1"]) {
+      const repository = {
+        findIdentity: async () => ({ actorId: "publisher-1" }),
+        getActor: async () => ({ actorId: "publisher-1", actorType }),
+        insertClaim: async (claim) => { writes.push(claim); return claim; },
+        withTransaction: async (callback) => callback(repository),
+      };
+      const app = createApp({
+        repository,
+        claimEventFactory: async ({ eventType, payload }) => ({ eventType, payload }),
+        claimRoleResolver: async () => "maintainer",
+        authenticate: async () => ({ sub: "supabase-subject" }),
+      });
+      const body = { claimId: `claim-${actorType}-${draftedByActorId ? "self" : "default"}`, statement: "machine publish", scope: ["s"], falsification: ["f"] };
+      if (draftedByActorId) body.draftedByActorId = draftedByActorId;
+      const response = await app.fetch(new Request("https://api.example.test/claims", {
+        method: "POST",
+        headers: { authorization: "Bearer test-token", "content-type": "application/json" },
+        body: JSON.stringify(body),
+      }), {});
+      assert.equal(response.status, 403, `${actorType}:${draftedByActorId ?? "omitted"}`);
+      assert.equal((await response.json()).code, "CLAIM_PUBLISHER_TYPE_INVALID");
+    }
+  }
+  assert.equal(writes.length, 0);
+});
+
 test('signed routes use the injected persistent nonce store, reject a duplicate, and permit another actor', async () => {
   const keypair = generateEd25519KeyPair();
   const claimed = new Set();
   const repository = {
     findIdentity: async (_provider, subject) => ({ actorId: subject }),
+    getActor: async (actorId) => ({ actorId, actorType: 'human' }),
     findActiveSigningKey: async (actorId) => ({ keyId: 'key-1', actorId, algorithm: 'Ed25519', publicKey: keypair.public_key }),
     insertClaim: async (claim) => claim,
     insertClaimRevision: async (revision) => revision,
@@ -327,6 +360,7 @@ test('signed routes fail closed when no repository nonce method or Supabase conf
   const keypair = generateEd25519KeyPair();
   const repository = {
     findIdentity: async () => ({ actorId: 'actor-1' }),
+    getActor: async (actorId) => ({ actorId, actorType: 'human' }),
     findActiveSigningKey: async () => ({ keyId: 'key-1', actorId: 'actor-1', algorithm: 'Ed25519', publicKey: keypair.public_key }),
     insertClaim: async (claim) => claim,
     insertClaimRevision: async (revision) => revision,

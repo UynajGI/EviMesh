@@ -60,8 +60,17 @@ const runRequest: CreateRunRequest = {
   startedAt: "2026-08-06T00:00:00.000Z",
   endedAt: "2026-08-06T00:05:00.000Z",
   exitCode: 0,
+  actorId: "agent-1",
   signingKeyId: "key-1",
   signature: "ed25519:sig",
+  signatureEnvelope: {
+    schema: "srp.client-signature-envelope.v1",
+    event_type: "run.created",
+    payload: {},
+    nonce: "nonce-0123456789abcdef",
+    signing_bytes_hash: `sha256:${"a".repeat(64)}`,
+    signature: { algorithm: "Ed25519", key_id: "publisher-key", value: "ed25519:outer" },
+  },
 };
 
 const verificationRequest: SubmitVerificationRequest = {

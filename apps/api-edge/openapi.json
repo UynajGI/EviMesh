@@ -4707,8 +4707,10 @@
           "startedAt",
           "endedAt",
           "exitCode",
+          "actorId",
           "signingKeyId",
-          "signature"
+          "signature",
+          "signatureEnvelope"
         ],
         "properties": {
           "runId": {
@@ -4766,12 +4768,13 @@
           },
           "actorId": {
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "description": "Registered agent or service Actor that executed and signed the srp.run.v1 receipt. This is distinct from the authenticated human publisher."
           },
         "signingKeyId": {
           "type": "string",
           "minLength": 1,
-          "description": "Active Ed25519 key owned by the authenticated Actor."
+          "description": "Active Ed25519 key owned by the Run producer identified by actorId."
         },
         "signature": {
           "type": "string",
@@ -4791,7 +4794,8 @@
             }
           },
           "signatureEnvelope": {
-            "$ref": "#/components/schemas/ClientSignatureEnvelope"
+            "$ref": "#/components/schemas/ClientSignatureEnvelope",
+            "description": "Mandatory outer signature over the exact CreateRunRequest payload, made by the authenticated registered human publisher. It does not replace or alter the Run producer's inner signature."
           }
         }
       },

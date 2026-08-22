@@ -123,6 +123,7 @@ function canonicalRunBodyArtifactRefs(refs, field) {
 function canonicalRunBody(body) {
   return {
     ...body,
+    actorId: canonicalRunText(body.actorId, 'run actor id'),
     runId: canonicalRunText(body.runId, 'run id'),
     taskId: canonicalRunText(body.taskId, 'task id'),
     contextBundleId: canonicalRunText(body.contextBundleId, 'context bundle id'),
@@ -1021,6 +1022,23 @@ app.post('/claims', async (context) => {
       assumptions: body.assumptions ?? [],
       falsification: body.falsification,
     };
+    if (typeof repository?.getActor !== 'function') {
+      throw new ClaimCommandError('publisher actor lookup is not configured', 'CLAIM_PUBLISHER_ACTOR_LOOKUP_UNAVAILABLE', 503);
+    }
+    const [publisherActor, draftingActor] = await Promise.all([
+      repository.getActor(actorId),
+      hasSeparateDrafter ? repository.getActor(draftedByActorId) : Promise.resolve(null),
+    ]);
+    if (!publisherActor) throw new ClaimCommandError('publishing actor not found', 'CLAIM_PUBLISHER_NOT_FOUND', 404);
+    if (publisherActor.actorType !== 'human') {
+      throw new ClaimCommandError('publishing actor must be human', 'CLAIM_PUBLISHER_TYPE_INVALID', 403);
+    }
+    if (hasSeparateDrafter) {
+      if (!draftingActor) throw new ClaimCommandError('drafting actor not found', 'CLAIM_DRAFTER_NOT_FOUND', 404);
+      if (!['agent', 'service'].includes(draftingActor.actorType)) {
+        throw new ClaimCommandError('drafting actor must be an agent or service', 'CLAIM_DRAFTER_TYPE_INVALID');
+      }
+    }
     if (hasSeparateDrafter && body.signatureEnvelope === undefined) {
       throw new ClaimCommandError('signature envelope is required when the drafting actor differs from the publisher', 'CLAIM_DRAFTER_SIGNATURE_REQUIRED');
     }
@@ -1030,23 +1048,6 @@ app.post('/claims', async (context) => {
       const signedPayload = { ...body };
       delete signedPayload.signatureEnvelope;
       await verifyClientSignatureEnvelope({ repository, signatureNonceStore: nonceStoreFor(context), actorId, envelope: body.signatureEnvelope, payload: signedPayload, expectedEventType: 'claim.created' });
-    }
-    if (hasSeparateDrafter) {
-      if (typeof repository?.getActor !== 'function') {
-        throw new ClaimCommandError('publisher and drafter actor lookup is not configured', 'CLAIM_ATTRIBUTION_ACTOR_LOOKUP_UNAVAILABLE', 503);
-      }
-      const [publisherActor, draftingActor] = await Promise.all([
-        repository.getActor(actorId),
-        repository.getActor(draftedByActorId),
-      ]);
-      if (!publisherActor) throw new ClaimCommandError('publishing actor not found', 'CLAIM_PUBLISHER_NOT_FOUND', 404);
-      if (publisherActor.actorType !== 'human') {
-        throw new ClaimCommandError('publishing actor must be human when publishing another actor\'s draft', 'CLAIM_PUBLISHER_TYPE_INVALID', 403);
-      }
-      if (!draftingActor) throw new ClaimCommandError('drafting actor not found', 'CLAIM_DRAFTER_NOT_FOUND', 404);
-      if (!['agent', 'service'].includes(draftingActor.actorType)) {
-        throw new ClaimCommandError('drafting actor must be an agent or service', 'CLAIM_DRAFTER_TYPE_INVALID');
-      }
     }
     const actorRole = await claimRoleResolver({ repository, actorId, questionId: body.questionId ?? null, projectId: body.projectId ?? null });
     return context.json(await createClaim({
@@ -1222,22 +1223,36 @@ app.post('/runs', async (context) => {
   try {
     if (typeof runEventFactory !== 'function' || typeof runRoleResolver !== 'function') return context.json(errorBody('RUN_CREATION_UNAVAILABLE', 'run creation is not configured', context.get('requestId')), 503);
     const claims = await authenticateRequest(context.req.raw, context.env);
-    const actorId = await resolveActorForSupabaseClaims({ repository, claims });
+    const publisherActorId = await resolveActorForSupabaseClaims({ repository, claims });
     const body = await context.req.json();
-    if (body.actorId !== undefined && body.actorId !== actorId) {
-      throw new ActorIdentityError('run actor does not match the authenticated actor', 'ACTOR_IDENTITY_MISMATCH', 403);
+    if (body.signatureEnvelope === undefined) {
+      throw new RunCommandError('publisher signature envelope is required', 'RUN_PUBLISHER_SIGNATURE_REQUIRED');
     }
-    const canonicalSigningKeyId = canonicalRunText(body.signingKeyId, 'signing key id');
-    const activeSigningKey = typeof repository?.findActiveSigningKey === 'function'
-      ? await repository.findActiveSigningKey(actorId)
-      : null;
-    if (!activeSigningKey || activeSigningKey.keyId !== canonicalSigningKeyId) {
-      throw new ActorIdentityError('Run signing key does not belong to the authenticated actor', 'SIGNING_KEY_ID_MISMATCH', 403);
+    if (typeof repository?.getActor !== 'function') {
+      throw new RunCommandError('publisher and producer actor lookup is not configured', 'RUN_ACTOR_LOOKUP_UNAVAILABLE', 503);
     }
     const canonicalBody = canonicalRunBody(body);
-    const validRunSignature = await verifyRunDocumentSignature({ body: canonicalBody, actorId, publicKey: activeSigningKey.publicKey });
+    const [publisherActor, producerActor] = await Promise.all([
+      repository.getActor(publisherActorId),
+      repository.getActor(canonicalBody.actorId),
+    ]);
+    if (!publisherActor) throw new RunCommandError('publishing actor not found', 'RUN_PUBLISHER_NOT_FOUND', 404);
+    if (publisherActor.actorType !== 'human') {
+      throw new RunCommandError('publishing actor must be human', 'RUN_PUBLISHER_TYPE_INVALID', 403);
+    }
+    if (!producerActor) throw new RunCommandError('run producer actor not found', 'RUN_PRODUCER_NOT_FOUND', 404);
+    if (!['agent', 'service'].includes(producerActor.actorType)) {
+      throw new RunCommandError('run producer must be an agent or service', 'RUN_PRODUCER_TYPE_INVALID', 403);
+    }
+    const activeSigningKey = typeof repository?.findActiveSigningKey === 'function'
+      ? await repository.findActiveSigningKey(canonicalBody.actorId)
+      : null;
+    if (!activeSigningKey || activeSigningKey.keyId !== canonicalBody.signingKeyId) {
+      throw new ActorIdentityError('Run signing key does not belong to the producer actor', 'SIGNING_KEY_ID_MISMATCH', 403);
+    }
+    const validRunSignature = await verifyRunDocumentSignature({ body: canonicalBody, actorId: canonicalBody.actorId, publicKey: activeSigningKey.publicKey });
     if (!validRunSignature) {
-      throw new RunCommandError('Run signature does not verify against the authenticated signing key', 'RUN_SIGNATURE_MISMATCH');
+      throw new RunCommandError('Run signature does not verify against the producer signing key', 'RUN_SIGNATURE_MISMATCH');
     }
     const submission = {
       runId: canonicalBody.runId,
@@ -1259,18 +1274,14 @@ app.post('/runs', async (context) => {
       inputs: canonicalBody.inputs,
       outputs: canonicalBody.outputs,
     };
-    if (body.signatureEnvelope !== undefined) {
-      if (body.signingKeyId !== body.signatureEnvelope?.signature?.key_id) {
-        throw new ActorIdentityError('Run signing key does not match the authenticated signature envelope', 'SIGNING_KEY_ID_MISMATCH', 403);
-      }
-      const signedPayload = { ...body };
-      delete signedPayload.signatureEnvelope;
-      await verifyClientSignatureEnvelope({ repository, signatureNonceStore: nonceStoreFor(context), actorId, envelope: body.signatureEnvelope, payload: signedPayload, expectedEventType: 'run.created' });
-    }
-    const actorRole = await runRoleResolver({ repository, actorId, taskId: canonicalBody.taskId });
+    const signedPayload = { ...body };
+    delete signedPayload.signatureEnvelope;
+    await verifyClientSignatureEnvelope({ repository, signatureNonceStore: nonceStoreFor(context), actorId: publisherActorId, envelope: body.signatureEnvelope, payload: signedPayload, expectedEventType: 'run.created' });
+    const actorRole = await runRoleResolver({ repository, actorId: publisherActorId, taskId: canonicalBody.taskId });
     return context.json(await createRun({
       repository,
-      actorId,
+      actorId: canonicalBody.actorId,
+      publisherActorId,
       actorRole,
       ...submission,
       startedAt: submission.startedAt === undefined ? undefined : new Date(submission.startedAt),

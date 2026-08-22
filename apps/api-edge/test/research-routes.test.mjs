@@ -4,7 +4,7 @@ import { createApp } from "../src/index.mjs";
 import { buildMerkleTree } from "../../../packages/merkle/src/merkle-tree.mjs";
 import { hashResearchEventLeaf } from "../../../packages/merkle/src/research-event-leaf.mjs";
 import { verifyMerkleInclusionProof } from "../../../packages/merkle/src/verify-inclusion-proof.mjs";
-import { canonicalJson } from "../../../packages/protocol/src/hash.mjs";
+import { canonicalJson, rawHash } from "../../../packages/protocol/src/hash.mjs";
 import { generateEd25519KeyPair } from "../../../packages/signatures/src/ed25519.mjs";
 import { signEd25519Payload } from "../../../packages/signatures/src/client-signature.mjs";
 import { verifyEd25519Payload } from "../../../packages/signatures/src/server-verification.mjs";
@@ -14,6 +14,7 @@ const AUTH = { authenticate: async () => ({ sub: "supabase-subject" }) };
 function identityRepository(extra = {}) {
   return {
     findIdentity: async () => ({ actorId: "actor-1" }),
+    getActor: async (actorId) => ({ actorId, actorType: "human" }),
     withTransaction: async (callback) => callback(transactionRepository(extra)),
     ...extra,
   };
@@ -28,6 +29,22 @@ function transactionRepository(extra = {}) {
 }
 
 const eventFactory = async ({ eventType, payload }) => ({ eventType, payload });
+
+async function signatureEnvelope({ keyPair, keyId, eventType, payload, nonce = "nonce-0123456789abcdef" }) {
+  const signingBytes = Buffer.from(canonicalJson({ event_type: eventType, payload, nonce }), "utf8");
+  return {
+    schema: "srp.client-signature-envelope.v1",
+    event_type: eventType,
+    payload,
+    nonce,
+    signing_bytes_hash: `sha256:${rawHash(signingBytes.toString("utf8"))}`,
+    signature: {
+      algorithm: "Ed25519",
+      key_id: keyId,
+      value: await signEd25519Payload({ signingBytes: new Uint8Array(signingBytes), privateKey: keyPair.private_key }),
+    },
+  };
+}
 
 test("lists artifacts with type and creator filters", async () => {
   const app = createApp({ repository: { listArtifacts: async ({ artifactType, createdBy }) => [
@@ -582,14 +599,22 @@ test("creates Evidence and links it to a fixed ClaimRevision", async () => {
 });
 
 test("records a Run receipt through the API", async () => {
-  const keyPair = generateEd25519KeyPair();
+  const producerKeyPair = generateEd25519KeyPair();
+  const publisherKeyPair = generateEd25519KeyPair();
   let persistedRun = null;
   let runInsertCount = 0;
   const persistedInputs = [];
   const persistedOutputs = [];
   const app = createApp({
     repository: identityRepository({
-      findActiveSigningKey: async () => ({ keyId: "key-1", actorId: "actor-1", algorithm: "Ed25519", publicKey: keyPair.public_key }),
+      findIdentity: async () => ({ actorId: "publisher-1" }),
+      getActor: async (actorId) => actorId === "publisher-1"
+        ? { actorId, actorType: "human" }
+        : actorId === "agent-1" ? { actorId, actorType: "agent" } : null,
+      findActiveSigningKey: async (actorId) => actorId === "publisher-1"
+        ? { keyId: "publisher-key", actorId, algorithm: "Ed25519", publicKey: publisherKeyPair.public_key }
+        : actorId === "agent-1" ? { keyId: "producer-key", actorId, algorithm: "Ed25519", publicKey: producerKeyPair.public_key } : null,
+      claimSignatureNonce: async () => true,
       getArtifactRevision: async (artifactId, revision) => ({ artifactId, revision }),
       getArtifactVerification: async () => ({ status: "verified" }),
       insertRun: async (run) => { runInsertCount += 1; persistedRun = run; return run; },
@@ -602,7 +627,7 @@ test("records a Run receipt through the API", async () => {
     }),
     runEventFactory: eventFactory,
     runRoleResolver: async () => "contributor",
-    ...AUTH,
+    authenticate: async () => ({ sub: "publisher-subject" }),
   });
   const unsignedRun = {
     schema: "srp.run.v1",
@@ -622,12 +647,12 @@ test("records a Run receipt through the API", async () => {
     network_access: false,
     output_artifact_ids: ["artifact-output-a@1", "artifact-output-shared@10", "artifact-output-shared@2", "artifact-output-z@1"],
     exit_code: 0,
-    actor_id: "actor-1",
-    signing_key_id: "key-1",
+    actor_id: "agent-1",
+    signing_key_id: "producer-key",
   };
   const signature = await signEd25519Payload({
     signingBytes: new TextEncoder().encode(canonicalJson(unsignedRun)),
-    privateKey: keyPair.private_key,
+    privateKey: producerKeyPair.private_key,
   });
   const runBody = {
     runId: "run-1", taskId: "task-1", contextBundleId: "bundle-1",
@@ -635,8 +660,8 @@ test("records a Run receipt through the API", async () => {
     container: "python@sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
     command: "python", args: ["reproduce.py"], environment: { python: "3.12" }, hardware: { cpu: "x86_64" },
     randomSeed: { seed: 42 }, startedAt: "2026-08-06T08:00:00.123456+08:00", endedAt: "2026-08-06T00:05:00Z", exitCode: 0,
-    actorId: "actor-1",
-    signingKeyId: "key-1",
+    actorId: "agent-1",
+    signingKeyId: "producer-key",
     signature,
     inputs: [
       { artifactId: "artifact-input-z", artifactRevision: 1 },
@@ -651,15 +676,19 @@ test("records a Run receipt through the API", async () => {
       { artifactId: "artifact-output-shared", artifactRevision: 10 },
     ],
   };
+  const envelope = await signatureEnvelope({ keyPair: publisherKeyPair, keyId: "publisher-key", eventType: "run.created", payload: runBody });
   const response = await app.fetch(new Request("https://api.example.test/runs", {
     method: "POST",
     headers: { authorization: "Bearer test-token", "content-type": "application/json" },
-    body: JSON.stringify(runBody),
+    body: JSON.stringify({ ...runBody, signatureEnvelope: envelope }),
   }), {});
   assert.equal(response.status, 201, await response.clone().text());
   const created = await response.json();
   assert.equal(created.run.runId, "run-1");
-  assert.equal(created.run.signingKeyId, "key-1");
+  assert.equal(created.run.signingKeyId, "producer-key");
+  assert.equal(created.run.createdBy, "agent-1");
+  assert.equal(created.event.payload.publisher_actor_id, "publisher-1");
+  assert.equal(created.event.payload.producer_actor_id, "agent-1");
   assert.equal(runInsertCount, 1);
   assert.equal(created.run.startedAt, unsignedRun.started_at);
   assert.equal(created.run.endedAt, unsignedRun.ended_at);
@@ -676,13 +705,13 @@ test("records a Run receipt through the API", async () => {
   assert.equal(await verifyEd25519Payload({
     signingBytes: new TextEncoder().encode(canonicalJson(reconstructedRun)),
     signature: detail.run.signature,
-    publicKey: keyPair.public_key,
+    publicKey: producerKeyPair.public_key,
   }), true);
 
   const invalidSignature = await app.fetch(new Request("https://api.example.test/runs", {
     method: "POST",
     headers: { authorization: "Bearer test-token", "content-type": "application/json" },
-    body: JSON.stringify({ ...runBody, signature: "not-a-valid-signature" }),
+    body: JSON.stringify({ ...runBody, signature: "not-a-valid-signature", signatureEnvelope: envelope }),
   }), {});
   assert.equal(invalidSignature.status, 400);
   assert.equal((await invalidSignature.json()).code, "RUN_SIGNATURE_MISMATCH");
@@ -690,7 +719,7 @@ test("records a Run receipt through the API", async () => {
   const missingSignature = await app.fetch(new Request("https://api.example.test/runs", {
     method: "POST",
     headers: { authorization: "Bearer test-token", "content-type": "application/json" },
-    body: JSON.stringify({ ...runBody, signature: undefined }),
+    body: JSON.stringify({ ...runBody, signature: undefined, signatureEnvelope: envelope }),
   }), {});
   assert.equal(missingSignature.status, 400);
   assert.equal((await missingSignature.json()).code, "RUN_SIGNATURE_MISMATCH");
@@ -704,7 +733,7 @@ test("records a Run receipt through the API", async () => {
     const invalidTextResponse = await app.fetch(new Request("https://api.example.test/runs", {
       method: "POST",
       headers: { authorization: "Bearer test-token", "content-type": "application/json" },
-      body: JSON.stringify({ ...runBody, ...invalidText }),
+      body: JSON.stringify({ ...runBody, ...invalidText, signatureEnvelope: envelope }),
     }), {});
     assert.equal(invalidTextResponse.status, 400, JSON.stringify(invalidText));
     assert.equal((await invalidTextResponse.json()).code, expectedCode, JSON.stringify(invalidText));
@@ -715,26 +744,61 @@ test("records a Run receipt through the API", async () => {
     const invalidTimestamp = await app.fetch(new Request("https://api.example.test/runs", {
       method: "POST",
       headers: { authorization: "Bearer test-token", "content-type": "application/json" },
-      body: JSON.stringify({ ...runBody, startedAt }),
+      body: JSON.stringify({ ...runBody, startedAt, signatureEnvelope: envelope }),
     }), {});
     assert.equal(invalidTimestamp.status, 400, JSON.stringify(startedAt));
   }
 
+  const foreignKeyBody = { ...runBody, signingKeyId: "key-owned-by-another-actor" };
+  const foreignKeyEnvelope = await signatureEnvelope({ keyPair: publisherKeyPair, keyId: "publisher-key", eventType: "run.created", payload: foreignKeyBody, nonce: "nonce-foreign-key-0001" });
   const foreignKey = await app.fetch(new Request("https://api.example.test/runs", {
     method: "POST",
     headers: { authorization: "Bearer test-token", "content-type": "application/json" },
-    body: JSON.stringify({ signingKeyId: "key-owned-by-another-actor" }),
+    body: JSON.stringify({ ...foreignKeyBody, signatureEnvelope: foreignKeyEnvelope }),
   }), {});
   assert.equal(foreignKey.status, 403);
   assert.equal((await foreignKey.json()).code, "SIGNING_KEY_ID_MISMATCH");
 
-  const mismatch = await app.fetch(new Request("https://api.example.test/runs", {
+  const missingEnvelope = await app.fetch(new Request("https://api.example.test/runs", {
     method: "POST",
     headers: { authorization: "Bearer test-token", "content-type": "application/json" },
-    body: JSON.stringify({ actorId: "human-2" }),
+    body: JSON.stringify(runBody),
   }), {});
-  assert.equal(mismatch.status, 403);
-  assert.equal((await mismatch.json()).code, "ACTOR_IDENTITY_MISMATCH");
+  assert.equal(missingEnvelope.status, 400);
+  assert.equal((await missingEnvelope.json()).code, "RUN_PUBLISHER_SIGNATURE_REQUIRED");
+
+  const tamperedOuter = await app.fetch(new Request("https://api.example.test/runs", {
+    method: "POST",
+    headers: { authorization: "Bearer test-token", "content-type": "application/json" },
+    body: JSON.stringify({ ...runBody, signatureEnvelope: { ...envelope, signature: { ...envelope.signature, value: "not-a-valid-signature" } } }),
+  }), {});
+  assert.equal(tamperedOuter.status, 400);
+  assert.equal((await tamperedOuter.json()).code, "CLIENT_SIGNATURE_MISMATCH");
+
+  const agentPublisherApp = createApp({
+    repository: identityRepository({
+      findIdentity: async () => ({ actorId: "agent-publisher" }),
+      getActor: async (actorId) => actorId === "agent-publisher"
+        ? { actorId, actorType: "agent" }
+        : actorId === "agent-1" ? { actorId, actorType: "agent" } : null,
+      findActiveSigningKey: async (actorId) => actorId === "agent-publisher"
+        ? { keyId: "publisher-key", actorId, algorithm: "Ed25519", publicKey: publisherKeyPair.public_key }
+        : actorId === "agent-1" ? { keyId: "producer-key", actorId, algorithm: "Ed25519", publicKey: producerKeyPair.public_key } : null,
+      claimSignatureNonce: async () => true,
+      insertRun: async () => { throw new Error("agent publisher must not write"); },
+    }),
+    runEventFactory: eventFactory,
+    runRoleResolver: async () => "contributor",
+    authenticate: async () => ({ sub: "agent-publisher-subject" }),
+  });
+  const agentPublished = await agentPublisherApp.fetch(new Request("https://api.example.test/runs", {
+    method: "POST",
+    headers: { authorization: "Bearer test-token", "content-type": "application/json" },
+    body: JSON.stringify({ ...runBody, signatureEnvelope: envelope }),
+  }), {});
+  assert.equal(agentPublished.status, 403);
+  assert.equal((await agentPublished.json()).code, "RUN_PUBLISHER_TYPE_INVALID");
+  assert.equal(runInsertCount, 1);
 });
 
 test("plans a signed single-object artifact upload", async () => {

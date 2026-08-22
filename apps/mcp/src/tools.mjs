@@ -451,29 +451,21 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: "publish_submission",
-    description: "Validate, sign, and publish one Claim, Run, or Challenge document. Only executes with confirm: true.",
+    description: "Validate and publish one Claim, Run, or Challenge document with the current human publisher's outer signature. Existing Run producer signatures are preserved. Only executes with confirm: true.",
     write: true,
     inputSchema: { type: "object", required: ["document"], properties: { document: OBJECT, confirm: BOOLEAN } },
     outputSchema: { type: "object", required: ["published", "route"], properties: { published: BOOLEAN, route: STRING, signingBytesHash: STRING, response: OBJECT } },
     run: async ({ client, args, env }) => {
       requiredArg(args.document, "document");
-      let document = args.document.schema === "srp.run.v1" ? canonicalRunDocument(args.document) : args.document;
+      const document = args.document;
+      if (document.schema === "srp.run.v1") canonicalRunDocument(document);
       validateDocument(document);
       const route = submissionRoute(document);
       if (!route) throw new McpToolError(`submission is not supported for schema ${document.schema}`);
-      let body = route.toApi(document);
+      const body = route.toApi(document);
       const summary = { action: "sign and publish a submission", route: route.path, eventType: route.eventType, objectId: body.claimId ?? body.runId ?? body.challengeId };
       if (args.confirm !== true) return consentResult("publish_submission", summary);
-      const identity = requireIdentity(env);
-      if (document.schema === "srp.run.v1") {
-        const actor = await requireActiveAgentActor(client, identity);
-        if (document.actor_id !== actor.actorId) throw new McpToolError("Run actor does not match the authenticated agent", "AGENT_ACTOR_MISMATCH");
-        document = canonicalRunDocument(document);
-        const { signature: _staleSignature, ...unsignedDraft } = document;
-        document = { ...unsignedDraft, signature: await signRunDraft(unsignedDraft, identity) };
-        validateDocument(document);
-        body = route.toApi(document);
-      }
+      requireIdentity(env);
       const envelope = await signatureEnvelope({ eventType: route.eventType, body, env });
       const response = await client.http.request(route.method, route.path, { body: { ...body, signatureEnvelope: envelope } });
       return ok({ published: true, route: route.path, signingBytesHash: envelope.signing_bytes_hash, response });

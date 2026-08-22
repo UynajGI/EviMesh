@@ -60,10 +60,11 @@ async function assertVerifiedOutputArtifacts(transaction, rows) {
 }
 
 /** Persist a reproducibility Run and its immutable input/output artifact references. */
-export async function createRun({ repository, actorId, actorRole, runId, taskId, contextBundleId, sourceCode, container, command, args = [], environment, hardware, randomSeed, startedAt, endedAt, networkAccess = false, exitCode, signingKeyId, signature, inputs = [], outputs = [], eventFactory } = {}) {
+export async function createRun({ repository, actorId, publisherActorId = actorId, actorRole, runId, taskId, contextBundleId, sourceCode, container, command, args = [], environment, hardware, randomSeed, startedAt, endedAt, networkAccess = false, exitCode, signingKeyId, signature, inputs = [], outputs = [], eventFactory } = {}) {
   if (!repository || typeof repository.withTransaction !== 'function') throw new RunCommandError('repository withTransaction is required');
   for (const method of ['getArtifactRevision', 'getArtifactVerification', 'insertRun', 'insertRunInput', 'insertRunOutput', 'appendResearchEvent']) if (typeof repository[method] !== 'function') throw new RunCommandError(`repository ${method} is required`);
   actorId = requiredText(actorId, 'actor id');
+  publisherActorId = requiredText(publisherActorId, 'publisher actor id');
   runId = requiredText(runId, 'run id');
   taskId = requiredText(taskId, 'task id');
   contextBundleId = requiredText(contextBundleId, 'context bundle id');
@@ -87,7 +88,7 @@ export async function createRun({ repository, actorId, actorRole, runId, taskId,
     await assertArtifactRevisions(transaction, inputRows, 'inputs');
     await assertArtifactRevisions(transaction, outputRows, 'outputs');
     await assertVerifiedOutputArtifacts(transaction, outputRows);
-    const event = await eventFactory({ eventType: 'run.created', payload: { entity_type: 'run', run_id: runId, task_id: taskId, actor_id: actorId, signing_key_id: signingKeyId, input_count: inputRows.length, output_count: outputRows.length, random_seed_semantic_hash: normalizedRandomSeed.semanticHash } });
+    const event = await eventFactory({ eventType: 'run.created', payload: { entity_type: 'run', run_id: runId, task_id: taskId, actor_id: publisherActorId, signer_actor_id: publisherActorId, publisher_actor_id: publisherActorId, run_actor_id: actorId, producer_actor_id: actorId, signing_key_id: signingKeyId, input_count: inputRows.length, output_count: outputRows.length, random_seed_semantic_hash: normalizedRandomSeed.semanticHash } });
     if (!event || typeof event !== 'object') throw new RunCommandError('eventFactory must return an event object');
     return {
       run: await transaction.insertRun(run) ?? run,

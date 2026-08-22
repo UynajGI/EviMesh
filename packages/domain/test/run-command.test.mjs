@@ -15,9 +15,15 @@ test('creates a reproducibility run with immutable artifact references', async (
     insertRunOutput: async (value) => { calls.push(['output', value]); return value; },
     appendResearchEvent: async (value) => { calls.push(['event', value]); return value; },
   };
-  const result = await createRun({ repository, actorId: 'actor_1', actorRole: 'contributor', runId: 'run_1', taskId: 'task_1', contextBundleId: 'context_1', sourceCode: 'git:abc', container, command: 'pytest', environment: {}, hardware: {}, randomSeed: { value: 7 }, startedAt: new Date('2026-01-01T00:00:00Z'), endedAt: new Date('2026-01-01T00:00:01Z'), exitCode: 0, signingKeyId: 'key_1', signature: 'sig', inputs: [{ artifactId: 'a', artifactRevision: 1 }], outputs: [{ artifactId: 'b', artifactRevision: 1 }], eventFactory: async (event) => event });
+  const result = await createRun({ repository, actorId: 'agent_1', publisherActorId: 'human_1', actorRole: 'contributor', runId: 'run_1', taskId: 'task_1', contextBundleId: 'context_1', sourceCode: 'git:abc', container, command: 'pytest', environment: {}, hardware: {}, randomSeed: { value: 7 }, startedAt: new Date('2026-01-01T00:00:00Z'), endedAt: new Date('2026-01-01T00:00:01Z'), exitCode: 0, signingKeyId: 'key_1', signature: 'sig', inputs: [{ artifactId: 'a', artifactRevision: 1 }], outputs: [{ artifactId: 'b', artifactRevision: 1 }], eventFactory: async (event) => event });
   assert.equal(result.run.exitCode, 0);
   assert.equal(result.run.signingKeyId, 'key_1');
+  assert.equal(result.run.createdBy, 'agent_1');
+  assert.equal(result.event.payload.actor_id, 'human_1');
+  assert.equal(result.event.payload.signer_actor_id, 'human_1');
+  assert.equal(result.event.payload.publisher_actor_id, 'human_1');
+  assert.equal(result.event.payload.run_actor_id, 'agent_1');
+  assert.equal(result.event.payload.producer_actor_id, 'agent_1');
   assert.equal(calls.length, 4);
 });
 

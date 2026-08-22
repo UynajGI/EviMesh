@@ -99,6 +99,10 @@ test("keeps the stable response shapes in the contract", () => {
   assert.match(document.components.schemas.CreateRunRequest.properties.signature.description, /ascending full artifactId@artifactRevision strings/);
   assert.match(document.components.schemas.CreateRunRequest.properties.signature.description, /non-empty strings without leading or trailing whitespace/);
   assert.match(document.components.schemas.CreateRunRequest.properties.signature.description, /Date\.toISOString/);
+  assert.ok(document.components.schemas.CreateRunRequest.required.includes("actorId"));
+  assert.ok(document.components.schemas.CreateRunRequest.required.includes("signatureEnvelope"));
+  assert.match(document.components.schemas.CreateRunRequest.properties.actorId.description, /agent or service/);
+  assert.match(document.components.schemas.CreateRunRequest.properties.signatureEnvelope.description, /human publisher/);
   assert.match(document.components.schemas.CreateClaimRequest.properties.draftedByActorId.description, /created_by/);
   assert.match(document.components.schemas.CreateClaimRequest.properties.draftedByActorId.description, /signatureEnvelope/);
   assert.match(document.components.schemas.CreateClaimRequest.properties.draftedByActorId.description, /agent or service/);
