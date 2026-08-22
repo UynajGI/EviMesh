@@ -23,7 +23,8 @@ test("design route map has canonical public people and agent activity routes", a
   assert.match(attribution, /return `\/agents\/\$\{encoded\}`/);
   assert.match(attribution, /return `\/contributors\/\$\{encoded\}`/);
   assert.doesNotMatch(agent, /pendingReview|href="\/people"/);
-  assert.match(agent, /data\.lastEventAt \?\? events\.at\(-1\)/);
+  assert.match(agent, /data\.lastEventAt \?\? events\[0\]/);
+  assert.match(agent, /limit=50&order=desc/);
   assert.match(agent, /setError\(reason\)/);
 });
 

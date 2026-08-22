@@ -517,12 +517,12 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
       getOne("merkleCheckpoints", { and: `(first_event_id.lte.${eventId},last_event_id.gte.${eventId})` }),
 
     /* ---- research events ---- */
-    async listResearchEvents({ objectType = null, objectId = null, actorId = null, eventType = null, createdAfter = null, createdBefore = null } = {}) {
+    async listResearchEvents({ objectType = null, objectId = null, actorId = null, eventType = null, createdAfter = null, createdBefore = null, order = "asc" } = {}) {
       const filters = {};
       if (eventType) filters.event_type = eventType;
       if (createdAfter) filters.created_at = { op: "gte", value: createdAfter };
       if (actorId) filters["payload->>actor_id"] = actorId;
-      const rows = await list("researchEvents", filters);
+      const rows = await query("researchEvents", { filters, order: order === "desc" ? "created_at.desc,event_id.desc" : TABLE_ORDERS.researchEvents });
       return rows.filter((row) => {
         const payload = row.payload ?? {};
         if (createdBefore && !(Date.parse(row.createdAt ?? "") <= Date.parse(createdBefore))) return false;

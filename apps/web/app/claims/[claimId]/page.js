@@ -387,7 +387,7 @@ function ClaimDetailView({ params }) {
                     {graphListEntries.map(({ id, relation, state, key }) => (
                       <div className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-3 px-5 py-3 text-sm" key={key}>
                         <span className="capitalize text-muted-foreground">{direction}</span>
-                        <IdChip value={id} /><Link className="text-xs text-primary hover:underline" href={`/claims/${id}`}>open</Link>
+                        <div className="flex min-w-0 items-center gap-2"><IdChip value={id} /><Link className="shrink-0 text-xs text-primary hover:underline" href={`/claims/${id}`}>open</Link></div>
                         <span className="font-mono text-xs text-muted-foreground">{relation}</span>
                         {state ? <StatusBadge state={state} /> : <span className="text-xs text-muted-foreground">unknown</span>}
                       </div>

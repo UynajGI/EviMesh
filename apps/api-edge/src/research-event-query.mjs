@@ -35,6 +35,12 @@ function paginationOptions({ limit, cursor }) {
   return { limit, cursor: cursor ?? null };
 }
 
+function eventOrder(value) {
+  if (value === null || value === undefined) return 'asc';
+  if (value !== 'asc' && value !== 'desc') throw new ResearchEventQueryError('order must be asc or desc');
+  return value;
+}
+
 /** List formal Events by object, Actor, type, and created-time range. */
 export async function listResearchEvents({
   repository,
@@ -44,6 +50,7 @@ export async function listResearchEvents({
   eventType = null,
   createdAfter = null,
   createdBefore = null,
+  order = 'asc',
   limit = 20,
   cursor = null,
 } = {}) {
@@ -57,6 +64,7 @@ export async function listResearchEvents({
     eventType: optionalText(eventType, 'event type'),
     createdAfter: optionalTimestamp(createdAfter, 'created after'),
     createdBefore: optionalTimestamp(createdBefore, 'created before'),
+    order: eventOrder(order),
   };
   if ((filters.objectType === null) !== (filters.objectId === null)) {
     throw new ResearchEventQueryError('object type and object id must be provided together');
@@ -67,6 +75,7 @@ export async function listResearchEvents({
   const events = await repository.listResearchEvents(filters);
   return paginate(Array.isArray(events) ? events : [], {
     ...paginationOptions({ limit, cursor }),
+    direction: filters.order,
     getKey: (event) => ({ createdAt: event.createdAt, id: event.eventId }),
   });
 }

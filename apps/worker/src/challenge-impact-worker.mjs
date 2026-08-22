@@ -2,6 +2,16 @@ export class ChallengeImpactWorkerError extends Error {
   constructor(message, code = 'CHALLENGE_IMPACT_INVALID') { super(message); this.name = 'ChallengeImpactWorkerError'; this.code = code; }
 }
 
+function directDependencyNodes(graph, claimId) {
+  if (Array.isArray(graph)) return graph;
+  const nodeById = new Map((Array.isArray(graph?.nodes) ? graph.nodes : []).map((node) => [node?.claimId, node]));
+  const claimIds = new Set((Array.isArray(graph?.edges) ? graph.edges : [])
+    .filter((edge) => edge?.relationType === 'depends_on' && edge.targetClaimId === claimId)
+    .map((edge) => edge.sourceClaimId)
+    .filter((value) => typeof value === 'string' && value));
+  return [...claimIds].map((id) => nodeById.get(id) ?? { claimId: id });
+}
+
 /** Compute the complete, stable downstream Claim set affected by an upheld Challenge. */
 export async function calculateChallengeImpactJob({ repository, challengeId, challengeRevision } = {}) {
   if (!repository || typeof repository.getCurrentChallengeRevision !== 'function' || typeof repository.getClaimDownstreamGraph !== 'function') throw new ChallengeImpactWorkerError('repository challenge impact methods are required');
@@ -17,7 +27,7 @@ export async function calculateChallengeImpactJob({ repository, challengeId, cha
   while (pending.length > 0) {
     const claimId = pending.shift();
     const graph = await repository.getClaimDownstreamGraph({ claimId, maxDepth: 32 });
-    const nodes = Array.isArray(graph) ? graph : Array.isArray(graph?.nodes) ? graph.nodes : [];
+    const nodes = directDependencyNodes(graph, claimId);
     for (const node of nodes) {
       if (typeof node.claimId !== 'string' || !node.claimId || identifiers.has(node.claimId)) continue;
       identifiers.add(node.claimId);

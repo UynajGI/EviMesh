@@ -55,7 +55,7 @@ export default function AgentActivityPage({ params }) {
       const payload = await request(`/actors/${encodeURIComponent(actorId)}`);
       setData(payload);
       try {
-        const eventPayload = await request(`/events?actorId=${encodeURIComponent(actorId)}&limit=50`);
+        const eventPayload = await request(`/events?actorId=${encodeURIComponent(actorId)}&limit=50&order=desc`);
         setEvents(Array.isArray(eventPayload.items) ? eventPayload.items : []);
       } catch (reason) {
         setEventError(reason);
@@ -74,7 +74,7 @@ export default function AgentActivityPage({ params }) {
   const produced = Array.isArray(data.produced) ? data.produced : [];
   const used = Array.isArray(data.used) ? data.used : [];
   const outputs = [...produced, ...used].slice(0, 20);
-  const lastEvent = data.lastEventAt ?? events.at(-1)?.createdAt ?? actor.updatedAt ?? null;
+  const lastEvent = data.lastEventAt ?? events[0]?.createdAt ?? actor.updatedAt ?? null;
   const owner = actor.ownerActorId;
 
   return (

@@ -32,9 +32,29 @@ test('filters Events by object, Actor, type, and time range before cursor pagina
     eventType: 'claim.revised',
     createdAfter: '2026-08-06T00:00:00.000Z',
     createdBefore: '2026-08-06T04:00:00.000Z',
+    order: 'asc',
   });
   assert.deepEqual(result.items.map((event) => event.eventId), ['event_1', 'event_2']);
   assert.ok(result.nextCursor);
+});
+
+test('supports newest-first event pagination', async () => {
+  let receivedFilters;
+  const result = await listResearchEvents({
+    repository: { listResearchEvents: async (filters) => { receivedFilters = filters; return events; } },
+    order: 'desc',
+    limit: 2,
+  });
+  assert.equal(receivedFilters.order, 'desc');
+  assert.deepEqual(result.items.map((event) => event.eventId), ['event_3', 'event_2']);
+  assert.ok(result.nextCursor);
+  const next = await listResearchEvents({
+    repository: { listResearchEvents: async () => events },
+    order: 'desc',
+    limit: 2,
+    cursor: result.nextCursor,
+  });
+  assert.deepEqual(next.items.map((event) => event.eventId), ['event_1']);
 });
 
 test('validates paired object filters, time bounds, and pagination input', async () => {
@@ -55,4 +75,5 @@ test('validates paired object filters, time bounds, and pagination input', async
     listResearchEvents({ repository, limit: 101 }),
     /integer between 1 and 100/,
   );
+  await assert.rejects(listResearchEvents({ repository, order: 'newest' }), /order must be asc or desc/);
 });

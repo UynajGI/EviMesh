@@ -756,6 +756,7 @@ app.get('/events', async (context) => {
       eventType: context.req.query('eventType') ?? null,
       createdAfter: context.req.query('createdAfter') ?? null,
       createdBefore: context.req.query('createdBefore') ?? null,
+      order: context.req.query('order') ?? 'asc',
       limit: pagedLimit(context),
       cursor: context.req.query('cursor') ?? null,
     }));

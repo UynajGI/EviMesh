@@ -23,6 +23,7 @@ test("claim detail keeps the relation graph with direction switching", () => {
   assert.match(source, /source: edge\.sourceClaimId/);
   assert.match(source, /target: edge\.targetClaimId/);
   assert.match(source, /edge\.path\.at\(-1\)/);
+  assert.match(source, /flex min-w-0 items-center gap-2/);
 });
 
 test("claim detail renders on the page template with recovery", () => {
