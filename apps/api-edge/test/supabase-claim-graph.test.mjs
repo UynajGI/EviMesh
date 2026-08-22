@@ -22,6 +22,8 @@ function assertAcyclic(edges) {
 }
 
 test("reads bounded upstream and downstream Claim graphs with typed relations", async () => {
+  const relationQueries = [];
+  const claimQueries = [];
   const repository = createSupabaseReadRepository({
     url: "https://project.supabase.co",
     publishableKey: "sb_publishable_test",
@@ -29,6 +31,8 @@ test("reads bounded upstream and downstream Claim graphs with typed relations", 
       const endpoint = new URL(url);
       const path = endpoint.pathname;
       if (path.endsWith("/claim_relations")) assert.equal(endpoint.searchParams.get("deleted_at"), "is.null", "ended Claim relations must not enter the active graph");
+      if (path.endsWith("/claim_relations") && endpoint.searchParams.has("or")) relationQueries.push(endpoint);
+      if (path.endsWith("/claims")) claimQueries.push(endpoint);
       if (path.endsWith("/claim_relations") && endpoint.searchParams.has("target_claim_id")) return Response.json([
         { source_claim_id: "claim-child", target_claim_id: "claim-a", relation_type: "depends_on", deleted_at: null },
       ]);
@@ -68,4 +72,8 @@ test("reads bounded upstream and downstream Claim graphs with typed relations", 
   assertAcyclic(supportDownstream.edges);
 
   assert.deepEqual(await repository.listDirectDependentClaimIds("claim-a"), ["claim-child"]);
+  assert.ok(relationQueries.length > 0);
+  assert.ok(relationQueries.every((endpoint) => endpoint.searchParams.get("or")?.includes("source_claim_id.eq.")), "graph reads must query only incident relations");
+  assert.ok(claimQueries.length > 0);
+  assert.ok(claimQueries.every((endpoint) => endpoint.searchParams.get("claim_id")?.startsWith("in.(")), "graph reads must hydrate only discovered Claims");
 });

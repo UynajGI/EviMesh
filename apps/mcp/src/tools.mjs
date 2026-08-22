@@ -85,7 +85,7 @@ async function requireActiveAgentActor(client, identity) {
   }
   if (identity) {
     if (!actor.signingKey) throw new McpToolError("authenticated agent has no active signing key", "AGENT_SIGNING_KEY_MISSING");
-    if (actor.signingKey.algorithm !== identity.algorithm || actor.signingKey.publicKey !== identity.publicKey) {
+    if (actor.signingKey.keyId !== identity.keyId || actor.signingKey.algorithm !== identity.algorithm || actor.signingKey.publicKey !== identity.publicKey) {
       throw new McpToolError("configured signing identity does not match the authenticated agent", "AGENT_SIGNING_KEY_MISMATCH");
     }
   }

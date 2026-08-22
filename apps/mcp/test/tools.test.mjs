@@ -105,8 +105,8 @@ test("record_run rejects a human authenticated actor", async (t) => {
 test("record_run rejects a local signing key that is not registered to the active agent", async (t) => {
   const env = identityEnv(t);
   const { generateIdentity } = await import("../../../packages/cli/src/identity.mjs");
-  generateIdentity(env);
-  const client = createFakeClient({ http: { request: async () => ({ actorId: "agent_01", actorType: "agent", signingKey: { keyId: "key-other", algorithm: "Ed25519", publicKey: "different-public-key" } }) } });
+  const identity = generateIdentity(env);
+  const client = createFakeClient({ http: { request: async () => ({ actorId: "agent_01", actorType: "agent", signingKey: { keyId: "key-other", algorithm: identity.algorithm, publicKey: identity.publicKey } }) } });
   const result = await callTool({ client, name: "record_run", args: { taskId: "task_0193f2c8-5c00-4000-8000-000000000001", contextBundleId: "context-1", sourceCode: "git:abc123", container: `oci:python@sha256:${"a".repeat(64)}`, command: "python", environment: { runtime: "python" }, hardware: { cpu: "x86_64" }, confirm: true }, env });
   assert.equal(result.isError, true);
   assert.equal(result.structuredContent.error, "AGENT_SIGNING_KEY_MISMATCH");

@@ -146,7 +146,7 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
     if (Number.isInteger(limit) && limit > 0) endpoint.searchParams.set("limit", String(limit));
     for (const [column, value] of Object.entries(filters)) {
       if (value === null || value === undefined) continue;
-      if (column === "and") endpoint.searchParams.set("and", String(value));
+      if (column === "and" || column === "or") endpoint.searchParams.set(column, String(value));
       else endpoint.searchParams.set(column, filterValue(value));
     }
 
@@ -249,22 +249,6 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
   }
 
   async function claimGraph({ claimId, maxDepth, direction }) {
-    const [relations, claims] = await Promise.all([
-      /* The protocol has fourteen typed ClaimRelation edges. The dependency
-       * graph remains a DAG traversal, but the read model must not silently
-       * discard supports/refutes/qualifies/lineage edges before the UI can
-       * label them. */
-      list("claimRelations"),
-      list("claims"),
-    ]);
-    const neighbours = new Map();
-    for (const relation of relations) {
-      const { from, to } = traversalEndpoints(relation, direction);
-      const values = neighbours.get(from) ?? [];
-      values.push({ to, relation });
-      neighbours.set(from, values);
-    }
-    const claimById = new Map(claims.map((claim) => [claim.claimId, claim]));
     const visited = new Set([claimId]);
     const queue = [{ claimId, depth: 0, path: [claimId] }];
     const nodes = [];
@@ -273,7 +257,15 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
     for (let cursor = 0; cursor < queue.length; cursor += 1) {
       const current = queue[cursor];
       if (current.depth >= maxDepth) continue;
-      for (const { to: nextId, relation } of neighbours.get(current.claimId) ?? []) {
+      /* Query only edges incident to the current bounded frontier node. The
+       * protocol direction is applied after retrieval because relation families
+       * have different reader traversal semantics. */
+      const incident = await list("claimRelations", {
+        or: `(source_claim_id.eq.${current.claimId},target_claim_id.eq.${current.claimId})`,
+      });
+      for (const relation of incident) {
+        const { from, to: nextId } = traversalEndpoints(relation, direction);
+        if (from !== current.claimId) continue;
         if (hasGraphPath(edgeAdjacency, relation.targetClaimId, relation.sourceClaimId)) continue;
         edges.push({
           sourceClaimId: relation.sourceClaimId,
@@ -289,10 +281,12 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
         visited.add(nextId);
         const next = { claimId: nextId, depth: current.depth + 1, path: [...current.path, nextId] };
         queue.push(next);
-        nodes.push({ ...(claimById.get(nextId) ?? {}), ...next });
+        nodes.push(next);
       }
     }
-    return { nodes, edges };
+    const claims = nodes.length > 0 ? await list("claims", { claim_id: nodes.map((node) => node.claimId) }) : [];
+    const claimById = new Map(claims.map((claim) => [claim.claimId, claim]));
+    return { nodes: nodes.map((node) => ({ ...(claimById.get(node.claimId) ?? {}), ...node })), edges };
   }
 
   /* Revision getter per object type for the provenance path. */
