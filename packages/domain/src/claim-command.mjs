@@ -1,6 +1,6 @@
 import { assertProjectRoleForAction } from "./project-authorization.mjs";
 import { assertClaimTransition } from "../../protocol/src/claim-state.mjs";
-import { semanticHash } from "../../protocol/src/hash.mjs";
+import { canonicalJson, semanticHash } from "../../protocol/src/hash.mjs";
 
 export class ClaimCommandError extends Error {
   constructor(message, code = "CLAIM_INVALID", status = 400) {
@@ -19,6 +19,19 @@ function requiredText(value, field) {
 function requiredJson(value, field) {
   if (value === undefined || value === null || typeof value !== "object") throw new ClaimCommandError(`${field} must be a JSON object or array`);
   return value;
+}
+
+function clonePublisherSignatureEnvelope(value) {
+  if (value === null) return null;
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new ClaimCommandError("publisher signature envelope must be a JSON object or null");
+  }
+  try {
+    return JSON.parse(canonicalJson(value));
+  } catch (error) {
+    if (error instanceof ClaimCommandError) throw error;
+    throw new ClaimCommandError(`publisher signature envelope is not JSON-compatible: ${error.message}`);
+  }
 }
 
 function draftingContributionStatementId({ claimId, actorId }) {
@@ -43,6 +56,7 @@ export async function createClaim({
   actorId,
   actorRole,
   draftedByActorId = null,
+  publisherSignatureEnvelope = null,
   claimId,
   questionId = null,
   statement,
@@ -63,10 +77,14 @@ export async function createClaim({
   scope = requiredJson(scope, "claim scope");
   assumptions = requiredJson(assumptions, "claim assumptions");
   falsification = requiredJson(falsification, "claim falsification");
+  const normalizedPublisherSignatureEnvelope = clonePublisherSignatureEnvelope(publisherSignatureEnvelope);
   if (typeof eventFactory !== "function") throw new ClaimCommandError("eventFactory is required");
   assertProjectRoleForAction({ actorRole, requiredRole: "maintainer" });
 
   const hasSeparateDrafter = draftedByActorId !== actorId;
+  if (hasSeparateDrafter && normalizedPublisherSignatureEnvelope === null) {
+    throw new ClaimCommandError("publisher signature envelope is required for agent drafting attribution", "CLAIM_DRAFTER_SIGNATURE_REQUIRED");
+  }
   if (hasSeparateDrafter) {
     for (const method of ["insertContributionStatement", "insertContributionEdge"]) {
       if (typeof repository[method] !== "function") throw new ClaimCommandError(`repository ${method} is required for agent drafting attribution`);
@@ -92,6 +110,7 @@ export async function createClaim({
     payload: {
       entity_type: "claim", claim_id: claimId, question_id: questionId, revision: 1, actor_id: actorId,
       signer_actor_id: actorId, drafted_by_actor_id: draftedByActorId,
+      ...(normalizedPublisherSignatureEnvelope === null ? {} : { publisher_signature_envelope: normalizedPublisherSignatureEnvelope }),
       projection: { entity_type: "claim", entity_id: claimId, revision: 1, state: { claim: projected, revision } },
     },
   });

@@ -4,6 +4,7 @@ import { createApp } from "../src/index.mjs";
 import { verifyClientSignatureEnvelope } from "../src/client-signature.mjs";
 import { generateEd25519KeyPair } from "../../../packages/signatures/src/ed25519.mjs";
 import { signEd25519Payload } from "../../../packages/signatures/src/client-signature.mjs";
+import { verifyEd25519Payload } from "../../../packages/signatures/src/server-verification.mjs";
 import { canonicalJson, rawHash } from "../../../packages/protocol/src/hash.mjs";
 
 function makeEnvelope({ keypair, keyId, eventType, payload, nonce = "nonce-0123456789abcdef", tamperSign = false } = {}) {
@@ -203,10 +204,15 @@ test("POST /claims preserves a signed agent drafting attribution and rejects for
   });
   const body = { claimId: "claim-agent", draftedByActorId: "agent-1", statement: "agent draft", scope: ["s"], falsification: ["f"] };
   const envelope = await makeEnvelope({ keypair, keyId: "key-1", eventType: "claim.created", payload: body });
+  const submittedEnvelope = {
+    ...envelope,
+    unsigned_extra: "discard me",
+    signature: { ...envelope.signature, key_id: " key-1 ", unsigned_extra: "discard me" },
+  };
   const accepted = await app.fetch(new Request("https://api.example.test/claims", {
     method: "POST",
     headers: { authorization: "Bearer test-token", "content-type": "application/json" },
-    body: JSON.stringify({ ...body, signatureEnvelope: envelope }),
+    body: JSON.stringify({ ...body, signatureEnvelope: submittedEnvelope }),
   }), {});
   assert.equal(accepted.status, 201, await accepted.clone().text());
   const result = await accepted.json();
@@ -214,6 +220,24 @@ test("POST /claims preserves a signed agent drafting attribution and rejects for
   assert.equal(result.revision.createdBy, "human-1");
   assert.equal(result.contribution.actorId, "agent-1");
   assert.equal(result.contribution.role, "originator");
+  const persistedPublisherEnvelope = result.event.payload.publisher_signature_envelope;
+  assert.deepEqual(persistedPublisherEnvelope, envelope);
+  assert.deepEqual(persistedPublisherEnvelope.payload, body);
+  assert.equal(persistedPublisherEnvelope.nonce, envelope.nonce);
+  assert.equal(persistedPublisherEnvelope.signing_bytes_hash, envelope.signing_bytes_hash);
+  assert.equal(persistedPublisherEnvelope.signature.key_id, "key-1");
+  assert.equal(persistedPublisherEnvelope.signature.value, envelope.signature.value);
+  assert.equal(persistedPublisherEnvelope.unsigned_extra, undefined);
+  assert.equal(persistedPublisherEnvelope.signature.unsigned_extra, undefined);
+  assert.equal(await verifyEd25519Payload({
+    signingBytes: new TextEncoder().encode(canonicalJson({
+      event_type: persistedPublisherEnvelope.event_type,
+      payload: persistedPublisherEnvelope.payload,
+      nonce: persistedPublisherEnvelope.nonce,
+    })),
+    signature: persistedPublisherEnvelope.signature.value,
+    publicKey: keypair.public_key,
+  }), true);
   assert.deepEqual(calls.map(([kind]) => kind), ["claim", "revision", "event", "contribution", "edge"]);
   assert.deepEqual(actorLookups, ["human-1", "agent-1"]);
 

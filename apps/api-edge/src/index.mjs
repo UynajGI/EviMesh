@@ -77,6 +77,21 @@ function errorBody(code, message, requestId) {
   return { code, message, request_id: requestId };
 }
 
+function persistedClientSignatureEnvelope(envelope, signedPayload) {
+  return {
+    schema: envelope.schema,
+    event_type: envelope.event_type,
+    payload: JSON.parse(canonicalJson(signedPayload)),
+    nonce: envelope.nonce,
+    signing_bytes_hash: envelope.signing_bytes_hash,
+    signature: {
+      algorithm: envelope.signature.algorithm,
+      key_id: envelope.signature.key_id.trim(),
+      value: envelope.signature.value,
+    },
+  };
+}
+
 const RUN_TIMESTAMP_PATTERN = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?(?:Z|[+-](\d{2}):(\d{2}))$/;
 
 function hasValidRunTimestampParts(match) {
@@ -1042,18 +1057,21 @@ app.post('/claims', async (context) => {
     if (hasSeparateDrafter && body.signatureEnvelope === undefined) {
       throw new ClaimCommandError('signature envelope is required when the drafting actor differs from the publisher', 'CLAIM_DRAFTER_SIGNATURE_REQUIRED');
     }
+    let publisherSignatureEnvelope = null;
     if (body.signatureEnvelope !== undefined) {
       // Verify against the exact sent payload (minus the envelope itself);
       // defaults are applied only when constructing the domain command.
       const signedPayload = { ...body };
       delete signedPayload.signatureEnvelope;
       await verifyClientSignatureEnvelope({ repository, signatureNonceStore: nonceStoreFor(context), actorId, envelope: body.signatureEnvelope, payload: signedPayload, expectedEventType: 'claim.created' });
+      publisherSignatureEnvelope = persistedClientSignatureEnvelope(body.signatureEnvelope, signedPayload);
     }
     const actorRole = await claimRoleResolver({ repository, actorId, questionId: body.questionId ?? null, projectId: body.projectId ?? null });
     return context.json(await createClaim({
       repository,
       actorId,
       actorRole,
+      publisherSignatureEnvelope,
       ...submission,
       eventFactory: claimEventFactory,
     }), 201);
@@ -1277,18 +1295,7 @@ app.post('/runs', async (context) => {
     const signedPayload = { ...body };
     delete signedPayload.signatureEnvelope;
     await verifyClientSignatureEnvelope({ repository, signatureNonceStore: nonceStoreFor(context), actorId: publisherActorId, envelope: body.signatureEnvelope, payload: signedPayload, expectedEventType: 'run.created' });
-    const publisherSignatureEnvelope = {
-      schema: body.signatureEnvelope.schema,
-      event_type: body.signatureEnvelope.event_type,
-      payload: JSON.parse(canonicalJson(signedPayload)),
-      nonce: body.signatureEnvelope.nonce,
-      signing_bytes_hash: body.signatureEnvelope.signing_bytes_hash,
-      signature: {
-        algorithm: body.signatureEnvelope.signature.algorithm,
-        key_id: body.signatureEnvelope.signature.key_id.trim(),
-        value: body.signatureEnvelope.signature.value,
-      },
-    };
+    const publisherSignatureEnvelope = persistedClientSignatureEnvelope(body.signatureEnvelope, signedPayload);
     const actorRole = await runRoleResolver({ repository, actorId: publisherActorId, taskId: canonicalBody.taskId });
     return context.json(await createRun({
       repository,
