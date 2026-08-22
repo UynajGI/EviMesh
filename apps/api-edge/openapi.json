@@ -3567,7 +3567,8 @@
         "required": [
           "subject",
           "email",
-          "actorId"
+          "actorId",
+          "signingKey"
         ],
         "properties": {
           "subject": {
@@ -3598,6 +3599,32 @@
               "witness",
               null
             ]
+          },
+          "signingKey": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "required": [
+              "keyId",
+              "algorithm",
+              "publicKey"
+            ],
+            "properties": {
+              "keyId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "algorithm": {
+                "type": "string",
+                "const": "Ed25519"
+              },
+              "publicKey": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "additionalProperties": false
           }
         },
         "additionalProperties": false

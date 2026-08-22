@@ -51,7 +51,7 @@ test("accepts a valid Supabase JWT at the authenticated route", async () => {
   }), fixture.env);
 
   assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), { subject: "actor_test_01", email: "test@example.test", actorId: "actor_test_01", actorType: "agent" });
+  assert.deepEqual(await response.json(), { subject: "actor_test_01", email: "test@example.test", actorId: "actor_test_01", actorType: "agent", signingKey: null });
 });
 
 test("rejects missing, tampered, and expired JWTs", async () => {

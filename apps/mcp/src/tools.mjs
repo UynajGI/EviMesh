@@ -77,11 +77,17 @@ function requireIdentity(env) {
   }
 }
 
-async function requireActiveAgentActor(client) {
+async function requireActiveAgentActor(client, identity) {
   const actor = await client.http.request("GET", "/auth/me");
   if (typeof actor?.actorId !== "string" || !actor.actorId) throw new McpToolError("authenticated actor binding is unavailable", "AGENT_ACTOR_MISSING");
   if (actor.actorType !== "agent" && actor.actorType !== "service") {
     throw new McpToolError("MCP drafts require an authenticated agent or service actor", "AGENT_ACTOR_REQUIRED");
+  }
+  if (identity) {
+    if (!actor.signingKey) throw new McpToolError("authenticated agent has no active signing key", "AGENT_SIGNING_KEY_MISSING");
+    if (actor.signingKey.algorithm !== identity.algorithm || actor.signingKey.publicKey !== identity.publicKey) {
+      throw new McpToolError("configured signing identity does not match the authenticated agent", "AGENT_SIGNING_KEY_MISMATCH");
+    }
   }
   return actor;
 }
@@ -220,7 +226,7 @@ const TOOL_DEFINITIONS = [
       const summary = { action: "create a local Claim draft", statement: args.statement };
       if (args.confirm !== true) return consentResult("create_claim", summary);
       const identity = requireIdentity(env);
-      const actor = await requireActiveAgentActor(client);
+      const actor = await requireActiveAgentActor(client, identity);
       const claimId = createObjectId("Claim");
       const draft = {
         schema: "srp.claim.v1",
@@ -316,7 +322,7 @@ const TOOL_DEFINITIONS = [
       const summary = { action: "create a local Run Receipt draft", taskId: args.taskId, command: args.command };
       if (args.confirm !== true) return consentResult("record_run", summary);
       const identity = requireIdentity(env);
-      const actor = await requireActiveAgentActor(client);
+      const actor = await requireActiveAgentActor(client, identity);
       const now = new Date().toISOString();
       const unsignedDraft = {
         schema: "srp.run.v1",
@@ -371,14 +377,19 @@ const TOOL_DEFINITIONS = [
       validateDocument(args.document);
       const route = submissionRoute(args.document);
       if (!route) throw new McpToolError(`submission is not supported for schema ${args.document.schema}`);
-      const body = route.toApi(args.document);
+      let document = args.document;
+      let body = route.toApi(document);
       const summary = { action: "sign and publish a submission", route: route.path, eventType: route.eventType, objectId: body.claimId ?? body.runId ?? body.challengeId };
       if (args.confirm !== true) return consentResult("publish_submission", summary);
-      if (args.document.schema === "srp.run.v1") {
-        const actor = await requireActiveAgentActor(client);
-        if (args.document.actor_id !== actor.actorId) throw new McpToolError("Run actor does not match the authenticated agent", "AGENT_ACTOR_MISMATCH");
+      const identity = requireIdentity(env);
+      if (document.schema === "srp.run.v1") {
+        const actor = await requireActiveAgentActor(client, identity);
+        if (document.actor_id !== actor.actorId) throw new McpToolError("Run actor does not match the authenticated agent", "AGENT_ACTOR_MISMATCH");
+        const { signature: _staleSignature, ...unsignedDraft } = document;
+        document = { ...unsignedDraft, signature: await signRunDraft(unsignedDraft, identity) };
+        validateDocument(document);
+        body = route.toApi(document);
       }
-      requireIdentity(env);
       const envelope = await signatureEnvelope({ eventType: route.eventType, body, env });
       const response = await client.http.request(route.method, route.path, { body: { ...body, signatureEnvelope: envelope } });
       return ok({ published: true, route: route.path, signingBytesHash: envelope.signing_bytes_hash, response });

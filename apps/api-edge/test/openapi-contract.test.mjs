@@ -89,7 +89,7 @@ test("publishes the current API route contract", () => {
 
 test("keeps the stable response shapes in the contract", () => {
   assert.deepEqual(document.components.schemas.HealthResponse.required, ["service", "status", "environment"]);
-  assert.deepEqual(document.components.schemas.AuthMeResponse.required, ["subject", "email", "actorId"]);
+  assert.deepEqual(document.components.schemas.AuthMeResponse.required, ["subject", "email", "actorId", "signingKey"]);
   assert.deepEqual(document.components.schemas.PlatformPublicKeysResponse.required, ["active_key_id", "keys"]);
   assert.deepEqual(document.components.schemas.PlatformPublicKey.required, ["key_id", "algorithm", "public_key"]);
   assert.deepEqual(document.components.schemas.ContextBundleResponse.required, ["contextBundleId", "taskId", "taskRevision", "frontierSnapshotId", "mode", "manifest", "contentHash", "storageUri"]);

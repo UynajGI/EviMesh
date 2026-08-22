@@ -74,7 +74,7 @@ test("create_claim and record_run bind drafts to the active signing identity wit
   const { generateIdentity } = await import("../../../packages/cli/src/identity.mjs");
   const identity = generateIdentity(env);
   const networkCalls = [];
-  const client = createFakeClient({ http: { request: async (method, path) => { networkCalls.push({ method, path }); return path === "/auth/me" ? { actorId: "agent_01", actorType: "agent" } : {}; } } });
+  const client = createFakeClient({ http: { request: async (method, path) => { networkCalls.push({ method, path }); return path === "/auth/me" ? { actorId: "agent_01", actorType: "agent", signingKey: { keyId: identity.keyId, algorithm: identity.algorithm, publicKey: identity.publicKey } } : {}; } } });
   const claim = await callTool({ client, name: "create_claim", args: { statement: "s", scope: ["s"], falsification: ["f"], actorId: "human_01", confirm: true }, env });
   assert.equal(claim.isError, false);
   assert.equal(claim.structuredContent.draft.schema, "srp.claim.v1");
@@ -102,22 +102,40 @@ test("record_run rejects a human authenticated actor", async (t) => {
   assert.equal(result.structuredContent.error, "AGENT_ACTOR_REQUIRED");
 });
 
-test("record_run preserves its authenticated agent binding through publication", async (t) => {
+test("record_run rejects a local signing key that is not registered to the active agent", async (t) => {
   const env = identityEnv(t);
   const { generateIdentity } = await import("../../../packages/cli/src/identity.mjs");
   generateIdentity(env);
+  const client = createFakeClient({ http: { request: async () => ({ actorId: "agent_01", actorType: "agent", signingKey: { keyId: "key-other", algorithm: "Ed25519", publicKey: "different-public-key" } }) } });
+  const result = await callTool({ client, name: "record_run", args: { taskId: "task_0193f2c8-5c00-4000-8000-000000000001", contextBundleId: "context-1", sourceCode: "git:abc123", container: `oci:python@sha256:${"a".repeat(64)}`, command: "python", environment: { runtime: "python" }, hardware: { cpu: "x86_64" }, confirm: true }, env });
+  assert.equal(result.isError, true);
+  assert.equal(result.structuredContent.error, "AGENT_SIGNING_KEY_MISMATCH");
+});
+
+test("record_run preserves its authenticated agent binding through publication", async (t) => {
+  const env = identityEnv(t);
+  const { generateIdentity } = await import("../../../packages/cli/src/identity.mjs");
+  const identity = generateIdentity(env);
   const posts = [];
   const client = createFakeClient({ http: { request: async (method, path, { body } = {}) => {
-    if (path === "/auth/me") return { actorId: "agent_01", actorType: "agent" };
+    if (path === "/auth/me") return { actorId: "agent_01", actorType: "agent", signingKey: { keyId: identity.keyId, algorithm: identity.algorithm, publicKey: identity.publicKey } };
     posts.push({ method, path, body });
     return { ok: true };
   } } });
   const recorded = await callTool({ client, name: "record_run", args: { taskId: "task_0193f2c8-5c00-4000-8000-000000000001", contextBundleId: "context-1", sourceCode: "git:abc123", container: `oci:python@sha256:${"a".repeat(64)}`, command: "python", environment: { runtime: "python" }, hardware: { cpu: "x86_64" }, confirm: true }, env });
-  const published = await callTool({ client, name: "publish_submission", args: { document: recorded.structuredContent.draft, confirm: true }, env });
+  const edited = { ...recorded.structuredContent.draft, source_code: "git:def456" };
+  const published = await callTool({ client, name: "publish_submission", args: { document: edited, confirm: true }, env });
   assert.equal(published.isError, false, JSON.stringify(published.structuredContent));
   assert.equal(posts.length, 1);
   assert.equal(posts[0].path, "/runs");
   assert.equal(posts[0].body.actorId, "agent_01");
+  assert.equal(posts[0].body.sourceCode, "git:def456");
+  assert.notEqual(posts[0].body.signature, recorded.structuredContent.draft.signature);
+  const unsignedEdited = { ...edited };
+  delete unsignedEdited.signature;
+  const { canonicalJson } = await import("../../../packages/protocol/src/hash.mjs");
+  const { verifyEd25519Payload } = await import("../../../packages/signatures/src/server-verification.mjs");
+  assert.equal(await verifyEd25519Payload({ signingBytes: new Uint8Array(Buffer.from(canonicalJson(unsignedEdited), "utf8")), signature: posts[0].body.signature, publicKey: identity.publicKey }), true);
   assert.equal(posts[0].body.signatureEnvelope.payload.actorId, "agent_01");
 });
 

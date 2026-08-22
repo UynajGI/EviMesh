@@ -7,7 +7,7 @@ export type Json = string | number | boolean | null | Json[] | { [key: string]: 
 
 export type HealthResponse = { service: "evimesh-api-edge"; status: "ok"; environment: string; };
 
-export type AuthMeResponse = { subject: string; email: string | null; actorId: string; actorType?: "human" | "agent" | "organization" | "service" | "maintainer" | "witness" | null; };
+export type AuthMeResponse = { subject: string; email: string | null; actorId: string; actorType?: "human" | "agent" | "organization" | "service" | "maintainer" | "witness" | null; signingKey: { keyId: string; algorithm: "Ed25519"; publicKey: string; } | null; };
 
 export type DeviceAuthorizationRequest = { client_id: string; };
 

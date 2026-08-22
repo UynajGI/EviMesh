@@ -49,7 +49,7 @@ node apps/mcp/bin/evimesh-mcp.mjs
 `start_attempt`、`record_trace`、`create_claim`、`attach_evidence`、`record_run`、
 `publish_submission`、`submit_verification`、`submit_challenge`。
 
-- `create_claim` / `record_run` 不发布对象；两者只读取 `/auth/me`，要求 bearer 绑定到 agent/service Actor，并忽略调用方伪造的 actor/signature 字段。Run 草稿以该 Actor ID 对无签名正文生成可验证的 Ed25519 执行签名，发布时再次校验同一 Actor 绑定，并携带 source、不可变容器摘要和环境/硬件，返回前按协议 schema 校验。
+- `create_claim` / `record_run` 不发布对象；两者只读取 `/auth/me`，要求 bearer 绑定到 agent/service Actor 且其活动公钥与本地身份匹配，并忽略调用方伪造的 actor/signature 字段。Run 草稿以该 Actor ID 对无签名正文生成可验证的 Ed25519 执行签名；发布时再次校验 Actor/密钥绑定并对最终正文重签，避免编辑后遗留旧签名。草稿携带 source、不可变容器摘要和环境/硬件，返回前按协议 schema 校验。
 - `publish_submission` / `submit_verification` / `submit_challenge` 在确认后校验 schema、
   用 `~/.evimesh` 的 Ed25519 身份签名（`srp.client-signature-envelope.v1`）再提交。
 - 所有工具都声明 `inputSchema` 与 `outputSchema`，并返回 `structuredContent`。

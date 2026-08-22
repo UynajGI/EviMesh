@@ -53,6 +53,8 @@ export default function AgentActivityPage({ params }) {
     setEventError(null);
     try {
       const payload = await request(`/actors/${encodeURIComponent(actorId)}`);
+      const actor = payload.actor ?? payload;
+      if (actor.actorType !== 'agent') throw new Error('Agent not found. This Actor is not registered as an agent.');
       setData(payload);
       try {
         const eventPayload = await request(`/events?actorId=${encodeURIComponent(actorId)}&limit=50&order=desc`);

@@ -209,7 +209,13 @@ app.get("/auth/me", async (context) => {
     const claims = await authenticateRequest(context.req.raw, context.env);
     const actorId = await resolveActorForSupabaseClaims({ repository, claims });
     const actor = typeof repository?.getActor === "function" ? await repository.getActor(actorId) : null;
-    return context.json({ subject: claims.sub, email: claims.email ?? null, actorId, actorType: actor?.actorType ?? null });
+    const activeSigningKey = typeof repository?.findActiveSigningKey === "function" ? await repository.findActiveSigningKey(actorId) : null;
+    const signingKey = activeSigningKey ? {
+      keyId: activeSigningKey.keyId,
+      algorithm: activeSigningKey.algorithm,
+      publicKey: activeSigningKey.publicKey,
+    } : null;
+    return context.json({ subject: claims.sub, email: claims.email ?? null, actorId, actorType: actor?.actorType ?? null, signingKey });
   } catch (error) {
     if (error instanceof JwtVerificationError || error instanceof SyntaxError) {
       return context.json(errorBody("unauthorized", "authentication required", context.get("requestId")), 401);

@@ -21,7 +21,7 @@ const health: HealthResponse = { service: "evimesh-api-edge", status: "ok", envi
 
 const uploadPlanRequest: UploadPlanRequest = { artifactId: "artifact-1", revision: 1, rawHash: `sha256:${"a".repeat(64)}`, sizeBytes: 10, mediaType: "text/plain", fileName: "evidence.txt" };
 
-const me: AuthMeResponse = { subject: "actor-1", email: null, actorId: "actor-1", actorType: "agent" };
+const me: AuthMeResponse = { subject: "actor-1", email: null, actorId: "actor-1", actorType: "agent", signingKey: null };
 
 const error: ErrorResponse = { code: "CLAIM_NOT_FOUND", message: "claim not found", request_id: "req-1" };
 

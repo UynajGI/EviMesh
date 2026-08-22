@@ -193,6 +193,13 @@ test('agent center walks six steps and keeps the manual as Markdown', async () =
   assert.match(route, /new Response\(agentManualMarkdown/);
 });
 
+test('agent activity rejects actors that are not registered as agents', async () => {
+  const page = await read('../app/agents/[actorId]/page.js');
+  assert.match(page, /actor\.actorType !== 'agent'/);
+  assert.match(page, /Agent not found\. This Actor is not registered as an agent\./);
+  assert.ok(page.indexOf("actor.actorType !== 'agent'") < page.indexOf('setData(payload)'), 'actor type must be checked before the agent UI is rendered');
+});
+
 test('command palette is keyboard-first and delegates object search to Explore', async () => {
   const palette = await read('../components/command-palette.js');
   assert.match(palette, /ctrlKey \|\| event\.metaKey/);
