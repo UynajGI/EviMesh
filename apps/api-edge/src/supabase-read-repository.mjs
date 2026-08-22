@@ -239,6 +239,13 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
       : { from: upstreamTo, to: upstreamFrom };
   }
 
+  function hasGraphPath(adjacency, from, target, seen = new Set()) {
+    if (from === target) return true;
+    if (seen.has(from)) return false;
+    seen.add(from);
+    return [...(adjacency.get(from) ?? [])].some((next) => hasGraphPath(adjacency, next, target, seen));
+  }
+
   async function claimGraph({ claimId, maxDepth, direction }) {
     const [relations, claims] = await Promise.all([
       /* The protocol has fourteen typed ClaimRelation edges. The dependency
@@ -260,10 +267,12 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
     const queue = [{ claimId, depth: 0, path: [claimId] }];
     const nodes = [];
     const edges = [];
+    const edgeAdjacency = new Map();
     for (let cursor = 0; cursor < queue.length; cursor += 1) {
       const current = queue[cursor];
       if (current.depth >= maxDepth) continue;
       for (const { to: nextId, relation } of neighbours.get(current.claimId) ?? []) {
+        if (hasGraphPath(edgeAdjacency, relation.targetClaimId, relation.sourceClaimId)) continue;
         edges.push({
           sourceClaimId: relation.sourceClaimId,
           targetClaimId: relation.targetClaimId,
@@ -271,6 +280,9 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
           depth: current.depth + 1,
           path: [...current.path, nextId],
         });
+        const targets = edgeAdjacency.get(relation.sourceClaimId) ?? new Set();
+        targets.add(relation.targetClaimId);
+        edgeAdjacency.set(relation.sourceClaimId, targets);
         if (visited.has(nextId)) continue;
         visited.add(nextId);
         const next = { claimId: nextId, depth: current.depth + 1, path: [...current.path, nextId] };
@@ -509,6 +521,7 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
       const filters = {};
       if (eventType) filters.event_type = eventType;
       if (createdAfter) filters.created_at = { op: "gte", value: createdAfter };
+      if (actorId) filters["payload->>actor_id"] = actorId;
       const rows = await list("researchEvents", filters);
       return rows.filter((row) => {
         const payload = row.payload ?? {};
@@ -521,6 +534,13 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
         if (actorId && payload.actor_id !== actorId) return false;
         return true;
       });
+    },
+    async getLatestResearchEventForActor(actorId) {
+      return (await query("researchEvents", {
+        filters: { "payload->>actor_id": actorId },
+        order: "created_at.desc,event_id.desc",
+        limit: 1,
+      }))[0] ?? null;
     },
     async listResearchEventRange({ firstEventId, lastEventId }) {
       const rows = await list("researchEvents");

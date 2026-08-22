@@ -69,6 +69,24 @@ test("events filter by payload ids and actors, ordered ascending", async () => {
   const questionScoped = await repository.listResearchEvents({ objectType: "question", objectId: "q1" });
   assert.deepEqual(questionScoped.map((row) => row.eventId), ["e1"]);
   assert.ok(seen[0].includes("order=created_at.asc"), "events must be read ascending for cursor pagination");
+  assert.equal(new URL(seen[0]).searchParams.get("payload->>actor_id"), "eq.a1");
+});
+
+test("latest actor activity uses a server-side JSON filter and one-row descending query", async () => {
+  let seen;
+  const repository = createSupabaseReadRepository({
+    url: "https://example.supabase.co",
+    publishableKey: "anon",
+    fetchImpl: async (endpoint) => {
+      seen = new URL(endpoint);
+      return Response.json([{ event_id: "e2", payload: { actor_id: "a1" }, created_at: "2026-08-02T00:00:00Z" }]);
+    },
+  });
+  const event = await repository.getLatestResearchEventForActor("a1");
+  assert.equal(event.eventId, "e2");
+  assert.equal(seen.searchParams.get("payload->>actor_id"), "eq.a1");
+  assert.equal(seen.searchParams.get("order"), "created_at.desc,event_id.desc");
+  assert.equal(seen.searchParams.get("limit"), "1");
 });
 
 test("evidence listing by claim joins through the link table", async () => {

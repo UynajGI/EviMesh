@@ -73,14 +73,9 @@ export async function getContribution({ repository, actorId } = {}) {
   const statementIds = statements.map((statement) => statement.statementId);
   const edges = statementIds.length > 0 ? await repository.listContributionEdges(statementIds) : [];
   const normalizedEdges = Array.isArray(edges) ? edges : [];
-  const actorEvents = typeof repository.listResearchEvents === "function"
-    ? await repository.listResearchEvents({ actorId })
-    : [];
-  const lastEvent = (Array.isArray(actorEvents) ? actorEvents : []).reduce((latest, event) => {
-    if (!latest) return event;
-    const byTime = String(event.createdAt ?? "").localeCompare(String(latest.createdAt ?? ""));
-    return byTime > 0 || (byTime === 0 && String(event.eventId ?? "").localeCompare(String(latest.eventId ?? "")) > 0) ? event : latest;
-  }, null);
+  const lastEvent = typeof repository.getLatestResearchEventForActor === "function"
+    ? await repository.getLatestResearchEventForActor(actorId)
+    : null;
   const roles = [...new Set(statements.map((statement) => statement.role))].sort();
   const roleDetails = roles.map((role) => ({ role, semantics: contributionRoleSemantics(role) }));
 
