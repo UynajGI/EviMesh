@@ -78,7 +78,7 @@ function layoutGraph(nodes, edges) {
   const byId = new Map(nodes.map((node) => [node.id, node]));
   const stratifyData = nodes.map((node) => ({
     id: node.id,
-    parentIds: edges.filter((edge) => edge.target === node.id && byId.has(edge.source)).map((edge) => edge.source),
+    parentIds: edges.filter((edge) => edge.layoutTarget === node.id && byId.has(edge.layoutSource)).map((edge) => edge.layoutSource),
   }));
   try {
     const dagBuilder = graphStratify();
@@ -167,7 +167,7 @@ export function ClaimDag({ elements }) {
   const [selectedDetail, setSelectedDetail] = useState(null);
 
   const rawNodes = (elements ?? []).filter((element) => element.data?.id && !element.data?.source).map((element) => ({ id: element.data.id, state: element.data.state ?? null }));
-  const rawEdges = (elements ?? []).filter((element) => element.data?.source).map((element) => ({ id: element.data.id, source: element.data.source, target: element.data.target, relation: element.data.relationType ?? element.data.relation ?? 'depends_on' }));
+  const rawEdges = (elements ?? []).filter((element) => element.data?.source).map((element) => ({ id: element.data.id, source: element.data.source, target: element.data.target, layoutSource: element.data.layoutSource ?? element.data.source, layoutTarget: element.data.layoutTarget ?? element.data.target, relation: element.data.relationType ?? element.data.relation ?? 'depends_on' }));
   const visibleNodeIds = new Set(stateFilter ? rawNodes.filter((node) => node.state === stateFilter).map((node) => node.id) : rawNodes.map((node) => node.id));
   const nodes = rawNodes.filter((node) => visibleNodeIds.has(node.id));
   const edges = rawEdges.filter((edge) => visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target));

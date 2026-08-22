@@ -39,6 +39,15 @@ test("graph list rows carry text labels, not color alone", () => {
   assert.doesNotMatch(source, /#[0-9a-f]{3,8}\b/i, "graph colors must come from semantic tokens");
 });
 
+test("graph layout endpoints stay separate from protocol render and list endpoints", () => {
+  assert.match(source, /layoutSource: element\.data\.layoutSource \?\? element\.data\.source/);
+  assert.match(source, /layoutTarget: element\.data\.layoutTarget \?\? element\.data\.target/);
+  assert.match(source, /edge\.layoutTarget === node\.id/);
+  assert.match(source, /byId\.has\(edge\.layoutSource\)/);
+  assert.match(source, /source: edge\.source/);
+  assert.match(source, /target: edge\.target/);
+});
+
 test("graph edge families follow the design color and line language", () => {
   assert.match(source, /reproduces: 'positive'/);
   assert.match(source, /supersedes: 'lineage'/);

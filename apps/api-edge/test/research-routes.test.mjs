@@ -677,10 +677,11 @@ test("records a Run receipt through the API", async () => {
     ],
   };
   const envelope = await signatureEnvelope({ keyPair: publisherKeyPair, keyId: "publisher-key", eventType: "run.created", payload: runBody });
+  const submittedEnvelope = { ...envelope, unsigned_extra: "discard me", signature: { ...envelope.signature, unsigned_extra: "discard me" } };
   const response = await app.fetch(new Request("https://api.example.test/runs", {
     method: "POST",
     headers: { authorization: "Bearer test-token", "content-type": "application/json" },
-    body: JSON.stringify({ ...runBody, signatureEnvelope: envelope }),
+    body: JSON.stringify({ ...runBody, signatureEnvelope: submittedEnvelope }),
   }), {});
   assert.equal(response.status, 201, await response.clone().text());
   const created = await response.json();
@@ -689,7 +690,22 @@ test("records a Run receipt through the API", async () => {
   assert.equal(created.run.createdBy, "agent-1");
   assert.equal(created.event.payload.publisher_actor_id, "publisher-1");
   assert.equal(created.event.payload.producer_actor_id, "agent-1");
+  assert.deepEqual(created.event.payload.publisher_signature_envelope, envelope);
+  assert.deepEqual(created.event.payload.publisher_signature_envelope.payload, runBody);
+  assert.equal(created.event.payload.publisher_signature_envelope.signature.key_id, "publisher-key");
+  assert.equal(created.event.payload.publisher_signature_envelope.signature.value, envelope.signature.value);
+  assert.equal(created.event.payload.publisher_signature_envelope.signing_bytes_hash, envelope.signing_bytes_hash);
+  assert.equal(created.event.payload.publisher_signature_envelope.nonce, envelope.nonce);
+  assert.equal(created.event.payload.publisher_signature_envelope.unsigned_extra, undefined);
+  assert.equal(created.event.payload.publisher_signature_envelope.signature.unsigned_extra, undefined);
+  const persistedPublisherEnvelope = created.event.payload.publisher_signature_envelope;
+  assert.equal(await verifyEd25519Payload({
+    signingBytes: new TextEncoder().encode(canonicalJson({ event_type: persistedPublisherEnvelope.event_type, payload: persistedPublisherEnvelope.payload, nonce: persistedPublisherEnvelope.nonce })),
+    signature: persistedPublisherEnvelope.signature.value,
+    publicKey: publisherKeyPair.public_key,
+  }), true);
   assert.equal(runInsertCount, 1);
+  assert.equal(created.run.signature, signature);
   assert.equal(created.run.startedAt, unsignedRun.started_at);
   assert.equal(created.run.endedAt, unsignedRun.ended_at);
   assert.deepEqual(persistedInputs.map(({ artifactId, artifactRevision }) => `${artifactId}@${artifactRevision}`), unsignedRun.input_artifact_ids);
@@ -774,6 +790,7 @@ test("records a Run receipt through the API", async () => {
   }), {});
   assert.equal(tamperedOuter.status, 400);
   assert.equal((await tamperedOuter.json()).code, "CLIENT_SIGNATURE_MISMATCH");
+  assert.equal(runInsertCount, 1);
 
   const agentPublisherApp = createApp({
     repository: identityRepository({

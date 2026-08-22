@@ -15,6 +15,7 @@ import { IdChip } from '@/components/ui/idchip';
 import { hydrateEvidenceLinks, hydrateReceiptFindings, evidenceRelations } from '@/lib/hydrate';
 import { useVisitRecord } from '@/lib/visit-history';
 import { recordView } from '@/lib/interactions';
+import { claimLayoutEndpoints } from '@/lib/claim-graph-layout.mjs';
 import { PageContainer } from '@/components/ui/page';
 import { Check, Eye, Share2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -211,16 +212,22 @@ function ClaimDetailView({ params }) {
   ) : null;
   const currentRevision = pinned ? { ...data.currentRevision, ...pinnedRevisionData, revision: pinnedRevision } : data.currentRevision;
   const graphNodes = Array.isArray(graph?.nodes) ? graph.nodes : [];
-  const graphEntries = graphNodes.map((node) => ({ id: node.claimId ?? node.id, state: node.state ?? node.status })).filter((node) => typeof node.id === 'string' && node.id !== claim.claimId);
+  const graphEntries = graphNodes.map((node) => ({ id: node.claimId ?? node.id, state: node.state ?? node.status, depth: node.depth })).filter((node) => typeof node.id === 'string' && node.id !== claim.claimId);
+  const graphDepthById = new Map([[claim.claimId, 0], ...graphEntries.map(({ id, depth }) => [id, depth])]);
   const graphRelations = Array.isArray(graph?.edges) ? graph.edges : [];
   const dagEdges = graphRelations.length > 0 ? graphRelations.map((edge, index) => ({
     id: edge.id ?? `${direction}-${edge.sourceClaimId}-${edge.targetClaimId}-${edge.relationType ?? index}`,
     /* Reader direction changes traversal, never protocol source/target. */
     source: edge.sourceClaimId,
     target: edge.targetClaimId,
+    ...claimLayoutEndpoints({ source: edge.sourceClaimId, target: edge.targetClaimId, sourceDepth: graphDepthById.get(edge.sourceClaimId), targetDepth: graphDepthById.get(edge.targetClaimId), direction }),
     relation: edge.relationType ?? 'depends_on',
-  })) : graphEntries.map(({ id }) => ({ id: `${direction}-${id}`, source: direction === 'upstream' ? id : claim.claimId, target: direction === 'upstream' ? claim.claimId : id, relation: 'depends_on' }));
-  const dagElements = [{ data: { id: claim.claimId, label: claim.claimId, state: claim.state } }, ...graphEntries.map(({ id, state }) => ({ data: { id, label: id, state } })), ...dagEdges.map((edge) => ({ data: { ...edge, source: edge.source, target: edge.target, relationType: edge.relation } }))];
+  })) : graphEntries.map(({ id, depth }) => {
+    const source = direction === 'upstream' ? id : claim.claimId;
+    const target = direction === 'upstream' ? claim.claimId : id;
+    return { id: `${direction}-${id}`, source, target, ...claimLayoutEndpoints({ source, target, sourceDepth: graphDepthById.get(source) ?? depth, targetDepth: graphDepthById.get(target) ?? depth, direction }), relation: 'depends_on' };
+  });
+  const dagElements = [{ data: { id: claim.claimId, label: claim.claimId, state: claim.state, depth: 0 } }, ...graphEntries.map(({ id, state, depth }) => ({ data: { id, label: id, state, depth } })), ...dagEdges.map((edge) => ({ data: { ...edge, source: edge.source, target: edge.target, relationType: edge.relation } }))];
   const graphListEntries = graphRelations.length > 0 ? graphRelations.map((edge, index) => {
     const sourceId = edge.sourceClaimId;
     const targetId = edge.targetClaimId;

@@ -1277,11 +1277,24 @@ app.post('/runs', async (context) => {
     const signedPayload = { ...body };
     delete signedPayload.signatureEnvelope;
     await verifyClientSignatureEnvelope({ repository, signatureNonceStore: nonceStoreFor(context), actorId: publisherActorId, envelope: body.signatureEnvelope, payload: signedPayload, expectedEventType: 'run.created' });
+    const publisherSignatureEnvelope = {
+      schema: body.signatureEnvelope.schema,
+      event_type: body.signatureEnvelope.event_type,
+      payload: JSON.parse(canonicalJson(signedPayload)),
+      nonce: body.signatureEnvelope.nonce,
+      signing_bytes_hash: body.signatureEnvelope.signing_bytes_hash,
+      signature: {
+        algorithm: body.signatureEnvelope.signature.algorithm,
+        key_id: body.signatureEnvelope.signature.key_id.trim(),
+        value: body.signatureEnvelope.signature.value,
+      },
+    };
     const actorRole = await runRoleResolver({ repository, actorId: publisherActorId, taskId: canonicalBody.taskId });
     return context.json(await createRun({
       repository,
       actorId: canonicalBody.actorId,
       publisherActorId,
+      publisherSignatureEnvelope,
       actorRole,
       ...submission,
       startedAt: submission.startedAt === undefined ? undefined : new Date(submission.startedAt),

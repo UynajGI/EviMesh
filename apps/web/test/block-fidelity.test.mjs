@@ -96,6 +96,8 @@ test('claim page defaults upstream, lists revisions, expands evidence, fields re
   assert.match(page, /useState\('upstream'\)/);
   assert.match(page, /Upstream context: prerequisites, origins, and prior context\./);
   assert.match(page, /Downstream context: dependents, responses, and subsequent context\./);
+  assert.match(page, /depth: node\.depth/);
+  assert.match(page, /claimLayoutEndpoints/);
   assert.doesNotMatch(page, /Upstream: what this claim depends on\.|Downstream: what depends on this claim\./);
   assert.match(page, /published by\{' '\}/);
   assert.doesNotMatch(page, /drafted by\{' '\}/);

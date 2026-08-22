@@ -6,6 +6,7 @@ const container = `oci:example@sha256:${'a'.repeat(64)}`;
 
 test('creates a reproducibility run with immutable artifact references', async () => {
   const calls = [];
+  const publisherSignatureEnvelope = { schema: 'srp.client-signature-envelope.v1', event_type: 'run.created', payload: { runId: 'run_1' }, nonce: 'nonce-0123456789abcdef', signing_bytes_hash: `sha256:${'b'.repeat(64)}`, signature: { algorithm: 'Ed25519', key_id: 'human_key', value: 'outer_sig' } };
   const repository = {
     withTransaction: async (callback) => callback(repository),
     getArtifactRevision: async () => ({ artifactId: 'present', revision: 1 }),
@@ -15,7 +16,7 @@ test('creates a reproducibility run with immutable artifact references', async (
     insertRunOutput: async (value) => { calls.push(['output', value]); return value; },
     appendResearchEvent: async (value) => { calls.push(['event', value]); return value; },
   };
-  const result = await createRun({ repository, actorId: 'agent_1', publisherActorId: 'human_1', actorRole: 'contributor', runId: 'run_1', taskId: 'task_1', contextBundleId: 'context_1', sourceCode: 'git:abc', container, command: 'pytest', environment: {}, hardware: {}, randomSeed: { value: 7 }, startedAt: new Date('2026-01-01T00:00:00Z'), endedAt: new Date('2026-01-01T00:00:01Z'), exitCode: 0, signingKeyId: 'key_1', signature: 'sig', inputs: [{ artifactId: 'a', artifactRevision: 1 }], outputs: [{ artifactId: 'b', artifactRevision: 1 }], eventFactory: async (event) => event });
+  const result = await createRun({ repository, actorId: 'agent_1', publisherActorId: 'human_1', publisherSignatureEnvelope, actorRole: 'contributor', runId: 'run_1', taskId: 'task_1', contextBundleId: 'context_1', sourceCode: 'git:abc', container, command: 'pytest', environment: {}, hardware: {}, randomSeed: { value: 7 }, startedAt: new Date('2026-01-01T00:00:00Z'), endedAt: new Date('2026-01-01T00:00:01Z'), exitCode: 0, signingKeyId: 'key_1', signature: 'sig', inputs: [{ artifactId: 'a', artifactRevision: 1 }], outputs: [{ artifactId: 'b', artifactRevision: 1 }], eventFactory: async (event) => event });
   assert.equal(result.run.exitCode, 0);
   assert.equal(result.run.signingKeyId, 'key_1');
   assert.equal(result.run.createdBy, 'agent_1');
@@ -24,6 +25,9 @@ test('creates a reproducibility run with immutable artifact references', async (
   assert.equal(result.event.payload.publisher_actor_id, 'human_1');
   assert.equal(result.event.payload.run_actor_id, 'agent_1');
   assert.equal(result.event.payload.producer_actor_id, 'agent_1');
+  assert.deepEqual(result.event.payload.publisher_signature_envelope, publisherSignatureEnvelope);
+  publisherSignatureEnvelope.payload.runId = 'tampered-after-call';
+  assert.equal(result.event.payload.publisher_signature_envelope.payload.runId, 'run_1');
   assert.equal(calls.length, 4);
 });
 
@@ -36,6 +40,7 @@ test('reports invalid run JSON fields precisely and rejects seed arrays', async 
   };
   await assert.rejects(() => createRun({ ...base, environment: [] }), /environment must be/);
   await assert.rejects(() => createRun({ ...base, randomSeed: [] }), /random seed must be/);
+  await assert.rejects(() => createRun({ ...base, publisherSignatureEnvelope: { payload: undefined } }), /publisher signature envelope is not JSON-compatible/);
 });
 
 test('rejects missing or duplicate artifact revision references before run creation', async () => {
