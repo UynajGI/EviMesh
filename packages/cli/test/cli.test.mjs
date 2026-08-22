@@ -5,6 +5,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runCli } from "../src/main.mjs";
+import { submit as submitCommand } from "../src/commands-write.mjs";
+import { canonicalRunDocument } from "../src/documents.mjs";
 import { hashContextBundle } from "../../protocol/src/context-bundle-hash.mjs";
 
 const validRunFixturePath = fileURLToPath(new URL("../../schemas/fixtures/valid/run.json", import.meta.url));
@@ -98,6 +100,55 @@ test("submit --dry-run signs the canonical payload without network calls", async
   const code = await runCli(["submit", out, "--dry-run", "--json"], { env, fetchImpl: async () => { called = true; return jsonResponse(200, {}); } });
   assert.equal(code, 0);
   assert.equal(called, false, "dry-run must not hit the network");
+});
+
+test("submit rejects schema-valid noncanonical Runs before signing or network access", async (t) => {
+  const { dir, env, cleanup } = setup();
+  t.after(cleanup);
+  assert.equal(await runCli(["config", "init"], { env }), 0);
+  const schemaValidRun = JSON.parse(readFileSync(validRunFixturePath, "utf8"));
+  const canonicalRun = canonicalRunDocument(schemaValidRun);
+  const cases = [
+    { name: "missing-revision", document: schemaValidRun, code: "RUN_DOCUMENT_NONCANONICAL" },
+    { name: "offset-timestamp", document: { ...canonicalRun, started_at: "2026-08-04T14:00:00+08:00" }, code: "RUN_DOCUMENT_NONCANONICAL" },
+    { name: "text-whitespace", document: { ...canonicalRun, source_code: " git:0123456789abcdef" }, code: "RUN_TEXT_INVALID" },
+  ];
+  let fetchCalls = 0;
+  const fetchImpl = async () => { fetchCalls += 1; return jsonResponse(201, {}); };
+  for (const { name, document, code } of cases) {
+    const path = join(dir, `${name}.run.json`);
+    writeFileSync(path, JSON.stringify(document));
+    for (const dryRun of [false, true]) {
+      await assert.rejects(
+        () => submitCommand({
+          flags: dryRun ? { "dry-run": true } : {}, output: { emit() {} }, positionals: [path], env, fetchImpl,
+        }),
+        (error) => error?.code === code,
+        `${name} (${dryRun ? "dry-run" : "submit"})`,
+      );
+    }
+  }
+  assert.equal(fetchCalls, 0);
+});
+
+test("submit publishes an already-canonical Run document", async (t) => {
+  const { dir, env, cleanup } = setup();
+  t.after(cleanup);
+  assert.equal(await runCli(["config", "init", "--api-url", "https://api.test"], { env }), 0);
+  assert.equal(await runCli(["identity", "generate", "--json"], { env }), 0);
+  const document = canonicalRunDocument(JSON.parse(readFileSync(validRunFixturePath, "utf8")));
+  const path = join(dir, "canonical.run.json");
+  writeFileSync(path, JSON.stringify(document));
+  const requests = [];
+  const fetchImpl = async (url, options) => { requests.push({ url, options }); return jsonResponse(201, { run: { runId: document.run_id } }); };
+
+  assert.equal(await submitCommand({ flags: {}, output: { emit() {} }, positionals: [path], env, fetchImpl }), 0);
+  assert.equal(requests.length, 1);
+  assert.match(requests[0].url, /\/runs$/);
+  const sent = JSON.parse(requests[0].options.body);
+  assert.equal(sent.signature, document.signature);
+  assert.deepEqual(sent.inputs, [{ artifactId: "evidence_01", artifactRevision: 1 }]);
+  assert.equal(sent.signatureEnvelope.payload.runId, document.run_id);
 });
 
 test("task list renders API results as JSON", async (t) => {

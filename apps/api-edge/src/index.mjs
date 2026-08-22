@@ -137,10 +137,7 @@ function canonicalRunText(value, field) {
 }
 
 function canonicalRunBodyArtifactRefs(refs, field) {
-  return canonicalRunArtifactRefs(refs, field).map((ref) => ({
-    ...ref,
-    artifactId: canonicalRunText(ref?.artifactId, `${field}.artifactId`),
-  }));
+  return canonicalRunArtifactRefs(refs, field);
 }
 
 function canonicalRunBody(body) {

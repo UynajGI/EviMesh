@@ -601,7 +601,7 @@ test("creates Evidence and links it to a fixed ClaimRevision", async () => {
   assert.equal((await linked.json()).link.claimRevision, 2);
 });
 
-test("rejects non-array Run inputs and outputs before verification, nonce consumption, or writes", async () => {
+test("rejects malformed Run inputs and outputs before verification, nonce consumption, or writes", async () => {
   let actorLookups = 0;
   let keyLookups = 0;
   let nonceClaims = 0;
@@ -631,6 +631,9 @@ test("rejects non-array Run inputs and outputs before verification, nonce consum
   for (const invalid of [
     { inputs: {} }, { inputs: "artifact-input@1" }, { inputs: null },
     { outputs: {} }, { outputs: "artifact-output@1" }, { outputs: null },
+    { inputs: [null, { artifactId: "artifact-input", artifactRevision: 1 }] },
+    { outputs: [{ artifactId: "artifact-output", artifactRevision: 0 }] },
+    { inputs: [{ artifactId: " artifact-input", artifactRevision: 1 }] },
   ]) {
     const response = await app.fetch(new Request("https://api.example.test/runs", {
       method: "POST",

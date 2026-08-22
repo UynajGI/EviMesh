@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { validateDocument, CliDocumentError, claimDocToApi, runDocToApi, verificationDocToApi, challengeDocToApi, submissionRoute } from "../../../packages/cli/src/documents.mjs";
+import { validateDocument, CliDocumentError, canonicalRunDocument, assertCanonicalRunDocument, claimDocToApi, runDocToApi, verificationDocToApi, challengeDocToApi, submissionRoute } from "../../../packages/cli/src/documents.mjs";
 import { signSubmission, createNonce } from "../../../packages/cli/src/signing.mjs";
 import { loadIdentity, CliIdentityError } from "../../../packages/cli/src/identity.mjs";
 import { createObjectId } from "../../../packages/protocol/src/uuidv7.mjs";
@@ -108,92 +108,6 @@ async function requireActiveAgentActor(client, identity) {
 async function signRunDraft(unsignedDraft, identity) {
   const signingBytes = Buffer.from(canonicalJson(unsignedDraft), "utf8");
   return signEd25519Payload({ signingBytes: new Uint8Array(signingBytes), privateKey: identity.privateKey });
-}
-
-function canonicalRunArtifactRefs(document) {
-  const canonicalRef = (value) => {
-    if (typeof value !== "string" || value.length === 0 || value.trim() !== value) {
-      throw new McpToolError("Run artifact refs must be non-empty strings", "RUN_ARTIFACT_REF_INVALID");
-    }
-    const separator = value.indexOf("@");
-    if (separator !== value.lastIndexOf("@")) {
-      throw new McpToolError("Run artifact refs must contain at most one @", "RUN_ARTIFACT_REF_INVALID");
-    }
-    if (separator === -1) return `${value}@1`;
-    const artifactId = value.slice(0, separator);
-    const revisionText = value.slice(separator + 1);
-    if (!artifactId || artifactId.trim() !== artifactId || !/^[0-9]+$/.test(revisionText)) {
-      throw new McpToolError("Run artifact refs must be formatted as artifactId@positiveRevision", "RUN_ARTIFACT_REF_INVALID");
-    }
-    const revision = Number(revisionText);
-    if (!Number.isSafeInteger(revision) || revision < 1) {
-      throw new McpToolError("Run artifact revisions must be positive safe integers", "RUN_ARTIFACT_REF_INVALID");
-    }
-    return `${artifactId}@${revision}`;
-  };
-  // Keep this normalized full-ref code-unit order aligned with API Run verification.
-  const normalizeAndSort = (refs, field) => {
-    if (!Array.isArray(refs)) throw new McpToolError(`${field} must be an array`, "RUN_ARTIFACT_REFS_INVALID");
-    return [...refs].map(canonicalRef).sort((left, right) => left < right ? -1 : left > right ? 1 : 0);
-  };
-  return {
-    ...document,
-    input_artifact_ids: normalizeAndSort(document.input_artifact_ids, "input_artifact_ids"),
-    output_artifact_ids: normalizeAndSort(document.output_artifact_ids, "output_artifact_ids"),
-  };
-}
-
-const RUN_TIMESTAMP_PATTERN = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?(?:Z|[+-](\d{2}):(\d{2}))$/;
-
-function hasValidRunTimestampParts(match) {
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const day = Number(match[3]);
-  const hour = Number(match[4]);
-  const minute = Number(match[5]);
-  const second = Number(match[6]);
-  const offsetHour = Number(match[8] ?? 0);
-  const offsetMinute = Number(match[9] ?? 0);
-  const leapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
-  const daysInMonth = [31, leapYear ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-  return month >= 1 && month <= 12
-    && day >= 1 && day <= daysInMonth[month - 1]
-    && hour <= 23 && minute <= 59 && second <= 59
-    && offsetHour <= 23 && offsetMinute <= 59;
-}
-
-function canonicalRunTimestamp(value) {
-  const match = typeof value === "string" && value.trim() === value ? RUN_TIMESTAMP_PATTERN.exec(value) : null;
-  if (!match || !hasValidRunTimestampParts(match)) {
-    throw new McpToolError("Run timestamps must be RFC3339 date-time strings", "RUN_TIMESTAMP_INVALID");
-  }
-  const timestamp = new Date(value);
-  if (Number.isNaN(timestamp.getTime())) throw new McpToolError("Run timestamps must be valid date-times", "RUN_TIMESTAMP_INVALID");
-  return timestamp.toISOString();
-}
-
-function canonicalRunText(value, field) {
-  if (typeof value !== "string" || value.length === 0 || value.trim() !== value) {
-    throw new McpToolError(`${field} must be a non-empty string without leading or trailing whitespace`, "RUN_TEXT_INVALID");
-  }
-  return value;
-}
-
-function canonicalRunDocument(document) {
-  const withCanonicalRefs = canonicalRunArtifactRefs(document);
-  return {
-    ...withCanonicalRefs,
-    run_id: canonicalRunText(withCanonicalRefs.run_id, "run_id"),
-    task_id: canonicalRunText(withCanonicalRefs.task_id, "task_id"),
-    context_bundle_id: canonicalRunText(withCanonicalRefs.context_bundle_id, "context_bundle_id"),
-    source_code: canonicalRunText(withCanonicalRefs.source_code, "source_code"),
-    container: canonicalRunText(withCanonicalRefs.container, "container"),
-    command: canonicalRunText(withCanonicalRefs.command, "command"),
-    actor_id: canonicalRunText(withCanonicalRefs.actor_id, "actor_id"),
-    signing_key_id: canonicalRunText(withCanonicalRefs.signing_key_id, "signing_key_id"),
-    started_at: canonicalRunTimestamp(withCanonicalRefs.started_at),
-    ended_at: canonicalRunTimestamp(withCanonicalRefs.ended_at),
-  };
 }
 
 function jsonContent(data) {
@@ -477,10 +391,7 @@ const TOOL_DEFINITIONS = [
       const document = args.document;
       validateToolDocument(document);
       if (document.schema === "srp.run.v1") {
-        const canonicalDocument = canonicalRunDocument(document);
-        if (canonicalJson(canonicalDocument) !== canonicalJson(document)) {
-          throw new McpToolError("Run document must already use canonical artifact revisions and UTC timestamps", "RUN_DOCUMENT_NONCANONICAL");
-        }
+        assertCanonicalRunDocument(document);
       }
       const route = submissionRoute(document);
       if (!route) throw new McpToolError(`submission is not supported for schema ${document.schema}`);

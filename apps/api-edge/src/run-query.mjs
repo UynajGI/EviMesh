@@ -26,8 +26,20 @@ function requireRepository(repository, methods, message) {
 
 export function canonicalRunArtifactRefs(refs, field = 'run artifact refs') {
   if (!Array.isArray(refs)) throw new RunQueryError(`${field} must be an array`, 'RUN_ARTIFACT_REFS_INVALID');
+  const canonicalRefs = refs.map((ref, index) => {
+    if (!ref || typeof ref !== 'object' || Array.isArray(ref)) {
+      throw new RunQueryError(`${field}[${index}] must be an artifact reference object`, 'RUN_ARTIFACT_REFS_INVALID');
+    }
+    if (typeof ref.artifactId !== 'string' || ref.artifactId.length === 0 || ref.artifactId.trim() !== ref.artifactId) {
+      throw new RunQueryError(`${field}[${index}].artifactId must be a non-empty string without leading or trailing whitespace`, 'RUN_ARTIFACT_REFS_INVALID');
+    }
+    if (!Number.isInteger(ref.artifactRevision) || ref.artifactRevision < 1) {
+      throw new RunQueryError(`${field}[${index}].artifactRevision must be a positive integer`, 'RUN_ARTIFACT_REFS_INVALID');
+    }
+    return ref;
+  });
   const keyOf = (ref) => `${ref.artifactId}@${ref.artifactRevision}`;
-  return [...refs].sort((left, right) => {
+  return canonicalRefs.sort((left, right) => {
     const leftKey = keyOf(left);
     const rightKey = keyOf(right);
     return leftKey < rightKey ? -1 : leftKey > rightKey ? 1 : 0;

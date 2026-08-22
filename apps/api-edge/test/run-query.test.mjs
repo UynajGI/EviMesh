@@ -53,6 +53,20 @@ test('returns a run with canonically ordered artifact inputs and outputs', async
       (error) => error instanceof RunQueryError && error.code === 'RUN_ARTIFACT_REFS_INVALID' && error.status === 400,
     );
   }
+  for (const invalidEntry of [
+    null,
+    [],
+    'artifact-a@1',
+    {},
+    { artifactId: ' artifact-a', artifactRevision: 1 },
+    { artifactId: 'artifact-a', artifactRevision: 0 },
+    { artifactId: 'artifact-a', artifactRevision: 1.5 },
+  ]) {
+    assert.throws(
+      () => canonicalRunArtifactRefs([invalidEntry, { artifactId: 'artifact-valid', artifactRevision: 1 }], 'inputs'),
+      (error) => error instanceof RunQueryError && error.code === 'RUN_ARTIFACT_REFS_INVALID' && error.status === 400,
+    );
+  }
 });
 
 test('rejects invalid or missing run queries', async () => {
