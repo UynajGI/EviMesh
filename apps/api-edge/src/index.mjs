@@ -78,7 +78,7 @@ function errorBody(code, message, requestId) {
 }
 
 function unsignedRunDocument(body, actorId) {
-  const artifactRefs = (refs) => (refs ?? []).map((ref) => `${ref.artifactId}@${ref.artifactRevision}`);
+  const artifactRefs = (refs) => (Array.isArray(refs) ? refs : []).map((ref) => `${ref.artifactId}@${ref.artifactRevision}`);
   return {
     schema: 'srp.run.v1',
     run_id: body.runId,
@@ -100,6 +100,16 @@ function unsignedRunDocument(body, actorId) {
     actor_id: actorId,
     signing_key_id: body.signingKeyId,
   };
+}
+
+async function verifyRunDocumentSignature({ body, actorId, publicKey }) {
+  try {
+    if (typeof body.signature !== 'string' || body.signature.length === 0) return false;
+    const signingBytes = new TextEncoder().encode(canonicalJson(unsignedRunDocument(body, actorId)));
+    return await verifyEd25519Payload({ signingBytes, signature: body.signature, publicKey });
+  } catch {
+    return false;
+  }
 }
 
 export function createApp({ repository = null, signatureNonceStore = null, projectEventFactory = null, questionEventFactory = null, questionRoleResolver = null, questionRiskResolver = null, attemptEventFactory = null, attemptRoleResolver = null, leaseEventFactory = null, leaseRoleResolver = null, taskEventFactory = null, taskRoleResolver = null, claimEventFactory = null, claimRoleResolver = null, evidenceEventFactory = null, evidenceRoleResolver = null, runEventFactory = null, runRoleResolver = null, artifactEventFactory = null, artifactRoleResolver = null, challengeEventFactory = null, challengeRoleResolver = null, verificationEventFactory = null, verificationRoleResolver = null, uploadSigner = null, deviceCodeStore = createMemoryDeviceCodeStore(), authenticate = authenticateSupabaseRequest, rateLimiter = createRateLimiter() } = {}) {
@@ -1137,12 +1147,7 @@ app.post('/runs', async (context) => {
     if (!activeSigningKey || activeSigningKey.keyId !== body.signingKeyId) {
       throw new ActorIdentityError('Run signing key does not belong to the authenticated actor', 'SIGNING_KEY_ID_MISMATCH', 403);
     }
-    const runSigningBytes = new TextEncoder().encode(canonicalJson(unsignedRunDocument(body, actorId)));
-    const validRunSignature = await verifyEd25519Payload({
-      signingBytes: runSigningBytes,
-      signature: body.signature,
-      publicKey: activeSigningKey.publicKey,
-    });
+    const validRunSignature = await verifyRunDocumentSignature({ body, actorId, publicKey: activeSigningKey.publicKey });
     if (!validRunSignature) {
       throw new RunCommandError('Run signature does not verify against the authenticated signing key', 'RUN_SIGNATURE_MISMATCH');
     }

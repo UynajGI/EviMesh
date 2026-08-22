@@ -651,6 +651,14 @@ test("records a Run receipt through the API", async () => {
   assert.equal(invalidSignature.status, 400);
   assert.equal((await invalidSignature.json()).code, "RUN_SIGNATURE_MISMATCH");
 
+  const missingSignature = await app.fetch(new Request("https://api.example.test/runs", {
+    method: "POST",
+    headers: { authorization: "Bearer test-token", "content-type": "application/json" },
+    body: JSON.stringify({ ...runBody, signature: undefined }),
+  }), {});
+  assert.equal(missingSignature.status, 400);
+  assert.equal((await missingSignature.json()).code, "RUN_SIGNATURE_MISMATCH");
+
   const foreignKey = await app.fetch(new Request("https://api.example.test/runs", {
     method: "POST",
     headers: { authorization: "Bearer test-token", "content-type": "application/json" },
