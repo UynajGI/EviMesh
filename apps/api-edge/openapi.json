@@ -4763,14 +4763,16 @@
             "type": "string",
             "minLength": 1
           },
-          "signingKeyId": {
-            "type": "string",
-            "minLength": 1
-          },
-          "signature": {
-            "type": "string",
-            "minLength": 1
-          },
+        "signingKeyId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Active Ed25519 key owned by the authenticated Actor."
+        },
+        "signature": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Base64url Ed25519 signature over the canonical srp.run.v1 document without its signature field. ArtifactRevisionRef values canonicalize as artifactId@artifactRevision."
+        },
           "inputs": {
             "type": "array",
             "items": {

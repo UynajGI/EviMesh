@@ -298,7 +298,11 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
       }
       frontier = nextFrontier;
     }
-    const claims = nodes.length > 0 ? await list("claims", { claim_id: nodes.map((node) => node.claimId) }) : [];
+    const claimIdBatches = [];
+    for (let offset = 0; offset < nodes.length; offset += CLAIM_GRAPH_FRONTIER_BATCH_SIZE) {
+      claimIdBatches.push(nodes.slice(offset, offset + CLAIM_GRAPH_FRONTIER_BATCH_SIZE).map((node) => node.claimId));
+    }
+    const claims = (await Promise.all(claimIdBatches.map((claimIds) => list("claims", { claim_id: claimIds })))).flat();
     const claimById = new Map(claims.map((claim) => [claim.claimId, claim]));
     return { nodes: nodes.map((node) => ({ ...(claimById.get(node.claimId) ?? {}), ...node })), edges };
   }

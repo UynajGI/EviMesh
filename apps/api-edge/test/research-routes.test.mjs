@@ -4,6 +4,9 @@ import { createApp } from "../src/index.mjs";
 import { buildMerkleTree } from "../../../packages/merkle/src/merkle-tree.mjs";
 import { hashResearchEventLeaf } from "../../../packages/merkle/src/research-event-leaf.mjs";
 import { verifyMerkleInclusionProof } from "../../../packages/merkle/src/verify-inclusion-proof.mjs";
+import { canonicalJson } from "../../../packages/protocol/src/hash.mjs";
+import { generateEd25519KeyPair } from "../../../packages/signatures/src/ed25519.mjs";
+import { signEd25519Payload } from "../../../packages/signatures/src/client-signature.mjs";
 
 const AUTH = { authenticate: async () => ({ sub: "supabase-subject" }) };
 
@@ -578,9 +581,10 @@ test("creates Evidence and links it to a fixed ClaimRevision", async () => {
 });
 
 test("records a Run receipt through the API", async () => {
+  const keyPair = generateEd25519KeyPair();
   const app = createApp({
     repository: identityRepository({
-      findActiveSigningKey: async () => ({ keyId: "key-1", actorId: "actor-1", algorithm: "Ed25519", publicKey: "public-key" }),
+      findActiveSigningKey: async () => ({ keyId: "key-1", actorId: "actor-1", algorithm: "Ed25519", publicKey: keyPair.public_key }),
       getArtifactRevision: async (artifactId, revision) => ({ artifactId, revision }),
       getArtifactVerification: async () => ({ status: "verified" }),
       insertRun: async (run) => run,
@@ -592,26 +596,60 @@ test("records a Run receipt through the API", async () => {
     runRoleResolver: async () => "contributor",
     ...AUTH,
   });
+  const unsignedRun = {
+    schema: "srp.run.v1",
+    run_id: "run-1",
+    task_id: "task-1",
+    context_bundle_id: "bundle-1",
+    input_artifact_ids: ["artifact-input@1"],
+    source_code: "artifact-code@1",
+    container: "python@sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+    command: "python",
+    args: ["reproduce.py"],
+    environment: { python: "3.12" },
+    hardware: { cpu: "x86_64" },
+    random_seed: { seed: 42 },
+    started_at: "2026-08-06T00:00:00.000Z",
+    ended_at: "2026-08-06T00:05:00.000Z",
+    network_access: false,
+    output_artifact_ids: ["artifact-output@1"],
+    exit_code: 0,
+    actor_id: "actor-1",
+    signing_key_id: "key-1",
+  };
+  const signature = await signEd25519Payload({
+    signingBytes: new TextEncoder().encode(canonicalJson(unsignedRun)),
+    privateKey: keyPair.private_key,
+  });
+  const runBody = {
+    runId: "run-1", taskId: "task-1", contextBundleId: "bundle-1",
+    sourceCode: "artifact-code@1",
+    container: "python@sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+    command: "python", args: ["reproduce.py"], environment: { python: "3.12" }, hardware: { cpu: "x86_64" },
+    randomSeed: { seed: 42 }, startedAt: "2026-08-06T00:00:00.000Z", endedAt: "2026-08-06T00:05:00.000Z", exitCode: 0,
+    actorId: "actor-1",
+    signingKeyId: "key-1",
+    signature,
+    inputs: [{ artifactId: "artifact-input", artifactRevision: 1 }],
+    outputs: [{ artifactId: "artifact-output", artifactRevision: 1 }],
+  };
   const response = await app.fetch(new Request("https://api.example.test/runs", {
     method: "POST",
     headers: { authorization: "Bearer test-token", "content-type": "application/json" },
-    body: JSON.stringify({
-      runId: "run-1", taskId: "task-1", contextBundleId: "bundle-1",
-      sourceCode: "artifact-code@1",
-      container: "python@sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
-      command: "python", args: ["reproduce.py"], environment: { python: "3.12" }, hardware: { cpu: "x86_64" },
-      randomSeed: { seed: 42 }, startedAt: "2026-08-06T00:00:00.000Z", endedAt: "2026-08-06T00:05:00.000Z", exitCode: 0,
-      actorId: "actor-1",
-      signingKeyId: "key-1",
-      signature: "ed25519:sig",
-      inputs: [{ artifactId: "artifact-input", artifactRevision: 1 }],
-      outputs: [{ artifactId: "artifact-output", artifactRevision: 1 }],
-    }),
+    body: JSON.stringify(runBody),
   }), {});
   assert.equal(response.status, 201, await response.clone().text());
   const created = await response.json();
   assert.equal(created.run.runId, "run-1");
   assert.equal(created.run.signingKeyId, "key-1");
+
+  const invalidSignature = await app.fetch(new Request("https://api.example.test/runs", {
+    method: "POST",
+    headers: { authorization: "Bearer test-token", "content-type": "application/json" },
+    body: JSON.stringify({ ...runBody, signature: "not-a-valid-signature" }),
+  }), {});
+  assert.equal(invalidSignature.status, 400);
+  assert.equal((await invalidSignature.json()).code, "RUN_SIGNATURE_MISMATCH");
 
   const foreignKey = await app.fetch(new Request("https://api.example.test/runs", {
     method: "POST",

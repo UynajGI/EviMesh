@@ -34,7 +34,8 @@ import { getObjectProvenance, ObjectProvenanceQueryError } from './object-proven
 import { getVerificationReceipt, listClaimVerifications, VerificationQueryError } from './verification-query.mjs';
 import { prepareVerification, VerificationPrepareError } from './verification-prepare.mjs';
 import { revisionEtag } from './etag.mjs';
-import { semanticHash } from '../../../packages/protocol/src/hash.mjs';
+import { canonicalJson, semanticHash } from '../../../packages/protocol/src/hash.mjs';
+import { verifyEd25519Payload } from '../../../packages/signatures/src/server-verification.mjs';
 import { createProject, reviseProject } from '../../../packages/domain/src/project-command.mjs';
 import { ProjectCommandError } from '../../../packages/domain/src/project-command.mjs';
 import { createQuestion, transitionQuestion } from '../../../packages/domain/src/question-command.mjs';
@@ -74,6 +75,31 @@ function requestIdFor(value) {
 
 function errorBody(code, message, requestId) {
   return { code, message, request_id: requestId };
+}
+
+function unsignedRunDocument(body, actorId) {
+  const artifactRefs = (refs) => (refs ?? []).map((ref) => `${ref.artifactId}@${ref.artifactRevision}`);
+  return {
+    schema: 'srp.run.v1',
+    run_id: body.runId,
+    task_id: body.taskId,
+    context_bundle_id: body.contextBundleId,
+    input_artifact_ids: artifactRefs(body.inputs),
+    source_code: body.sourceCode,
+    container: body.container,
+    command: body.command,
+    args: body.args ?? [],
+    environment: body.environment ?? {},
+    hardware: body.hardware ?? {},
+    random_seed: body.randomSeed ?? {},
+    started_at: body.startedAt,
+    ended_at: body.endedAt,
+    network_access: body.networkAccess ?? false,
+    output_artifact_ids: artifactRefs(body.outputs),
+    exit_code: body.exitCode,
+    actor_id: actorId,
+    signing_key_id: body.signingKeyId,
+  };
 }
 
 export function createApp({ repository = null, signatureNonceStore = null, projectEventFactory = null, questionEventFactory = null, questionRoleResolver = null, questionRiskResolver = null, attemptEventFactory = null, attemptRoleResolver = null, leaseEventFactory = null, leaseRoleResolver = null, taskEventFactory = null, taskRoleResolver = null, claimEventFactory = null, claimRoleResolver = null, evidenceEventFactory = null, evidenceRoleResolver = null, runEventFactory = null, runRoleResolver = null, artifactEventFactory = null, artifactRoleResolver = null, challengeEventFactory = null, challengeRoleResolver = null, verificationEventFactory = null, verificationRoleResolver = null, uploadSigner = null, deviceCodeStore = createMemoryDeviceCodeStore(), authenticate = authenticateSupabaseRequest, rateLimiter = createRateLimiter() } = {}) {
@@ -1110,6 +1136,15 @@ app.post('/runs', async (context) => {
       : null;
     if (!activeSigningKey || activeSigningKey.keyId !== body.signingKeyId) {
       throw new ActorIdentityError('Run signing key does not belong to the authenticated actor', 'SIGNING_KEY_ID_MISMATCH', 403);
+    }
+    const runSigningBytes = new TextEncoder().encode(canonicalJson(unsignedRunDocument(body, actorId)));
+    const validRunSignature = await verifyEd25519Payload({
+      signingBytes: runSigningBytes,
+      signature: body.signature,
+      publicKey: activeSigningKey.publicKey,
+    });
+    if (!validRunSignature) {
+      throw new RunCommandError('Run signature does not verify against the authenticated signing key', 'RUN_SIGNATURE_MISMATCH');
     }
     const submission = {
       runId: body.runId,
