@@ -181,7 +181,7 @@ export function ClaimDag({ elements }) {
     <div aria-label="Claim state legend" className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">{Object.keys(CLAIM_STATE_COLORS).map((state) => <span className="inline-flex items-center gap-2" key={state}><span aria-hidden="true" className="h-3 w-3 rounded-full" style={{ backgroundColor: CLAIM_STATE_COLORS[state] }} />{state.replaceAll('_', ' ')}</span>)}</div>
     {/* Edge family legend (design book 02: five DAG edge families). */}
     <div aria-label="DAG edge family legend" className="mt-2 flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">
-      {[['positive', 'supports'], ['negative', 'refutes'], ['qualify', 'qualifies'], ['structural', 'depends on'], ['lineage', 'reproduces / derives']].map(([family, label]) => (
+      {[['positive', 'supports / reproduces / verifies'], ['negative', 'refutes / contradicts / challenges'], ['qualify', 'qualifies'], ['structural', 'depends on / uses / implements'], ['lineage', 'extends / supersedes / derived from']].map(([family, label]) => (
         <span className="inline-flex items-center gap-2" key={family}>
           <span aria-hidden="true" className="h-1 w-4 rounded-full" style={{ backgroundColor: `var(--evimesh-dag-${family}, var(--evimesh-border))` }} />
           {label}

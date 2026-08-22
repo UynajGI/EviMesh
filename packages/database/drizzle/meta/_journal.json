@@ -547,6 +547,13 @@
       "when": 1787282697829,
       "tag": "0077_salty_ultron",
       "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "7",
+      "when": 1787371200000,
+      "tag": "0078_public_active_signing_keys",
+      "breakpoints": true
     }
   ]
 }

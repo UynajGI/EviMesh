@@ -41,4 +41,6 @@ test("graph list rows carry text labels, not color alone", () => {
 test("graph edge families follow the design color language", () => {
   assert.match(source, /reproduces: 'positive'/);
   assert.match(source, /supersedes: 'lineage'/);
+  assert.match(source, /\['positive', 'supports \/ reproduces \/ verifies'\]/);
+  assert.match(source, /\['lineage', 'extends \/ supersedes \/ derived from'\]/);
 });

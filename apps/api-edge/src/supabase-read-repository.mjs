@@ -29,6 +29,7 @@ const TABLES = Object.freeze({
   questions: "questions",
   researchContractRevisions: "research_contract_revisions",
   researchEvents: "research_events",
+  signingKeys: "signing_keys",
   runInputs: "run_inputs",
   runOutputs: "run_outputs",
   runs: "runs",
@@ -99,6 +100,7 @@ const TABLE_ORDERS = Object.freeze({
   questions: "created_at.desc,question_id.desc",
   researchContractRevisions: "revision.desc,contract_id.desc",
   researchEvents: "created_at.asc,event_id.asc",
+  signingKeys: "created_at.desc,key_id.desc",
   runInputs: "created_at.asc,artifact_id.asc",
   runOutputs: "created_at.asc,artifact_id.asc",
   runs: "started_at.desc,run_id.desc",
@@ -121,7 +123,7 @@ function filterValue(value) {
 
 /* Only mutable-projection tables carry lifecycle columns; the soft-delete
  * filter must not be applied to revision, event, or junction fact tables. */
-const SOFT_DELETE_TABLES = new Set(["actors", "actorProfiles", "artifacts", "attempts", "challenges", "claimRelations", "claims", "identities", "projects", "questions"]);
+const SOFT_DELETE_TABLES = new Set(["actors", "actorProfiles", "artifacts", "attempts", "challenges", "claimRelations", "claims", "identities", "projects", "questions", "signingKeys"]);
 
 /* Interaction target tables: id columns differ per object type. */
 const INTERACTION_TARGET_SPECS = Object.freeze({
@@ -565,6 +567,8 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
     },
 
     /* ---- api tokens (secret hash never selected) ---- */
+    findActiveSigningKey: (actorId) =>
+      getOne("signingKeys", { actor_id: actorId, revoked_at: { op: "is", value: "null" } }),
     listApiTokensByActor: (actorId) =>
       query("apiTokens", {
         filters: { actor_id: actorId },

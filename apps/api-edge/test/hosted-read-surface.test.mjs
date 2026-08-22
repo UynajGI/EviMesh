@@ -50,6 +50,26 @@ test("api token reads never select the secret hash", async () => {
   assert.deepEqual(await repository.listApiTokensByActor("actor-1"), []);
 });
 
+test("active signing-key lookup is available on the hosted repository", async () => {
+  let seen;
+  const repository = createSupabaseReadRepository({
+    url: "https://example.supabase.co",
+    publishableKey: "anon",
+    fetchImpl: async (endpoint) => {
+      seen = new URL(endpoint);
+      return Response.json([{ key_id: "key-1", actor_id: "agent-1", algorithm: "Ed25519", public_key: "public-key", revoked_at: null, deleted_at: null }]);
+    },
+  });
+  assert.deepEqual(await repository.findActiveSigningKey("agent-1"), {
+    keyId: "key-1", actorId: "agent-1", algorithm: "Ed25519", publicKey: "public-key", revokedAt: null, deletedAt: null,
+  });
+  assert.equal(seen.pathname, "/rest/v1/signing_keys");
+  assert.equal(seen.searchParams.get("actor_id"), "eq.agent-1");
+  assert.equal(seen.searchParams.get("revoked_at"), "is.null");
+  assert.equal(seen.searchParams.get("deleted_at"), "is.null");
+  assert.equal(seen.searchParams.get("limit"), "1");
+});
+
 test("events filter by payload ids and actors, ordered ascending", async () => {
   const rows = [
     { event_id: "e2", event_type: "claim.created", payload: { object_type: "claim", claim_id: "claim-9", actor_id: "a1" }, created_at: "2026-08-02T00:00:00Z" },

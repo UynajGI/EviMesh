@@ -224,7 +224,7 @@ function ClaimDetailView({ params }) {
   const graphListEntries = graphRelations.length > 0 ? graphRelations.map((edge, index) => {
     const sourceId = edge.sourceClaimId;
     const targetId = edge.targetClaimId;
-    const node = graphNodes.find((item) => (item.claimId ?? item.id) === targetId);
+    const node = targetId === claim.claimId ? claim : graphNodes.find((item) => (item.claimId ?? item.id) === targetId);
     return { sourceId, targetId, relation: edge.relationType ?? 'depends_on', state: node?.state ?? node?.status, key: `${sourceId}-${targetId}-${edge.relationType ?? index}-${index}` };
   }) : graphEntries.map((entry) => ({ sourceId: direction === 'upstream' ? entry.id : claim.claimId, targetId: direction === 'upstream' ? claim.claimId : entry.id, relation: 'depends_on', state: entry.state, key: entry.id }));
 
