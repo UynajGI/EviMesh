@@ -21,7 +21,7 @@ import { getLatestFrontier, listFrontierHistory, diffFrontiers, FrontierQueryErr
 import { getTask, listTasks, TaskQueryError } from './task-query.mjs';
 import { getArtifact, getArtifactRevision, listArtifacts, ArtifactQueryError } from './artifact-query.mjs';
 import { getEvidence, listEvidence, EvidenceQueryError } from './evidence-query.mjs';
-import { getRun, listRuns, RunQueryError } from './run-query.mjs';
+import { canonicalRunArtifactRefs, getRun, listRuns, RunQueryError } from './run-query.mjs';
 import { getChallenge, ChallengeQueryError } from './challenge-query.mjs';
 import { getAttempt, AttemptQueryError } from './attempt-query.mjs';
 import { getContribution, listActors, ContributionQueryError } from './contribution-query.mjs';
@@ -77,8 +77,24 @@ function errorBody(code, message, requestId) {
   return { code, message, request_id: requestId };
 }
 
+function canonicalRunTimestamp(value) {
+  const timestamp = new Date(value);
+  if (Number.isNaN(timestamp.getTime())) throw new RunCommandError('run timestamps must be valid and ordered');
+  return timestamp.toISOString();
+}
+
+function canonicalRunBody(body) {
+  return {
+    ...body,
+    startedAt: canonicalRunTimestamp(body.startedAt),
+    endedAt: canonicalRunTimestamp(body.endedAt),
+    inputs: canonicalRunArtifactRefs(body.inputs),
+    outputs: canonicalRunArtifactRefs(body.outputs),
+  };
+}
+
 function unsignedRunDocument(body, actorId) {
-  const artifactRefs = (refs) => (Array.isArray(refs) ? refs : []).map((ref) => `${ref.artifactId}@${ref.artifactRevision}`);
+  const artifactRefs = (refs) => canonicalRunArtifactRefs(refs).map((ref) => `${ref.artifactId}@${ref.artifactRevision}`);
   return {
     schema: 'srp.run.v1',
     run_id: body.runId,
@@ -1147,7 +1163,8 @@ app.post('/runs', async (context) => {
     if (!activeSigningKey || activeSigningKey.keyId !== body.signingKeyId) {
       throw new ActorIdentityError('Run signing key does not belong to the authenticated actor', 'SIGNING_KEY_ID_MISMATCH', 403);
     }
-    const validRunSignature = await verifyRunDocumentSignature({ body, actorId, publicKey: activeSigningKey.publicKey });
+    const canonicalBody = canonicalRunBody(body);
+    const validRunSignature = await verifyRunDocumentSignature({ body: canonicalBody, actorId, publicKey: activeSigningKey.publicKey });
     if (!validRunSignature) {
       throw new RunCommandError('Run signature does not verify against the authenticated signing key', 'RUN_SIGNATURE_MISMATCH');
     }
@@ -1162,14 +1179,14 @@ app.post('/runs', async (context) => {
       environment: body.environment,
       hardware: body.hardware,
       randomSeed: body.randomSeed,
-      startedAt: body.startedAt,
-      endedAt: body.endedAt,
+      startedAt: canonicalBody.startedAt,
+      endedAt: canonicalBody.endedAt,
       networkAccess: body.networkAccess ?? false,
       exitCode: body.exitCode,
       signingKeyId: body.signingKeyId,
       signature: body.signature,
-      inputs: body.inputs ?? [],
-      outputs: body.outputs ?? [],
+      inputs: canonicalBody.inputs,
+      outputs: canonicalBody.outputs,
     };
     if (body.signatureEnvelope !== undefined) {
       if (body.signingKeyId !== body.signatureEnvelope?.signature?.key_id) {

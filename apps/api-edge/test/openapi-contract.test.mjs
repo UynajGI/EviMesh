@@ -96,6 +96,8 @@ test("keeps the stable response shapes in the contract", () => {
   assert.deepEqual(document.components.schemas.ErrorResponse.required, ["code", "message", "request_id"]);
   assert.equal(document.components.schemas.HealthResponse.properties.service.const, "evimesh-api-edge");
   assert.equal(document.components.schemas.HealthResponse.properties.status.const, "ok");
+  assert.match(document.components.schemas.CreateRunRequest.properties.signature.description, /ascending full artifactId@artifactRevision strings/);
+  assert.match(document.components.schemas.CreateRunRequest.properties.signature.description, /Date\.toISOString/);
 });
 
 test("gives every operation a stable id and guards all write operations with bearer auth", () => {

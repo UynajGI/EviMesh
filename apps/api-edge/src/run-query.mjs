@@ -24,6 +24,15 @@ function requireRepository(repository, methods, message) {
   if (!repository || methods.some((method) => typeof repository[method] !== 'function')) throw new RunQueryError(message);
 }
 
+export function canonicalRunArtifactRefs(refs) {
+  const keyOf = (ref) => `${ref.artifactId}@${ref.artifactRevision}`;
+  return [...(Array.isArray(refs) ? refs : [])].sort((left, right) => {
+    const leftKey = keyOf(left);
+    const rightKey = keyOf(right);
+    return leftKey < rightKey ? -1 : leftKey > rightKey ? 1 : 0;
+  });
+}
+
 export async function listRuns({ repository, taskId = null, actorId = null, limit = 20, cursor = null } = {}) {
   requireRepository(repository, ['listRuns'], 'repository listRuns is required');
   const runs = await repository.listRuns({ taskId: optionalFilter(taskId, 'task id'), actorId: optionalFilter(actorId, 'actor id') });
@@ -38,5 +47,5 @@ export async function getRun({ repository, runId } = {}) {
   const run = await repository.getRun(runId);
   if (!run) throw new RunQueryError('run not found', 'RUN_NOT_FOUND', 404);
   const [inputs, outputs] = await Promise.all([repository.listRunInputs(runId), repository.listRunOutputs(runId)]);
-  return { run, inputs: Array.isArray(inputs) ? inputs : [], outputs: Array.isArray(outputs) ? outputs : [] };
+  return { run, inputs: canonicalRunArtifactRefs(inputs), outputs: canonicalRunArtifactRefs(outputs) };
 }

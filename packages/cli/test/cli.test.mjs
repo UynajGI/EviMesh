@@ -3,8 +3,11 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { runCli } from "../src/main.mjs";
 import { hashContextBundle } from "../../protocol/src/context-bundle-hash.mjs";
+
+const validRunFixturePath = fileURLToPath(new URL("../../schemas/fixtures/valid/run.json", import.meta.url));
 
 function setup() {
   const dir = mkdtempSync(join(tmpdir(), "evimesh-cli-"));
@@ -63,6 +66,22 @@ test("validate fails for an invalid document and exits non-zero", async (t) => {
   writeFileSync(bad, JSON.stringify({ schema: "srp.claim.v1", claim_id: "not-a-claim-id" }));
   const code = await runCli(["validate", bad], { env });
   assert.equal(code, 1);
+});
+
+test("validates legacy Run receipts while new templates remain key-qualified", async (t) => {
+  const { dir, env, cleanup } = setup();
+  t.after(cleanup);
+
+  const legacyRun = JSON.parse(readFileSync(validRunFixturePath, "utf8"));
+  delete legacyRun.signing_key_id;
+  const legacyPath = join(dir, "legacy.run.json");
+  writeFileSync(legacyPath, JSON.stringify(legacyRun));
+  assert.equal(await runCli(["validate", legacyPath, "--json"], { env }), 0);
+
+  const templatePath = join(dir, "new.run.json");
+  assert.equal(await runCli(["run", "record", "--out", templatePath], { env }), 0);
+  const template = JSON.parse(readFileSync(templatePath, "utf8"));
+  assert.equal(template.signing_key_id, "TODO: signing key id");
 });
 
 test("submit --dry-run signs the canonical payload without network calls", async (t) => {

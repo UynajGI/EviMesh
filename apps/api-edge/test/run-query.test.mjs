@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getRun, listRuns, RunQueryError } from '../src/run-query.mjs';
+import { canonicalRunArtifactRefs, getRun, listRuns, RunQueryError } from '../src/run-query.mjs';
 
 const runs = [
   { runId: 'run_2', startedAt: '2026-01-02T00:00:00.000Z' },
@@ -15,17 +15,39 @@ test('lists runs with filters and stable pagination', async () => {
   assert.ok(page.nextCursor);
 });
 
-test('returns a run with artifact inputs and outputs', async () => {
+test('returns a run with canonically ordered artifact inputs and outputs', async () => {
+  const unorderedInputs = [
+    { artifactId: 'input-z', artifactRevision: 1 },
+    { artifactId: 'input-shared', artifactRevision: 2 },
+    { artifactId: 'input-a', artifactRevision: 1 },
+    { artifactId: 'input-shared', artifactRevision: 10 },
+  ];
+  const unorderedOutputs = [
+    { artifactId: 'output-shared', artifactRevision: 2 },
+    { artifactId: 'output-shared', artifactRevision: 10 },
+  ];
   const repository = {
     getRun: async (runId) => ({ runId }),
-    listRunInputs: async () => [{ artifactId: 'input', artifactRevision: 1 }],
-    listRunOutputs: async () => [{ artifactId: 'output', artifactRevision: 2 }],
+    listRunInputs: async () => unorderedInputs,
+    listRunOutputs: async () => unorderedOutputs,
   };
   assert.deepEqual(await getRun({ repository, runId: ' run_1 ' }), {
     run: { runId: 'run_1' },
-    inputs: [{ artifactId: 'input', artifactRevision: 1 }],
-    outputs: [{ artifactId: 'output', artifactRevision: 2 }],
+    inputs: [
+      { artifactId: 'input-a', artifactRevision: 1 },
+      { artifactId: 'input-shared', artifactRevision: 10 },
+      { artifactId: 'input-shared', artifactRevision: 2 },
+      { artifactId: 'input-z', artifactRevision: 1 },
+    ],
+    outputs: [
+      { artifactId: 'output-shared', artifactRevision: 10 },
+      { artifactId: 'output-shared', artifactRevision: 2 },
+    ],
   });
+  assert.deepEqual(unorderedInputs.map((ref) => `${ref.artifactId}@${ref.artifactRevision}`), [
+    'input-z@1', 'input-shared@2', 'input-a@1', 'input-shared@10',
+  ], 'canonical sorting must not mutate repository results');
+  assert.deepEqual(canonicalRunArtifactRefs(null), []);
 });
 
 test('rejects invalid or missing run queries', async () => {

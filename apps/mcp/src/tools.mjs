@@ -97,6 +97,50 @@ async function signRunDraft(unsignedDraft, identity) {
   return signEd25519Payload({ signingBytes: new Uint8Array(signingBytes), privateKey: identity.privateKey });
 }
 
+function canonicalRunArtifactRefs(document) {
+  const canonicalRef = (value) => {
+    if (typeof value !== "string" || value.length === 0 || value.trim() !== value) {
+      throw new McpToolError("Run artifact refs must be non-empty strings", "RUN_ARTIFACT_REF_INVALID");
+    }
+    const separator = value.indexOf("@");
+    if (separator !== value.lastIndexOf("@")) {
+      throw new McpToolError("Run artifact refs must contain at most one @", "RUN_ARTIFACT_REF_INVALID");
+    }
+    if (separator === -1) return `${value}@1`;
+    const artifactId = value.slice(0, separator);
+    const revisionText = value.slice(separator + 1);
+    if (!artifactId || !/^[0-9]+$/.test(revisionText)) {
+      throw new McpToolError("Run artifact refs must be formatted as artifactId@positiveRevision", "RUN_ARTIFACT_REF_INVALID");
+    }
+    const revision = Number(revisionText);
+    if (!Number.isSafeInteger(revision) || revision < 1) {
+      throw new McpToolError("Run artifact revisions must be positive safe integers", "RUN_ARTIFACT_REF_INVALID");
+    }
+    return `${artifactId}@${revision}`;
+  };
+  // Keep this normalized full-ref code-unit order aligned with API Run verification.
+  const normalizeAndSort = (refs) => [...(refs ?? [])].map(canonicalRef).sort((left, right) => left < right ? -1 : left > right ? 1 : 0);
+  return {
+    ...document,
+    input_artifact_ids: normalizeAndSort(document.input_artifact_ids),
+    output_artifact_ids: normalizeAndSort(document.output_artifact_ids),
+  };
+}
+
+function canonicalRunDocument(document) {
+  const canonicalTimestamp = (value) => {
+    const timestamp = new Date(value);
+    if (Number.isNaN(timestamp.getTime())) throw new McpToolError("Run timestamps must be valid date-times", "RUN_TIMESTAMP_INVALID");
+    return timestamp.toISOString();
+  };
+  const withCanonicalRefs = canonicalRunArtifactRefs(document);
+  return {
+    ...withCanonicalRefs,
+    started_at: canonicalTimestamp(withCanonicalRefs.started_at),
+    ended_at: canonicalTimestamp(withCanonicalRefs.ended_at),
+  };
+}
+
 function jsonContent(data) {
   return [{ type: "text", text: JSON.stringify(data, null, 2) }];
 }
@@ -324,7 +368,7 @@ const TOOL_DEFINITIONS = [
       const identity = requireIdentity(env);
       const actor = await requireActiveAgentActor(client, identity);
       const now = new Date().toISOString();
-      const unsignedDraft = {
+      const unsignedDraft = canonicalRunDocument({
         schema: "srp.run.v1",
         run_id: createObjectId("Run"),
         task_id: args.taskId,
@@ -344,7 +388,7 @@ const TOOL_DEFINITIONS = [
         exit_code: args.exitCode ?? 0,
         actor_id: actor.actorId,
         signing_key_id: identity.keyId,
-      };
+      });
       const draft = { ...unsignedDraft, signature: await signRunDraft(unsignedDraft, identity) };
       validateDocument(draft);
       return ok({ draft });
@@ -375,10 +419,10 @@ const TOOL_DEFINITIONS = [
     outputSchema: { type: "object", required: ["published", "route"], properties: { published: BOOLEAN, route: STRING, signingBytesHash: STRING, response: OBJECT } },
     run: async ({ client, args, env }) => {
       requiredArg(args.document, "document");
-      validateDocument(args.document);
-      const route = submissionRoute(args.document);
-      if (!route) throw new McpToolError(`submission is not supported for schema ${args.document.schema}`);
-      let document = args.document;
+      let document = args.document.schema === "srp.run.v1" ? canonicalRunDocument(args.document) : args.document;
+      validateDocument(document);
+      const route = submissionRoute(document);
+      if (!route) throw new McpToolError(`submission is not supported for schema ${document.schema}`);
       let body = route.toApi(document);
       const summary = { action: "sign and publish a submission", route: route.path, eventType: route.eventType, objectId: body.claimId ?? body.runId ?? body.challengeId };
       if (args.confirm !== true) return consentResult("publish_submission", summary);
@@ -386,6 +430,7 @@ const TOOL_DEFINITIONS = [
       if (document.schema === "srp.run.v1") {
         const actor = await requireActiveAgentActor(client, identity);
         if (document.actor_id !== actor.actorId) throw new McpToolError("Run actor does not match the authenticated agent", "AGENT_ACTOR_MISMATCH");
+        document = canonicalRunDocument(document);
         const { signature: _staleSignature, ...unsignedDraft } = document;
         document = { ...unsignedDraft, signature: await signRunDraft(unsignedDraft, identity) };
         validateDocument(document);

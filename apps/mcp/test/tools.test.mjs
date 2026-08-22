@@ -80,11 +80,13 @@ test("create_claim and record_run bind drafts to the active signing identity wit
   assert.equal(claim.structuredContent.draft.schema, "srp.claim.v1");
   assert.ok(claim.structuredContent.draft.claim_id.startsWith("claim_"));
   assert.equal(claim.structuredContent.draft.created_by, "agent_01");
-  const run = await callTool({ client, name: "record_run", args: { taskId: "task_0193f2c8-5c00-4000-8000-000000000001", contextBundleId: "context-1", sourceCode: "git:abc123", container: `oci:python@sha256:${"a".repeat(64)}`, command: "python", environment: { runtime: "python" }, hardware: { cpu: "x86_64" }, actorId: "human_01", signature: "forged", confirm: true }, env });
+  const run = await callTool({ client, name: "record_run", args: { taskId: "task_0193f2c8-5c00-4000-8000-000000000001", contextBundleId: "context-1", sourceCode: "git:abc123", container: `oci:python@sha256:${"a".repeat(64)}`, command: "python", environment: { runtime: "python" }, hardware: { cpu: "x86_64" }, inputArtifactRefs: ["artifact-z", "artifact-a@0002"], outputArtifactRefs: ["output-z", "output-a@2"], actorId: "human_01", signature: "forged", confirm: true }, env });
   assert.equal(run.isError, false);
   assert.equal(run.structuredContent.draft.schema, "srp.run.v1");
   assert.equal(run.structuredContent.draft.actor_id, "agent_01");
   assert.equal(run.structuredContent.draft.signing_key_id, identity.keyId);
+  assert.deepEqual(run.structuredContent.draft.input_artifact_ids, ["artifact-a@2", "artifact-z@1"]);
+  assert.deepEqual(run.structuredContent.draft.output_artifact_ids, ["output-a@2", "output-z@1"]);
   assert.notEqual(run.structuredContent.draft.signature, "forged");
   const { signature, ...unsignedRun } = run.structuredContent.draft;
   const { canonicalJson } = await import("../../../packages/protocol/src/hash.mjs");
@@ -113,6 +115,18 @@ test("record_run rejects a local signing key that is not registered to the activ
   assert.equal(result.structuredContent.error, "AGENT_SIGNING_KEY_MISMATCH");
 });
 
+test("record_run rejects malformed artifact refs before signing", async (t) => {
+  const env = identityEnv(t);
+  const { generateIdentity } = await import("../../../packages/cli/src/identity.mjs");
+  const identity = generateIdentity(env);
+  const client = createFakeClient({ http: { request: async () => ({ actorId: "agent_01", actorType: "agent", signingKey: { keyId: identity.keyId, algorithm: identity.algorithm, publicKey: identity.publicKey } }) } });
+  for (const artifactRef of ["", "artifact@", "artifact@0", "artifact@1@2", " artifact@1"]) {
+    const result = await callTool({ client, name: "record_run", args: { taskId: "task_0193f2c8-5c00-4000-8000-000000000001", contextBundleId: "context-1", sourceCode: "git:abc123", container: `oci:python@sha256:${"a".repeat(64)}`, command: "python", environment: { runtime: "python" }, hardware: { cpu: "x86_64" }, inputArtifactRefs: [artifactRef], confirm: true }, env });
+    assert.equal(result.isError, true, artifactRef);
+    assert.equal(result.structuredContent.error, "RUN_ARTIFACT_REF_INVALID", artifactRef);
+  }
+});
+
 test("record_run preserves its authenticated agent binding through publication", async (t) => {
   const env = identityEnv(t);
   const { generateIdentity } = await import("../../../packages/cli/src/identity.mjs");
@@ -124,7 +138,14 @@ test("record_run preserves its authenticated agent binding through publication",
     return { ok: true };
   } } });
   const recorded = await callTool({ client, name: "record_run", args: { taskId: "task_0193f2c8-5c00-4000-8000-000000000001", contextBundleId: "context-1", sourceCode: "git:abc123", container: `oci:python@sha256:${"a".repeat(64)}`, command: "python", environment: { runtime: "python" }, hardware: { cpu: "x86_64" }, confirm: true }, env });
-  const edited = { ...recorded.structuredContent.draft, source_code: "git:def456" };
+  const edited = {
+    ...recorded.structuredContent.draft,
+    source_code: "git:def456",
+    input_artifact_ids: ["artifact-z", "artifact-a@0002"],
+    output_artifact_ids: ["output-z", "output-a@2"],
+    started_at: "2026-08-06T08:00:00+08:00",
+    ended_at: "2026-08-06T00:00:00.1Z",
+  };
   const published = await callTool({ client, name: "publish_submission", args: { document: edited, confirm: true }, env });
   assert.equal(published.isError, false, JSON.stringify(published.structuredContent));
   assert.equal(posts.length, 1);
@@ -133,13 +154,33 @@ test("record_run preserves its authenticated agent binding through publication",
   assert.equal(posts[0].body.signingKeyId, identity.keyId);
   assert.equal(posts[0].body.signatureEnvelope.signature.key_id, identity.keyId);
   assert.equal(posts[0].body.sourceCode, "git:def456");
+  assert.equal(posts[0].body.startedAt, "2026-08-06T00:00:00.000Z");
+  assert.equal(posts[0].body.endedAt, "2026-08-06T00:00:00.100Z");
+  assert.deepEqual(posts[0].body.inputs, [
+    { artifactId: "artifact-a", artifactRevision: 2 },
+    { artifactId: "artifact-z", artifactRevision: 1 },
+  ]);
+  assert.deepEqual(posts[0].body.outputs, [
+    { artifactId: "output-a", artifactRevision: 2 },
+    { artifactId: "output-z", artifactRevision: 1 },
+  ]);
   assert.notEqual(posts[0].body.signature, recorded.structuredContent.draft.signature);
-  const unsignedEdited = { ...edited };
+  const unsignedEdited = {
+    ...edited,
+    input_artifact_ids: ["artifact-a@2", "artifact-z@1"],
+    output_artifact_ids: ["output-a@2", "output-z@1"],
+    started_at: "2026-08-06T00:00:00.000Z",
+    ended_at: "2026-08-06T00:00:00.100Z",
+  };
   delete unsignedEdited.signature;
   const { canonicalJson } = await import("../../../packages/protocol/src/hash.mjs");
   const { verifyEd25519Payload } = await import("../../../packages/signatures/src/server-verification.mjs");
   assert.equal(await verifyEd25519Payload({ signingBytes: new Uint8Array(Buffer.from(canonicalJson(unsignedEdited), "utf8")), signature: posts[0].body.signature, publicKey: identity.publicKey }), true);
   assert.equal(posts[0].body.signatureEnvelope.payload.actorId, "agent_01");
+  const malformed = await callTool({ client, name: "publish_submission", args: { document: { ...edited, input_artifact_ids: ["artifact@1@2"] }, confirm: true }, env });
+  assert.equal(malformed.isError, true);
+  assert.equal(malformed.structuredContent.error, "RUN_ARTIFACT_REF_INVALID");
+  assert.equal(posts.length, 1);
 });
 
 test("attach_evidence hashes content and uploads after consent", async () => {

@@ -7,6 +7,7 @@ import { verifyMerkleInclusionProof } from "../../../packages/merkle/src/verify-
 import { canonicalJson } from "../../../packages/protocol/src/hash.mjs";
 import { generateEd25519KeyPair } from "../../../packages/signatures/src/ed25519.mjs";
 import { signEd25519Payload } from "../../../packages/signatures/src/client-signature.mjs";
+import { verifyEd25519Payload } from "../../../packages/signatures/src/server-verification.mjs";
 
 const AUTH = { authenticate: async () => ({ sub: "supabase-subject" }) };
 
@@ -582,14 +583,20 @@ test("creates Evidence and links it to a fixed ClaimRevision", async () => {
 
 test("records a Run receipt through the API", async () => {
   const keyPair = generateEd25519KeyPair();
+  let persistedRun = null;
+  const persistedInputs = [];
+  const persistedOutputs = [];
   const app = createApp({
     repository: identityRepository({
       findActiveSigningKey: async () => ({ keyId: "key-1", actorId: "actor-1", algorithm: "Ed25519", publicKey: keyPair.public_key }),
       getArtifactRevision: async (artifactId, revision) => ({ artifactId, revision }),
       getArtifactVerification: async () => ({ status: "verified" }),
-      insertRun: async (run) => run,
-      insertRunInput: async (input) => input,
-      insertRunOutput: async (output) => output,
+      insertRun: async (run) => { persistedRun = run; return run; },
+      insertRunInput: async (input) => { persistedInputs.push(input); return input; },
+      insertRunOutput: async (output) => { persistedOutputs.push(output); return output; },
+      getRun: async (runId) => persistedRun?.runId === runId ? persistedRun : null,
+      listRunInputs: async () => [...persistedInputs].reverse(),
+      listRunOutputs: async () => [...persistedOutputs].reverse(),
       appendResearchEvent: async (event) => event,
     }),
     runEventFactory: eventFactory,
@@ -601,7 +608,7 @@ test("records a Run receipt through the API", async () => {
     run_id: "run-1",
     task_id: "task-1",
     context_bundle_id: "bundle-1",
-    input_artifact_ids: ["artifact-input@1"],
+    input_artifact_ids: ["artifact-input-a@1", "artifact-input-shared@10", "artifact-input-shared@2", "artifact-input-z@1"],
     source_code: "artifact-code@1",
     container: "python@sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
     command: "python",
@@ -609,10 +616,10 @@ test("records a Run receipt through the API", async () => {
     environment: { python: "3.12" },
     hardware: { cpu: "x86_64" },
     random_seed: { seed: 42 },
-    started_at: "2026-08-06T00:00:00.000Z",
+    started_at: "2026-08-06T00:00:00.123Z",
     ended_at: "2026-08-06T00:05:00.000Z",
     network_access: false,
-    output_artifact_ids: ["artifact-output@1"],
+    output_artifact_ids: ["artifact-output-a@1", "artifact-output-shared@10", "artifact-output-shared@2", "artifact-output-z@1"],
     exit_code: 0,
     actor_id: "actor-1",
     signing_key_id: "key-1",
@@ -626,12 +633,22 @@ test("records a Run receipt through the API", async () => {
     sourceCode: "artifact-code@1",
     container: "python@sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
     command: "python", args: ["reproduce.py"], environment: { python: "3.12" }, hardware: { cpu: "x86_64" },
-    randomSeed: { seed: 42 }, startedAt: "2026-08-06T00:00:00.000Z", endedAt: "2026-08-06T00:05:00.000Z", exitCode: 0,
+    randomSeed: { seed: 42 }, startedAt: "2026-08-06T08:00:00.123456+08:00", endedAt: "2026-08-06T00:05:00Z", exitCode: 0,
     actorId: "actor-1",
     signingKeyId: "key-1",
     signature,
-    inputs: [{ artifactId: "artifact-input", artifactRevision: 1 }],
-    outputs: [{ artifactId: "artifact-output", artifactRevision: 1 }],
+    inputs: [
+      { artifactId: "artifact-input-z", artifactRevision: 1 },
+      { artifactId: "artifact-input-shared", artifactRevision: 2 },
+      { artifactId: "artifact-input-a", artifactRevision: 1 },
+      { artifactId: "artifact-input-shared", artifactRevision: 10 },
+    ],
+    outputs: [
+      { artifactId: "artifact-output-z", artifactRevision: 1 },
+      { artifactId: "artifact-output-shared", artifactRevision: 2 },
+      { artifactId: "artifact-output-a", artifactRevision: 1 },
+      { artifactId: "artifact-output-shared", artifactRevision: 10 },
+    ],
   };
   const response = await app.fetch(new Request("https://api.example.test/runs", {
     method: "POST",
@@ -642,6 +659,23 @@ test("records a Run receipt through the API", async () => {
   const created = await response.json();
   assert.equal(created.run.runId, "run-1");
   assert.equal(created.run.signingKeyId, "key-1");
+  assert.equal(created.run.startedAt, unsignedRun.started_at);
+  assert.equal(created.run.endedAt, unsignedRun.ended_at);
+  assert.deepEqual(persistedInputs.map(({ artifactId, artifactRevision }) => `${artifactId}@${artifactRevision}`), unsignedRun.input_artifact_ids);
+  assert.deepEqual(persistedOutputs.map(({ artifactId, artifactRevision }) => `${artifactId}@${artifactRevision}`), unsignedRun.output_artifact_ids);
+  const detailResponse = await app.fetch(new Request("https://api.example.test/runs/run-1"), {});
+  assert.equal(detailResponse.status, 200);
+  const detail = await detailResponse.json();
+  const reconstructedRun = {
+    ...unsignedRun,
+    input_artifact_ids: detail.inputs.map(({ artifactId, artifactRevision }) => `${artifactId}@${artifactRevision}`),
+    output_artifact_ids: detail.outputs.map(({ artifactId, artifactRevision }) => `${artifactId}@${artifactRevision}`),
+  };
+  assert.equal(await verifyEd25519Payload({
+    signingBytes: new TextEncoder().encode(canonicalJson(reconstructedRun)),
+    signature: detail.run.signature,
+    publicKey: keyPair.public_key,
+  }), true);
 
   const invalidSignature = await app.fetch(new Request("https://api.example.test/runs", {
     method: "POST",
@@ -658,6 +692,13 @@ test("records a Run receipt through the API", async () => {
   }), {});
   assert.equal(missingSignature.status, 400);
   assert.equal((await missingSignature.json()).code, "RUN_SIGNATURE_MISMATCH");
+
+  const invalidTimestamp = await app.fetch(new Request("https://api.example.test/runs", {
+    method: "POST",
+    headers: { authorization: "Bearer test-token", "content-type": "application/json" },
+    body: JSON.stringify({ ...runBody, startedAt: "not-a-date-time" }),
+  }), {});
+  assert.equal(invalidTimestamp.status, 400);
 
   const foreignKey = await app.fetch(new Request("https://api.example.test/runs", {
     method: "POST",
