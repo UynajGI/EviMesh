@@ -25,6 +25,7 @@ function repositoryOver(records, { trackUsage = [] } = {}) {
   return {
     findApiTokenByHash: async (hash) => records.get(hash) ?? null,
     updateApiTokenLastUsedAt: async (tokenId, usedAt) => { trackUsage.push({ tokenId, usedAt }); return { tokenId }; },
+    getActor: async (actorId) => ({ actorId, actorType: "agent" }),
   };
 }
 
@@ -51,7 +52,7 @@ test("protected routes accept API tokens end to end", async () => {
   const app = createApp({ repository: repositoryOver(records) });
   const me = await app.fetch(new Request("https://api.example.test/auth/me", { headers: { authorization: `Bearer ${token}` } }), {});
   assert.equal(me.status, 200);
-  assert.equal((await me.json()).subject, "actor-1");
+  assert.deepEqual(await me.json(), { subject: "actor-1", email: null, actorId: "actor-1", actorType: "agent" });
 });
 
 test("signing-key registration works with API tokens", async () => {
@@ -81,6 +82,7 @@ test("device-login tokens authenticate subsequent API calls", async () => {
   const records = new Map();
   const repository = {
     findIdentity: async () => ({ actorId: "actor-1" }),
+    getActor: async (actorId) => ({ actorId, actorType: "agent" }),
     findApiTokenByHash: async (hash) => records.get(hash) ?? null,
     insertApiToken: async (record) => {
       const persisted = { tokenId: `token-${records.size + 1}`, actorId: "actor-1", scopes: record.scopes, expiresAt: null, revokedAt: null, ...record };
@@ -102,5 +104,5 @@ test("device-login tokens authenticate subsequent API calls", async () => {
 
   const me = await app.fetch(new Request("https://api.example.test/auth/me", { headers: { authorization: `Bearer ${apiToken}` } }), {});
   assert.equal(me.status, 200);
-  assert.equal((await me.json()).subject, "actor-1");
+  assert.deepEqual(await me.json(), { subject: "actor-1", email: null, actorId: "actor-1", actorType: "agent" });
 });

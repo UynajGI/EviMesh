@@ -1,9 +1,13 @@
 import { generateKeyPair, sign } from "node:crypto";
 import test from "node:test";
 import assert from "node:assert/strict";
-import worker from "../src/index.mjs";
+import { createApp } from "../src/index.mjs";
 
 const issuer = "https://auth.example.test/auth/v1";
+const app = createApp({ repository: {
+  findIdentity: async (_provider, subject) => ({ actorId: subject }),
+  getActor: async (actorId) => ({ actorId, actorType: "agent" }),
+} });
 
 function base64Url(value) {
   return Buffer.from(value).toString("base64url");
@@ -42,12 +46,12 @@ async function createFixture(overrides = {}) {
 
 test("accepts a valid Supabase JWT at the authenticated route", async () => {
   const fixture = await createFixture();
-  const response = await worker.fetch(new Request("https://api.example.test/auth/me", {
+  const response = await app.fetch(new Request("https://api.example.test/auth/me", {
     headers: { authorization: `Bearer ${fixture.token}` },
   }), fixture.env);
 
   assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), { subject: "actor_test_01", email: "test@example.test" });
+  assert.deepEqual(await response.json(), { subject: "actor_test_01", email: "test@example.test", actorId: "actor_test_01", actorType: "agent" });
 });
 
 test("rejects missing, tampered, and expired JWTs", async () => {
@@ -60,7 +64,7 @@ test("rejects missing, tampered, and expired JWTs", async () => {
 
   for (const token of [undefined, tampered, expired.token]) {
     const headers = token ? { authorization: `Bearer ${token}` } : {};
-    const response = await worker.fetch(new Request("https://api.example.test/auth/me", { headers }), fixture.env);
+    const response = await app.fetch(new Request("https://api.example.test/auth/me", { headers }), fixture.env);
     assert.equal(response.status, 401);
     const payload = await response.json();
     assert.equal(payload.code, "unauthorized");

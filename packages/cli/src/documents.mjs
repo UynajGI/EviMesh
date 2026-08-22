@@ -98,6 +98,7 @@ export function runDocToApi(document) {
     endedAt: document.ended_at,
     networkAccess: document.network_access ?? false,
     exitCode: document.exit_code,
+    actorId: document.actor_id,
     signature: document.signature,
     inputs: artifactRefs(document.input_artifact_ids, "inputs"),
     outputs: artifactRefs(document.output_artifact_ids, "outputs"),

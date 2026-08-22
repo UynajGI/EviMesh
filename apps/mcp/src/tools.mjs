@@ -77,12 +77,13 @@ function requireIdentity(env) {
   }
 }
 
-function requireAgentIdentity(env) {
-  const identity = requireIdentity(env);
-  if (typeof identity.did !== "string" || !identity.did.startsWith("did:key:")) {
-    throw new McpToolError("configured signing identity has no DID binding; regenerate it with `sq identity generate`", "IDENTITY_BINDING_MISSING");
+async function requireActiveAgentActor(client) {
+  const actor = await client.http.request("GET", "/auth/me");
+  if (typeof actor?.actorId !== "string" || !actor.actorId) throw new McpToolError("authenticated actor binding is unavailable", "AGENT_ACTOR_MISSING");
+  if (actor.actorType !== "agent" && actor.actorType !== "service") {
+    throw new McpToolError("MCP drafts require an authenticated agent or service actor", "AGENT_ACTOR_REQUIRED");
   }
-  return identity;
+  return actor;
 }
 
 async function signRunDraft(unsignedDraft, identity) {
@@ -214,11 +215,12 @@ const TOOL_DEFINITIONS = [
       },
     },
     outputSchema: { type: "object", required: ["draft"], properties: { draft: OBJECT } },
-    run: async ({ args, env }) => {
+    run: async ({ client, args, env }) => {
       requiredArg(args.statement, "statement");
       const summary = { action: "create a local Claim draft", statement: args.statement };
       if (args.confirm !== true) return consentResult("create_claim", summary);
-      const identity = requireAgentIdentity(env);
+      const identity = requireIdentity(env);
+      const actor = await requireActiveAgentActor(client);
       const claimId = createObjectId("Claim");
       const draft = {
         schema: "srp.claim.v1",
@@ -230,7 +232,7 @@ const TOOL_DEFINITIONS = [
         assumptions: args.assumptions ?? [],
         falsification: args.falsification,
         created_at: new Date().toISOString(),
-        created_by: identity.did,
+        created_by: actor.actorId,
       };
       if (args.questionId) draft.question_id = args.questionId;
       validateDocument(draft);
@@ -303,7 +305,7 @@ const TOOL_DEFINITIONS = [
       },
     },
     outputSchema: { type: "object", required: ["draft"], properties: { draft: OBJECT } },
-    run: async ({ args, env }) => {
+    run: async ({ client, args, env }) => {
       requiredArg(args.taskId, "taskId");
       requiredArg(args.contextBundleId, "contextBundleId");
       requiredArg(args.sourceCode, "sourceCode");
@@ -313,7 +315,8 @@ const TOOL_DEFINITIONS = [
       requiredObject(args.hardware, "hardware");
       const summary = { action: "create a local Run Receipt draft", taskId: args.taskId, command: args.command };
       if (args.confirm !== true) return consentResult("record_run", summary);
-      const identity = requireAgentIdentity(env);
+      const identity = requireIdentity(env);
+      const actor = await requireActiveAgentActor(client);
       const now = new Date().toISOString();
       const unsignedDraft = {
         schema: "srp.run.v1",
@@ -333,7 +336,7 @@ const TOOL_DEFINITIONS = [
         network_access: false,
         output_artifact_ids: args.outputArtifactRefs ?? [],
         exit_code: args.exitCode ?? 0,
-        actor_id: identity.did,
+        actor_id: actor.actorId,
       };
       const draft = { ...unsignedDraft, signature: await signRunDraft(unsignedDraft, identity) };
       validateDocument(draft);
@@ -371,6 +374,10 @@ const TOOL_DEFINITIONS = [
       const body = route.toApi(args.document);
       const summary = { action: "sign and publish a submission", route: route.path, eventType: route.eventType, objectId: body.claimId ?? body.runId ?? body.challengeId };
       if (args.confirm !== true) return consentResult("publish_submission", summary);
+      if (args.document.schema === "srp.run.v1") {
+        const actor = await requireActiveAgentActor(client);
+        if (args.document.actor_id !== actor.actorId) throw new McpToolError("Run actor does not match the authenticated agent", "AGENT_ACTOR_MISMATCH");
+      }
       requireIdentity(env);
       const envelope = await signatureEnvelope({ eventType: route.eventType, body, env });
       const response = await client.http.request(route.method, route.path, { body: { ...body, signatureEnvelope: envelope } });

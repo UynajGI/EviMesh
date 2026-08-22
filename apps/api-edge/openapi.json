@@ -108,7 +108,7 @@
     "/auth/me": {
       "get": {
         "operationId": "getAuthenticatedActor",
-        "summary": "Read the authenticated Supabase subject",
+        "summary": "Read the authenticated subject and Actor binding",
         "security": [
           {
             "bearerAuth": []
@@ -3566,7 +3566,8 @@
         "type": "object",
         "required": [
           "subject",
-          "email"
+          "email",
+          "actorId"
         ],
         "properties": {
           "subject": {
@@ -3577,6 +3578,25 @@
             "type": [
               "string",
               "null"
+            ]
+          },
+          "actorId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "actorType": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "human",
+              "agent",
+              "organization",
+              "service",
+              "maintainer",
+              "witness",
+              null
             ]
           }
         },
@@ -4710,6 +4730,10 @@
           },
           "exitCode": {
             "type": "integer"
+          },
+          "actorId": {
+            "type": "string",
+            "minLength": 1
           },
           "signature": {
             "type": "string",

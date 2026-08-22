@@ -37,3 +37,8 @@ test("graph list rows carry text labels, not color alone", () => {
   assert.match(source, /edge\.relation/);
   assert.doesNotMatch(source, /#[0-9a-f]{3,8}\b/i, "graph colors must come from semantic tokens");
 });
+
+test("graph edge families follow the design color language", () => {
+  assert.match(source, /reproduces: 'positive'/);
+  assert.match(source, /supersedes: 'lineage'/);
+});

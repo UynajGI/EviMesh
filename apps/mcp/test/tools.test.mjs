@@ -69,27 +69,56 @@ test("get_task_context returns the bundle and hash", async () => {
   assert.match(result.structuredContent.contentHash, /^sha256:[0-9a-f]{64}$/);
 });
 
-test("create_claim and record_run bind drafts to the active signing identity without network access", async (t) => {
+test("create_claim and record_run bind drafts to the active signing identity without publishing", async (t) => {
   const env = identityEnv(t);
   const { generateIdentity } = await import("../../../packages/cli/src/identity.mjs");
   const identity = generateIdentity(env);
-  let networkCalls = 0;
-  const client = createFakeClient({ http: { request: async () => { networkCalls += 1; return {}; } } });
+  const networkCalls = [];
+  const client = createFakeClient({ http: { request: async (method, path) => { networkCalls.push({ method, path }); return path === "/auth/me" ? { actorId: "agent_01", actorType: "agent" } : {}; } } });
   const claim = await callTool({ client, name: "create_claim", args: { statement: "s", scope: ["s"], falsification: ["f"], actorId: "human_01", confirm: true }, env });
   assert.equal(claim.isError, false);
   assert.equal(claim.structuredContent.draft.schema, "srp.claim.v1");
   assert.ok(claim.structuredContent.draft.claim_id.startsWith("claim_"));
-  assert.equal(claim.structuredContent.draft.created_by, identity.did);
+  assert.equal(claim.structuredContent.draft.created_by, "agent_01");
   const run = await callTool({ client, name: "record_run", args: { taskId: "task_0193f2c8-5c00-4000-8000-000000000001", contextBundleId: "context-1", sourceCode: "git:abc123", container: `oci:python@sha256:${"a".repeat(64)}`, command: "python", environment: { runtime: "python" }, hardware: { cpu: "x86_64" }, actorId: "human_01", signature: "forged", confirm: true }, env });
   assert.equal(run.isError, false);
   assert.equal(run.structuredContent.draft.schema, "srp.run.v1");
-  assert.equal(run.structuredContent.draft.actor_id, identity.did);
+  assert.equal(run.structuredContent.draft.actor_id, "agent_01");
   assert.notEqual(run.structuredContent.draft.signature, "forged");
   const { signature, ...unsignedRun } = run.structuredContent.draft;
   const { canonicalJson } = await import("../../../packages/protocol/src/hash.mjs");
   const { verifyEd25519Payload } = await import("../../../packages/signatures/src/server-verification.mjs");
   assert.equal(await verifyEd25519Payload({ signingBytes: new Uint8Array(Buffer.from(canonicalJson(unsignedRun), "utf8")), signature, publicKey: identity.publicKey }), true);
-  assert.equal(networkCalls, 0, "draft tools must not touch the network");
+  assert.deepEqual(networkCalls, [{ method: "GET", path: "/auth/me" }, { method: "GET", path: "/auth/me" }], "draft tools may only resolve the authenticated actor");
+});
+
+test("record_run rejects a human authenticated actor", async (t) => {
+  const env = identityEnv(t);
+  const { generateIdentity } = await import("../../../packages/cli/src/identity.mjs");
+  generateIdentity(env);
+  const client = createFakeClient({ http: { request: async () => ({ actorId: "human_01", actorType: "human" }) } });
+  const result = await callTool({ client, name: "record_run", args: { taskId: "task_0193f2c8-5c00-4000-8000-000000000001", contextBundleId: "context-1", sourceCode: "git:abc123", container: `oci:python@sha256:${"a".repeat(64)}`, command: "python", environment: { runtime: "python" }, hardware: { cpu: "x86_64" }, confirm: true }, env });
+  assert.equal(result.isError, true);
+  assert.equal(result.structuredContent.error, "AGENT_ACTOR_REQUIRED");
+});
+
+test("record_run preserves its authenticated agent binding through publication", async (t) => {
+  const env = identityEnv(t);
+  const { generateIdentity } = await import("../../../packages/cli/src/identity.mjs");
+  generateIdentity(env);
+  const posts = [];
+  const client = createFakeClient({ http: { request: async (method, path, { body } = {}) => {
+    if (path === "/auth/me") return { actorId: "agent_01", actorType: "agent" };
+    posts.push({ method, path, body });
+    return { ok: true };
+  } } });
+  const recorded = await callTool({ client, name: "record_run", args: { taskId: "task_0193f2c8-5c00-4000-8000-000000000001", contextBundleId: "context-1", sourceCode: "git:abc123", container: `oci:python@sha256:${"a".repeat(64)}`, command: "python", environment: { runtime: "python" }, hardware: { cpu: "x86_64" }, confirm: true }, env });
+  const published = await callTool({ client, name: "publish_submission", args: { document: recorded.structuredContent.draft, confirm: true }, env });
+  assert.equal(published.isError, false, JSON.stringify(published.structuredContent));
+  assert.equal(posts.length, 1);
+  assert.equal(posts[0].path, "/runs");
+  assert.equal(posts[0].body.actorId, "agent_01");
+  assert.equal(posts[0].body.signatureEnvelope.payload.actorId, "agent_01");
 });
 
 test("attach_evidence hashes content and uploads after consent", async () => {

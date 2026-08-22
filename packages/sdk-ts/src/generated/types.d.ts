@@ -7,7 +7,7 @@ export type Json = string | number | boolean | null | Json[] | { [key: string]: 
 
 export type HealthResponse = { service: "evimesh-api-edge"; status: "ok"; environment: string; };
 
-export type AuthMeResponse = { subject: string; email: string | null; };
+export type AuthMeResponse = { subject: string; email: string | null; actorId: string; actorType?: "human" | "agent" | "organization" | "service" | "maintainer" | "witness" | null; };
 
 export type DeviceAuthorizationRequest = { client_id: string; };
 
@@ -73,7 +73,7 @@ export type CreateEvidenceRequest = { evidenceId: string; evidenceType: "formal_
 
 export type LinkEvidenceRequest = { claimId: string; claimRevision: number; relationType: "supports" | "refutes" | "qualifies" | "reproduces"; };
 
-export type CreateRunRequest = { runId: string; taskId: string; contextBundleId: string; sourceCode: string; container: string; command: string; args?: string[]; environment: Record<string, unknown>; hardware: Record<string, unknown>; randomSeed: Record<string, unknown>; startedAt: string; endedAt: string; networkAccess?: boolean; exitCode: number; signature: string; inputs?: ArtifactRevisionRef[]; outputs?: ArtifactRevisionRef[]; signatureEnvelope?: ClientSignatureEnvelope; };
+export type CreateRunRequest = { runId: string; taskId: string; contextBundleId: string; sourceCode: string; container: string; command: string; args?: string[]; environment: Record<string, unknown>; hardware: Record<string, unknown>; randomSeed: Record<string, unknown>; startedAt: string; endedAt: string; networkAccess?: boolean; exitCode: number; actorId?: string; signature: string; inputs?: ArtifactRevisionRef[]; outputs?: ArtifactRevisionRef[]; signatureEnvelope?: ClientSignatureEnvelope; };
 
 export type ArtifactRevisionRef = { artifactId: string; artifactRevision: number; };
 

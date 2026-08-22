@@ -600,6 +600,7 @@ test("records a Run receipt through the API", async () => {
       container: "python@sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
       command: "python", args: ["reproduce.py"], environment: { python: "3.12" }, hardware: { cpu: "x86_64" },
       randomSeed: { seed: 42 }, startedAt: "2026-08-06T00:00:00.000Z", endedAt: "2026-08-06T00:05:00.000Z", exitCode: 0,
+      actorId: "actor-1",
       signature: "ed25519:sig",
       inputs: [{ artifactId: "artifact-input", artifactRevision: 1 }],
       outputs: [{ artifactId: "artifact-output", artifactRevision: 1 }],
@@ -607,6 +608,14 @@ test("records a Run receipt through the API", async () => {
   }), {});
   assert.equal(response.status, 201, await response.clone().text());
   assert.equal((await response.json()).run.runId, "run-1");
+
+  const mismatch = await app.fetch(new Request("https://api.example.test/runs", {
+    method: "POST",
+    headers: { authorization: "Bearer test-token", "content-type": "application/json" },
+    body: JSON.stringify({ actorId: "human-2" }),
+  }), {});
+  assert.equal(mismatch.status, 403);
+  assert.equal((await mismatch.json()).code, "ACTOR_IDENTITY_MISMATCH");
 });
 
 test("plans a signed single-object artifact upload", async () => {

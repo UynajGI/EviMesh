@@ -207,7 +207,9 @@ app.get('/platform/keys', (context) => {
 app.get("/auth/me", async (context) => {
   try {
     const claims = await authenticateRequest(context.req.raw, context.env);
-    return context.json({ subject: claims.sub, email: claims.email ?? null });
+    const actorId = await resolveActorForSupabaseClaims({ repository, claims });
+    const actor = typeof repository?.getActor === "function" ? await repository.getActor(actorId) : null;
+    return context.json({ subject: claims.sub, email: claims.email ?? null, actorId, actorType: actor?.actorType ?? null });
   } catch (error) {
     if (error instanceof JwtVerificationError || error instanceof SyntaxError) {
       return context.json(errorBody("unauthorized", "authentication required", context.get("requestId")), 401);
@@ -1085,6 +1087,9 @@ app.post('/runs', async (context) => {
     const claims = await authenticateRequest(context.req.raw, context.env);
     const actorId = await resolveActorForSupabaseClaims({ repository, claims });
     const body = await context.req.json();
+    if (body.actorId !== undefined && body.actorId !== actorId) {
+      throw new ActorIdentityError('run actor does not match the authenticated actor', 'ACTOR_IDENTITY_MISMATCH', 403);
+    }
     const submission = {
       runId: body.runId,
       taskId: body.taskId,
