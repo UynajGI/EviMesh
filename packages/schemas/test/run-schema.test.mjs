@@ -24,6 +24,7 @@ const validRun = {
   output_artifact_ids: ['evidence_02'],
   exit_code: 0,
   actor_id: 'actor_01',
+  signing_key_id: 'key_01',
   signature: 'signature-bytes',
 };
 
@@ -33,7 +34,7 @@ function validateRun(value) {
   if (!/^run_[0-9a-f-]{36}$/.test(value.run_id) || !/^task_[0-9a-f-]{36}$/.test(value.task_id)) return 'ID format';
   if (typeof value.context_bundle_id !== 'string' || value.context_bundle_id.length < 1) return 'context';
   for (const field of ['input_artifact_ids', 'output_artifact_ids', 'args']) if (!Array.isArray(value[field])) return field;
-  for (const field of ['source_code', 'command', 'actor_id', 'signature']) if (typeof value[field] !== 'string' || value[field].length < 1) return field;
+  for (const field of ['source_code', 'command', 'actor_id', 'signing_key_id', 'signature']) if (typeof value[field] !== 'string' || value[field].length < 1) return field;
   if (typeof value.container !== 'string' || !new RegExp(schema.properties.container.pattern).test(value.container)) return 'container';
   if (!value.environment || Object.keys(value.environment).length === 0 || !value.hardware || Object.keys(value.hardware).length === 0) return 'runtime metadata';
   if (typeof value.network_access !== 'boolean' || !Number.isInteger(value.exit_code)) return 'execution outcome';
@@ -57,6 +58,7 @@ test('rejects incomplete or invalid Run vectors', () => {
     { ...validRun, exit_code: 0.5 },
     { ...validRun, ended_at: '2026-08-04T05:00:00.000Z' },
     { ...validRun, signature: '' },
+    { ...validRun, signing_key_id: '' },
   ]) {
     assert.notEqual(validateRun(invalid), null);
   }

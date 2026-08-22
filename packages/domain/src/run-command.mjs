@@ -60,7 +60,7 @@ async function assertVerifiedOutputArtifacts(transaction, rows) {
 }
 
 /** Persist a reproducibility Run and its immutable input/output artifact references. */
-export async function createRun({ repository, actorId, actorRole, runId, taskId, contextBundleId, sourceCode, container, command, args = [], environment, hardware, randomSeed, startedAt, endedAt, networkAccess = false, exitCode, signature, inputs = [], outputs = [], eventFactory } = {}) {
+export async function createRun({ repository, actorId, actorRole, runId, taskId, contextBundleId, sourceCode, container, command, args = [], environment, hardware, randomSeed, startedAt, endedAt, networkAccess = false, exitCode, signingKeyId, signature, inputs = [], outputs = [], eventFactory } = {}) {
   if (!repository || typeof repository.withTransaction !== 'function') throw new RunCommandError('repository withTransaction is required');
   for (const method of ['getArtifactRevision', 'getArtifactVerification', 'insertRun', 'insertRunInput', 'insertRunOutput', 'appendResearchEvent']) if (typeof repository[method] !== 'function') throw new RunCommandError(`repository ${method} is required`);
   actorId = requiredText(actorId, 'actor id');
@@ -70,6 +70,7 @@ export async function createRun({ repository, actorId, actorRole, runId, taskId,
   sourceCode = requiredText(sourceCode, 'source code');
   container = assertOciDigest(container);
   command = requiredText(command, 'command');
+  signingKeyId = requiredText(signingKeyId, 'signing key id');
   signature = requiredText(signature, 'signature');
   if (!Array.isArray(args)) throw new RunCommandError('args must be an array');
   if (environment === null || typeof environment !== 'object' || Array.isArray(environment)) throw new RunCommandError('environment must be a JSON object');
@@ -81,12 +82,12 @@ export async function createRun({ repository, actorId, actorRole, runId, taskId,
   const outputRows = artifactRefs(outputs, 'outputs').map((row) => ({ ...row, runId }));
   if (typeof eventFactory !== 'function') throw new RunCommandError('eventFactory is required');
   assertProjectRoleForAction({ actorRole, requiredRole: 'contributor' });
-  const run = { runId, taskId, contextBundleId, sourceCode, container, command, args, environment, hardware, randomSeed: normalizedRandomSeed.value, startedAt, endedAt, networkAccess, exitCode, createdBy: actorId, signature };
+  const run = { runId, taskId, contextBundleId, sourceCode, container, command, args, environment, hardware, randomSeed: normalizedRandomSeed.value, startedAt, endedAt, networkAccess, exitCode, createdBy: actorId, signingKeyId, signature };
   return repository.withTransaction(async (transaction) => {
     await assertArtifactRevisions(transaction, inputRows, 'inputs');
     await assertArtifactRevisions(transaction, outputRows, 'outputs');
     await assertVerifiedOutputArtifacts(transaction, outputRows);
-    const event = await eventFactory({ eventType: 'run.created', payload: { entity_type: 'run', run_id: runId, task_id: taskId, actor_id: actorId, input_count: inputRows.length, output_count: outputRows.length, random_seed_semantic_hash: normalizedRandomSeed.semanticHash } });
+    const event = await eventFactory({ eventType: 'run.created', payload: { entity_type: 'run', run_id: runId, task_id: taskId, actor_id: actorId, signing_key_id: signingKeyId, input_count: inputRows.length, output_count: outputRows.length, random_seed_semantic_hash: normalizedRandomSeed.semanticHash } });
     if (!event || typeof event !== 'object') throw new RunCommandError('eventFactory must return an event object');
     return {
       run: await transaction.insertRun(run) ?? run,

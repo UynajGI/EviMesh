@@ -59,6 +59,7 @@ const runRequest: CreateRunRequest = {
   startedAt: "2026-08-06T00:00:00.000Z",
   endedAt: "2026-08-06T00:05:00.000Z",
   exitCode: 0,
+  signingKeyId: "key-1",
   signature: "ed25519:sig",
 };
 

@@ -1111,11 +1111,15 @@ app.post('/runs', async (context) => {
       endedAt: body.endedAt,
       networkAccess: body.networkAccess ?? false,
       exitCode: body.exitCode,
+      signingKeyId: body.signingKeyId,
       signature: body.signature,
       inputs: body.inputs ?? [],
       outputs: body.outputs ?? [],
     };
     if (body.signatureEnvelope !== undefined) {
+      if (body.signingKeyId !== body.signatureEnvelope?.signature?.key_id) {
+        throw new ActorIdentityError('Run signing key does not match the authenticated signature envelope', 'SIGNING_KEY_ID_MISMATCH', 403);
+      }
       const signedPayload = { ...body };
       delete signedPayload.signatureEnvelope;
       await verifyClientSignatureEnvelope({ repository, signatureNonceStore: nonceStoreFor(context), actorId, envelope: body.signatureEnvelope, payload: signedPayload, expectedEventType: 'run.created' });

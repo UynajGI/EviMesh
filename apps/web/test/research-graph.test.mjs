@@ -10,6 +10,7 @@ test("graph keeps the canvas, legend, and node details", () => {
   assert.match(source, /aria-label="Claim node details"/);
   assert.match(source, /aria-label="Claim state legend"/);
   assert.match(source, /CLAIM_STATE_COLORS/);
+  assert.match(source, /background: color\.background, color: color\.foreground/);
   assert.match(source, /React Flow/);
 });
 

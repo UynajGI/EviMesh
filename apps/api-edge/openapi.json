@@ -4702,6 +4702,7 @@
           "startedAt",
           "endedAt",
           "exitCode",
+          "signingKeyId",
           "signature"
         ],
         "properties": {
@@ -4759,6 +4760,10 @@
             "type": "integer"
           },
           "actorId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "signingKeyId": {
             "type": "string",
             "minLength": 1
           },

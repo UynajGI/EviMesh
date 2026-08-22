@@ -19,16 +19,16 @@ import { Select } from '@/components/ui/selection';
  */
 
 export const CLAIM_STATE_COLORS = Object.freeze({
-  hypothesis: 'var(--evimesh-status-neutral-fg)',
-  candidate: 'var(--evimesh-status-accent-fg)',
-  under_verification: 'var(--evimesh-status-info-fg)',
-  provisionally_accepted: 'var(--evimesh-status-success-fg)',
-  accepted: 'var(--evimesh-status-success-fg)',
-  contested: 'var(--evimesh-status-warning-fg)',
-  refuted: 'var(--evimesh-status-danger-fg)',
-  superseded: 'var(--evimesh-status-neutral-fg)',
-  retracted: 'var(--evimesh-status-neutral-fg)',
-  dependency_tainted: 'var(--evimesh-status-warning-fg)',
+  hypothesis: { background: 'var(--evimesh-status-neutral-bg)', foreground: 'var(--evimesh-status-neutral-fg)' },
+  candidate: { background: 'var(--evimesh-status-accent-bg)', foreground: 'var(--evimesh-status-accent-fg)' },
+  under_verification: { background: 'var(--evimesh-status-info-bg)', foreground: 'var(--evimesh-status-info-fg)' },
+  provisionally_accepted: { background: 'var(--evimesh-status-success-bg)', foreground: 'var(--evimesh-status-success-fg)' },
+  accepted: { background: 'var(--evimesh-status-success-bg)', foreground: 'var(--evimesh-status-success-fg)' },
+  contested: { background: 'var(--evimesh-status-warning-bg)', foreground: 'var(--evimesh-status-warning-fg)' },
+  refuted: { background: 'var(--evimesh-status-danger-bg)', foreground: 'var(--evimesh-status-danger-fg)' },
+  superseded: { background: 'var(--evimesh-status-neutral-bg)', foreground: 'var(--evimesh-status-neutral-fg)' },
+  retracted: { background: 'var(--evimesh-status-neutral-bg)', foreground: 'var(--evimesh-status-neutral-fg)' },
+  dependency_tainted: { background: 'var(--evimesh-status-warning-bg)', foreground: 'var(--evimesh-status-warning-fg)' },
 });
 
 const EDGE_FAMILIES = Object.freeze({
@@ -91,13 +91,13 @@ function ClaimGraphCanvas({ nodes, edges, onSelect }) {
 
   const flowNodes = useMemo(() => nodes.map((node) => {
     const point = coordinates.get(node.id) ?? { x: 0, y: 0 };
-    const color = CLAIM_STATE_COLORS[node.state] ?? 'var(--evimesh-status-accent-fg)';
+    const color = CLAIM_STATE_COLORS[node.state] ?? { background: 'var(--evimesh-status-accent-bg)', foreground: 'var(--evimesh-status-accent-fg)' };
     return {
       id: node.id,
       position: { x: point.x, y: point.y },
       data: { label: `${node.id} · ${node.state ?? 'unknown'}`, color, state: node.state },
       style: {
-        background: color, color: 'var(--evimesh-emphasis-foreground)', border: 'none', borderRadius: '8px',
+        background: color.background, color: color.foreground, border: '1px solid var(--evimesh-border)', borderRadius: '8px',
         fontSize: '11px', width: 160, padding: '4px 8px',
       },
     };
@@ -178,7 +178,7 @@ export function ClaimDag({ elements }) {
       : <div className="mt-3"><ClaimDagList edges={edges} nodes={nodes} /></div>}
     {selectedNode && view === 'graph' && <aside aria-label="Claim node details" className="mt-4 rounded-lg border border-border bg-card p-4"><div className="flex items-center justify-between gap-3"><h3 className="font-mono text-sm tabular-nums">{selectedNode.id}</h3><button className="rounded-md border border-border px-2 py-1 text-xs" type="button" onClick={() => { setSelectedNode(null); setSelectedDetail(null); }}>Close</button></div><p className="mt-2 text-xs uppercase tracking-wide text-muted-foreground">State: {selectedNode.state ?? 'unknown'}</p><p className="mt-3 text-sm">Revision: {selectedDetail?.currentRevision?.revision ?? selectedNode.revision ?? 'Unavailable'}</p><p className="mt-2 text-sm">Evidence: {Array.isArray(evidence) ? evidence.length : 0} linked items</p>{Array.isArray(evidence) && evidence.length > 0 && <pre className="mt-3 overflow-x-auto rounded-lg bg-muted p-3 text-xs leading-6">{JSON.stringify(evidence, null, 2)}</pre>}</aside>}
     <p className="mt-2 text-xs text-muted-foreground">Edges retain the protocol relation type; the list view exposes the same typed edges.</p>
-    <div aria-label="Claim state legend" className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">{Object.keys(CLAIM_STATE_COLORS).map((state) => <span className="inline-flex items-center gap-2" key={state}><span aria-hidden="true" className="h-3 w-3 rounded-full" style={{ backgroundColor: CLAIM_STATE_COLORS[state] }} />{state.replaceAll('_', ' ')}</span>)}</div>
+    <div aria-label="Claim state legend" className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">{Object.keys(CLAIM_STATE_COLORS).map((state) => <span className="inline-flex items-center gap-2" key={state}><span aria-hidden="true" className="h-3 w-3 rounded-full" style={{ backgroundColor: CLAIM_STATE_COLORS[state].background }} />{state.replaceAll('_', ' ')}</span>)}</div>
     {/* Edge family legend (design book 02: five DAG edge families). */}
     <div aria-label="DAG edge family legend" className="mt-2 flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">
       {[['positive', 'supports / reproduces / verifies'], ['negative', 'refutes / contradicts / challenges'], ['qualify', 'qualifies'], ['structural', 'depends on / uses / implements'], ['lineage', 'extends / supersedes / derived from']].map(([family, label]) => (

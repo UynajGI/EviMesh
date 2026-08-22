@@ -84,6 +84,7 @@ test("create_claim and record_run bind drafts to the active signing identity wit
   assert.equal(run.isError, false);
   assert.equal(run.structuredContent.draft.schema, "srp.run.v1");
   assert.equal(run.structuredContent.draft.actor_id, "agent_01");
+  assert.equal(run.structuredContent.draft.signing_key_id, identity.keyId);
   assert.notEqual(run.structuredContent.draft.signature, "forged");
   const { signature, ...unsignedRun } = run.structuredContent.draft;
   const { canonicalJson } = await import("../../../packages/protocol/src/hash.mjs");
@@ -129,6 +130,8 @@ test("record_run preserves its authenticated agent binding through publication",
   assert.equal(posts.length, 1);
   assert.equal(posts[0].path, "/runs");
   assert.equal(posts[0].body.actorId, "agent_01");
+  assert.equal(posts[0].body.signingKeyId, identity.keyId);
+  assert.equal(posts[0].body.signatureEnvelope.signature.key_id, identity.keyId);
   assert.equal(posts[0].body.sourceCode, "git:def456");
   assert.notEqual(posts[0].body.signature, recorded.structuredContent.draft.signature);
   const unsignedEdited = { ...edited };

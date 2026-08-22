@@ -99,6 +99,7 @@ export function runDocToApi(document) {
     networkAccess: document.network_access ?? false,
     exitCode: document.exit_code,
     actorId: document.actor_id,
+    signingKeyId: document.signing_key_id,
     signature: document.signature,
     inputs: artifactRefs(document.input_artifact_ids, "inputs"),
     outputs: artifactRefs(document.output_artifact_ids, "outputs"),
@@ -189,6 +190,7 @@ export function runTemplate({ runId, taskId, contextBundleId }) {
     output_artifact_ids: [],
     exit_code: 0,
     actor_id: "TODO: actor id",
+    signing_key_id: "TODO: signing key id",
     signature: "TODO: run signature",
   };
 }

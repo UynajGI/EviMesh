@@ -601,13 +601,16 @@ test("records a Run receipt through the API", async () => {
       command: "python", args: ["reproduce.py"], environment: { python: "3.12" }, hardware: { cpu: "x86_64" },
       randomSeed: { seed: 42 }, startedAt: "2026-08-06T00:00:00.000Z", endedAt: "2026-08-06T00:05:00.000Z", exitCode: 0,
       actorId: "actor-1",
+      signingKeyId: "key-1",
       signature: "ed25519:sig",
       inputs: [{ artifactId: "artifact-input", artifactRevision: 1 }],
       outputs: [{ artifactId: "artifact-output", artifactRevision: 1 }],
     }),
   }), {});
   assert.equal(response.status, 201, await response.clone().text());
-  assert.equal((await response.json()).run.runId, "run-1");
+  const created = await response.json();
+  assert.equal(created.run.runId, "run-1");
+  assert.equal(created.run.signingKeyId, "key-1");
 
   const mismatch = await app.fetch(new Request("https://api.example.test/runs", {
     method: "POST",

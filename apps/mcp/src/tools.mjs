@@ -343,6 +343,7 @@ const TOOL_DEFINITIONS = [
         output_artifact_ids: args.outputArtifactRefs ?? [],
         exit_code: args.exitCode ?? 0,
         actor_id: actor.actorId,
+        signing_key_id: identity.keyId,
       };
       const draft = { ...unsignedDraft, signature: await signRunDraft(unsignedDraft, identity) };
       validateDocument(draft);
