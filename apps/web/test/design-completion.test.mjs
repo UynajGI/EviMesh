@@ -39,6 +39,8 @@ test("feedback primitives expose the design-book state classes", async () => {
 test("agent activity keeps public output attributable and avoids scoring language", async () => {
   const source = await read("../app/agents/[actorId]/page.js");
   assert.match(source, /signedBy/);
+  assert.match(source, /\/people\/\$\{encodeURIComponent\(edge\.signedBy\)\}/);
+  assert.match(source, /signature not stated/);
   assert.match(source, /ownerActorId/);
   assert.doesNotMatch(source, /score|rating|ranking|percentage/i);
 });

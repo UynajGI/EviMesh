@@ -71,6 +71,29 @@ test("active signing-key lookup is available on the hosted repository", async ()
   assert.equal(seen.searchParams.get("limit"), "1");
 });
 
+test("actor signer hydration uses bounded batch filters for events and actors", async () => {
+  const seen = [];
+  const repository = createSupabaseReadRepository({
+    url: "https://example.supabase.co",
+    publishableKey: "anon",
+    fetchImpl: async (endpoint) => {
+      const url = new URL(endpoint);
+      seen.push(url);
+      if (url.pathname.endsWith("/research_events")) return Response.json([{ event_id: "event-1", event_type: "claim.created", payload: { signer_actor_id: "human-1" } }]);
+      return Response.json([{ actor_id: "human-1", actor_type: "human" }]);
+    },
+  });
+  const eventIds = Array.from({ length: 51 }, (_, index) => `event-${index + 1}`);
+  const events = await repository.listResearchEventsByIds(eventIds);
+  const actors = await repository.listActorsByIds(["human-1", "human-2"]);
+  assert.equal(events[0].eventId, "event-1");
+  assert.equal(actors[0].actorType, "human");
+  assert.equal(seen[0].searchParams.get("event_id").split(",").length, 50);
+  assert.equal(seen[1].searchParams.get("event_id"), "in.(event-51)");
+  assert.equal(seen[2].searchParams.get("actor_id"), "in.(human-1,human-2)");
+  assert.equal(seen.length, 3);
+});
+
 test("events filter by payload ids and actors, ordered ascending", async () => {
   const rows = [
     { event_id: "e2", event_type: "claim.created", payload: { object_type: "claim", claim_id: "claim-9", actor_id: "a1" }, created_at: "2026-08-02T00:00:00Z" },

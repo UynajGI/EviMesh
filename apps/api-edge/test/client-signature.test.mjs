@@ -133,6 +133,41 @@ test("verifies the exact sent payload when optional fields are omitted", async (
   assert.deepEqual(insertedRevisions[0].assumptions, []);
 });
 
+test("POST /claims rejects noncanonical text before publisher lookup, signature verification, nonce consumption, or writes", async () => {
+  const keypair = generateEd25519KeyPair();
+  let actorLookups = 0;
+  let nonceClaims = 0;
+  let writes = 0;
+  const body = { claimId: "claim-1", statement: " surrounding whitespace ", scope: ["s"], assumptions: [], falsification: ["f"] };
+  const envelope = await makeEnvelope({ keypair, keyId: "key-1", eventType: "claim.created", payload: body });
+  const repository = {
+    findIdentity: async () => ({ actorId: "human-1" }),
+    getActor: async () => { actorLookups += 1; return { actorId: "human-1", actorType: "human" }; },
+    findActiveSigningKey: async () => ({ keyId: "key-1", actorId: "human-1", algorithm: "Ed25519", publicKey: keypair.public_key }),
+    claimSignatureNonce: async () => { nonceClaims += 1; return true; },
+    insertClaim: async () => { writes += 1; },
+    insertClaimRevision: async () => { writes += 1; },
+    appendResearchEvent: async () => { writes += 1; },
+    withTransaction: async (callback) => callback(repository),
+  };
+  const app = createApp({
+    repository,
+    claimEventFactory: async ({ eventType, payload }) => ({ eventType, payload }),
+    claimRoleResolver: async () => "maintainer",
+    authenticate: async () => ({ sub: "supabase-subject" }),
+  });
+  const response = await app.fetch(new Request("https://api.example.test/claims", {
+    method: "POST",
+    headers: { authorization: "Bearer test-token", "content-type": "application/json" },
+    body: JSON.stringify({ ...body, signatureEnvelope: envelope }),
+  }), {});
+  assert.equal(response.status, 400);
+  assert.equal((await response.json()).code, "CLAIM_TEXT_NONCANONICAL");
+  assert.equal(actorLookups, 0);
+  assert.equal(nonceClaims, 0);
+  assert.equal(writes, 0);
+});
+
 test("POST /claims accepts a valid signed envelope and rejects a tampered one", async () => {
   const keypair = generateEd25519KeyPair();
   const inserted = [];
@@ -163,6 +198,17 @@ test("POST /claims accepts a valid signed envelope and rejects a tampered one", 
     body: JSON.stringify({ ...body, signatureEnvelope: envelope }),
   }), {});
   assert.equal(accepted.status, 201);
+  const acceptedResult = await accepted.json();
+  assert.deepEqual(acceptedResult.event.payload.publisher_signature_envelope.payload, body);
+  assert.deepEqual({
+    claimId: acceptedResult.revision.claimId,
+    questionId: acceptedResult.revision.questionId,
+    statement: acceptedResult.revision.statement,
+    scope: acceptedResult.revision.scope,
+    assumptions: acceptedResult.revision.assumptions,
+    falsification: acceptedResult.revision.falsification,
+  }, body);
+  assert.deepEqual(acceptedResult.event.payload.projection.state.revision, acceptedResult.revision);
   assert.equal(inserted[0].claimId, "claim-1");
 
   const tamperedBody = { ...body, statement: "tampered after signing" };

@@ -92,6 +92,14 @@ function persistedClientSignatureEnvelope(envelope, signedPayload) {
   };
 }
 
+function canonicalClaimText(value, field, { nullable = false } = {}) {
+  if (nullable && value === null) return null;
+  if (typeof value !== 'string' || value.length === 0 || value.trim() !== value) {
+    throw new ClaimCommandError(`${field} must be a non-empty string without surrounding whitespace`, 'CLAIM_TEXT_NONCANONICAL');
+  }
+  return value;
+}
+
 const RUN_TIMESTAMP_PATTERN = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?(?:Z|[+-](\d{2}):(\d{2}))$/;
 
 function hasValidRunTimestampParts(match) {
@@ -1021,20 +1029,21 @@ app.post('/claims', async (context) => {
   try {
     if (typeof claimEventFactory !== 'function' || typeof claimRoleResolver !== 'function') return context.json(errorBody('CLAIM_CREATION_UNAVAILABLE', 'claim creation is not configured', context.get('requestId')), 503);
     const claims = await authenticateRequest(context.req.raw, context.env);
-    const actorId = await resolveActorForSupabaseClaims({ repository, claims });
     const body = await context.req.json();
-    const draftedByActorId = body.draftedByActorId ?? actorId;
-    if (typeof draftedByActorId !== 'string' || draftedByActorId.length === 0 || draftedByActorId.trim() !== draftedByActorId) {
-      throw new ClaimCommandError('drafting actor id must be a non-empty string without surrounding whitespace', 'CLAIM_DRAFTER_INVALID');
-    }
+    const claimId = canonicalClaimText(body.claimId, 'claim id');
+    const questionId = body.questionId === undefined ? null : canonicalClaimText(body.questionId, 'question id', { nullable: true });
+    const statement = canonicalClaimText(body.statement, 'claim statement');
+    const suppliedDrafterActorId = body.draftedByActorId === undefined ? null : canonicalClaimText(body.draftedByActorId, 'drafting actor id');
+    const actorId = await resolveActorForSupabaseClaims({ repository, claims });
+    const draftedByActorId = suppliedDrafterActorId ?? actorId;
     const hasSeparateDrafter = draftedByActorId !== actorId;
     const submission = {
-      claimId: body.claimId,
+      claimId,
       draftedByActorId,
-      questionId: body.questionId ?? null,
-      statement: body.statement,
+      questionId,
+      statement,
       scope: body.scope,
-      assumptions: body.assumptions ?? [],
+      assumptions: body.assumptions === undefined ? [] : body.assumptions,
       falsification: body.falsification,
     };
     if (typeof repository?.getActor !== 'function') {
@@ -1066,7 +1075,7 @@ app.post('/claims', async (context) => {
       await verifyClientSignatureEnvelope({ repository, signatureNonceStore: nonceStoreFor(context), actorId, envelope: body.signatureEnvelope, payload: signedPayload, expectedEventType: 'claim.created' });
       publisherSignatureEnvelope = persistedClientSignatureEnvelope(body.signatureEnvelope, signedPayload);
     }
-    const actorRole = await claimRoleResolver({ repository, actorId, questionId: body.questionId ?? null, projectId: body.projectId ?? null });
+    const actorRole = await claimRoleResolver({ repository, actorId, questionId, projectId: body.projectId ?? null });
     return context.json(await createClaim({
       repository,
       actorId,

@@ -73,6 +73,33 @@ export async function getContribution({ repository, actorId } = {}) {
   const statementIds = statements.map((statement) => statement.statementId);
   const edges = statementIds.length > 0 ? await repository.listContributionEdges(statementIds) : [];
   const normalizedEdges = Array.isArray(edges) ? edges : [];
+  const statementById = new Map(statements.map((statement) => [statement.statementId, statement]));
+  const contributionEventIds = [...new Set(statements.map((statement) => statement?.eventId).filter((eventId) => typeof eventId === "string" && eventId.length > 0))];
+  const contributionEvents = contributionEventIds.length > 0 && typeof repository.listResearchEventsByIds === "function"
+    ? await repository.listResearchEventsByIds(contributionEventIds)
+    : [];
+  const eventById = new Map((Array.isArray(contributionEvents) ? contributionEvents : []).map((event) => [event?.eventId, event]));
+  const signerActorIds = [...new Set([...eventById.values()]
+    .filter((event) => event?.eventType === "claim.created")
+    .map((event) => event?.payload?.signer_actor_id)
+    .filter((signerActorId) => typeof signerActorId === "string" && signerActorId.length > 0))];
+  const signerActors = signerActorIds.length > 0 && typeof repository.listActorsByIds === "function"
+    ? await repository.listActorsByIds(signerActorIds)
+    : [];
+  const humanSignerIds = new Set((Array.isArray(signerActors) ? signerActors : [])
+    .filter((signer) => signer?.actorType === "human")
+    .map((signer) => signer.actorId));
+  const attributedEdges = normalizedEdges.map((edge) => {
+    const statement = statementById.get(edge?.statementId);
+    const event = eventById.get(statement?.eventId);
+    const isMatchingClaimCreation = edge?.edgeType === "produced"
+      && edge?.objectType === "claim"
+      && event?.eventType === "claim.created"
+      && event?.payload?.claim_id === edge?.objectId
+      && (edge?.objectRevision === null || edge?.objectRevision === undefined || event?.payload?.revision === edge.objectRevision);
+    const signerActorId = isMatchingClaimCreation ? event?.payload?.signer_actor_id : null;
+    return { ...edge, signedBy: humanSignerIds.has(signerActorId) ? signerActorId : null };
+  });
   const lastEvent = typeof repository.getLatestResearchEventForActor === "function"
     ? await repository.getLatestResearchEventForActor(actorId)
     : null;
@@ -83,8 +110,8 @@ export async function getContribution({ repository, actorId } = {}) {
     actorId,
     actor: actorIdentityCard(actor, profile),
     roles: roleDetails,
-    produced: normalizedEdges.filter((edge) => edge.edgeType === "produced"),
-    used: normalizedEdges.filter((edge) => edge.edgeType === "used"),
+    produced: attributedEdges.filter((edge) => edge.edgeType === "produced"),
+    used: attributedEdges.filter((edge) => edge.edgeType === "used"),
     statements,
     lastEventAt: lastEvent?.createdAt ?? null,
     lastEventId: lastEvent?.eventId ?? null,

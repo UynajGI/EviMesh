@@ -130,12 +130,16 @@ test("returns an Attempt with its trace summary", async () => {
 
 test("returns an Actor contribution profile", async () => {
   const app = createApp({ repository: {
-    listContributionStatements: async () => [{ statementId: "statement-1", role: "originator" }],
+    listContributionStatements: async () => [{ statementId: "statement-1", eventId: "event-1", role: "originator" }],
     listContributionEdges: async () => [{ statementId: "statement-1", edgeType: "produced", objectType: "claim", objectId: "claim-1" }],
+    listResearchEventsByIds: async () => [{ eventId: "event-1", eventType: "claim.created", payload: { claim_id: "claim-1", signer_actor_id: "human-1" } }],
+    listActorsByIds: async () => [{ actorId: "human-1", actorType: "human" }],
   } });
   const response = await app.fetch(new Request("https://api.example.test/actors/actor-1"), {});
   assert.equal(response.status, 200);
-  assert.equal((await response.json()).statements[0].statementId, "statement-1");
+  const body = await response.json();
+  assert.equal(body.statements[0].statementId, "statement-1");
+  assert.equal(body.produced[0].signedBy, "human-1");
 });
 
 test("lists Verification receipts for one Claim and returns one receipt", async () => {

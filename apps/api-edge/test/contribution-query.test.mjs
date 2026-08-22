@@ -30,6 +30,41 @@ test("returns an Actor's roles and produced/used contribution edges", async () =
   assert.equal(result.used[0].objectId, "claim-1");
 });
 
+test("hydrates produced Claim edges with only batch-verified human event signers", async () => {
+  const calls = [];
+  const repository = {
+    async listContributionStatements() {
+      return [
+        { statementId: "statement-signed", eventId: "event-signed", role: "originator" },
+        { statementId: "statement-missing", eventId: "event-missing", role: "originator" },
+      ];
+    },
+    async listContributionEdges(statementIds) {
+      calls.push(["edges", statementIds]);
+      return [
+        { statementId: "statement-signed", edgeType: "produced", objectType: "claim", objectId: "claim-signed", objectRevision: 1 },
+        { statementId: "statement-missing", edgeType: "produced", objectType: "claim", objectId: "claim-missing", objectRevision: 1 },
+      ];
+    },
+    async listResearchEventsByIds(eventIds) {
+      calls.push(["events", eventIds]);
+      return [{ eventId: "event-signed", eventType: "claim.created", payload: { claim_id: "claim-signed", revision: 1, signer_actor_id: "human-1" } }];
+    },
+    async listActorsByIds(actorIds) {
+      calls.push(["actors", actorIds]);
+      return [{ actorId: "human-1", actorType: "human" }];
+    },
+  };
+  const result = await getContribution({ repository, actorId: "agent-1" });
+  assert.deepEqual(calls, [
+    ["edges", ["statement-signed", "statement-missing"]],
+    ["events", ["event-signed", "event-missing"]],
+    ["actors", ["human-1"]],
+  ]);
+  assert.equal(result.produced[0].signedBy, "human-1");
+  assert.equal(result.produced[1].signedBy, null);
+});
+
 test("returns a typed not-found error for an Actor without contribution statements", async () => {
   const repository = {
     async listContributionStatements() { return []; },

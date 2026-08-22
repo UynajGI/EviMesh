@@ -69,6 +69,7 @@ function mapRow(row) {
 
 const PAGE_SIZE = 1000;
 const CLAIM_GRAPH_FRONTIER_BATCH_SIZE = 50;
+const ATTRIBUTION_BATCH_SIZE = 50;
 const EVENT_ACTOR_PAYLOAD_KEYS = Object.freeze(["actor_id", "signer_actor_id", "publisher_actor_id", "drafted_by_actor_id", "producer_actor_id", "run_actor_id"]);
 const TABLE_ORDERS = Object.freeze({
   actors: "created_at.desc,actor_id.desc",
@@ -183,6 +184,15 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
 
   async function list(table, filters = {}) {
     return query(table, { filters });
+  }
+
+  async function listByIdsInBatches(table, column, values) {
+    const ids = [...new Set(Array.isArray(values) ? values : [])];
+    const batches = [];
+    for (let offset = 0; offset < ids.length; offset += ATTRIBUTION_BATCH_SIZE) {
+      batches.push(ids.slice(offset, offset + ATTRIBUTION_BATCH_SIZE));
+    }
+    return (await Promise.all(batches.map((batch) => list(table, { [column]: batch })))).flat();
   }
 
   async function getOne(table, filters) {
@@ -334,6 +344,7 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
     async getActor(actorId) {
       return getOne("actors", { actor_id: actorId });
     },
+    listActorsByIds: (actorIds) => listByIdsInBatches("actors", "actor_id", actorIds),
     async getActorProfile(actorId) {
       return getOne("actorProfiles", { actor_id: actorId });
     },
@@ -590,7 +601,7 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
       if (first < 0 || last < 0 || last < first) return [];
       return rows.slice(first, last + 1);
     },
-    listResearchEventsByIds: (eventIds) => list("researchEvents", { event_id: eventIds }),
+    listResearchEventsByIds: (eventIds) => listByIdsInBatches("researchEvents", "event_id", eventIds),
 
     /* ---- provenance ---- */
     async getObjectRevision({ objectType, objectId, revision = null }) {
