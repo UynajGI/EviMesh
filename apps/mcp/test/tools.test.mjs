@@ -26,9 +26,9 @@ test("every write tool enforces the consent gate", async () => {
   const writeCalls = {
     start_attempt: { taskId: "task-1" },
     record_trace: { attemptId: "attempt-1", eventType: "attempt.progress", payload: {} },
-    create_claim: { statement: "s", scope: ["s"], falsification: ["f"], actorId: "agent_01" },
+    create_claim: { statement: "s", scope: ["s"], falsification: ["f"] },
     attach_evidence: { contentBase64: Buffer.from("data").toString("base64"), mediaType: "text/plain" },
-    record_run: { taskId: "task_0193f2c8-5c00-4000-8000-000000000001", contextBundleId: "context-1", sourceCode: "git:abc123", container: `oci:python@sha256:${"a".repeat(64)}`, command: "python", environment: { runtime: "python" }, hardware: { cpu: "x86_64" }, actorId: "agent_01", signature: "sig" },
+    record_run: { taskId: "task_0193f2c8-5c00-4000-8000-000000000001", contextBundleId: "context-1", sourceCode: "git:abc123", container: `oci:python@sha256:${"a".repeat(64)}`, command: "python", environment: { runtime: "python" }, hardware: { cpu: "x86_64" } },
     publish_submission: { document: { schema: "srp.claim.v1", claim_id: "claim_018f0f4a-5c00-4000-8000-000000000001", revision: 1, state: "hypothesis", statement: "s", scope: ["s"], assumptions: [], falsification: ["f"], created_at: "2026-08-06T00:00:00.000Z", created_by: "actor_01" } },
     submit_verification: { document: { schema: "srp.verification-receipt.v1", claim_revision_id: "claim-1@2", contract_revision_id: "contract-1@1", outcome: "supports", verification_types: ["reproduction"], context_mode: "blind", saw_expected_outputs: false, implementation_relation: "independent", data_relation: "same_input", model_family: "none", findings: [] }, runId: "run-1" },
     submit_challenge: { document: { schema: "srp.challenge.v1", challenge_id: "challenge_018f0f4a-5c00-4000-8000-000000000001", revision: 1, state: "open", target_claim_revision_id: "claim-1@2", reason: "r", impact: { type: "method", severity: "major", summary: "s" }, created_at: "2026-08-06T00:00:00.000Z", created_by: "actor_01" } },
@@ -69,16 +69,26 @@ test("get_task_context returns the bundle and hash", async () => {
   assert.match(result.structuredContent.contentHash, /^sha256:[0-9a-f]{64}$/);
 });
 
-test("create_claim and record_run produce local drafts only", async () => {
+test("create_claim and record_run bind drafts to the active signing identity without network access", async (t) => {
+  const env = identityEnv(t);
+  const { generateIdentity } = await import("../../../packages/cli/src/identity.mjs");
+  const identity = generateIdentity(env);
   let networkCalls = 0;
   const client = createFakeClient({ http: { request: async () => { networkCalls += 1; return {}; } } });
-  const claim = await callTool({ client, name: "create_claim", args: { statement: "s", scope: ["s"], falsification: ["f"], actorId: "agent_01", confirm: true } });
+  const claim = await callTool({ client, name: "create_claim", args: { statement: "s", scope: ["s"], falsification: ["f"], actorId: "human_01", confirm: true }, env });
   assert.equal(claim.isError, false);
   assert.equal(claim.structuredContent.draft.schema, "srp.claim.v1");
   assert.ok(claim.structuredContent.draft.claim_id.startsWith("claim_"));
-  const run = await callTool({ client, name: "record_run", args: { taskId: "task_0193f2c8-5c00-4000-8000-000000000001", contextBundleId: "context-1", sourceCode: "git:abc123", container: `oci:python@sha256:${"a".repeat(64)}`, command: "python", environment: { runtime: "python" }, hardware: { cpu: "x86_64" }, actorId: "agent_01", signature: "sig", confirm: true } });
+  assert.equal(claim.structuredContent.draft.created_by, identity.did);
+  const run = await callTool({ client, name: "record_run", args: { taskId: "task_0193f2c8-5c00-4000-8000-000000000001", contextBundleId: "context-1", sourceCode: "git:abc123", container: `oci:python@sha256:${"a".repeat(64)}`, command: "python", environment: { runtime: "python" }, hardware: { cpu: "x86_64" }, actorId: "human_01", signature: "forged", confirm: true }, env });
   assert.equal(run.isError, false);
   assert.equal(run.structuredContent.draft.schema, "srp.run.v1");
+  assert.equal(run.structuredContent.draft.actor_id, identity.did);
+  assert.notEqual(run.structuredContent.draft.signature, "forged");
+  const { signature, ...unsignedRun } = run.structuredContent.draft;
+  const { canonicalJson } = await import("../../../packages/protocol/src/hash.mjs");
+  const { verifyEd25519Payload } = await import("../../../packages/signatures/src/server-verification.mjs");
+  assert.equal(await verifyEd25519Payload({ signingBytes: new Uint8Array(Buffer.from(canonicalJson(unsignedRun), "utf8")), signature, publicKey: identity.publicKey }), true);
   assert.equal(networkCalls, 0, "draft tools must not touch the network");
 });
 

@@ -6,6 +6,8 @@ import { createObjectId } from "../../../packages/protocol/src/uuidv7.mjs";
 import { sha256Bytes } from "../../../packages/artifact/src/hash.mjs";
 import { verifyMerkleInclusionProof } from "../../../packages/merkle/src/verify-inclusion-proof.mjs";
 import { hashResearchEventLeaf } from "../../../packages/merkle/src/research-event-leaf.mjs";
+import { canonicalJson } from "../../../packages/protocol/src/hash.mjs";
+import { signEd25519Payload } from "../../../packages/signatures/src/client-signature.mjs";
 import { CONTEXT_MODES } from "./resources.mjs";
 
 export class McpToolError extends Error {
@@ -73,6 +75,19 @@ function requireIdentity(env) {
     }
     throw error;
   }
+}
+
+function requireAgentIdentity(env) {
+  const identity = requireIdentity(env);
+  if (typeof identity.did !== "string" || !identity.did.startsWith("did:key:")) {
+    throw new McpToolError("configured signing identity has no DID binding; regenerate it with `sq identity generate`", "IDENTITY_BINDING_MISSING");
+  }
+  return identity;
+}
+
+async function signRunDraft(unsignedDraft, identity) {
+  const signingBytes = Buffer.from(canonicalJson(unsignedDraft), "utf8");
+  return signEd25519Payload({ signingBytes: new Uint8Array(signingBytes), privateKey: identity.privateKey });
 }
 
 function jsonContent(data) {
@@ -188,23 +203,22 @@ const TOOL_DEFINITIONS = [
     write: true,
     inputSchema: {
       type: "object",
-      required: ["statement", "scope", "falsification", "actorId"],
+      required: ["statement", "scope", "falsification"],
       properties: {
         statement: STRING,
         scope: { type: "array", items: STRING },
         assumptions: { type: "array", items: STRING },
         falsification: { type: "array", items: STRING },
         questionId: STRING,
-        actorId: { ...STRING, description: "Registered actor attributed to this draft; agents must supply their own actor ID" },
         confirm: BOOLEAN,
       },
     },
     outputSchema: { type: "object", required: ["draft"], properties: { draft: OBJECT } },
-    run: async ({ args }) => {
+    run: async ({ args, env }) => {
       requiredArg(args.statement, "statement");
-      requiredArg(args.actorId, "actorId");
       const summary = { action: "create a local Claim draft", statement: args.statement };
       if (args.confirm !== true) return consentResult("create_claim", summary);
+      const identity = requireAgentIdentity(env);
       const claimId = createObjectId("Claim");
       const draft = {
         schema: "srp.claim.v1",
@@ -216,7 +230,7 @@ const TOOL_DEFINITIONS = [
         assumptions: args.assumptions ?? [],
         falsification: args.falsification,
         created_at: new Date().toISOString(),
-        created_by: args.actorId,
+        created_by: identity.did,
       };
       if (args.questionId) draft.question_id = args.questionId;
       validateDocument(draft);
@@ -271,7 +285,7 @@ const TOOL_DEFINITIONS = [
     write: true,
     inputSchema: {
       type: "object",
-      required: ["taskId", "contextBundleId", "sourceCode", "container", "command", "environment", "hardware", "actorId", "signature"],
+      required: ["taskId", "contextBundleId", "sourceCode", "container", "command", "environment", "hardware"],
       properties: {
         taskId: STRING,
         contextBundleId: STRING,
@@ -285,13 +299,11 @@ const TOOL_DEFINITIONS = [
         exitCode: { type: "integer" },
         inputArtifactRefs: { type: "array", items: { ...STRING, description: "artifactId@revision" } },
         outputArtifactRefs: { type: "array", items: { ...STRING, description: "artifactId@revision" } },
-        actorId: { ...STRING, description: "Actor attributed to this run; agents must not use a human identity" },
-        signature: { ...STRING, description: "Run-level signature supplied by the executing actor" },
         confirm: BOOLEAN,
       },
     },
     outputSchema: { type: "object", required: ["draft"], properties: { draft: OBJECT } },
-    run: async ({ args }) => {
+    run: async ({ args, env }) => {
       requiredArg(args.taskId, "taskId");
       requiredArg(args.contextBundleId, "contextBundleId");
       requiredArg(args.sourceCode, "sourceCode");
@@ -299,12 +311,11 @@ const TOOL_DEFINITIONS = [
       requiredArg(args.command, "command");
       requiredObject(args.environment, "environment");
       requiredObject(args.hardware, "hardware");
-      requiredArg(args.actorId, "actorId");
-      requiredArg(args.signature, "signature");
       const summary = { action: "create a local Run Receipt draft", taskId: args.taskId, command: args.command };
       if (args.confirm !== true) return consentResult("record_run", summary);
+      const identity = requireAgentIdentity(env);
       const now = new Date().toISOString();
-      const draft = {
+      const unsignedDraft = {
         schema: "srp.run.v1",
         run_id: createObjectId("Run"),
         task_id: args.taskId,
@@ -322,9 +333,9 @@ const TOOL_DEFINITIONS = [
         network_access: false,
         output_artifact_ids: args.outputArtifactRefs ?? [],
         exit_code: args.exitCode ?? 0,
-        actor_id: args.actorId,
-        signature: args.signature,
+        actor_id: identity.did,
       };
+      const draft = { ...unsignedDraft, signature: await signRunDraft(unsignedDraft, identity) };
       validateDocument(draft);
       return ok({ draft });
     },
