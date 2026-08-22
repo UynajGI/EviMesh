@@ -47,7 +47,12 @@ test('returns a run with canonically ordered artifact inputs and outputs', async
   assert.deepEqual(unorderedInputs.map((ref) => `${ref.artifactId}@${ref.artifactRevision}`), [
     'input-z@1', 'input-shared@2', 'input-a@1', 'input-shared@10',
   ], 'canonical sorting must not mutate repository results');
-  assert.deepEqual(canonicalRunArtifactRefs(null), []);
+  for (const invalid of [null, {}, 'artifact-a@1']) {
+    assert.throws(
+      () => canonicalRunArtifactRefs(invalid, 'inputs'),
+      (error) => error instanceof RunQueryError && error.code === 'RUN_ARTIFACT_REFS_INVALID' && error.status === 400,
+    );
+  }
 });
 
 test('rejects invalid or missing run queries', async () => {

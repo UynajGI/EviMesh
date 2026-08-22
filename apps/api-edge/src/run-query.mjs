@@ -24,9 +24,10 @@ function requireRepository(repository, methods, message) {
   if (!repository || methods.some((method) => typeof repository[method] !== 'function')) throw new RunQueryError(message);
 }
 
-export function canonicalRunArtifactRefs(refs) {
+export function canonicalRunArtifactRefs(refs, field = 'run artifact refs') {
+  if (!Array.isArray(refs)) throw new RunQueryError(`${field} must be an array`, 'RUN_ARTIFACT_REFS_INVALID');
   const keyOf = (ref) => `${ref.artifactId}@${ref.artifactRevision}`;
-  return [...(Array.isArray(refs) ? refs : [])].sort((left, right) => {
+  return [...refs].sort((left, right) => {
     const leftKey = keyOf(left);
     const rightKey = keyOf(right);
     return leftKey < rightKey ? -1 : leftKey > rightKey ? 1 : 0;

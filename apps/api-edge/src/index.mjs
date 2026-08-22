@@ -137,7 +137,7 @@ function canonicalRunText(value, field) {
 }
 
 function canonicalRunBodyArtifactRefs(refs, field) {
-  return canonicalRunArtifactRefs(refs).map((ref) => ({
+  return canonicalRunArtifactRefs(refs, field).map((ref) => ({
     ...ref,
     artifactId: canonicalRunText(ref?.artifactId, `${field}.artifactId`),
   }));

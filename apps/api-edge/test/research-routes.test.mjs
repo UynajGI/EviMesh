@@ -602,6 +602,52 @@ test("creates Evidence and links it to a fixed ClaimRevision", async () => {
   assert.equal((await linked.json()).link.claimRevision, 2);
 });
 
+test("rejects non-array Run inputs and outputs before verification, nonce consumption, or writes", async () => {
+  let actorLookups = 0;
+  let keyLookups = 0;
+  let nonceClaims = 0;
+  let writes = 0;
+  let roleResolutions = 0;
+  const repository = identityRepository({
+    findIdentity: async () => ({ actorId: "publisher-1" }),
+    getActor: async () => { actorLookups += 1; return null; },
+    findActiveSigningKey: async () => { keyLookups += 1; return null; },
+    claimSignatureNonce: async () => { nonceClaims += 1; return true; },
+    insertRun: async () => { writes += 1; },
+  });
+  const app = createApp({
+    repository,
+    runEventFactory: eventFactory,
+    runRoleResolver: async () => { roleResolutions += 1; return "contributor"; },
+    authenticate: async () => ({ sub: "publisher-subject" }),
+  });
+  const body = {
+    actorId: "agent-1", runId: "run-1", taskId: "task-1", contextBundleId: "bundle-1",
+    sourceCode: "artifact-code@1", container: `python@sha256:${"a".repeat(64)}`, command: "python",
+    args: [], environment: {}, hardware: {}, randomSeed: {}, startedAt: "2026-08-06T00:00:00.000Z",
+    endedAt: "2026-08-06T00:00:01.000Z", networkAccess: false, exitCode: 0,
+    signingKeyId: "producer-key", signature: "inner-signature", inputs: [], outputs: [],
+    signatureEnvelope: { schema: "srp.client-signature-envelope.v1" },
+  };
+  for (const invalid of [
+    { inputs: {} }, { inputs: "artifact-input@1" }, { inputs: null },
+    { outputs: {} }, { outputs: "artifact-output@1" }, { outputs: null },
+  ]) {
+    const response = await app.fetch(new Request("https://api.example.test/runs", {
+      method: "POST",
+      headers: { authorization: "Bearer test-token", "content-type": "application/json" },
+      body: JSON.stringify({ ...body, ...invalid }),
+    }), {});
+    assert.equal(response.status, 400, JSON.stringify(invalid));
+    assert.equal((await response.json()).code, "RUN_ARTIFACT_REFS_INVALID", JSON.stringify(invalid));
+  }
+  assert.equal(actorLookups, 0);
+  assert.equal(keyLookups, 0);
+  assert.equal(nonceClaims, 0);
+  assert.equal(roleResolutions, 0);
+  assert.equal(writes, 0);
+});
+
 test("records a Run receipt through the API", async () => {
   const producerKeyPair = generateEd25519KeyPair();
   const publisherKeyPair = generateEd25519KeyPair();

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { validateDocument, claimDocToApi, runDocToApi, verificationDocToApi, challengeDocToApi, submissionRoute } from "../../../packages/cli/src/documents.mjs";
+import { validateDocument, CliDocumentError, claimDocToApi, runDocToApi, verificationDocToApi, challengeDocToApi, submissionRoute } from "../../../packages/cli/src/documents.mjs";
 import { signSubmission, createNonce } from "../../../packages/cli/src/signing.mjs";
 import { loadIdentity, CliIdentityError } from "../../../packages/cli/src/identity.mjs";
 import { createObjectId } from "../../../packages/protocol/src/uuidv7.mjs";
@@ -36,6 +36,19 @@ function requiredObject(value, field) {
     throw new McpToolError(`argument ${field} must be a non-empty object`);
   }
   return value;
+}
+
+function validateToolDocument(document) {
+  try {
+    return validateDocument(document);
+  } catch (error) {
+    if (error instanceof CliDocumentError) {
+      const mapped = new McpToolError(error.message, error.code);
+      mapped.findings = error.findings;
+      throw mapped;
+    }
+    throw error;
+  }
 }
 
 function consentResult(tool, summary) {
@@ -119,11 +132,14 @@ function canonicalRunArtifactRefs(document) {
     return `${artifactId}@${revision}`;
   };
   // Keep this normalized full-ref code-unit order aligned with API Run verification.
-  const normalizeAndSort = (refs) => [...(refs ?? [])].map(canonicalRef).sort((left, right) => left < right ? -1 : left > right ? 1 : 0);
+  const normalizeAndSort = (refs, field) => {
+    if (!Array.isArray(refs)) throw new McpToolError(`${field} must be an array`, "RUN_ARTIFACT_REFS_INVALID");
+    return [...refs].map(canonicalRef).sort((left, right) => left < right ? -1 : left > right ? 1 : 0);
+  };
   return {
     ...document,
-    input_artifact_ids: normalizeAndSort(document.input_artifact_ids),
-    output_artifact_ids: normalizeAndSort(document.output_artifact_ids),
+    input_artifact_ids: normalizeAndSort(document.input_artifact_ids, "input_artifact_ids"),
+    output_artifact_ids: normalizeAndSort(document.output_artifact_ids, "output_artifact_ids"),
   };
 }
 
@@ -324,7 +340,7 @@ const TOOL_DEFINITIONS = [
         created_by: actor.actorId,
       };
       if (args.questionId) draft.question_id = args.questionId;
-      validateDocument(draft);
+      validateToolDocument(draft);
       return ok({ draft });
     },
   },
@@ -429,7 +445,7 @@ const TOOL_DEFINITIONS = [
         signing_key_id: identity.keyId,
       });
       const draft = { ...unsignedDraft, signature: await signRunDraft(unsignedDraft, identity) };
-      validateDocument(draft);
+      validateToolDocument(draft);
       return ok({ draft });
     },
   },
@@ -459,13 +475,13 @@ const TOOL_DEFINITIONS = [
     run: async ({ client, args, env }) => {
       requiredArg(args.document, "document");
       const document = args.document;
+      validateToolDocument(document);
       if (document.schema === "srp.run.v1") {
         const canonicalDocument = canonicalRunDocument(document);
         if (canonicalJson(canonicalDocument) !== canonicalJson(document)) {
           throw new McpToolError("Run document must already use canonical artifact revisions and UTC timestamps", "RUN_DOCUMENT_NONCANONICAL");
         }
       }
-      validateDocument(document);
       const route = submissionRoute(document);
       if (!route) throw new McpToolError(`submission is not supported for schema ${document.schema}`);
       const body = route.toApi(document);
@@ -486,7 +502,7 @@ const TOOL_DEFINITIONS = [
     run: async ({ client, args, env }) => {
       requiredArg(args.document, "document");
       requiredArg(args.runId, "runId");
-      validateDocument(args.document);
+      validateToolDocument(args.document);
       if (args.document.schema !== "srp.verification-receipt.v1") throw new McpToolError(`expected srp.verification-receipt.v1, got ${args.document.schema}`);
       const receiptId = args.receiptId ?? createObjectId("Verification");
       const summary = { action: "sign and submit a VerificationReceipt", receiptId, runId: args.runId, claimRevision: args.document.claim_revision_id };
@@ -506,7 +522,7 @@ const TOOL_DEFINITIONS = [
     outputSchema: { type: "object", required: ["submitted", "challengeId"], properties: { submitted: BOOLEAN, challengeId: STRING, signingBytesHash: STRING, response: OBJECT } },
     run: async ({ client, args, env }) => {
       requiredArg(args.document, "document");
-      validateDocument(args.document);
+      validateToolDocument(args.document);
       if (args.document.schema !== "srp.challenge.v1") throw new McpToolError(`expected srp.challenge.v1, got ${args.document.schema}`);
       const body = challengeDocToApi(args.document);
       const summary = { action: "sign and submit a Challenge", challengeId: body.challengeId, targetClaimRevision: body.targetClaimId + "@" + body.targetClaimRevision };
@@ -570,8 +586,9 @@ export async function callTool({ client, name, args = {}, env = process.env }) {
     const result = await definition.run({ client, args, env });
     return { ...result, content: result.content ?? jsonContent(result.structuredContent) };
   } catch (error) {
-    if (error instanceof McpToolError || error?.code === "CLI_DOCUMENT_INVALID" || error?.code === "CLI_IDENTITY_MISSING") {
-      return { isError: true, structuredContent: { error: error.code, message: error.message }, content: [{ type: "text", text: `${error.code}: ${error.message}` }] };
+    if (error instanceof McpToolError || error instanceof CliDocumentError || error?.code === "CLI_IDENTITY_MISSING") {
+      const structuredContent = { error: error.code, message: error.message, ...(Array.isArray(error.findings) ? { findings: error.findings } : {}) };
+      return { isError: true, structuredContent, content: [{ type: "text", text: `${error.code}: ${error.message}` }] };
     }
     throw error;
   }

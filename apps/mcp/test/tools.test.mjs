@@ -158,6 +158,16 @@ test("record_run preserves the agent inner signature when a human identity publi
   } } });
   const recorded = await callTool({ client, name: "record_run", args: { taskId: "task_0193f2c8-5c00-4000-8000-000000000001", contextBundleId: "context-1", sourceCode: "git:abc123", container: `oci:python@sha256:${"a".repeat(64)}`, command: "python", environment: { runtime: "python" }, hardware: { cpu: "x86_64" }, inputArtifactRefs: ["artifact-a@2", "artifact-z"], outputArtifactRefs: ["output-a@2", "output-z"], confirm: true }, env: agentEnv });
   const runDocument = recorded.structuredContent.draft;
+  for (const malformedArrays of [
+    { input_artifact_ids: {} }, { input_artifact_ids: "artifact-a@1" }, { input_artifact_ids: null },
+    { output_artifact_ids: {} }, { output_artifact_ids: "output-a@1" }, { output_artifact_ids: null },
+  ]) {
+    const malformed = await callTool({ client, name: "publish_submission", args: { document: { ...runDocument, ...malformedArrays } }, env: humanEnv });
+    assert.equal(malformed.isError, true, JSON.stringify(malformedArrays));
+    assert.equal(malformed.structuredContent.error, "CLI_DOCUMENT_VALIDATION", JSON.stringify(malformedArrays));
+    assert.ok(Array.isArray(malformed.structuredContent.findings), JSON.stringify(malformedArrays));
+    assert.equal(posts.length, 0, "schema-invalid Run documents must fail before consent or network publication");
+  }
   for (const noncanonicalDocument of [
     { ...runDocument, input_artifact_ids: ["artifact-without-revision"] },
     { ...runDocument, started_at: "2026-08-06T08:00:00+08:00" },
@@ -196,7 +206,12 @@ test("record_run preserves the agent inner signature when a human identity publi
   const malformed = await callTool({ client, name: "publish_submission", args: { document: { ...runDocument, input_artifact_ids: ["artifact@1@2"] }, confirm: true }, env: humanEnv });
   assert.equal(malformed.isError, true);
   assert.equal(malformed.structuredContent.error, "RUN_ARTIFACT_REF_INVALID");
-  for (const startedAt of [null, 0, "2026-08-06", "2026-08-06T00:00:00", " 2026-08-06T00:00:00Z ", "2026-02-31T00:00:00Z"]) {
+  for (const startedAt of [null, 0, " 2026-08-06T00:00:00Z "]) {
+    const invalidTimestamp = await callTool({ client, name: "publish_submission", args: { document: { ...runDocument, started_at: startedAt }, confirm: true }, env: humanEnv });
+    assert.equal(invalidTimestamp.isError, true, JSON.stringify(startedAt));
+    assert.equal(invalidTimestamp.structuredContent.error, "CLI_DOCUMENT_VALIDATION", JSON.stringify(startedAt));
+  }
+  for (const startedAt of ["2026-08-06", "2026-08-06T00:00:00", "2026-02-31T00:00:00Z"]) {
     const invalidTimestamp = await callTool({ client, name: "publish_submission", args: { document: { ...runDocument, started_at: startedAt }, confirm: true }, env: humanEnv });
     assert.equal(invalidTimestamp.isError, true, JSON.stringify(startedAt));
     assert.equal(invalidTimestamp.structuredContent.error, "RUN_TIMESTAMP_INVALID", JSON.stringify(startedAt));
