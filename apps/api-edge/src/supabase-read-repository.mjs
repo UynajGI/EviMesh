@@ -152,10 +152,11 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
     }
 
     const rows = [];
-    for (let offset = 0; ; offset += PAGE_SIZE) {
+    const requestPageSize = Number.isInteger(limit) && limit > 0 ? Math.min(limit, PAGE_SIZE) : PAGE_SIZE;
+    for (let offset = 0; ; offset += requestPageSize) {
       let response;
       try {
-        response = await fetchImpl(endpoint, { headers: { accept: "application/json", apikey: apiKey, Range: `${offset}-${offset + PAGE_SIZE - 1}`, "Range-Unit": "items" } });
+        response = await fetchImpl(endpoint, { headers: { accept: "application/json", apikey: apiKey, Range: `${offset}-${offset + requestPageSize - 1}`, "Range-Unit": "items" } });
       } catch {
         throw new SupabaseReadRepositoryError("Supabase Data API request failed");
       }
@@ -166,7 +167,7 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
       }
       if (!Array.isArray(payload)) throw new SupabaseReadRepositoryError("Supabase Data API returned an invalid response");
       rows.push(...payload.map(mapRow));
-      if (payload.length < PAGE_SIZE || (Number.isInteger(limit) && limit > 0)) return rows;
+      if (payload.length < requestPageSize || (Number.isInteger(limit) && limit > 0)) return rows;
     }
   }
 
@@ -535,12 +536,20 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
       getOne("merkleCheckpoints", { and: `(first_event_id.lte.${eventId},last_event_id.gte.${eventId})` }),
 
     /* ---- research events ---- */
-    async listResearchEvents({ objectType = null, objectId = null, actorId = null, eventType = null, createdAfter = null, createdBefore = null, order = "asc" } = {}) {
+    async listResearchEvents({ objectType = null, objectId = null, actorId = null, eventType = null, createdAfter = null, createdBefore = null, order = "asc", page = null } = {}) {
       const filters = {};
       if (eventType) filters.event_type = eventType;
       if (createdAfter) filters.created_at = { op: "gte", value: createdAfter };
       if (actorId) filters["payload->>actor_id"] = actorId;
-      const rows = await query("researchEvents", { filters, order: order === "desc" ? "created_at.desc,event_id.desc" : TABLE_ORDERS.researchEvents });
+      if (page?.after) {
+        const comparison = order === "desc" ? "lt" : "gt";
+        filters.or = `(created_at.${comparison}.${page.after.createdAt},and(created_at.eq.${page.after.createdAt},event_id.${comparison}.${page.after.id}))`;
+      }
+      const rows = await query("researchEvents", {
+        filters,
+        order: order === "desc" ? "created_at.desc,event_id.desc" : TABLE_ORDERS.researchEvents,
+        limit: page?.limit ?? null,
+      });
       return rows.filter((row) => {
         const payload = row.payload ?? {};
         if (createdBefore && !(Date.parse(row.createdAt ?? "") <= Date.parse(createdBefore))) return false;

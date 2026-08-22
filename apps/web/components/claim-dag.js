@@ -48,8 +48,20 @@ const EDGE_FAMILIES = Object.freeze({
   challenges: 'negative',
 });
 
+const EDGE_FAMILY_STYLES = Object.freeze({
+  positive: Object.freeze({ label: 'supports / reproduces / verifies', strokeDasharray: 'none', strokeWidth: 1.5 }),
+  negative: Object.freeze({ label: 'refutes / contradicts / challenges', strokeDasharray: 'none', strokeWidth: 2 }),
+  qualify: Object.freeze({ label: 'qualifies', strokeDasharray: '6 4', strokeWidth: 1.5 }),
+  structural: Object.freeze({ label: 'depends on / uses / implements', strokeDasharray: '2 3', strokeWidth: 1.5 }),
+  lineage: Object.freeze({ label: 'extends / supersedes / derived from', strokeDasharray: '10 3 2 3', strokeWidth: 1.5 }),
+});
+
 function edgeFamilyFor(relation) {
   return EDGE_FAMILIES[relation] ?? 'structural';
+}
+
+function edgeStyleFor(family) {
+  return EDGE_FAMILY_STYLES[family] ?? EDGE_FAMILY_STYLES.structural;
 }
 
 /** Keyboard- and list-accessible alternative to the graph canvas. */
@@ -107,6 +119,7 @@ function ClaimGraphCanvas({ nodes, edges, onSelect }) {
    * for legacy payloads that predate the edge list. */
   const flowEdges = useMemo(() => edges.map((edge, index) => {
     const family = edgeFamilyFor(edge.relation);
+    const edgeStyle = edgeStyleFor(family);
     return {
       id: edge.id ?? `edge-${index}`,
       source: edge.source,
@@ -117,7 +130,11 @@ function ClaimGraphCanvas({ nodes, edges, onSelect }) {
       labelStyle: { fill: 'var(--evimesh-muted-foreground)', fontSize: 9 },
       labelBgStyle: { fill: 'var(--evimesh-card)' },
       className: `dag__edge dag__edge--${family}`,
-      style: { stroke: `var(--evimesh-dag-${family})`, strokeWidth: 1.5 },
+      style: {
+        stroke: `var(--evimesh-dag-${family}, var(--evimesh-border))`,
+        strokeDasharray: edgeStyle.strokeDasharray,
+        strokeWidth: edgeStyle.strokeWidth,
+      },
     };
   }), [edges]);
 
@@ -181,10 +198,22 @@ export function ClaimDag({ elements }) {
     <div aria-label="Claim state legend" className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">{Object.keys(CLAIM_STATE_COLORS).map((state) => <span className="inline-flex items-center gap-2" key={state}><span aria-hidden="true" className="h-3 w-3 rounded-full" style={{ backgroundColor: CLAIM_STATE_COLORS[state].background }} />{state.replaceAll('_', ' ')}</span>)}</div>
     {/* Edge family legend (design book 02: five DAG edge families). */}
     <div aria-label="DAG edge family legend" className="mt-2 flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">
-      {[['positive', 'supports / reproduces / verifies'], ['negative', 'refutes / contradicts / challenges'], ['qualify', 'qualifies'], ['structural', 'depends on / uses / implements'], ['lineage', 'extends / supersedes / derived from']].map(([family, label]) => (
+      {Object.entries(EDGE_FAMILY_STYLES).map(([family, edgeStyle]) => (
         <span className="inline-flex items-center gap-2" key={family}>
-          <span aria-hidden="true" className="h-1 w-4 rounded-full" style={{ backgroundColor: `var(--evimesh-dag-${family}, var(--evimesh-border))` }} />
-          {label}
+          <svg aria-hidden="true" className="h-2 w-5 shrink-0" viewBox="0 0 20 8">
+            <line
+              x1="0"
+              x2="20"
+              y1="4"
+              y2="4"
+              style={{
+                stroke: `var(--evimesh-dag-${family}, var(--evimesh-border))`,
+                strokeDasharray: edgeStyle.strokeDasharray,
+                strokeWidth: edgeStyle.strokeWidth,
+              }}
+            />
+          </svg>
+          {edgeStyle.label}
         </span>
       ))}
     </div>

@@ -8,6 +8,10 @@ const events = [
   { eventId: 'event_1', createdAt: '2026-08-06T01:00:00.000Z' },
 ];
 
+function encodedCursor(value) {
+  return Buffer.from(JSON.stringify(value)).toString('base64url');
+}
+
 test('filters Events by object, Actor, type, and time range before cursor pagination', async () => {
   let receivedFilters;
   const result = await listResearchEvents({
@@ -55,6 +59,62 @@ test('supports newest-first event pagination', async () => {
     cursor: result.nextCursor,
   });
   assert.deepEqual(next.items.map((event) => event.eventId), ['event_1']);
+});
+
+test('offers actor-only pagination boundaries to repositories without changing cursor semantics', async () => {
+  const requests = [];
+  const repository = {
+    listResearchEvents: async (filters) => {
+      requests.push(filters);
+      return events;
+    },
+  };
+  const first = await listResearchEvents({ repository, actorId: 'actor_1', limit: 2 });
+  assert.deepEqual(requests[0].page, { after: null, limit: 3 });
+  assert.deepEqual(first.items.map((event) => event.eventId), ['event_1', 'event_2']);
+
+  const second = await listResearchEvents({ repository, actorId: 'actor_1', limit: 2, cursor: first.nextCursor });
+  assert.deepEqual(requests[1].page, {
+    after: { createdAt: '2026-08-06T02:00:00.000Z', id: 'event_2' },
+    limit: 3,
+  });
+  assert.deepEqual(second.items.map((event) => event.eventId), ['event_3']);
+});
+
+test('rejects unsafe actor-only cursor structures before calling the repository', async () => {
+  let calls = 0;
+  const repository = { listResearchEvents: async () => { calls += 1; return []; } };
+  const invalidCursors = [
+    encodedCursor([]),
+    encodedCursor('not-an-object'),
+    encodedCursor({ createdAt: '2026-08-06T02:00:00.000Z' }),
+    encodedCursor({ createdAt: 'not-an-iso-timestamp', id: 'event_2' }),
+    encodedCursor({ createdAt: '2026-02-31T02:00:00.000Z', id: 'event_2' }),
+    encodedCursor({ createdAt: '2026-08-06T02:00:00.000Z),event_id.gt.injected', id: 'event_2' }),
+    encodedCursor({ createdAt: '2026-08-06T02:00:00.000Z', id: 'event_2),created_at.gt.1900-01-01T00:00:00Z' }),
+  ];
+
+  for (const cursor of invalidCursors) {
+    await assert.rejects(
+      listResearchEvents({ repository, actorId: 'actor_1', cursor }),
+      (error) => error instanceof TypeError && error.message === 'invalid pagination cursor',
+    );
+  }
+  assert.equal(calls, 0);
+});
+
+test('accepts UUIDv7 actor-only cursor identifiers', async () => {
+  let received;
+  const after = {
+    createdAt: '2026-08-06T02:00:00.000Z',
+    id: '0198b2b0-8d74-7c31-8d16-42d9ac8db4a1',
+  };
+  await listResearchEvents({
+    repository: { listResearchEvents: async (filters) => { received = filters.page.after; return []; } },
+    actorId: 'actor_1',
+    cursor: encodedCursor(after),
+  });
+  assert.deepEqual(received, after);
 });
 
 test('validates paired object filters, time bounds, and pagination input', async () => {
