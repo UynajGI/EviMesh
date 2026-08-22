@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { graphStratify, sugiyama, layeringLongestPath, decrossTwoLayer, coordSimplex } from 'd3-dag';
 import {
-  Background, Controls, ReactFlow, ReactFlowProvider, useReactFlow,
+  Background, Controls, MarkerType, ReactFlow, ReactFlowProvider, useReactFlow,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Badge } from '@/components/ui/data';
@@ -120,6 +120,7 @@ function ClaimGraphCanvas({ nodes, edges, onSelect }) {
   const flowEdges = useMemo(() => edges.map((edge, index) => {
     const family = edgeFamilyFor(edge.relation);
     const edgeStyle = edgeStyleFor(family);
+    const edgeColor = `var(--evimesh-dag-${family}, var(--evimesh-border))`;
     return {
       id: edge.id ?? `edge-${index}`,
       source: edge.source,
@@ -130,8 +131,9 @@ function ClaimGraphCanvas({ nodes, edges, onSelect }) {
       labelStyle: { fill: 'var(--evimesh-muted-foreground)', fontSize: 9 },
       labelBgStyle: { fill: 'var(--evimesh-card)' },
       className: `dag__edge dag__edge--${family}`,
+      markerEnd: { type: MarkerType.ArrowClosed, color: edgeColor },
       style: {
-        stroke: `var(--evimesh-dag-${family}, var(--evimesh-border))`,
+        stroke: edgeColor,
         strokeDasharray: edgeStyle.strokeDasharray,
         strokeWidth: edgeStyle.strokeWidth,
       },
@@ -198,24 +200,28 @@ export function ClaimDag({ elements }) {
     <div aria-label="Claim state legend" className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">{Object.keys(CLAIM_STATE_COLORS).map((state) => <span className="inline-flex items-center gap-2" key={state}><span aria-hidden="true" className="h-3 w-3 rounded-full" style={{ backgroundColor: CLAIM_STATE_COLORS[state].background }} />{state.replaceAll('_', ' ')}</span>)}</div>
     {/* Edge family legend (design book 02: five DAG edge families). */}
     <div aria-label="DAG edge family legend" className="mt-2 flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">
-      {Object.entries(EDGE_FAMILY_STYLES).map(([family, edgeStyle]) => (
-        <span className="inline-flex items-center gap-2" key={family}>
-          <svg aria-hidden="true" className="h-2 w-5 shrink-0" viewBox="0 0 20 8">
-            <line
-              x1="0"
-              x2="20"
-              y1="4"
-              y2="4"
-              style={{
-                stroke: `var(--evimesh-dag-${family}, var(--evimesh-border))`,
-                strokeDasharray: edgeStyle.strokeDasharray,
-                strokeWidth: edgeStyle.strokeWidth,
-              }}
-            />
-          </svg>
+      {Object.entries(EDGE_FAMILY_STYLES).map(([family, edgeStyle]) => {
+        const edgeColor = `var(--evimesh-dag-${family}, var(--evimesh-border))`;
+        return <span className="inline-flex items-center gap-2" key={family}>
+          <span aria-hidden="true" className="inline-flex items-center gap-0">
+            <svg className="h-2 w-5 shrink-0" viewBox="0 0 20 8">
+              <line
+                x1="0"
+                x2="20"
+                y1="4"
+                y2="4"
+                style={{
+                  stroke: edgeColor,
+                  strokeDasharray: edgeStyle.strokeDasharray,
+                  strokeWidth: edgeStyle.strokeWidth,
+                }}
+              />
+            </svg>
+            <span style={{ color: edgeColor }}>→</span>
+          </span>
           {edgeStyle.label}
-        </span>
-      ))}
+        </span>;
+      })}
     </div>
   </div>;
 }

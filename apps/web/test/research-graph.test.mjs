@@ -60,11 +60,21 @@ test("graph edge families follow the design color and line language", () => {
 
 test("graph canvas and legend render the shared family line styles", () => {
   assert.match(source, /const edgeStyle = edgeStyleFor\(family\)/);
+  assert.match(source, /const edgeColor = `var\(--evimesh-dag-\$\{family\}, var\(--evimesh-border\)\)`/);
   assert.match(source, /strokeDasharray: edgeStyle\.strokeDasharray/);
   assert.match(source, /strokeWidth: edgeStyle\.strokeWidth/);
   assert.match(source, /Object\.entries\(EDGE_FAMILY_STYLES\)/);
-  assert.match(source, /<svg aria-hidden="true"/);
+  assert.match(source, /<span aria-hidden="true" className="inline-flex items-center gap-0">/);
   assert.match(source, /<line/);
+  assert.match(source, /<span style=\{\{ color: edgeColor \}\}>→<\/span>/);
   assert.match(source, /\{edgeStyle\.label\}/);
   assert.doesNotMatch(source, /#[0-9a-f]{3,8}\b/i, "edge styles must keep using semantic color tokens");
+});
+
+test("graph edges use React Flow closed target arrows with their family color", () => {
+  assert.match(source, /Background, Controls, MarkerType, ReactFlow/);
+  assert.match(source, /markerEnd: \{ type: MarkerType\.ArrowClosed, color: edgeColor \}/);
+  assert.match(source, /stroke: edgeColor/);
+  assert.match(source, /source: edge\.source/);
+  assert.match(source, /target: edge\.target/);
 });
