@@ -275,7 +275,7 @@ function ClaimDetailView({ params }) {
               <>
                 <span aria-hidden="true">·</span>
                 <span className="flex items-center gap-1">
-                  drafted by{' '}
+                  published by{' '}
                   <Link className="font-medium text-foreground hover:underline" href={actorHref(currentRevision.createdBy ?? claim.createdBy)}>{currentRevision.createdBy ?? claim.createdBy}</Link>
                 </span>
               </>
@@ -375,7 +375,7 @@ function ClaimDetailView({ params }) {
                 </div>
               </div>
             </div>
-            <p className="mb-3 text-sm text-muted-foreground">{direction === 'upstream' ? 'Incoming context: relations pointing to this claim.' : 'Outgoing context: relations pointing from this claim.'}</p>
+            <p className="mb-3 text-sm text-muted-foreground">{direction === 'upstream' ? 'Upstream context: prerequisites, origins, and prior context.' : 'Downstream context: dependents, responses, and subsequent context.'}</p>
             {graphView === 'graph' ? <ClaimDag elements={dagElements} /> : (
               <div>
                 {graphListEntries.length === 0 ? (

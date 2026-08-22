@@ -75,6 +75,8 @@ test("events filter by payload ids and actors, ordered ascending", async () => {
   const rows = [
     { event_id: "e2", event_type: "claim.created", payload: { object_type: "claim", claim_id: "claim-9", actor_id: "a1" }, created_at: "2026-08-02T00:00:00Z" },
     { event_id: "e1", event_type: "question.created", payload: { entity_type: "question", question_id: "q1", actor_id: "a2" }, created_at: "2026-08-01T00:00:00Z" },
+    { event_id: "e3", event_type: "run.created", payload: { entity_type: "run", run_id: "run-1", publisher_actor_id: "human-1", producer_actor_id: "agent,(one)\"x" }, created_at: "2026-08-03T00:00:00Z" },
+    { event_id: "e4", event_type: "claim.created", payload: { entity_type: "claim", claim_id: "claim-agent", actor_id: "human-1", drafted_by_actor_id: "agent-drafter" }, created_at: "2026-08-04T00:00:00Z" },
   ];
   const seen = [];
   const repository = createSupabaseReadRepository({
@@ -89,8 +91,17 @@ test("events filter by payload ids and actors, ordered ascending", async () => {
   assert.deepEqual(filtered.map((row) => row.eventId), ["e2"]);
   const questionScoped = await repository.listResearchEvents({ objectType: "question", objectId: "q1" });
   assert.deepEqual(questionScoped.map((row) => row.eventId), ["e1"]);
+  const producerScoped = await repository.listResearchEvents({ actorId: "agent,(one)\"x" });
+  assert.deepEqual(producerScoped.map((row) => row.eventId), ["e3"]);
+  const drafterScoped = await repository.listResearchEvents({ actorId: "agent-drafter" });
+  assert.deepEqual(drafterScoped.map((row) => row.eventId), ["e4"]);
   assert.ok(seen[0].includes("order=created_at.asc"), "events must be read ascending for cursor pagination");
-  assert.equal(new URL(seen[0]).searchParams.get("payload->>actor_id"), "eq.a1");
+  assert.match(new URL(seen[0]).searchParams.get("or"), /payload->>actor_id\.eq\."a1"/);
+  assert.match(new URL(seen[0]).searchParams.get("or"), /payload->>drafted_by_actor_id\.eq\."a1"/);
+  assert.match(new URL(seen[0]).searchParams.get("or"), /payload->>producer_actor_id\.eq\."a1"/);
+  assert.match(new URL(seen[0]).searchParams.get("or"), /payload->>run_actor_id\.eq\."a1"/);
+  assert.match(new URL(seen[2]).searchParams.get("or"), /payload->>producer_actor_id\.eq\."agent,\(one\)\\"x"/);
+  assert.match(seen[2], /%2C/);
 });
 
 test("actor-only event pagination pushes the page size and cursor boundary into PostgREST", async () => {
@@ -116,17 +127,18 @@ test("actor-only event pagination pushes the page size and cursor boundary into 
   const first = await listResearchEvents({ repository, actorId: "a1", limit: 2 });
   assert.deepEqual(first.items.map((event) => event.eventId), ["e1", "e2"]);
   assert.ok(first.nextCursor);
-  assert.equal(requests[0].endpoint.searchParams.get("payload->>actor_id"), "eq.a1");
+  assert.match(requests[0].endpoint.searchParams.get("or"), /payload->>drafted_by_actor_id\.eq\."a1"/);
+  assert.match(requests[0].endpoint.searchParams.get("or"), /payload->>producer_actor_id\.eq\."a1"/);
   assert.equal(requests[0].endpoint.searchParams.get("order"), "created_at.asc,event_id.asc");
   assert.equal(requests[0].endpoint.searchParams.get("limit"), "3");
-  assert.equal(requests[0].endpoint.searchParams.get("or"), null);
+  assert.equal(requests[0].endpoint.searchParams.get("and"), null);
   assert.equal(requests[0].options.headers.Range, "0-2");
 
   const second = await listResearchEvents({ repository, actorId: "a1", limit: 2, cursor: first.nextCursor });
   assert.deepEqual(second.items.map((event) => event.eventId), ["e3"]);
   assert.equal(
-    requests[1].endpoint.searchParams.get("or"),
-    "(created_at.gt.2026-08-02T00:00:00.000Z,and(created_at.eq.2026-08-02T00:00:00.000Z,event_id.gt.e2))",
+    requests[1].endpoint.searchParams.get("and"),
+    '(or(payload->>actor_id.eq."a1",payload->>signer_actor_id.eq."a1",payload->>publisher_actor_id.eq."a1",payload->>drafted_by_actor_id.eq."a1",payload->>producer_actor_id.eq."a1",payload->>run_actor_id.eq."a1"),or(created_at.gt.2026-08-02T00:00:00.000Z,and(created_at.eq.2026-08-02T00:00:00.000Z,event_id.gt.e2)))',
   );
   assert.equal(requests[1].endpoint.searchParams.get("limit"), "3");
   assert.equal(requests[1].options.headers.Range, "0-2");
@@ -135,8 +147,8 @@ test("actor-only event pagination pushes the page size and cursor boundary into 
   assert.deepEqual(descending.items.map((event) => event.eventId), ["e1"]);
   assert.equal(requests[2].endpoint.searchParams.get("order"), "created_at.desc,event_id.desc");
   assert.equal(
-    requests[2].endpoint.searchParams.get("or"),
-    "(created_at.lt.2026-08-02T00:00:00.000Z,and(created_at.eq.2026-08-02T00:00:00.000Z,event_id.lt.e2))",
+    requests[2].endpoint.searchParams.get("and"),
+    '(or(payload->>actor_id.eq."a1",payload->>signer_actor_id.eq."a1",payload->>publisher_actor_id.eq."a1",payload->>drafted_by_actor_id.eq."a1",payload->>producer_actor_id.eq."a1",payload->>run_actor_id.eq."a1"),or(created_at.lt.2026-08-02T00:00:00.000Z,and(created_at.eq.2026-08-02T00:00:00.000Z,event_id.lt.e2)))',
   );
 });
 
@@ -152,7 +164,8 @@ test("latest actor activity uses a server-side JSON filter and one-row descendin
   });
   const event = await repository.getLatestResearchEventForActor("a1");
   assert.equal(event.eventId, "e2");
-  assert.equal(seen.searchParams.get("payload->>actor_id"), "eq.a1");
+  assert.match(seen.searchParams.get("or"), /payload->>drafted_by_actor_id\.eq\."a1"/);
+  assert.match(seen.searchParams.get("or"), /payload->>producer_actor_id\.eq\."a1"/);
   assert.equal(seen.searchParams.get("order"), "created_at.desc,event_id.desc");
   assert.equal(seen.searchParams.get("limit"), "1");
 });

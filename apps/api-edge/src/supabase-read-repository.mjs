@@ -69,6 +69,7 @@ function mapRow(row) {
 
 const PAGE_SIZE = 1000;
 const CLAIM_GRAPH_FRONTIER_BATCH_SIZE = 50;
+const EVENT_ACTOR_PAYLOAD_KEYS = Object.freeze(["actor_id", "signer_actor_id", "publisher_actor_id", "drafted_by_actor_id", "producer_actor_id", "run_actor_id"]);
 const TABLE_ORDERS = Object.freeze({
   actors: "created_at.desc,actor_id.desc",
   actorProfiles: "actor_id.asc",
@@ -120,6 +121,15 @@ function filterValue(value) {
   if (Array.isArray(value)) return `in.(${value.map((entry) => String(entry).replaceAll(",", "").replaceAll(")", "")).join(",")})`;
   if (value && typeof value === "object" && typeof value.op === "string") return `${value.op}.${value.value}`;
   return `eq.${value}`;
+}
+
+function postgrestLogicLiteral(value) {
+  return `"${String(value).replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`;
+}
+
+function eventActorPredicate(actorId) {
+  const literal = postgrestLogicLiteral(actorId);
+  return EVENT_ACTOR_PAYLOAD_KEYS.map((key) => `payload->>${key}.eq.${literal}`).join(",");
 }
 
 /* Only mutable-projection tables carry lifecycle columns; the soft-delete
@@ -540,11 +550,15 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
       const filters = {};
       if (eventType) filters.event_type = eventType;
       if (createdAfter) filters.created_at = { op: "gte", value: createdAfter };
-      if (actorId) filters["payload->>actor_id"] = actorId;
+      const actorPredicate = actorId ? eventActorPredicate(actorId) : null;
+      let cursorPredicate = null;
       if (page?.after) {
         const comparison = order === "desc" ? "lt" : "gt";
-        filters.or = `(created_at.${comparison}.${page.after.createdAt},and(created_at.eq.${page.after.createdAt},event_id.${comparison}.${page.after.id}))`;
+        cursorPredicate = `created_at.${comparison}.${page.after.createdAt},and(created_at.eq.${page.after.createdAt},event_id.${comparison}.${page.after.id})`;
       }
+      if (actorPredicate && cursorPredicate) filters.and = `(or(${actorPredicate}),or(${cursorPredicate}))`;
+      else if (actorPredicate) filters.or = `(${actorPredicate})`;
+      else if (cursorPredicate) filters.or = `(${cursorPredicate})`;
       const rows = await query("researchEvents", {
         filters,
         order: order === "desc" ? "created_at.desc,event_id.desc" : TABLE_ORDERS.researchEvents,
@@ -558,13 +572,13 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
           const idKeys = objectId ? ["object_id", ...(objectType ? [`${objectType}_id`] : []), "claim_id", "question_id", "task_id", "project_id", "attempt_id", "evidence_id", "receipt_id"] : [];
           if (!idKeys.some((key) => payload[key] === objectId)) return false;
         }
-        if (actorId && payload.actor_id !== actorId) return false;
+        if (actorId && !EVENT_ACTOR_PAYLOAD_KEYS.some((key) => payload[key] === actorId)) return false;
         return true;
       });
     },
     async getLatestResearchEventForActor(actorId) {
       return (await query("researchEvents", {
-        filters: { "payload->>actor_id": actorId },
+        filters: { or: `(${eventActorPredicate(actorId)})` },
         order: "created_at.desc,event_id.desc",
         limit: 1,
       }))[0] ?? null;

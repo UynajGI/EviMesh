@@ -94,9 +94,11 @@ test('hydration carries provenance and fielded receipt data', async () => {
 test('claim page defaults upstream, lists revisions, expands evidence, fields receipts', async () => {
   const page = await read('../app/claims/[claimId]/page.js');
   assert.match(page, /useState\('upstream'\)/);
-  assert.match(page, /Incoming context: relations pointing to this claim\./);
-  assert.match(page, /Outgoing context: relations pointing from this claim\./);
+  assert.match(page, /Upstream context: prerequisites, origins, and prior context\./);
+  assert.match(page, /Downstream context: dependents, responses, and subsequent context\./);
   assert.doesNotMatch(page, /Upstream: what this claim depends on\.|Downstream: what depends on this claim\./);
+  assert.match(page, /published by\{' '\}/);
+  assert.doesNotMatch(page, /drafted by\{' '\}/);
   assert.match(page, /setRevisionList/);
   assert.match(page, /Math\.min\(total, 8\)/);
   assert.match(page, /Compare any two revisions field by field/);
