@@ -156,8 +156,8 @@ function canonicalRunBody(body) {
     signingKeyId: canonicalRunText(body.signingKeyId, 'signing key id'),
     startedAt: canonicalRunTimestamp(body.startedAt),
     endedAt: canonicalRunTimestamp(body.endedAt),
-    inputs: canonicalRunBodyArtifactRefs(body.inputs, 'inputs'),
-    outputs: canonicalRunBodyArtifactRefs(body.outputs, 'outputs'),
+    inputs: canonicalRunBodyArtifactRefs(body.inputs === undefined ? [] : body.inputs, 'inputs'),
+    outputs: canonicalRunBodyArtifactRefs(body.outputs === undefined ? [] : body.outputs, 'outputs'),
   };
 }
 

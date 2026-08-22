@@ -648,6 +648,72 @@ test("rejects non-array Run inputs and outputs before verification, nonce consum
   assert.equal(writes, 0);
 });
 
+test("defaults omitted Run inputs and outputs without adding them to the signed publisher payload", async () => {
+  const producerKeyPair = generateEd25519KeyPair();
+  const publisherKeyPair = generateEd25519KeyPair();
+  const app = createApp({
+    repository: identityRepository({
+      findIdentity: async () => ({ actorId: "publisher-1" }),
+      getActor: async (actorId) => actorId === "publisher-1"
+        ? { actorId, actorType: "human" }
+        : actorId === "agent-1" ? { actorId, actorType: "agent" } : null,
+      findActiveSigningKey: async (actorId) => actorId === "publisher-1"
+        ? { keyId: "publisher-key", actorId, algorithm: "Ed25519", publicKey: publisherKeyPair.public_key }
+        : actorId === "agent-1" ? { keyId: "producer-key", actorId, algorithm: "Ed25519", publicKey: producerKeyPair.public_key } : null,
+      claimSignatureNonce: async () => true,
+      getArtifactRevision: async () => { throw new Error("omitted artifact lists must not resolve revisions"); },
+      getArtifactVerification: async () => { throw new Error("omitted artifact lists must not verify artifacts"); },
+      insertRun: async (run) => run,
+      insertRunInput: async () => { throw new Error("omitted inputs must not write rows"); },
+      insertRunOutput: async () => { throw new Error("omitted outputs must not write rows"); },
+      appendResearchEvent: async (event) => event,
+    }),
+    runEventFactory: eventFactory,
+    runRoleResolver: async () => "contributor",
+    authenticate: async () => ({ sub: "publisher-subject" }),
+  });
+
+  for (const [index, omittedKeys] of [[1, ["inputs"]], [2, ["inputs", "outputs"]]]) {
+    const runId = `run-omitted-${index}`;
+    const unsignedRun = {
+      schema: "srp.run.v1", run_id: runId, task_id: "task-1", context_bundle_id: "bundle-1",
+      input_artifact_ids: [], source_code: "artifact-code@1", container: `python@sha256:${"a".repeat(64)}`,
+      command: "python", args: [], environment: {}, hardware: {}, random_seed: {},
+      started_at: "2026-08-06T00:00:00.000Z", ended_at: "2026-08-06T00:00:01.000Z",
+      network_access: false, output_artifact_ids: [], exit_code: 0, actor_id: "agent-1", signing_key_id: "producer-key",
+    };
+    const signature = await signEd25519Payload({
+      signingBytes: new TextEncoder().encode(canonicalJson(unsignedRun)),
+      privateKey: producerKeyPair.private_key,
+    });
+    const body = {
+      runId, taskId: "task-1", contextBundleId: "bundle-1", sourceCode: "artifact-code@1",
+      container: `python@sha256:${"a".repeat(64)}`, command: "python", args: [], environment: {}, hardware: {},
+      randomSeed: {}, startedAt: unsignedRun.started_at, endedAt: unsignedRun.ended_at, networkAccess: false,
+      exitCode: 0, actorId: "agent-1", signingKeyId: "producer-key", signature, inputs: [], outputs: [],
+    };
+    for (const key of omittedKeys) delete body[key];
+    const envelope = await signatureEnvelope({
+      keyPair: publisherKeyPair, keyId: "publisher-key", eventType: "run.created", payload: body,
+      nonce: `nonce-omitted-run-000${index}`,
+    });
+    const response = await app.fetch(new Request("https://api.example.test/runs", {
+      method: "POST",
+      headers: { authorization: "Bearer test-token", "content-type": "application/json" },
+      body: JSON.stringify({ ...body, signatureEnvelope: envelope }),
+    }), {});
+    assert.equal(response.status, 201, await response.clone().text());
+    const created = await response.json();
+    assert.deepEqual(created.inputs, []);
+    assert.deepEqual(created.outputs, []);
+    assert.deepEqual(created.event.payload.publisher_signature_envelope.payload, body);
+    for (const key of omittedKeys) {
+      assert.equal(Object.hasOwn(created.event.payload.publisher_signature_envelope.payload, key), false, key);
+    }
+    assert.equal(created.run.signature, signature);
+  }
+});
+
 test("records a Run receipt through the API", async () => {
   const producerKeyPair = generateEd25519KeyPair();
   const publisherKeyPair = generateEd25519KeyPair();
