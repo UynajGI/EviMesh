@@ -344,7 +344,6 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
     async getActor(actorId) {
       return getOne("actors", { actor_id: actorId });
     },
-    listActorsByIds: (actorIds) => listByIdsInBatches("actors", "actor_id", actorIds),
     async getActorProfile(actorId) {
       return getOne("actorProfiles", { actor_id: actorId });
     },

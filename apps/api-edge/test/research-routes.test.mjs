@@ -131,9 +131,8 @@ test("returns an Attempt with its trace summary", async () => {
 test("returns an Actor contribution profile", async () => {
   const app = createApp({ repository: {
     listContributionStatements: async () => [{ statementId: "statement-1", eventId: "event-1", role: "originator" }],
-    listContributionEdges: async () => [{ statementId: "statement-1", edgeType: "produced", objectType: "claim", objectId: "claim-1" }],
-    listResearchEventsByIds: async () => [{ eventId: "event-1", eventType: "claim.created", payload: { claim_id: "claim-1", signer_actor_id: "human-1" } }],
-    listActorsByIds: async () => [{ actorId: "human-1", actorType: "human" }],
+    listContributionEdges: async () => [{ statementId: "statement-1", edgeType: "produced", objectType: "claim", objectId: "claim-1", objectRevision: 1 }],
+    listResearchEventsByIds: async () => [{ eventId: "event-1", eventType: "claim.created", payload: { claim_id: "claim-1", revision: 1, signer_actor_id: "human-1" } }],
   } });
   const response = await app.fetch(new Request("https://api.example.test/actors/actor-1"), {});
   assert.equal(response.status, 200);
