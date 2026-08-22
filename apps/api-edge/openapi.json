@@ -4409,6 +4409,11 @@
               "null"
             ]
           },
+          "draftedByActorId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Stable Actor ID from the source Claim document's created_by field. When it differs from the authenticated publisher, the complete request including this field must be covered by signatureEnvelope and the Actor must be registered as an agent or service."
+          },
           "statement": {
             "type": "string",
             "minLength": 1

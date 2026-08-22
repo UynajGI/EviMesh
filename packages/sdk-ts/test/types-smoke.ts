@@ -40,6 +40,7 @@ const bundle: ContextBundleResponse = {
 
 const claimRequest: CreateClaimRequest = {
   claimId: "claim-1",
+  draftedByActorId: "agent-1",
   statement: "The method reproduces within tolerance.",
   scope: ["the dataset"],
   assumptions: [],

@@ -74,6 +74,7 @@ function artifactRefs(ids, label) {
 export function claimDocToApi(document) {
   return {
     claimId: document.claim_id,
+    draftedByActorId: document.created_by,
     questionId: document.question_id ?? null,
     statement: document.statement,
     scope: document.scope,

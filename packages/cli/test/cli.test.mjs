@@ -206,6 +206,7 @@ test("submit sends a verifiable signature envelope with the request", async (t) 
   assert.equal(sent.signatureEnvelope.schema, "srp.client-signature-envelope.v1");
   assert.equal(sent.signatureEnvelope.event_type, "claim.created");
   assert.equal(sent.signatureEnvelope.payload.claimId, draft.claim_id);
+  assert.equal(sent.signatureEnvelope.payload.draftedByActorId, draft.created_by);
   const config = JSON.parse(readFileSync(join(dir, "config.json"), "utf8"));
   const { canonicalJson } = await import("../../protocol/src/hash.mjs");
   const { verifyEd25519Payload } = await import("../../signatures/src/server-verification.mjs");

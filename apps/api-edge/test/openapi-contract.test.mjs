@@ -99,6 +99,9 @@ test("keeps the stable response shapes in the contract", () => {
   assert.match(document.components.schemas.CreateRunRequest.properties.signature.description, /ascending full artifactId@artifactRevision strings/);
   assert.match(document.components.schemas.CreateRunRequest.properties.signature.description, /non-empty strings without leading or trailing whitespace/);
   assert.match(document.components.schemas.CreateRunRequest.properties.signature.description, /Date\.toISOString/);
+  assert.match(document.components.schemas.CreateClaimRequest.properties.draftedByActorId.description, /created_by/);
+  assert.match(document.components.schemas.CreateClaimRequest.properties.draftedByActorId.description, /signatureEnvelope/);
+  assert.match(document.components.schemas.CreateClaimRequest.properties.draftedByActorId.description, /agent or service/);
 });
 
 test("gives every operation a stable id and guards all write operations with bearer auth", () => {

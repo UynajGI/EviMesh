@@ -1007,20 +1007,39 @@ app.post('/claims', async (context) => {
     const claims = await authenticateRequest(context.req.raw, context.env);
     const actorId = await resolveActorForSupabaseClaims({ repository, claims });
     const body = await context.req.json();
+    const draftedByActorId = body.draftedByActorId ?? actorId;
+    if (typeof draftedByActorId !== 'string' || draftedByActorId.length === 0 || draftedByActorId.trim() !== draftedByActorId) {
+      throw new ClaimCommandError('drafting actor id must be a non-empty string without surrounding whitespace', 'CLAIM_DRAFTER_INVALID');
+    }
+    const hasSeparateDrafter = draftedByActorId !== actorId;
     const submission = {
       claimId: body.claimId,
+      draftedByActorId,
       questionId: body.questionId ?? null,
       statement: body.statement,
       scope: body.scope,
       assumptions: body.assumptions ?? [],
       falsification: body.falsification,
     };
+    if (hasSeparateDrafter && body.signatureEnvelope === undefined) {
+      throw new ClaimCommandError('signature envelope is required when the drafting actor differs from the publisher', 'CLAIM_DRAFTER_SIGNATURE_REQUIRED');
+    }
     if (body.signatureEnvelope !== undefined) {
       // Verify against the exact sent payload (minus the envelope itself);
       // defaults are applied only when constructing the domain command.
       const signedPayload = { ...body };
       delete signedPayload.signatureEnvelope;
       await verifyClientSignatureEnvelope({ repository, signatureNonceStore: nonceStoreFor(context), actorId, envelope: body.signatureEnvelope, payload: signedPayload, expectedEventType: 'claim.created' });
+    }
+    if (hasSeparateDrafter) {
+      if (typeof repository?.getActor !== 'function') {
+        throw new ClaimCommandError('drafting actor lookup is not configured', 'CLAIM_DRAFTER_LOOKUP_UNAVAILABLE', 503);
+      }
+      const draftingActor = await repository.getActor(draftedByActorId);
+      if (!draftingActor) throw new ClaimCommandError('drafting actor not found', 'CLAIM_DRAFTER_NOT_FOUND', 404);
+      if (!['agent', 'service'].includes(draftingActor.actorType)) {
+        throw new ClaimCommandError('drafting actor must be an agent or service', 'CLAIM_DRAFTER_TYPE_INVALID');
+      }
     }
     const actorRole = await claimRoleResolver({ repository, actorId, questionId: body.questionId ?? null, projectId: body.projectId ?? null });
     return context.json(await createClaim({

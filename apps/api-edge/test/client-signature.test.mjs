@@ -172,6 +172,69 @@ test("POST /claims accepts a valid signed envelope and rejects a tampered one", 
   assert.equal((await rejected.json()).code, "CLIENT_SIGNATURE_PAYLOAD_MISMATCH");
 });
 
+test("POST /claims preserves a signed agent drafting attribution and rejects forged or unknown drafters", async () => {
+  const keypair = generateEd25519KeyPair();
+  const calls = [];
+  const repository = {
+    findIdentity: async () => ({ actorId: "human-1" }),
+    findActiveSigningKey: async () => ({ keyId: "key-1", actorId: "human-1", algorithm: "Ed25519", publicKey: keypair.public_key }),
+    claimSignatureNonce: async () => true,
+    getActor: async (actorId) => actorId === "agent-1" ? { actorId, actorType: "agent" } : null,
+    insertClaim: async (claim) => { calls.push(["claim", claim]); return claim; },
+    insertClaimRevision: async (revision) => { calls.push(["revision", revision]); return revision; },
+    appendResearchEvent: async (event) => { calls.push(["event", event]); return event; },
+    insertContributionStatement: async (statement) => { calls.push(["contribution", statement]); return statement; },
+    insertContributionEdge: async (edge) => { calls.push(["edge", edge]); return edge; },
+  };
+  repository.withTransaction = async (callback) => callback(repository);
+  const app = createApp({
+    repository,
+    claimEventFactory: async ({ eventType, payload }) => ({ eventId: `event-${calls.length + 1}`, eventType, payload }),
+    claimRoleResolver: async () => "maintainer",
+    authenticate: async () => ({ sub: "supabase-subject" }),
+  });
+  const body = { claimId: "claim-agent", draftedByActorId: "agent-1", statement: "agent draft", scope: ["s"], falsification: ["f"] };
+  const envelope = await makeEnvelope({ keypair, keyId: "key-1", eventType: "claim.created", payload: body });
+  const accepted = await app.fetch(new Request("https://api.example.test/claims", {
+    method: "POST",
+    headers: { authorization: "Bearer test-token", "content-type": "application/json" },
+    body: JSON.stringify({ ...body, signatureEnvelope: envelope }),
+  }), {});
+  assert.equal(accepted.status, 201, await accepted.clone().text());
+  const result = await accepted.json();
+  assert.equal(result.claim.createdBy, "human-1");
+  assert.equal(result.revision.createdBy, "human-1");
+  assert.equal(result.contribution.actorId, "agent-1");
+  assert.equal(result.contribution.role, "originator");
+  assert.deepEqual(calls.map(([kind]) => kind), ["claim", "revision", "event", "contribution", "edge"]);
+
+  const forged = await app.fetch(new Request("https://api.example.test/claims", {
+    method: "POST",
+    headers: { authorization: "Bearer test-token", "content-type": "application/json" },
+    body: JSON.stringify({ ...body, draftedByActorId: "agent-forged", signatureEnvelope: envelope }),
+  }), {});
+  assert.equal(forged.status, 400);
+  assert.equal((await forged.json()).code, "CLIENT_SIGNATURE_PAYLOAD_MISMATCH");
+
+  const unknownBody = { ...body, claimId: "claim-unknown", draftedByActorId: "agent-missing" };
+  const unknownEnvelope = await makeEnvelope({ keypair, keyId: "key-1", eventType: "claim.created", payload: unknownBody, nonce: "nonce-unknown-agent-0001" });
+  const unknown = await app.fetch(new Request("https://api.example.test/claims", {
+    method: "POST",
+    headers: { authorization: "Bearer test-token", "content-type": "application/json" },
+    body: JSON.stringify({ ...unknownBody, signatureEnvelope: unknownEnvelope }),
+  }), {});
+  assert.equal(unknown.status, 404);
+  assert.equal((await unknown.json()).code, "CLAIM_DRAFTER_NOT_FOUND");
+
+  const unsigned = await app.fetch(new Request("https://api.example.test/claims", {
+    method: "POST",
+    headers: { authorization: "Bearer test-token", "content-type": "application/json" },
+    body: JSON.stringify({ ...body, claimId: "claim-unsigned" }),
+  }), {});
+  assert.equal(unsigned.status, 400);
+  assert.equal((await unsigned.json()).code, "CLAIM_DRAFTER_SIGNATURE_REQUIRED");
+});
+
 test('signed routes use the injected persistent nonce store, reject a duplicate, and permit another actor', async () => {
   const keypair = generateEd25519KeyPair();
   const claimed = new Set();

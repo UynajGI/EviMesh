@@ -270,6 +270,8 @@ test("publish_submission signs and posts only after consent", async () => {
   assert.equal(requests[0].path, "/claims");
   assert.ok(requests[0].body.signatureEnvelope);
   assert.equal(requests[0].body.signatureEnvelope.event_type, "claim.created");
+  assert.equal(requests[0].body.draftedByActorId, document.created_by);
+  assert.equal(requests[0].body.signatureEnvelope.payload.draftedByActorId, document.created_by);
 });
 
 test("publish_submission fails cleanly without an identity", async () => {

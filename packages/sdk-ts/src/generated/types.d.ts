@@ -61,7 +61,7 @@ export type StartAttemptRequest = { attemptId: string; contextBundleId: string; 
 
 export type TraceEventRequest = { eventId: string; eventType: string; payload: Record<string, unknown>; hash?: string | null; signature?: Record<string, unknown> | null; parents?: string[]; };
 
-export type CreateClaimRequest = { claimId: string; questionId?: string | null; statement: string; scope: Record<string, unknown> | unknown[]; assumptions?: Record<string, unknown> | unknown[]; falsification: Record<string, unknown> | unknown[]; signatureEnvelope?: ClientSignatureEnvelope; };
+export type CreateClaimRequest = { claimId: string; questionId?: string | null; draftedByActorId?: string; statement: string; scope: Record<string, unknown> | unknown[]; assumptions?: Record<string, unknown> | unknown[]; falsification: Record<string, unknown> | unknown[]; signatureEnvelope?: ClientSignatureEnvelope; };
 
 export type CreateArtifactRequest = { artifactId: string; artifactType: "code" | "dataset" | "document" | "figure" | "proof" | "notebook" | "container" | "model" | "report" | "other"; rawHash: string; semanticHash?: string | null; sizeBytes: number; mediaType: string; license: string; description?: string | null; locationId: string; location: string; };
 
