@@ -92,7 +92,7 @@ function ClaimDetailView({ params }) {
   const [frontierMembership, setFrontierMembership] = useState(null);
   const [data, setData] = useState(null);
   const [graph, setGraph] = useState(null);
-  /* Mockup default: upstream — "what does this claim depend on". */
+  /* Keep the API traversal names, but describe all typed edges neutrally. */
   const [direction, setDirection] = useState('upstream');
   const [graphView, setGraphView] = useState('graph');
   const [handoffOpen, setHandoffOpen] = useState(false);
@@ -375,7 +375,7 @@ function ClaimDetailView({ params }) {
                 </div>
               </div>
             </div>
-            <p className="mb-3 text-sm text-muted-foreground">{direction === 'upstream' ? 'Upstream: what this claim depends on.' : 'Downstream: what depends on this claim.'}</p>
+            <p className="mb-3 text-sm text-muted-foreground">{direction === 'upstream' ? 'Incoming context: relations pointing to this claim.' : 'Outgoing context: relations pointing from this claim.'}</p>
             {graphView === 'graph' ? <ClaimDag elements={dagElements} /> : (
               <div>
                 {graphListEntries.length === 0 ? (

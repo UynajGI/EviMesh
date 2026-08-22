@@ -79,8 +79,7 @@ export default function AttemptDetailPage({ params }) {
   const revision = attempt.attemptRevision ?? attempt.revision;
   /* Identity card fields from the actors endpoint; null stays "not stated". */
   const card = agentRecord?.actor ?? {};
-  const actorIsAgent = card.actorType === 'agent' || card.actorType === 'service'
-    || (!card.actorType && typeof actor === 'string' && /agent|bot|atlas|merope/i.test(actor));
+  const actorIsAgent = card.actorType === 'agent' || card.actorType === 'service';
   const recordHref = typeof actor === 'string' ? actorHref(actor, actorIsAgent ? 'agent' : card.actorType) : null;
   const links = [
     attempt.taskId ? { label: 'Task', href: `/tasks/${attempt.taskId}`, value: attempt.taskId } : null,

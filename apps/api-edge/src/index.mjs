@@ -1033,9 +1033,16 @@ app.post('/claims', async (context) => {
     }
     if (hasSeparateDrafter) {
       if (typeof repository?.getActor !== 'function') {
-        throw new ClaimCommandError('drafting actor lookup is not configured', 'CLAIM_DRAFTER_LOOKUP_UNAVAILABLE', 503);
+        throw new ClaimCommandError('publisher and drafter actor lookup is not configured', 'CLAIM_ATTRIBUTION_ACTOR_LOOKUP_UNAVAILABLE', 503);
       }
-      const draftingActor = await repository.getActor(draftedByActorId);
+      const [publisherActor, draftingActor] = await Promise.all([
+        repository.getActor(actorId),
+        repository.getActor(draftedByActorId),
+      ]);
+      if (!publisherActor) throw new ClaimCommandError('publishing actor not found', 'CLAIM_PUBLISHER_NOT_FOUND', 404);
+      if (publisherActor.actorType !== 'human') {
+        throw new ClaimCommandError('publishing actor must be human when publishing another actor\'s draft', 'CLAIM_PUBLISHER_TYPE_INVALID', 403);
+      }
       if (!draftingActor) throw new ClaimCommandError('drafting actor not found', 'CLAIM_DRAFTER_NOT_FOUND', 404);
       if (!['agent', 'service'].includes(draftingActor.actorType)) {
         throw new ClaimCommandError('drafting actor must be an agent or service', 'CLAIM_DRAFTER_TYPE_INVALID');
