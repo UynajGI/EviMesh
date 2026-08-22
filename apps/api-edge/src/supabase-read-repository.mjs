@@ -446,6 +446,10 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
     getClaimRevision: (claimId, revision) => getOne("claimRevisions", { claim_id: claimId, revision }),
     getClaimUpstreamGraph: ({ claimId, maxDepth }) => claimGraph({ claimId, maxDepth, direction: "upstream" }),
     getClaimDownstreamGraph: ({ claimId, maxDepth }) => claimGraph({ claimId, maxDepth, direction: "downstream" }),
+    async listDirectDependentClaimIds(claimId) {
+      const relations = await list("claimRelations", { target_claim_id: claimId, relation_type: "depends_on" });
+      return [...new Set(relations.map((relation) => relation.sourceClaimId).filter((value) => typeof value === "string" && value))];
+    },
 
     /* ---- frontier snapshots ---- */
     listFrontierSnapshots: ({ projectId = null } = {}) => list("frontierSnapshots", { project_id: projectId }),

@@ -4000,6 +4000,24 @@
                     "type": "string",
                     "minLength": 1
                   }
+                },
+                "state": {
+                  "type": "string",
+                  "enum": [
+                    "hypothesis",
+                    "candidate",
+                    "under_verification",
+                    "provisionally_accepted",
+                    "accepted",
+                    "contested",
+                    "refuted",
+                    "superseded",
+                    "retracted",
+                    "dependency_tainted"
+                  ]
+                },
+                "dependencyTainted": {
+                  "type": "boolean"
                 }
               }
             }

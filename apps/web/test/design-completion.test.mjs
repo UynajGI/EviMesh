@@ -25,6 +25,7 @@ test("design route map has canonical public people and agent activity routes", a
   assert.doesNotMatch(agent, /pendingReview|href="\/people"/);
   assert.match(agent, /data\.lastEventAt \?\? events\[0\]/);
   assert.match(agent, /limit=50&order=desc/);
+  assert.match(agent, /event\.payload\?\.attempt_id/);
   assert.match(agent, /setError\(reason\)/);
 });
 

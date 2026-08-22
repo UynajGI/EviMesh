@@ -115,7 +115,7 @@ export default function AgentActivityPage({ params }) {
               ) : (
                 <ol aria-label="Agent attempt events" className="mt-4 divide-y divide-border rounded-lg border border-border">
                   {events.map((event) => {
-                    const attemptId = event.objectType === 'attempt' ? event.objectId : null;
+                    const attemptId = event.payload?.attempt_id ?? event.payload?.attemptId ?? (event.objectType === 'attempt' ? event.objectId : null);
                     return <li className="flex min-w-0 flex-wrap items-center gap-3 px-4 py-3" key={event.eventId ?? `${event.eventType}-${event.createdAt}`}>
                       <FileCheck2 aria-hidden="true" className="shrink-0 text-muted-foreground" size={16} />
                       <span className="min-w-0 break-words text-sm font-medium">{display(event.eventType, 'research event')}</span>

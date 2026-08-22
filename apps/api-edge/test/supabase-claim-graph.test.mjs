@@ -26,7 +26,11 @@ test("reads bounded upstream and downstream Claim graphs with typed relations", 
     url: "https://project.supabase.co",
     publishableKey: "sb_publishable_test",
     fetchImpl: async (url) => {
-      const path = new URL(url).pathname;
+      const endpoint = new URL(url);
+      const path = endpoint.pathname;
+      if (path.endsWith("/claim_relations") && endpoint.searchParams.has("target_claim_id")) return Response.json([
+        { source_claim_id: "claim-child", target_claim_id: "claim-a", relation_type: "depends_on", deleted_at: null },
+      ]);
       if (path.endsWith("/claim_relations")) return Response.json([
         { source_claim_id: "claim-a", target_claim_id: "claim-root", relation_type: "depends_on", deleted_at: null },
         { source_claim_id: "claim-support", target_claim_id: "claim-root", relation_type: "supports", deleted_at: null },
@@ -61,4 +65,6 @@ test("reads bounded upstream and downstream Claim graphs with typed relations", 
   assert.deepEqual(supportDownstream.edges.map((edge) => edge.relationType), ["supports"]);
   assertAcyclic(supportUpstream.edges);
   assertAcyclic(supportDownstream.edges);
+
+  assert.deepEqual(await repository.listDirectDependentClaimIds("claim-a"), ["claim-child"]);
 });
