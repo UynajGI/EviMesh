@@ -101,6 +101,11 @@ test("keeps the stable response shapes in the contract", () => {
   assert.match(document.components.schemas.CreateRunRequest.properties.signature.description, /Date\.toISOString/);
   assert.ok(document.components.schemas.CreateRunRequest.required.includes("actorId"));
   assert.ok(document.components.schemas.CreateRunRequest.required.includes("signatureEnvelope"));
+  assert.ok(document.components.schemas.CreateRunRequest.required.includes("environment"));
+  assert.ok(document.components.schemas.CreateRunRequest.required.includes("hardware"));
+  assert.ok(document.components.schemas.CreateRunRequest.required.includes("randomSeed"));
+  assert.ok(document.components.schemas.CreateRunRequest.required.includes("networkAccess"));
+  assert.ok(!document.components.schemas.CreateRunRequest.required.includes("args"));
   assert.match(document.components.schemas.CreateRunRequest.properties.actorId.description, /agent or service/);
   assert.match(document.components.schemas.CreateRunRequest.properties.signatureEnvelope.description, /human publisher/);
   assert.match(document.components.schemas.CreateClaimRequest.properties.draftedByActorId.description, /created_by/);

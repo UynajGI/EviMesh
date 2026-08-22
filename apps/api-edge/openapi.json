@@ -4706,6 +4706,7 @@
           "randomSeed",
           "startedAt",
           "endedAt",
+          "networkAccess",
           "exitCode",
           "actorId",
           "signingKeyId",

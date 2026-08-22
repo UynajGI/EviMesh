@@ -140,6 +140,31 @@ function canonicalRunBodyArtifactRefs(refs, field) {
   return canonicalRunArtifactRefs(refs, field);
 }
 
+function canonicalRunArgs(value) {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.some((entry) => typeof entry !== 'string')) {
+    throw new RunCommandError('run args must be an array of strings', 'RUN_ARGS_INVALID');
+  }
+  return value;
+}
+
+function requiredRunObject(value, field) {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    throw new RunCommandError(`${field} must be a JSON object`, 'RUN_OBJECT_INVALID');
+  }
+  return value;
+}
+
+function requiredRunBoolean(value, field) {
+  if (typeof value !== 'boolean') throw new RunCommandError(`${field} must be a boolean`, 'RUN_BOOLEAN_INVALID');
+  return value;
+}
+
+function requiredRunInteger(value, field) {
+  if (!Number.isInteger(value)) throw new RunCommandError(`${field} must be an integer`, 'RUN_INTEGER_INVALID');
+  return value;
+}
+
 function canonicalRunBody(body) {
   return {
     ...body,
@@ -151,6 +176,12 @@ function canonicalRunBody(body) {
     container: canonicalRunText(body.container, 'container'),
     command: canonicalRunText(body.command, 'command'),
     signingKeyId: canonicalRunText(body.signingKeyId, 'signing key id'),
+    args: canonicalRunArgs(body.args),
+    environment: requiredRunObject(body.environment, 'environment'),
+    hardware: requiredRunObject(body.hardware, 'hardware'),
+    randomSeed: requiredRunObject(body.randomSeed, 'random seed'),
+    networkAccess: requiredRunBoolean(body.networkAccess, 'network access'),
+    exitCode: requiredRunInteger(body.exitCode, 'exit code'),
     startedAt: canonicalRunTimestamp(body.startedAt),
     endedAt: canonicalRunTimestamp(body.endedAt),
     inputs: canonicalRunBodyArtifactRefs(body.inputs === undefined ? [] : body.inputs, 'inputs'),
@@ -169,13 +200,13 @@ function unsignedRunDocument(body, actorId) {
     source_code: body.sourceCode,
     container: body.container,
     command: body.command,
-    args: body.args ?? [],
-    environment: body.environment ?? {},
-    hardware: body.hardware ?? {},
-    random_seed: body.randomSeed ?? {},
+    args: body.args,
+    environment: body.environment,
+    hardware: body.hardware,
+    random_seed: body.randomSeed,
     started_at: body.startedAt,
     ended_at: body.endedAt,
-    network_access: body.networkAccess ?? false,
+    network_access: body.networkAccess,
     output_artifact_ids: artifactRefs(body.outputs),
     exit_code: body.exitCode,
     actor_id: actorId,
@@ -1285,14 +1316,14 @@ app.post('/runs', async (context) => {
       sourceCode: canonicalBody.sourceCode,
       container: canonicalBody.container,
       command: canonicalBody.command,
-      args: body.args ?? [],
-      environment: body.environment,
-      hardware: body.hardware,
-      randomSeed: body.randomSeed,
+      args: canonicalBody.args,
+      environment: canonicalBody.environment,
+      hardware: canonicalBody.hardware,
+      randomSeed: canonicalBody.randomSeed,
       startedAt: canonicalBody.startedAt,
       endedAt: canonicalBody.endedAt,
-      networkAccess: body.networkAccess ?? false,
-      exitCode: body.exitCode,
+      networkAccess: canonicalBody.networkAccess,
+      exitCode: canonicalBody.exitCode,
       signingKeyId: canonicalBody.signingKeyId,
       signature: body.signature,
       inputs: canonicalBody.inputs,

@@ -59,6 +59,7 @@ const runRequest: CreateRunRequest = {
   randomSeed: { seed: 42 },
   startedAt: "2026-08-06T00:00:00.000Z",
   endedAt: "2026-08-06T00:05:00.000Z",
+  networkAccess: false,
   exitCode: 0,
   actorId: "agent-1",
   signingKeyId: "key-1",

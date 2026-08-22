@@ -601,7 +601,7 @@ test("creates Evidence and links it to a fixed ClaimRevision", async () => {
   assert.equal((await linked.json()).link.claimRevision, 2);
 });
 
-test("rejects malformed Run inputs and outputs before verification, nonce consumption, or writes", async () => {
+test("rejects malformed Run canonical fields before actor/key lookup, verification, nonce consumption, role resolution, or writes", async () => {
   let actorLookups = 0;
   let keyLookups = 0;
   let nonceClaims = 0;
@@ -628,12 +628,17 @@ test("rejects malformed Run inputs and outputs before verification, nonce consum
     signingKeyId: "producer-key", signature: "inner-signature", inputs: [], outputs: [],
     signatureEnvelope: { schema: "srp.client-signature-envelope.v1" },
   };
-  for (const invalid of [
-    { inputs: {} }, { inputs: "artifact-input@1" }, { inputs: null },
-    { outputs: {} }, { outputs: "artifact-output@1" }, { outputs: null },
-    { inputs: [null, { artifactId: "artifact-input", artifactRevision: 1 }] },
-    { outputs: [{ artifactId: "artifact-output", artifactRevision: 0 }] },
-    { inputs: [{ artifactId: " artifact-input", artifactRevision: 1 }] },
+  for (const [invalid, expectedCode] of [
+    [{ inputs: {} }, "RUN_ARTIFACT_REFS_INVALID"], [{ inputs: "artifact-input@1" }, "RUN_ARTIFACT_REFS_INVALID"], [{ inputs: null }, "RUN_ARTIFACT_REFS_INVALID"],
+    [{ outputs: {} }, "RUN_ARTIFACT_REFS_INVALID"], [{ outputs: "artifact-output@1" }, "RUN_ARTIFACT_REFS_INVALID"], [{ outputs: null }, "RUN_ARTIFACT_REFS_INVALID"],
+    [{ inputs: [null, { artifactId: "artifact-input", artifactRevision: 1 }] }, "RUN_ARTIFACT_REFS_INVALID"],
+    [{ outputs: [{ artifactId: "artifact-output", artifactRevision: 0 }] }, "RUN_ARTIFACT_REFS_INVALID"],
+    [{ inputs: [{ artifactId: " artifact-input", artifactRevision: 1 }] }, "RUN_ARTIFACT_REFS_INVALID"],
+    [{ args: null }, "RUN_ARGS_INVALID"], [{ args: {} }, "RUN_ARGS_INVALID"], [{ args: "python" }, "RUN_ARGS_INVALID"], [{ args: [null] }, "RUN_ARGS_INVALID"],
+    [{ environment: null }, "RUN_OBJECT_INVALID"], [{ environment: [] }, "RUN_OBJECT_INVALID"], [{ environment: undefined }, "RUN_OBJECT_INVALID"],
+    [{ hardware: null }, "RUN_OBJECT_INVALID"], [{ randomSeed: "42" }, "RUN_OBJECT_INVALID"], [{ randomSeed: undefined }, "RUN_OBJECT_INVALID"],
+    [{ networkAccess: null }, "RUN_BOOLEAN_INVALID"], [{ networkAccess: "false" }, "RUN_BOOLEAN_INVALID"], [{ networkAccess: undefined }, "RUN_BOOLEAN_INVALID"],
+    [{ exitCode: null }, "RUN_INTEGER_INVALID"], [{ exitCode: "0" }, "RUN_INTEGER_INVALID"], [{ exitCode: 0.5 }, "RUN_INTEGER_INVALID"],
   ]) {
     const response = await app.fetch(new Request("https://api.example.test/runs", {
       method: "POST",
@@ -641,7 +646,7 @@ test("rejects malformed Run inputs and outputs before verification, nonce consum
       body: JSON.stringify({ ...body, ...invalid }),
     }), {});
     assert.equal(response.status, 400, JSON.stringify(invalid));
-    assert.equal((await response.json()).code, "RUN_ARTIFACT_REFS_INVALID", JSON.stringify(invalid));
+    assert.equal((await response.json()).code, expectedCode, JSON.stringify(invalid));
   }
   assert.equal(actorLookups, 0);
   assert.equal(keyLookups, 0);
@@ -650,7 +655,7 @@ test("rejects malformed Run inputs and outputs before verification, nonce consum
   assert.equal(writes, 0);
 });
 
-test("defaults omitted Run inputs and outputs without adding them to the signed publisher payload", async () => {
+test("defaults omitted optional Run arrays without adding them to the signed publisher payload", async () => {
   const producerKeyPair = generateEd25519KeyPair();
   const publisherKeyPair = generateEd25519KeyPair();
   const app = createApp({
@@ -675,7 +680,7 @@ test("defaults omitted Run inputs and outputs without adding them to the signed 
     authenticate: async () => ({ sub: "publisher-subject" }),
   });
 
-  for (const [index, omittedKeys] of [[1, ["inputs"]], [2, ["inputs", "outputs"]]]) {
+  for (const [index, omittedKeys] of [[1, ["inputs"]], [2, ["inputs", "outputs"]], [3, ["args"]]]) {
     const runId = `run-omitted-${index}`;
     const unsignedRun = {
       schema: "srp.run.v1", run_id: runId, task_id: "task-1", context_bundle_id: "bundle-1",
@@ -708,6 +713,7 @@ test("defaults omitted Run inputs and outputs without adding them to the signed 
     const created = await response.json();
     assert.deepEqual(created.inputs, []);
     assert.deepEqual(created.outputs, []);
+    assert.deepEqual(created.run.args, []);
     assert.deepEqual(created.event.payload.publisher_signature_envelope.payload, body);
     for (const key of omittedKeys) {
       assert.equal(Object.hasOwn(created.event.payload.publisher_signature_envelope.payload, key), false, key);
@@ -777,7 +783,7 @@ test("records a Run receipt through the API", async () => {
     sourceCode: "artifact-code@1",
     container: "python@sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
     command: "python", args: ["reproduce.py"], environment: { python: "3.12" }, hardware: { cpu: "x86_64" },
-    randomSeed: { seed: 42 }, startedAt: "2026-08-06T08:00:00.123456+08:00", endedAt: "2026-08-06T00:05:00Z", exitCode: 0,
+    randomSeed: { seed: 42 }, startedAt: "2026-08-06T08:00:00.123456+08:00", endedAt: "2026-08-06T00:05:00Z", networkAccess: false, exitCode: 0,
     actorId: "agent-1",
     signingKeyId: "producer-key",
     signature,
