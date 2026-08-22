@@ -109,7 +109,7 @@ function canonicalRunArtifactRefs(document) {
     if (separator === -1) return `${value}@1`;
     const artifactId = value.slice(0, separator);
     const revisionText = value.slice(separator + 1);
-    if (!artifactId || !/^[0-9]+$/.test(revisionText)) {
+    if (!artifactId || artifactId.trim() !== artifactId || !/^[0-9]+$/.test(revisionText)) {
       throw new McpToolError("Run artifact refs must be formatted as artifactId@positiveRevision", "RUN_ARTIFACT_REF_INVALID");
     }
     const revision = Number(revisionText);
@@ -156,10 +156,24 @@ function canonicalRunTimestamp(value) {
   return timestamp.toISOString();
 }
 
+function canonicalRunText(value, field) {
+  if (typeof value !== "string" || value.length === 0 || value.trim() !== value) {
+    throw new McpToolError(`${field} must be a non-empty string without leading or trailing whitespace`, "RUN_TEXT_INVALID");
+  }
+  return value;
+}
+
 function canonicalRunDocument(document) {
   const withCanonicalRefs = canonicalRunArtifactRefs(document);
   return {
     ...withCanonicalRefs,
+    run_id: canonicalRunText(withCanonicalRefs.run_id, "run_id"),
+    task_id: canonicalRunText(withCanonicalRefs.task_id, "task_id"),
+    context_bundle_id: canonicalRunText(withCanonicalRefs.context_bundle_id, "context_bundle_id"),
+    source_code: canonicalRunText(withCanonicalRefs.source_code, "source_code"),
+    container: canonicalRunText(withCanonicalRefs.container, "container"),
+    command: canonicalRunText(withCanonicalRefs.command, "command"),
+    signing_key_id: canonicalRunText(withCanonicalRefs.signing_key_id, "signing_key_id"),
     started_at: canonicalRunTimestamp(withCanonicalRefs.started_at),
     ended_at: canonicalRunTimestamp(withCanonicalRefs.ended_at),
   };

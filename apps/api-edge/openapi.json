@@ -4771,7 +4771,7 @@
         "signature": {
           "type": "string",
           "minLength": 1,
-          "description": "Base64url Ed25519 signature over the canonical srp.run.v1 document without its signature field. ArtifactRevisionRef arrays use ascending full artifactId@artifactRevision strings, and timestamps use UTC ISO strings from Date.toISOString()."
+          "description": "Base64url Ed25519 signature over the canonical srp.run.v1 document without its signature field. Signed text fields must be non-empty strings without leading or trailing whitespace. ArtifactRevisionRef arrays use ascending full artifactId@artifactRevision strings, and timestamps use UTC ISO strings from Date.toISOString()."
         },
           "inputs": {
             "type": "array",

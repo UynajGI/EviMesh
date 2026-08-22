@@ -584,6 +584,7 @@ test("creates Evidence and links it to a fixed ClaimRevision", async () => {
 test("records a Run receipt through the API", async () => {
   const keyPair = generateEd25519KeyPair();
   let persistedRun = null;
+  let runInsertCount = 0;
   const persistedInputs = [];
   const persistedOutputs = [];
   const app = createApp({
@@ -591,7 +592,7 @@ test("records a Run receipt through the API", async () => {
       findActiveSigningKey: async () => ({ keyId: "key-1", actorId: "actor-1", algorithm: "Ed25519", publicKey: keyPair.public_key }),
       getArtifactRevision: async (artifactId, revision) => ({ artifactId, revision }),
       getArtifactVerification: async () => ({ status: "verified" }),
-      insertRun: async (run) => { persistedRun = run; return run; },
+      insertRun: async (run) => { runInsertCount += 1; persistedRun = run; return run; },
       insertRunInput: async (input) => { persistedInputs.push(input); return input; },
       insertRunOutput: async (output) => { persistedOutputs.push(output); return output; },
       getRun: async (runId) => persistedRun?.runId === runId ? persistedRun : null,
@@ -659,6 +660,7 @@ test("records a Run receipt through the API", async () => {
   const created = await response.json();
   assert.equal(created.run.runId, "run-1");
   assert.equal(created.run.signingKeyId, "key-1");
+  assert.equal(runInsertCount, 1);
   assert.equal(created.run.startedAt, unsignedRun.started_at);
   assert.equal(created.run.endedAt, unsignedRun.ended_at);
   assert.deepEqual(persistedInputs.map(({ artifactId, artifactRevision }) => `${artifactId}@${artifactRevision}`), unsignedRun.input_artifact_ids);
@@ -692,6 +694,22 @@ test("records a Run receipt through the API", async () => {
   }), {});
   assert.equal(missingSignature.status, 400);
   assert.equal((await missingSignature.json()).code, "RUN_SIGNATURE_MISMATCH");
+
+  for (const [invalidText, expectedCode] of [
+    [{ sourceCode: "" }, "RUN_INVALID"],
+    [{ sourceCode: " artifact-code@1" }, "RUN_INVALID"],
+    [{ command: " " }, "RUN_INVALID"],
+    [{ command: "python " }, "RUN_INVALID"],
+  ]) {
+    const invalidTextResponse = await app.fetch(new Request("https://api.example.test/runs", {
+      method: "POST",
+      headers: { authorization: "Bearer test-token", "content-type": "application/json" },
+      body: JSON.stringify({ ...runBody, ...invalidText }),
+    }), {});
+    assert.equal(invalidTextResponse.status, 400, JSON.stringify(invalidText));
+    assert.equal((await invalidTextResponse.json()).code, expectedCode, JSON.stringify(invalidText));
+    assert.equal(runInsertCount, 1, JSON.stringify(invalidText));
+  }
 
   for (const startedAt of [null, 0, "2026-08-06", "2026-08-06T00:00:00", " 2026-08-06T00:00:00Z ", "2026-02-31T00:00:00Z", "not-a-date-time"]) {
     const invalidTimestamp = await app.fetch(new Request("https://api.example.test/runs", {

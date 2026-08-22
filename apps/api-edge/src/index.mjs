@@ -106,13 +106,34 @@ function canonicalRunTimestamp(value) {
   return timestamp.toISOString();
 }
 
+function canonicalRunText(value, field) {
+  if (typeof value !== 'string' || value.length === 0 || value.trim() !== value) {
+    throw new RunCommandError(`${field} must be a non-empty string without leading or trailing whitespace`);
+  }
+  return value;
+}
+
+function canonicalRunBodyArtifactRefs(refs, field) {
+  return canonicalRunArtifactRefs(refs).map((ref) => ({
+    ...ref,
+    artifactId: canonicalRunText(ref?.artifactId, `${field}.artifactId`),
+  }));
+}
+
 function canonicalRunBody(body) {
   return {
     ...body,
+    runId: canonicalRunText(body.runId, 'run id'),
+    taskId: canonicalRunText(body.taskId, 'task id'),
+    contextBundleId: canonicalRunText(body.contextBundleId, 'context bundle id'),
+    sourceCode: canonicalRunText(body.sourceCode, 'source code'),
+    container: canonicalRunText(body.container, 'container'),
+    command: canonicalRunText(body.command, 'command'),
+    signingKeyId: canonicalRunText(body.signingKeyId, 'signing key id'),
     startedAt: canonicalRunTimestamp(body.startedAt),
     endedAt: canonicalRunTimestamp(body.endedAt),
-    inputs: canonicalRunArtifactRefs(body.inputs),
-    outputs: canonicalRunArtifactRefs(body.outputs),
+    inputs: canonicalRunBodyArtifactRefs(body.inputs, 'inputs'),
+    outputs: canonicalRunBodyArtifactRefs(body.outputs, 'outputs'),
   };
 }
 
@@ -1180,10 +1201,11 @@ app.post('/runs', async (context) => {
     if (body.actorId !== undefined && body.actorId !== actorId) {
       throw new ActorIdentityError('run actor does not match the authenticated actor', 'ACTOR_IDENTITY_MISMATCH', 403);
     }
+    const canonicalSigningKeyId = canonicalRunText(body.signingKeyId, 'signing key id');
     const activeSigningKey = typeof repository?.findActiveSigningKey === 'function'
       ? await repository.findActiveSigningKey(actorId)
       : null;
-    if (!activeSigningKey || activeSigningKey.keyId !== body.signingKeyId) {
+    if (!activeSigningKey || activeSigningKey.keyId !== canonicalSigningKeyId) {
       throw new ActorIdentityError('Run signing key does not belong to the authenticated actor', 'SIGNING_KEY_ID_MISMATCH', 403);
     }
     const canonicalBody = canonicalRunBody(body);
@@ -1192,12 +1214,12 @@ app.post('/runs', async (context) => {
       throw new RunCommandError('Run signature does not verify against the authenticated signing key', 'RUN_SIGNATURE_MISMATCH');
     }
     const submission = {
-      runId: body.runId,
-      taskId: body.taskId,
-      contextBundleId: body.contextBundleId,
-      sourceCode: body.sourceCode,
-      container: body.container,
-      command: body.command,
+      runId: canonicalBody.runId,
+      taskId: canonicalBody.taskId,
+      contextBundleId: canonicalBody.contextBundleId,
+      sourceCode: canonicalBody.sourceCode,
+      container: canonicalBody.container,
+      command: canonicalBody.command,
       args: body.args ?? [],
       environment: body.environment,
       hardware: body.hardware,
@@ -1206,7 +1228,7 @@ app.post('/runs', async (context) => {
       endedAt: canonicalBody.endedAt,
       networkAccess: body.networkAccess ?? false,
       exitCode: body.exitCode,
-      signingKeyId: body.signingKeyId,
+      signingKeyId: canonicalBody.signingKeyId,
       signature: body.signature,
       inputs: canonicalBody.inputs,
       outputs: canonicalBody.outputs,
@@ -1219,7 +1241,7 @@ app.post('/runs', async (context) => {
       delete signedPayload.signatureEnvelope;
       await verifyClientSignatureEnvelope({ repository, signatureNonceStore: nonceStoreFor(context), actorId, envelope: body.signatureEnvelope, payload: signedPayload, expectedEventType: 'run.created' });
     }
-    const actorRole = await runRoleResolver({ repository, actorId, taskId: body.taskId ?? null });
+    const actorRole = await runRoleResolver({ repository, actorId, taskId: canonicalBody.taskId });
     return context.json(await createRun({
       repository,
       actorId,

@@ -97,6 +97,7 @@ test("keeps the stable response shapes in the contract", () => {
   assert.equal(document.components.schemas.HealthResponse.properties.service.const, "evimesh-api-edge");
   assert.equal(document.components.schemas.HealthResponse.properties.status.const, "ok");
   assert.match(document.components.schemas.CreateRunRequest.properties.signature.description, /ascending full artifactId@artifactRevision strings/);
+  assert.match(document.components.schemas.CreateRunRequest.properties.signature.description, /non-empty strings without leading or trailing whitespace/);
   assert.match(document.components.schemas.CreateRunRequest.properties.signature.description, /Date\.toISOString/);
 });
 

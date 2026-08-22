@@ -127,6 +127,23 @@ test("record_run rejects malformed artifact refs before signing", async (t) => {
   }
 });
 
+test("record_run rejects non-canonical signed text before signing", async (t) => {
+  const env = identityEnv(t);
+  const { generateIdentity } = await import("../../../packages/cli/src/identity.mjs");
+  const identity = generateIdentity(env);
+  const client = createFakeClient({ http: { request: async () => ({ actorId: "agent_01", actorType: "agent", signingKey: { keyId: identity.keyId, algorithm: identity.algorithm, publicKey: identity.publicKey } }) } });
+  for (const [invalidText, expectedCode] of [
+    [{ sourceCode: " git:abc123" }, "RUN_TEXT_INVALID"],
+    [{ sourceCode: "" }, "MCP_TOOL_INVALID"],
+    [{ command: "python " }, "RUN_TEXT_INVALID"],
+    [{ command: " " }, "MCP_TOOL_INVALID"],
+  ]) {
+    const result = await callTool({ client, name: "record_run", args: { taskId: "task_0193f2c8-5c00-4000-8000-000000000001", contextBundleId: "context-1", sourceCode: "git:abc123", container: `oci:python@sha256:${"a".repeat(64)}`, command: "python", environment: { runtime: "python" }, hardware: { cpu: "x86_64" }, ...invalidText, confirm: true }, env });
+    assert.equal(result.isError, true, JSON.stringify(invalidText));
+    assert.equal(result.structuredContent.error, expectedCode, JSON.stringify(invalidText));
+  }
+});
+
 test("record_run preserves its authenticated agent binding through publication", async (t) => {
   const env = identityEnv(t);
   const { generateIdentity } = await import("../../../packages/cli/src/identity.mjs");
@@ -184,6 +201,11 @@ test("record_run preserves its authenticated agent binding through publication",
     const invalidTimestamp = await callTool({ client, name: "publish_submission", args: { document: { ...edited, started_at: startedAt }, confirm: true }, env });
     assert.equal(invalidTimestamp.isError, true, JSON.stringify(startedAt));
     assert.equal(invalidTimestamp.structuredContent.error, "RUN_TIMESTAMP_INVALID", JSON.stringify(startedAt));
+  }
+  for (const invalidText of [{ source_code: " git:def456" }, { command: "python " }, { command: " " }]) {
+    const rejected = await callTool({ client, name: "publish_submission", args: { document: { ...edited, ...invalidText }, confirm: true }, env });
+    assert.equal(rejected.isError, true, JSON.stringify(invalidText));
+    assert.equal(rejected.structuredContent.error, "RUN_TEXT_INVALID", JSON.stringify(invalidText));
   }
   assert.equal(posts.length, 1);
 });
