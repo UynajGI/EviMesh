@@ -121,7 +121,7 @@ function filterValue(value) {
 
 /* Only mutable-projection tables carry lifecycle columns; the soft-delete
  * filter must not be applied to revision, event, or junction fact tables. */
-const SOFT_DELETE_TABLES = new Set(["actors", "actorProfiles", "artifacts", "attempts", "challenges", "claims", "identities", "projects", "questions"]);
+const SOFT_DELETE_TABLES = new Set(["actors", "actorProfiles", "artifacts", "attempts", "challenges", "claimRelations", "claims", "identities", "projects", "questions"]);
 
 /* Interaction target tables: id columns differ per object type. */
 const INTERACTION_TARGET_SPECS = Object.freeze({

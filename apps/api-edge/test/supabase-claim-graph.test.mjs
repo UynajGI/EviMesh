@@ -28,6 +28,7 @@ test("reads bounded upstream and downstream Claim graphs with typed relations", 
     fetchImpl: async (url) => {
       const endpoint = new URL(url);
       const path = endpoint.pathname;
+      if (path.endsWith("/claim_relations")) assert.equal(endpoint.searchParams.get("deleted_at"), "is.null", "ended Claim relations must not enter the active graph");
       if (path.endsWith("/claim_relations") && endpoint.searchParams.has("target_claim_id")) return Response.json([
         { source_claim_id: "claim-child", target_claim_id: "claim-a", relation_type: "depends_on", deleted_at: null },
       ]);

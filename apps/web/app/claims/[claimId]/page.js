@@ -222,10 +222,11 @@ function ClaimDetailView({ params }) {
   })) : graphEntries.map(({ id }) => ({ id: `${direction}-${id}`, source: direction === 'upstream' ? id : claim.claimId, target: direction === 'upstream' ? claim.claimId : id, relation: 'depends_on' }));
   const dagElements = [{ data: { id: claim.claimId, label: claim.claimId, state: claim.state } }, ...graphEntries.map(({ id, state }) => ({ data: { id, label: id, state } })), ...dagEdges.map((edge) => ({ data: { ...edge, source: edge.source, target: edge.target, relationType: edge.relation } }))];
   const graphListEntries = graphRelations.length > 0 ? graphRelations.map((edge, index) => {
-    const relatedId = Array.isArray(edge.path) ? edge.path.at(-1) : direction === 'upstream' ? edge.targetClaimId : edge.sourceClaimId;
-    const node = graphNodes.find((item) => (item.claimId ?? item.id) === relatedId);
-    return { id: relatedId, relation: edge.relationType ?? 'depends_on', state: node?.state ?? node?.status, key: `${relatedId}-${edge.relationType ?? index}-${index}` };
-  }) : graphEntries.map((entry) => ({ ...entry, relation: 'depends_on', key: entry.id }));
+    const sourceId = edge.sourceClaimId;
+    const targetId = edge.targetClaimId;
+    const node = graphNodes.find((item) => (item.claimId ?? item.id) === targetId);
+    return { sourceId, targetId, relation: edge.relationType ?? 'depends_on', state: node?.state ?? node?.status, key: `${sourceId}-${targetId}-${edge.relationType ?? index}-${index}` };
+  }) : graphEntries.map((entry) => ({ sourceId: direction === 'upstream' ? entry.id : claim.claimId, targetId: direction === 'upstream' ? claim.claimId : entry.id, relation: 'depends_on', state: entry.state, key: entry.id }));
 
   const evidenceFor = (relation) => evidence.filter((item) => evidenceRelations(item).includes(relation));
   const receiptsFor = (outcome) => receipts.filter((receipt) => receipt.outcome === outcome);
@@ -381,14 +382,14 @@ function ClaimDetailView({ params }) {
                   <Empty title={`No ${direction} relations in range`} description="Relations of this claim within three hops will be listed here; the graph shows the same set." />
                 ) : (
                   <Card className="divide-y divide-border">
-                    <div className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] gap-3 px-5 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      <span>Direction</span><span>Related claim</span><span>Relation</span><span>State</span>
+                    <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto] gap-3 px-5 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      <span>Source</span><span>Relation</span><span>Target</span><span>Target state</span>
                     </div>
-                    {graphListEntries.map(({ id, relation, state, key }) => (
-                      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-3 px-5 py-3 text-sm" key={key}>
-                        <span className="capitalize text-muted-foreground">{direction}</span>
-                        <div className="flex min-w-0 items-center gap-2"><IdChip value={id} /><Link className="shrink-0 text-xs text-primary hover:underline" href={`/claims/${id}`}>open</Link></div>
+                    {graphListEntries.map(({ sourceId, targetId, relation, state, key }) => (
+                      <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto] items-center gap-3 px-5 py-3 text-sm" key={key}>
+                        <div className="flex min-w-0 items-center gap-2"><IdChip value={sourceId} /><Link className="shrink-0 text-xs text-primary hover:underline" href={`/claims/${encodeURIComponent(sourceId)}`}>open</Link></div>
                         <span className="font-mono text-xs text-muted-foreground">{relation}</span>
+                        <div className="flex min-w-0 items-center gap-2"><IdChip value={targetId} /><Link className="shrink-0 text-xs text-primary hover:underline" href={`/claims/${encodeURIComponent(targetId)}`}>open</Link></div>
                         {state ? <StatusBadge state={state} /> : <span className="text-xs text-muted-foreground">unknown</span>}
                       </div>
                     ))}

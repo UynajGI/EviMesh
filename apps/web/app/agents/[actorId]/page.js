@@ -54,7 +54,7 @@ export default function AgentActivityPage({ params }) {
     try {
       const payload = await request(`/actors/${encodeURIComponent(actorId)}`);
       const actor = payload.actor ?? payload;
-      if (actor.actorType !== 'agent') throw new Error('Agent not found. This Actor is not registered as an agent.');
+      if (actor.actorType !== 'agent' && actor.actorType !== 'service') throw new Error('Agent not found. This Actor is not registered as an agent or service.');
       setData(payload);
       try {
         const eventPayload = await request(`/events?actorId=${encodeURIComponent(actorId)}&limit=50&order=desc`);
@@ -102,7 +102,7 @@ export default function AgentActivityPage({ params }) {
               <span aria-hidden="true" className="grid size-12 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground"><Bot size={24} /></span>
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <StatusBadge label="agent" state="update" />
+                  <StatusBadge label={actor.actorType} state="update" />
                   <StatusBadge label={display(actor.identityStrength, 'identity unknown')} state={actor.identityStrength === 'verified' ? 'accepted' : 'quiet'} />
                 </div>
                 <Attribution actorId={actor.actorId ?? actorId} actorType={actor.actorType} className="mt-2 text-sm" label="Attribution" ownerActorId={owner} />

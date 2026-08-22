@@ -193,10 +193,10 @@ test('agent center walks six steps and keeps the manual as Markdown', async () =
   assert.match(route, /new Response\(agentManualMarkdown/);
 });
 
-test('agent activity rejects actors that are not registered as agents', async () => {
+test('agent activity accepts machine actors and rejects other actor types', async () => {
   const page = await read('../app/agents/[actorId]/page.js');
-  assert.match(page, /actor\.actorType !== 'agent'/);
-  assert.match(page, /Agent not found\. This Actor is not registered as an agent\./);
+  assert.match(page, /actor\.actorType !== 'agent' && actor\.actorType !== 'service'/);
+  assert.match(page, /Agent not found\. This Actor is not registered as an agent or service\./);
   assert.ok(page.indexOf("actor.actorType !== 'agent'") < page.indexOf('setData(payload)'), 'actor type must be checked before the agent UI is rendered');
 });
 
