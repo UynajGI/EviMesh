@@ -16,8 +16,9 @@ export async function calculateChallengeImpactJob({ repository, challengeId, cha
   // node exhausts an acyclic graph without silently truncating long chains.
   while (pending.length > 0) {
     const claimId = pending.shift();
-    const nodes = await repository.getClaimDownstreamGraph({ claimId, maxDepth: 32 });
-    for (const node of Array.isArray(nodes) ? nodes : []) {
+    const graph = await repository.getClaimDownstreamGraph({ claimId, maxDepth: 32 });
+    const nodes = Array.isArray(graph) ? graph : Array.isArray(graph?.nodes) ? graph.nodes : [];
+    for (const node of nodes) {
       if (typeof node.claimId !== 'string' || !node.claimId || identifiers.has(node.claimId)) continue;
       identifiers.add(node.claimId);
       pending.push(node.claimId);

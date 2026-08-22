@@ -11,7 +11,10 @@ test('an upheld upstream Challenge taints every downstream Claim', async () => {
   ]);
   const repository = {
     getCurrentChallengeRevision: async () => ({ revision: 2, state: 'upheld', targetClaimId: 'claim-root' }),
-    getClaimDownstreamGraph: async () => [{ claimId: 'claim-child-b' }, { claimId: 'claim-child-a' }],
+    getClaimDownstreamGraph: async () => ({
+      nodes: [{ claimId: 'claim-child-b' }, { claimId: 'claim-child-a' }],
+      edges: [],
+    }),
     getClaim: async (claimId) => claims.get(claimId) ?? null,
     markClaimDependencyTainted: async (claimId, { sourceClaimId }) => claims.set(claimId, { ...claims.get(claimId), state: 'dependency_tainted', sourceClaimId }),
   };
