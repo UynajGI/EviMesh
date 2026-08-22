@@ -180,6 +180,11 @@ test("record_run preserves its authenticated agent binding through publication",
   const malformed = await callTool({ client, name: "publish_submission", args: { document: { ...edited, input_artifact_ids: ["artifact@1@2"] }, confirm: true }, env });
   assert.equal(malformed.isError, true);
   assert.equal(malformed.structuredContent.error, "RUN_ARTIFACT_REF_INVALID");
+  for (const startedAt of [null, 0, "2026-08-06", "2026-08-06T00:00:00", " 2026-08-06T00:00:00Z ", "2026-02-31T00:00:00Z"]) {
+    const invalidTimestamp = await callTool({ client, name: "publish_submission", args: { document: { ...edited, started_at: startedAt }, confirm: true }, env });
+    assert.equal(invalidTimestamp.isError, true, JSON.stringify(startedAt));
+    assert.equal(invalidTimestamp.structuredContent.error, "RUN_TIMESTAMP_INVALID", JSON.stringify(startedAt));
+  }
   assert.equal(posts.length, 1);
 });
 

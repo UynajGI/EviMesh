@@ -693,12 +693,14 @@ test("records a Run receipt through the API", async () => {
   assert.equal(missingSignature.status, 400);
   assert.equal((await missingSignature.json()).code, "RUN_SIGNATURE_MISMATCH");
 
-  const invalidTimestamp = await app.fetch(new Request("https://api.example.test/runs", {
-    method: "POST",
-    headers: { authorization: "Bearer test-token", "content-type": "application/json" },
-    body: JSON.stringify({ ...runBody, startedAt: "not-a-date-time" }),
-  }), {});
-  assert.equal(invalidTimestamp.status, 400);
+  for (const startedAt of [null, 0, "2026-08-06", "2026-08-06T00:00:00", " 2026-08-06T00:00:00Z ", "2026-02-31T00:00:00Z", "not-a-date-time"]) {
+    const invalidTimestamp = await app.fetch(new Request("https://api.example.test/runs", {
+      method: "POST",
+      headers: { authorization: "Bearer test-token", "content-type": "application/json" },
+      body: JSON.stringify({ ...runBody, startedAt }),
+    }), {});
+    assert.equal(invalidTimestamp.status, 400, JSON.stringify(startedAt));
+  }
 
   const foreignKey = await app.fetch(new Request("https://api.example.test/runs", {
     method: "POST",
