@@ -158,6 +158,15 @@ test("record_run preserves the agent inner signature when a human identity publi
   } } });
   const recorded = await callTool({ client, name: "record_run", args: { taskId: "task_0193f2c8-5c00-4000-8000-000000000001", contextBundleId: "context-1", sourceCode: "git:abc123", container: `oci:python@sha256:${"a".repeat(64)}`, command: "python", environment: { runtime: "python" }, hardware: { cpu: "x86_64" }, inputArtifactRefs: ["artifact-a@2", "artifact-z"], outputArtifactRefs: ["output-a@2", "output-z"], confirm: true }, env: agentEnv });
   const runDocument = recorded.structuredContent.draft;
+  for (const noncanonicalDocument of [
+    { ...runDocument, input_artifact_ids: ["artifact-without-revision"] },
+    { ...runDocument, started_at: "2026-08-06T08:00:00+08:00" },
+  ]) {
+    const noncanonical = await callTool({ client, name: "publish_submission", args: { document: noncanonicalDocument }, env: humanEnv });
+    assert.equal(noncanonical.isError, true);
+    assert.equal(noncanonical.structuredContent.error, "RUN_DOCUMENT_NONCANONICAL");
+    assert.equal(posts.length, 0, "non-canonical Run documents must fail before consent or network publication");
+  }
   const whitespaceActor = await callTool({ client, name: "publish_submission", args: { document: { ...runDocument, actor_id: " agent_01 " } }, env: humanEnv });
   assert.equal(whitespaceActor.isError, true);
   assert.equal(whitespaceActor.structuredContent.error, "RUN_TEXT_INVALID");

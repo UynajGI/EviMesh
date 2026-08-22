@@ -459,7 +459,12 @@ const TOOL_DEFINITIONS = [
     run: async ({ client, args, env }) => {
       requiredArg(args.document, "document");
       const document = args.document;
-      if (document.schema === "srp.run.v1") canonicalRunDocument(document);
+      if (document.schema === "srp.run.v1") {
+        const canonicalDocument = canonicalRunDocument(document);
+        if (canonicalJson(canonicalDocument) !== canonicalJson(document)) {
+          throw new McpToolError("Run document must already use canonical artifact revisions and UTC timestamps", "RUN_DOCUMENT_NONCANONICAL");
+        }
+      }
       validateDocument(document);
       const route = submissionRoute(document);
       if (!route) throw new McpToolError(`submission is not supported for schema ${document.schema}`);
