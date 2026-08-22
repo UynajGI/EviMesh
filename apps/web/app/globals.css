@@ -9,10 +9,9 @@
  * WCAG 2.2 AA (>= 4.5:1) in BOTH themes.
  *
  * Layers (design book 02-color-language.md):
- *   1. Primitive ramps live in the design book; production keeps semantic +
- *      component layers to stay test-parseable (literal oklch, no var() chains).
- *   2. Semantic: surfaces, foreground, actions, status dual tiers, emphasis.
- *   3. Component: DAG edge families (color is never the only carrier).
+ *   1. Primitive ramps (`--evimesh-p-*`) are the only raw palette values.
+ *   2. Semantic values reference primitives and carry product meaning.
+ *   3. Component values (`--evimesh-c-*`) reference semantic values.
  *
  * Theme contract: light values live on the root selector. Dark applies through
  * BOTH the manual data-attribute override and the system color-scheme media
@@ -100,197 +99,335 @@
 
 :root {
   color-scheme: light;
+  /* Primitive ramps. Components never reference these directly. The values
+   * intentionally preserve the already contrast-verified M13.8 palette. */
+  --evimesh-p-neutral-0: oklch(1 0 0);
+  --evimesh-p-neutral-50: oklch(0.985 0.0017 247.84);
+  --evimesh-p-neutral-100: oklch(0.957 0.0046 258.32);
+  --evimesh-p-neutral-150: oklch(0.948 0.0052 247.88);
+  --evimesh-p-neutral-200: oklch(0.905 0.0081 253.86);
+  --evimesh-p-neutral-300: oklch(0.386 0.0243 253.12);
+  --evimesh-p-neutral-400: oklch(0.479 0.0224 255.63);
+  --evimesh-p-neutral-500: oklch(0.58 0.0181 253.98);
+  --evimesh-p-neutral-700: oklch(0.301 0.0297 254.69);
+  --evimesh-p-neutral-900: oklch(0.207 0.0227 257.29);
+  --evimesh-p-brand-100: oklch(0.964 0.0176 253.34);
+  --evimesh-p-brand-200: oklch(0.93 0.0323 258.37);
+  --evimesh-p-brand-300: oklch(0.435 0.1398 257.88);
+  --evimesh-p-brand-500: oklch(0.511 0.1591 257.75);
+  --evimesh-p-brand-400: oklch(0.721 0.1294 257.8);
+  --evimesh-p-success-100: oklch(0.965 0.0305 152.89);
+  --evimesh-p-success-200: oklch(0.924 0.0491 151.6);
+  --evimesh-p-success-300: oklch(0.42 0.1003 151.93);
+  --evimesh-p-success-400: oklch(0.519 0.115 151.9);
+  --evimesh-p-success-500: oklch(0.49 0.1204 151.92);
+  --evimesh-p-warning-100: oklch(0.96 0.0378 81.52);
+  --evimesh-p-warning-200: oklch(0.926 0.0632 76.96);
+  --evimesh-p-warning-300: oklch(0.452 0.0982 69.46);
+  --evimesh-p-warning-400: oklch(0.585 0.1248 72.89);
+  --evimesh-p-warning-500: oklch(0.531 0.1153 69.71);
+  --evimesh-p-danger-100: oklch(0.962 0.0187 25.6);
+  --evimesh-p-danger-200: oklch(0.933 0.0337 26.8);
+  --evimesh-p-danger-300: oklch(0.451 0.1602 27.18);
+  --evimesh-p-danger-400: oklch(0.579 0.2 26.89);
+  --evimesh-p-danger-500: oklch(0.52 0.1902 27);
+  --evimesh-p-info-100: oklch(0.963 0.0217 230.54);
+  --evimesh-p-info-200: oklch(0.934 0.0374 234.48);
+  --evimesh-p-info-300: oklch(0.43 0.1002 241.04);
+  --evimesh-p-info-400: oklch(0.521 0.105 239.81);
+  --evimesh-p-info-500: oklch(0.5 0.1098 239.95);
+  --evimesh-p-series-1: #3E71BC;
+  --evimesh-p-series-2: #B07A20;
+  --evimesh-p-series-3: #2E918C;
+  --evimesh-p-series-4: #B54B43;
+  --evimesh-p-series-5: #378450;
+  --evimesh-p-series-6: #725B9A;
+  --evimesh-p-series-7: #238EA9;
   /* Surfaces */
-  --evimesh-background: oklch(0.985 0.0017 247.84);
-  --evimesh-foreground: oklch(0.207 0.0227 257.29);
-  --evimesh-card: oklch(1 0 0);
-  --evimesh-card-foreground: oklch(0.207 0.0227 257.29);
-  --evimesh-muted: oklch(0.957 0.0046 258.32);
-  --evimesh-muted-foreground: oklch(0.479 0.0224 255.63);
+  --evimesh-background: var(--evimesh-p-neutral-50);
+  --evimesh-foreground: var(--evimesh-p-neutral-900);
+  --evimesh-card: var(--evimesh-p-neutral-0);
+  --evimesh-card-foreground: var(--evimesh-p-neutral-900);
+  --evimesh-muted: var(--evimesh-p-neutral-100);
+  --evimesh-muted-foreground: var(--evimesh-p-neutral-400);
   /* Semantic fills */
-  --evimesh-secondary: oklch(0.948 0.0052 247.88);
-  --evimesh-secondary-foreground: oklch(0.301 0.0297 254.69);
-  --evimesh-accent: oklch(0.964 0.0176 253.34);
-  --evimesh-accent-foreground: oklch(0.435 0.1398 257.88);
-  --evimesh-border: oklch(0.905 0.0081 253.86);
+  --evimesh-secondary: var(--evimesh-p-neutral-150);
+  --evimesh-secondary-foreground: var(--evimesh-p-neutral-700);
+  --evimesh-accent: var(--evimesh-p-brand-100);
+  --evimesh-accent-foreground: var(--evimesh-p-brand-300);
+  --evimesh-border: var(--evimesh-p-neutral-200);
   /* Actions */
-  --evimesh-primary: oklch(0.511 0.1591 257.75);
-  --evimesh-primary-foreground: oklch(1 0 0);
-  --evimesh-destructive: oklch(0.52 0.1902 27);
-  --evimesh-destructive-foreground: oklch(1 0 0);
+  --evimesh-primary: var(--evimesh-p-brand-500);
+  --evimesh-primary-foreground: var(--evimesh-p-neutral-0);
+  --evimesh-destructive: var(--evimesh-p-danger-500);
+  --evimesh-destructive-foreground: var(--evimesh-p-neutral-0);
   /* Status solids */
-  --evimesh-success: oklch(0.49 0.1204 151.92);
-  --evimesh-success-foreground: oklch(1 0 0);
-  --evimesh-warning: oklch(0.531 0.1153 69.71);
-  --evimesh-warning-foreground: oklch(1 0 0);
-  --evimesh-info: oklch(0.5 0.1098 239.95);
-  --evimesh-info-foreground: oklch(1 0 0);
+  --evimesh-success: var(--evimesh-p-success-500);
+  --evimesh-success-foreground: var(--evimesh-p-neutral-0);
+  --evimesh-warning: var(--evimesh-p-warning-500);
+  --evimesh-warning-foreground: var(--evimesh-p-neutral-0);
+  --evimesh-info: var(--evimesh-p-info-500);
+  --evimesh-info-foreground: var(--evimesh-p-neutral-0);
   /* Focus */
-  --evimesh-focus: oklch(0.511 0.1591 257.75);
-  --evimesh-ring: oklch(0.511 0.1591 257.75);
+  --evimesh-focus: var(--evimesh-p-brand-500);
+  --evimesh-ring: var(--evimesh-p-brand-500);
   /* Status dual tiers: muted badge surfaces */
-  --evimesh-status-neutral-bg: oklch(0.948 0.0052 247.88);
-  --evimesh-status-neutral-fg: oklch(0.386 0.0243 253.12);
-  --evimesh-status-neutral-border: oklch(0.905 0.0081 253.86);
-  --evimesh-status-accent-bg: oklch(0.964 0.0176 253.34);
-  --evimesh-status-accent-fg: oklch(0.435 0.1398 257.88);
-  --evimesh-status-accent-border: oklch(0.93 0.0323 258.37);
-  --evimesh-status-success-bg: oklch(0.965 0.0305 152.89);
-  --evimesh-status-success-fg: oklch(0.42 0.1003 151.93);
-  --evimesh-status-success-border: oklch(0.924 0.0491 151.6);
-  --evimesh-status-warning-bg: oklch(0.96 0.0378 81.52);
-  --evimesh-status-warning-fg: oklch(0.452 0.0982 69.46);
-  --evimesh-status-warning-border: oklch(0.926 0.0632 76.96);
-  --evimesh-status-danger-bg: oklch(0.962 0.0187 25.6);
-  --evimesh-status-danger-fg: oklch(0.451 0.1602 27.18);
-  --evimesh-status-danger-border: oklch(0.933 0.0337 26.8);
-  --evimesh-status-info-bg: oklch(0.963 0.0217 230.54);
-  --evimesh-status-info-fg: oklch(0.43 0.1002 241.04);
-  --evimesh-status-info-border: oklch(0.934 0.0374 234.48);
+  --evimesh-status-neutral-bg: var(--evimesh-p-neutral-150);
+  --evimesh-status-neutral-fg: var(--evimesh-p-neutral-300);
+  --evimesh-status-neutral-border: var(--evimesh-p-neutral-200);
+  --evimesh-status-accent-bg: var(--evimesh-p-brand-100);
+  --evimesh-status-accent-fg: var(--evimesh-p-brand-300);
+  --evimesh-status-accent-border: var(--evimesh-p-brand-200);
+  --evimesh-status-success-bg: var(--evimesh-p-success-100);
+  --evimesh-status-success-fg: var(--evimesh-p-success-300);
+  --evimesh-status-success-border: var(--evimesh-p-success-200);
+  --evimesh-status-warning-bg: var(--evimesh-p-warning-100);
+  --evimesh-status-warning-fg: var(--evimesh-p-warning-300);
+  --evimesh-status-warning-border: var(--evimesh-p-warning-200);
+  --evimesh-status-danger-bg: var(--evimesh-p-danger-100);
+  --evimesh-status-danger-fg: var(--evimesh-p-danger-300);
+  --evimesh-status-danger-border: var(--evimesh-p-danger-200);
+  --evimesh-status-info-bg: var(--evimesh-p-info-100);
+  --evimesh-status-info-fg: var(--evimesh-p-info-300);
+  --evimesh-status-info-border: var(--evimesh-p-info-200);
   /* Emphasis solids */
-  --evimesh-emphasis-success: oklch(0.49 0.1204 151.92);
-  --evimesh-emphasis-warning: oklch(0.531 0.1153 69.71);
-  --evimesh-emphasis-danger: oklch(0.52 0.1902 27);
-  --evimesh-emphasis-info: oklch(0.5 0.1098 239.95);
-  --evimesh-emphasis-neutral: oklch(0.386 0.0243 253.12);
-  --evimesh-emphasis-foreground: oklch(1 0 0);
+  --evimesh-emphasis-success: var(--evimesh-p-success-500);
+  --evimesh-emphasis-warning: var(--evimesh-p-warning-500);
+  --evimesh-emphasis-danger: var(--evimesh-p-danger-500);
+  --evimesh-emphasis-info: var(--evimesh-p-info-500);
+  --evimesh-emphasis-neutral: var(--evimesh-p-neutral-300);
+  --evimesh-emphasis-foreground: var(--evimesh-p-neutral-0);
   /* DAG edge families */
-  --evimesh-dag-positive: oklch(0.519 0.115 151.9);
-  --evimesh-dag-negative: oklch(0.579 0.2 26.89);
-  --evimesh-dag-qualify: oklch(0.585 0.1248 72.89);
-  --evimesh-dag-structural: oklch(0.521 0.105 239.81);
-  --evimesh-dag-lineage: oklch(0.58 0.0181 253.98);
+  --evimesh-dag-positive: var(--evimesh-p-success-400);
+  --evimesh-dag-negative: var(--evimesh-p-danger-400);
+  --evimesh-dag-qualify: var(--evimesh-p-warning-400);
+  --evimesh-dag-structural: var(--evimesh-p-info-400);
+  --evimesh-dag-lineage: var(--evimesh-p-neutral-500);
   /* Typography */
   --evimesh-font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --evimesh-font-mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
   --evimesh-font-serif: ui-serif, Georgia, Cambria, "Times New Roman", serif;
   /* Data-visualization categorical series (counts, never scores) */
-  --evimesh-series-1: #3E71BC;
-  --evimesh-series-2: #B07A20;
-  --evimesh-series-3: #2E918C;
-  --evimesh-series-4: #B54B43;
-  --evimesh-series-5: #378450;
-  --evimesh-series-6: #725B9A;
-  --evimesh-series-7: #238EA9;
+  --evimesh-series-1: var(--evimesh-p-series-1);
+  --evimesh-series-2: var(--evimesh-p-series-2);
+  --evimesh-series-3: var(--evimesh-p-series-3);
+  --evimesh-series-4: var(--evimesh-p-series-4);
+  --evimesh-series-5: var(--evimesh-p-series-5);
+  --evimesh-series-6: var(--evimesh-p-series-6);
+  --evimesh-series-7: var(--evimesh-p-series-7);
   /* Radius */
   --evimesh-radius-sm: 0.375rem;
   --evimesh-radius-md: 0.5rem;
   --evimesh-radius-lg: 0.75rem;
+
+  /* Component decisions: reusable surfaces point at semantic roles, never at
+   * primitive ramps. */
+  --evimesh-c-header-bg: var(--evimesh-card);
+  --evimesh-c-header-border: var(--evimesh-border);
+  --evimesh-c-card-bg: var(--evimesh-card);
+  --evimesh-c-card-border: var(--evimesh-border);
+  --evimesh-c-input-bg: var(--evimesh-card);
+  --evimesh-c-input-border: var(--evimesh-border);
+  --evimesh-c-input-placeholder: var(--evimesh-muted-foreground);
+  --evimesh-c-skeleton: var(--evimesh-muted);
+  --evimesh-c-dag-edge-neutral: var(--evimesh-status-neutral-fg);
+  --evimesh-c-dag-edge-positive: var(--evimesh-dag-positive);
+  --evimesh-c-dag-edge-negative: var(--evimesh-dag-negative);
+  --evimesh-c-dag-edge-qualify: var(--evimesh-dag-qualify);
+  --evimesh-c-dag-edge-structural: var(--evimesh-dag-structural);
+  --evimesh-c-dag-edge-lineage: var(--evimesh-dag-lineage);
 }
 
 /* Manual dark: set by the no-flash snippet in app/layout.js. */
 [data-theme="dark"] {
   color-scheme: dark;
-  --evimesh-background: oklch(0.161 0.0151 253.14);
-  --evimesh-foreground: oklch(0.972 0.0034 247.86);
-  --evimesh-card: oklch(0.207 0.0227 257.29);
-  --evimesh-card-foreground: oklch(0.972 0.0034 247.86);
-  --evimesh-muted: oklch(0.261 0.0261 255.75);
-  --evimesh-muted-foreground: oklch(0.72 0.0135 255.53);
-  --evimesh-secondary: oklch(0.261 0.0261 255.75);
-  --evimesh-secondary-foreground: oklch(0.957 0.0046 258.32);
-  --evimesh-accent: oklch(0.356 0.1099 257.78);
-  --evimesh-accent-foreground: oklch(0.87 0.0552 257.74);
-  --evimesh-border: oklch(0.261 0.0261 255.75);
-  --evimesh-primary: oklch(0.511 0.1591 257.75);
-  --evimesh-primary-foreground: oklch(1 0 0);
-  --evimesh-destructive: oklch(0.52 0.1902 27);
-  --evimesh-destructive-foreground: oklch(1 0 0);
-  --evimesh-success: oklch(0.49 0.1204 151.92);
-  --evimesh-success-foreground: oklch(1 0 0);
-  --evimesh-warning: oklch(0.531 0.1153 69.71);
-  --evimesh-warning-foreground: oklch(1 0 0);
-  --evimesh-info: oklch(0.5 0.1098 239.95);
-  --evimesh-info-foreground: oklch(1 0 0);
-  --evimesh-focus: oklch(0.721 0.1294 257.8);
-  --evimesh-ring: oklch(0.721 0.1294 257.8);
-  --evimesh-status-neutral-bg: oklch(0.261 0.0261 255.75);
-  --evimesh-status-neutral-fg: oklch(0.865 0.0099 252.82);
-  --evimesh-status-neutral-border: oklch(0.386 0.0243 253.12);
-  --evimesh-status-accent-bg: oklch(0.356 0.1099 257.78);
-  --evimesh-status-accent-fg: oklch(0.87 0.0552 257.74);
-  --evimesh-status-accent-border: oklch(0.435 0.1398 257.88);
-  --evimesh-status-success-bg: oklch(0.341 0.0751 152.13);
-  --evimesh-status-success-fg: oklch(0.855 0.0801 152.31);
-  --evimesh-status-success-border: oklch(0.49 0.1204 151.92);
-  --evimesh-status-warning-bg: oklch(0.371 0.0792 72.66);
-  --evimesh-status-warning-fg: oklch(0.87 0.1003 75.08);
-  --evimesh-status-warning-border: oklch(0.452 0.0982 69.46);
-  --evimesh-status-danger-bg: oklch(0.369 0.1204 26.92);
-  --evimesh-status-danger-fg: oklch(0.88 0.0603 27.21);
-  --evimesh-status-danger-border: oklch(0.451 0.1602 27.18);
-  --evimesh-status-info-bg: oklch(0.354 0.0802 240.18);
-  --evimesh-status-info-fg: oklch(0.874 0.0649 240.88);
-  --evimesh-status-info-border: oklch(0.43 0.1002 241.04);
-  --evimesh-emphasis-success: oklch(0.42 0.1003 151.93);
-  --evimesh-emphasis-warning: oklch(0.452 0.0982 69.46);
-  --evimesh-emphasis-danger: oklch(0.451 0.1602 27.18);
-  --evimesh-emphasis-info: oklch(0.43 0.1002 241.04);
-  --evimesh-emphasis-neutral: oklch(0.386 0.0243 253.12);
-  --evimesh-emphasis-foreground: oklch(0.972 0.0034 247.86);
-  --evimesh-dag-positive: oklch(0.681 0.1105 151.85);
-  --evimesh-dag-negative: oklch(0.661 0.1699 27.32);
-  --evimesh-dag-qualify: oklch(0.74 0.1198 74.7);
-  --evimesh-dag-structural: oklch(0.679 0.1004 240.41);
-  --evimesh-dag-lineage: oklch(0.72 0.0135 255.53);
+  /* Dark primitive ramp. Semantic names below remain stable while the
+   * palette changes; component tokens continue to consume semantics. */
+  --evimesh-p-neutral-0: oklch(0.207 0.0227 257.29);
+  --evimesh-p-neutral-50: oklch(0.161 0.0151 253.14);
+  --evimesh-p-neutral-100: oklch(0.261 0.0261 255.75);
+  --evimesh-p-neutral-150: oklch(0.261 0.0261 255.75);
+  --evimesh-p-neutral-200: oklch(0.261 0.0261 255.75);
+  --evimesh-p-neutral-300: oklch(0.386 0.0243 253.12);
+  --evimesh-p-neutral-400: oklch(0.72 0.0135 255.53);
+  --evimesh-p-neutral-500: oklch(0.72 0.0135 255.53);
+  --evimesh-p-neutral-600: oklch(0.865 0.0099 252.82);
+  --evimesh-p-neutral-700: oklch(0.957 0.0046 258.32);
+  --evimesh-p-neutral-900: oklch(0.972 0.0034 247.86);
+  --evimesh-p-neutral-on-emphasis: oklch(0.972 0.0034 247.86);
+  --evimesh-p-brand-100: oklch(0.356 0.1099 257.78);
+  --evimesh-p-brand-200: oklch(0.435 0.1398 257.88);
+  --evimesh-p-brand-300: oklch(0.87 0.0552 257.74);
+  --evimesh-p-brand-400: oklch(0.721 0.1294 257.8);
+  --evimesh-p-brand-500: oklch(0.511 0.1591 257.75);
+  --evimesh-p-success-100: oklch(0.341 0.0751 152.13);
+  --evimesh-p-success-200: oklch(0.49 0.1204 151.92);
+  --evimesh-p-success-300: oklch(0.855 0.0801 152.31);
+  --evimesh-p-success-400: oklch(0.681 0.1105 151.85);
+  --evimesh-p-success-500: oklch(0.49 0.1204 151.92);
+  --evimesh-p-warning-100: oklch(0.371 0.0792 72.66);
+  --evimesh-p-warning-200: oklch(0.452 0.0982 69.46);
+  --evimesh-p-warning-300: oklch(0.87 0.1003 75.08);
+  --evimesh-p-warning-400: oklch(0.74 0.1198 74.7);
+  --evimesh-p-warning-500: oklch(0.452 0.0982 69.46);
+  --evimesh-p-danger-100: oklch(0.369 0.1204 26.92);
+  --evimesh-p-danger-200: oklch(0.451 0.1602 27.18);
+  --evimesh-p-danger-300: oklch(0.88 0.0603 27.21);
+  --evimesh-p-danger-400: oklch(0.661 0.1699 27.32);
+  --evimesh-p-danger-500: oklch(0.52 0.1902 27);
+  --evimesh-p-info-100: oklch(0.354 0.0802 240.18);
+  --evimesh-p-info-200: oklch(0.43 0.1002 241.04);
+  --evimesh-p-info-300: oklch(0.874 0.0649 240.88);
+  --evimesh-p-info-400: oklch(0.679 0.1004 240.41);
+  --evimesh-p-info-500: oklch(0.5 0.1098 239.95);
+  --evimesh-background: var(--evimesh-p-neutral-50);
+  --evimesh-foreground: var(--evimesh-p-neutral-900);
+  --evimesh-card: var(--evimesh-p-neutral-0);
+  --evimesh-card-foreground: var(--evimesh-p-neutral-900);
+  --evimesh-muted: var(--evimesh-p-neutral-100);
+  --evimesh-muted-foreground: var(--evimesh-p-neutral-400);
+  --evimesh-secondary: var(--evimesh-p-neutral-150);
+  --evimesh-secondary-foreground: var(--evimesh-p-neutral-700);
+  --evimesh-accent: var(--evimesh-p-brand-100);
+  --evimesh-accent-foreground: var(--evimesh-p-brand-300);
+  --evimesh-border: var(--evimesh-p-neutral-200);
+  --evimesh-primary: var(--evimesh-p-brand-500);
+  --evimesh-primary-foreground: var(--evimesh-p-neutral-on-emphasis);
+  --evimesh-destructive: var(--evimesh-p-danger-500);
+  --evimesh-destructive-foreground: var(--evimesh-p-neutral-on-emphasis);
+  --evimesh-success: var(--evimesh-p-success-500);
+  --evimesh-success-foreground: var(--evimesh-p-neutral-on-emphasis);
+  --evimesh-warning: var(--evimesh-p-warning-500);
+  --evimesh-warning-foreground: var(--evimesh-p-neutral-on-emphasis);
+  --evimesh-info: var(--evimesh-p-info-500);
+  --evimesh-info-foreground: var(--evimesh-p-neutral-on-emphasis);
+  --evimesh-focus: var(--evimesh-p-brand-400);
+  --evimesh-ring: var(--evimesh-p-brand-400);
+  --evimesh-status-neutral-bg: var(--evimesh-p-neutral-150);
+  --evimesh-status-neutral-fg: var(--evimesh-p-neutral-600);
+  --evimesh-status-neutral-border: var(--evimesh-p-neutral-300);
+  --evimesh-status-accent-bg: var(--evimesh-p-brand-100);
+  --evimesh-status-accent-fg: var(--evimesh-p-brand-300);
+  --evimesh-status-accent-border: var(--evimesh-p-brand-200);
+  --evimesh-status-success-bg: var(--evimesh-p-success-100);
+  --evimesh-status-success-fg: var(--evimesh-p-success-300);
+  --evimesh-status-success-border: var(--evimesh-p-success-200);
+  --evimesh-status-warning-bg: var(--evimesh-p-warning-100);
+  --evimesh-status-warning-fg: var(--evimesh-p-warning-300);
+  --evimesh-status-warning-border: var(--evimesh-p-warning-200);
+  --evimesh-status-danger-bg: var(--evimesh-p-danger-100);
+  --evimesh-status-danger-fg: var(--evimesh-p-danger-300);
+  --evimesh-status-danger-border: var(--evimesh-p-danger-200);
+  --evimesh-status-info-bg: var(--evimesh-p-info-100);
+  --evimesh-status-info-fg: var(--evimesh-p-info-300);
+  --evimesh-status-info-border: var(--evimesh-p-info-200);
+  --evimesh-emphasis-success: var(--evimesh-p-success-500);
+  --evimesh-emphasis-warning: var(--evimesh-p-warning-500);
+  --evimesh-emphasis-danger: var(--evimesh-p-danger-500);
+  --evimesh-emphasis-info: var(--evimesh-p-info-500);
+  --evimesh-emphasis-neutral: var(--evimesh-p-neutral-300);
+  --evimesh-emphasis-foreground: var(--evimesh-p-neutral-on-emphasis);
+  --evimesh-dag-positive: var(--evimesh-p-success-400);
+  --evimesh-dag-negative: var(--evimesh-p-danger-400);
+  --evimesh-dag-qualify: var(--evimesh-p-warning-400);
+  --evimesh-dag-structural: var(--evimesh-p-info-400);
+  --evimesh-dag-lineage: var(--evimesh-p-neutral-500);
 }
 
 /* System dark, unless the user forced light. Keep in sync with the block above. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --evimesh-background: oklch(0.161 0.0151 253.14);
-    --evimesh-foreground: oklch(0.972 0.0034 247.86);
-    --evimesh-card: oklch(0.207 0.0227 257.29);
-    --evimesh-card-foreground: oklch(0.972 0.0034 247.86);
-    --evimesh-muted: oklch(0.261 0.0261 255.75);
-    --evimesh-muted-foreground: oklch(0.72 0.0135 255.53);
-    --evimesh-secondary: oklch(0.261 0.0261 255.75);
-    --evimesh-secondary-foreground: oklch(0.957 0.0046 258.32);
-    --evimesh-accent: oklch(0.356 0.1099 257.78);
-    --evimesh-accent-foreground: oklch(0.87 0.0552 257.74);
-    --evimesh-border: oklch(0.261 0.0261 255.75);
-    --evimesh-primary: oklch(0.511 0.1591 257.75);
-    --evimesh-primary-foreground: oklch(1 0 0);
-    --evimesh-destructive: oklch(0.52 0.1902 27);
-    --evimesh-destructive-foreground: oklch(1 0 0);
-    --evimesh-success: oklch(0.49 0.1204 151.92);
-    --evimesh-success-foreground: oklch(1 0 0);
-    --evimesh-warning: oklch(0.531 0.1153 69.71);
-    --evimesh-warning-foreground: oklch(1 0 0);
-    --evimesh-info: oklch(0.5 0.1098 239.95);
-    --evimesh-info-foreground: oklch(1 0 0);
-    --evimesh-focus: oklch(0.721 0.1294 257.8);
-    --evimesh-ring: oklch(0.721 0.1294 257.8);
-    --evimesh-status-neutral-bg: oklch(0.261 0.0261 255.75);
-    --evimesh-status-neutral-fg: oklch(0.865 0.0099 252.82);
-    --evimesh-status-neutral-border: oklch(0.386 0.0243 253.12);
-    --evimesh-status-accent-bg: oklch(0.356 0.1099 257.78);
-    --evimesh-status-accent-fg: oklch(0.87 0.0552 257.74);
-    --evimesh-status-accent-border: oklch(0.435 0.1398 257.88);
-    --evimesh-status-success-bg: oklch(0.341 0.0751 152.13);
-    --evimesh-status-success-fg: oklch(0.855 0.0801 152.31);
-    --evimesh-status-success-border: oklch(0.49 0.1204 151.92);
-    --evimesh-status-warning-bg: oklch(0.371 0.0792 72.66);
-    --evimesh-status-warning-fg: oklch(0.87 0.1003 75.08);
-    --evimesh-status-warning-border: oklch(0.452 0.0982 69.46);
-    --evimesh-status-danger-bg: oklch(0.369 0.1204 26.92);
-    --evimesh-status-danger-fg: oklch(0.88 0.0603 27.21);
-    --evimesh-status-danger-border: oklch(0.451 0.1602 27.18);
-    --evimesh-status-info-bg: oklch(0.354 0.0802 240.18);
-    --evimesh-status-info-fg: oklch(0.874 0.0649 240.88);
-    --evimesh-status-info-border: oklch(0.43 0.1002 241.04);
-    --evimesh-emphasis-success: oklch(0.42 0.1003 151.93);
-    --evimesh-emphasis-warning: oklch(0.452 0.0982 69.46);
-    --evimesh-emphasis-danger: oklch(0.451 0.1602 27.18);
-    --evimesh-emphasis-info: oklch(0.43 0.1002 241.04);
-    --evimesh-emphasis-neutral: oklch(0.386 0.0243 253.12);
-    --evimesh-emphasis-foreground: oklch(0.972 0.0034 247.86);
-    --evimesh-dag-positive: oklch(0.681 0.1105 151.85);
-    --evimesh-dag-negative: oklch(0.661 0.1699 27.32);
-    --evimesh-dag-qualify: oklch(0.74 0.1198 74.7);
-    --evimesh-dag-structural: oklch(0.679 0.1004 240.41);
-    --evimesh-dag-lineage: oklch(0.72 0.0135 255.53);
+    /* Keep the system-dark path identical to the manual dark path. */
+    --evimesh-p-neutral-0: oklch(0.207 0.0227 257.29);
+    --evimesh-p-neutral-50: oklch(0.161 0.0151 253.14);
+    --evimesh-p-neutral-100: oklch(0.261 0.0261 255.75);
+    --evimesh-p-neutral-150: oklch(0.261 0.0261 255.75);
+    --evimesh-p-neutral-200: oklch(0.261 0.0261 255.75);
+    --evimesh-p-neutral-300: oklch(0.386 0.0243 253.12);
+    --evimesh-p-neutral-400: oklch(0.72 0.0135 255.53);
+    --evimesh-p-neutral-500: oklch(0.72 0.0135 255.53);
+    --evimesh-p-neutral-600: oklch(0.865 0.0099 252.82);
+    --evimesh-p-neutral-700: oklch(0.957 0.0046 258.32);
+    --evimesh-p-neutral-900: oklch(0.972 0.0034 247.86);
+    --evimesh-p-neutral-on-emphasis: oklch(0.972 0.0034 247.86);
+    --evimesh-p-brand-100: oklch(0.356 0.1099 257.78);
+    --evimesh-p-brand-200: oklch(0.435 0.1398 257.88);
+    --evimesh-p-brand-300: oklch(0.87 0.0552 257.74);
+    --evimesh-p-brand-400: oklch(0.721 0.1294 257.8);
+    --evimesh-p-brand-500: oklch(0.511 0.1591 257.75);
+    --evimesh-p-success-100: oklch(0.341 0.0751 152.13);
+    --evimesh-p-success-200: oklch(0.49 0.1204 151.92);
+    --evimesh-p-success-300: oklch(0.855 0.0801 152.31);
+    --evimesh-p-success-400: oklch(0.681 0.1105 151.85);
+    --evimesh-p-success-500: oklch(0.49 0.1204 151.92);
+    --evimesh-p-warning-100: oklch(0.371 0.0792 72.66);
+    --evimesh-p-warning-200: oklch(0.452 0.0982 69.46);
+    --evimesh-p-warning-300: oklch(0.87 0.1003 75.08);
+    --evimesh-p-warning-400: oklch(0.74 0.1198 74.7);
+    --evimesh-p-warning-500: oklch(0.452 0.0982 69.46);
+    --evimesh-p-danger-100: oklch(0.369 0.1204 26.92);
+    --evimesh-p-danger-200: oklch(0.451 0.1602 27.18);
+    --evimesh-p-danger-300: oklch(0.88 0.0603 27.21);
+    --evimesh-p-danger-400: oklch(0.661 0.1699 27.32);
+    --evimesh-p-danger-500: oklch(0.52 0.1902 27);
+    --evimesh-p-info-100: oklch(0.354 0.0802 240.18);
+    --evimesh-p-info-200: oklch(0.43 0.1002 241.04);
+    --evimesh-p-info-300: oklch(0.874 0.0649 240.88);
+    --evimesh-p-info-400: oklch(0.679 0.1004 240.41);
+    --evimesh-p-info-500: oklch(0.5 0.1098 239.95);
+    --evimesh-background: var(--evimesh-p-neutral-50);
+    --evimesh-foreground: var(--evimesh-p-neutral-900);
+    --evimesh-card: var(--evimesh-p-neutral-0);
+    --evimesh-card-foreground: var(--evimesh-p-neutral-900);
+    --evimesh-muted: var(--evimesh-p-neutral-100);
+    --evimesh-muted-foreground: var(--evimesh-p-neutral-400);
+    --evimesh-secondary: var(--evimesh-p-neutral-150);
+    --evimesh-secondary-foreground: var(--evimesh-p-neutral-700);
+    --evimesh-accent: var(--evimesh-p-brand-100);
+    --evimesh-accent-foreground: var(--evimesh-p-brand-300);
+    --evimesh-border: var(--evimesh-p-neutral-200);
+    --evimesh-primary: var(--evimesh-p-brand-500);
+    --evimesh-primary-foreground: var(--evimesh-p-neutral-on-emphasis);
+    --evimesh-destructive: var(--evimesh-p-danger-500);
+    --evimesh-destructive-foreground: var(--evimesh-p-neutral-on-emphasis);
+    --evimesh-success: var(--evimesh-p-success-500);
+    --evimesh-success-foreground: var(--evimesh-p-neutral-on-emphasis);
+    --evimesh-warning: var(--evimesh-p-warning-500);
+    --evimesh-warning-foreground: var(--evimesh-p-neutral-on-emphasis);
+    --evimesh-info: var(--evimesh-p-info-500);
+    --evimesh-info-foreground: var(--evimesh-p-neutral-on-emphasis);
+    --evimesh-focus: var(--evimesh-p-brand-400);
+    --evimesh-ring: var(--evimesh-p-brand-400);
+    --evimesh-status-neutral-bg: var(--evimesh-p-neutral-150);
+    --evimesh-status-neutral-fg: var(--evimesh-p-neutral-600);
+    --evimesh-status-neutral-border: var(--evimesh-p-neutral-300);
+    --evimesh-status-accent-bg: var(--evimesh-p-brand-100);
+    --evimesh-status-accent-fg: var(--evimesh-p-brand-300);
+    --evimesh-status-accent-border: var(--evimesh-p-brand-200);
+    --evimesh-status-success-bg: var(--evimesh-p-success-100);
+    --evimesh-status-success-fg: var(--evimesh-p-success-300);
+    --evimesh-status-success-border: var(--evimesh-p-success-200);
+    --evimesh-status-warning-bg: var(--evimesh-p-warning-100);
+    --evimesh-status-warning-fg: var(--evimesh-p-warning-300);
+    --evimesh-status-warning-border: var(--evimesh-p-warning-200);
+    --evimesh-status-danger-bg: var(--evimesh-p-danger-100);
+    --evimesh-status-danger-fg: var(--evimesh-p-danger-300);
+    --evimesh-status-danger-border: var(--evimesh-p-danger-200);
+    --evimesh-status-info-bg: var(--evimesh-p-info-100);
+    --evimesh-status-info-fg: var(--evimesh-p-info-300);
+    --evimesh-status-info-border: var(--evimesh-p-info-200);
+    --evimesh-emphasis-success: var(--evimesh-p-success-500);
+    --evimesh-emphasis-warning: var(--evimesh-p-warning-500);
+    --evimesh-emphasis-danger: var(--evimesh-p-danger-500);
+    --evimesh-emphasis-info: var(--evimesh-p-info-500);
+    --evimesh-emphasis-neutral: var(--evimesh-p-neutral-300);
+    --evimesh-emphasis-foreground: var(--evimesh-p-neutral-on-emphasis);
+    --evimesh-dag-positive: var(--evimesh-p-success-400);
+    --evimesh-dag-negative: var(--evimesh-p-danger-400);
+    --evimesh-dag-qualify: var(--evimesh-p-warning-400);
+    --evimesh-dag-structural: var(--evimesh-p-info-400);
+    --evimesh-dag-lineage: var(--evimesh-p-neutral-500);
   }
 }
 
@@ -313,6 +450,44 @@ body {
 .tabular-nums {
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
+}
+
+/* Reusable design-book blocks. Layout utilities may compose these blocks,
+ * but the reading, attribution, stream, role, and stepper semantics remain
+ * stable across pages. */
+.prose-research {
+  max-width: 65ch;
+  color: var(--evimesh-foreground);
+  font-family: var(--evimesh-font-serif);
+  font-size: 1rem;
+  line-height: 1.7;
+}
+
+.claim-statement {
+  color: var(--evimesh-foreground);
+  font-family: var(--evimesh-font-serif);
+}
+
+.attr {
+  color: var(--evimesh-foreground);
+}
+
+.attr__via {
+  color: var(--evimesh-muted-foreground);
+}
+
+.changeitem {
+  border-bottom: 1px solid var(--evimesh-border);
+}
+
+.rolebar {
+  color: var(--evimesh-muted-foreground);
+}
+
+.stepper {
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 
 /* Reduced motion (design book 04 §6): every effect degrades to an instant

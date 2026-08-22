@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getRun, listRuns, RunQueryError } from '../src/run-query.mjs';
+import { canonicalRunArtifactRefs, getRun, listRuns, RunQueryError } from '../src/run-query.mjs';
 
 const runs = [
   { runId: 'run_2', startedAt: '2026-01-02T00:00:00.000Z' },
@@ -15,17 +15,58 @@ test('lists runs with filters and stable pagination', async () => {
   assert.ok(page.nextCursor);
 });
 
-test('returns a run with artifact inputs and outputs', async () => {
+test('returns a run with canonically ordered artifact inputs and outputs', async () => {
+  const unorderedInputs = [
+    { artifactId: 'input-z', artifactRevision: 1 },
+    { artifactId: 'input-shared', artifactRevision: 2 },
+    { artifactId: 'input-a', artifactRevision: 1 },
+    { artifactId: 'input-shared', artifactRevision: 10 },
+  ];
+  const unorderedOutputs = [
+    { artifactId: 'output-shared', artifactRevision: 2 },
+    { artifactId: 'output-shared', artifactRevision: 10 },
+  ];
   const repository = {
     getRun: async (runId) => ({ runId }),
-    listRunInputs: async () => [{ artifactId: 'input', artifactRevision: 1 }],
-    listRunOutputs: async () => [{ artifactId: 'output', artifactRevision: 2 }],
+    listRunInputs: async () => unorderedInputs,
+    listRunOutputs: async () => unorderedOutputs,
   };
   assert.deepEqual(await getRun({ repository, runId: ' run_1 ' }), {
     run: { runId: 'run_1' },
-    inputs: [{ artifactId: 'input', artifactRevision: 1 }],
-    outputs: [{ artifactId: 'output', artifactRevision: 2 }],
+    inputs: [
+      { artifactId: 'input-a', artifactRevision: 1 },
+      { artifactId: 'input-shared', artifactRevision: 10 },
+      { artifactId: 'input-shared', artifactRevision: 2 },
+      { artifactId: 'input-z', artifactRevision: 1 },
+    ],
+    outputs: [
+      { artifactId: 'output-shared', artifactRevision: 10 },
+      { artifactId: 'output-shared', artifactRevision: 2 },
+    ],
   });
+  assert.deepEqual(unorderedInputs.map((ref) => `${ref.artifactId}@${ref.artifactRevision}`), [
+    'input-z@1', 'input-shared@2', 'input-a@1', 'input-shared@10',
+  ], 'canonical sorting must not mutate repository results');
+  for (const invalid of [null, {}, 'artifact-a@1']) {
+    assert.throws(
+      () => canonicalRunArtifactRefs(invalid, 'inputs'),
+      (error) => error instanceof RunQueryError && error.code === 'RUN_ARTIFACT_REFS_INVALID' && error.status === 400,
+    );
+  }
+  for (const invalidEntry of [
+    null,
+    [],
+    'artifact-a@1',
+    {},
+    { artifactId: ' artifact-a', artifactRevision: 1 },
+    { artifactId: 'artifact-a', artifactRevision: 0 },
+    { artifactId: 'artifact-a', artifactRevision: 1.5 },
+  ]) {
+    assert.throws(
+      () => canonicalRunArtifactRefs([invalidEntry, { artifactId: 'artifact-valid', artifactRevision: 1 }], 'inputs'),
+      (error) => error instanceof RunQueryError && error.code === 'RUN_ARTIFACT_REFS_INVALID' && error.status === 400,
+    );
+  }
 });
 
 test('rejects invalid or missing run queries', async () => {

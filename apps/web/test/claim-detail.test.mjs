@@ -13,13 +13,21 @@ test("claim detail keeps the full section hierarchy", () => {
   assert.match(source, /statusPolicy\.allowedTransitions/);
 });
 
-test("claim detail keeps the dependency graph with direction switching", () => {
+test("claim detail keeps the relation graph with direction switching", () => {
   assert.match(source, /import \{ ClaimDag \}/);
   assert.match(source, /<ClaimDag elements=\{dagElements\} \/>/);
-  assert.match(source, /Claim dependency graph/);
+  assert.match(source, /Claim relation graph/);
   assert.match(source, /direction=\$\{direction\}/);
   assert.match(source, /Upstream/);
   assert.match(source, /Downstream/);
+  assert.match(source, /source: edge\.sourceClaimId/);
+  assert.match(source, /target: edge\.targetClaimId/);
+  assert.match(source, /sourceId = edge\.sourceClaimId/);
+  assert.match(source, /targetId = edge\.targetClaimId/);
+  assert.match(source, /targetId === claim\.claimId \? claim/);
+  assert.match(source, /map\(\(\{ sourceId, targetId, relation, state, key \}\)/);
+  assert.match(source, /<span>Source<\/span><span>Relation<\/span><span>Target<\/span>/);
+  assert.match(source, /flex min-w-0 items-center gap-2/);
 });
 
 test("claim detail renders on the page template with recovery", () => {

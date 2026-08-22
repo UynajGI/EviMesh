@@ -4,7 +4,7 @@ export class ChallengeImpactWorkerError extends Error {
 
 /** Compute the complete, stable downstream Claim set affected by an upheld Challenge. */
 export async function calculateChallengeImpactJob({ repository, challengeId, challengeRevision } = {}) {
-  if (!repository || typeof repository.getCurrentChallengeRevision !== 'function' || typeof repository.getClaimDownstreamGraph !== 'function') throw new ChallengeImpactWorkerError('repository challenge impact methods are required');
+  if (!repository || typeof repository.getCurrentChallengeRevision !== 'function' || typeof repository.listDirectDependentClaimIds !== 'function') throw new ChallengeImpactWorkerError('repository challenge impact methods are required');
   if (typeof challengeId !== 'string' || !challengeId.trim()) throw new ChallengeImpactWorkerError('challenge id must be a non-empty string');
   if (!Number.isInteger(challengeRevision) || challengeRevision < 1) throw new ChallengeImpactWorkerError('challenge revision must be a positive integer');
   const revision = await repository.getCurrentChallengeRevision(challengeId.trim());
@@ -12,15 +12,15 @@ export async function calculateChallengeImpactJob({ repository, challengeId, cha
   if (revision.state !== 'upheld') return Object.freeze({ challengeId: challengeId.trim(), challengeRevision, impactedClaimIds: Object.freeze([]) });
   const identifiers = new Set([revision.targetClaimId]);
   const pending = [revision.targetClaimId];
-  // The graph adapter is intentionally bounded. Re-querying each discovered
-  // node exhausts an acyclic graph without silently truncating long chains.
+  // Dependency impact is intentionally read from the unpruned relation index,
+  // never from the presentation graph whose mixed relation edges may be pruned.
   while (pending.length > 0) {
     const claimId = pending.shift();
-    const nodes = await repository.getClaimDownstreamGraph({ claimId, maxDepth: 32 });
-    for (const node of Array.isArray(nodes) ? nodes : []) {
-      if (typeof node.claimId !== 'string' || !node.claimId || identifiers.has(node.claimId)) continue;
-      identifiers.add(node.claimId);
-      pending.push(node.claimId);
+    const dependentIds = await repository.listDirectDependentClaimIds(claimId);
+    for (const dependentId of Array.isArray(dependentIds) ? dependentIds : []) {
+      if (typeof dependentId !== 'string' || !dependentId || identifiers.has(dependentId)) continue;
+      identifiers.add(dependentId);
+      pending.push(dependentId);
     }
   }
   return Object.freeze({ challengeId: challengeId.trim(), challengeRevision, impactedClaimIds: Object.freeze([...identifiers].sort()) });

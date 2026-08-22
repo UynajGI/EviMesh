@@ -89,13 +89,28 @@ test("publishes the current API route contract", () => {
 
 test("keeps the stable response shapes in the contract", () => {
   assert.deepEqual(document.components.schemas.HealthResponse.required, ["service", "status", "environment"]);
-  assert.deepEqual(document.components.schemas.AuthMeResponse.required, ["subject", "email"]);
+  assert.deepEqual(document.components.schemas.AuthMeResponse.required, ["subject", "email", "actorId", "signingKey"]);
   assert.deepEqual(document.components.schemas.PlatformPublicKeysResponse.required, ["active_key_id", "keys"]);
   assert.deepEqual(document.components.schemas.PlatformPublicKey.required, ["key_id", "algorithm", "public_key"]);
   assert.deepEqual(document.components.schemas.ContextBundleResponse.required, ["contextBundleId", "taskId", "taskRevision", "frontierSnapshotId", "mode", "manifest", "contentHash", "storageUri"]);
   assert.deepEqual(document.components.schemas.ErrorResponse.required, ["code", "message", "request_id"]);
   assert.equal(document.components.schemas.HealthResponse.properties.service.const, "evimesh-api-edge");
   assert.equal(document.components.schemas.HealthResponse.properties.status.const, "ok");
+  assert.match(document.components.schemas.CreateRunRequest.properties.signature.description, /ascending full artifactId@artifactRevision strings/);
+  assert.match(document.components.schemas.CreateRunRequest.properties.signature.description, /non-empty strings without leading or trailing whitespace/);
+  assert.match(document.components.schemas.CreateRunRequest.properties.signature.description, /Date\.toISOString/);
+  assert.ok(document.components.schemas.CreateRunRequest.required.includes("actorId"));
+  assert.ok(document.components.schemas.CreateRunRequest.required.includes("signatureEnvelope"));
+  assert.ok(document.components.schemas.CreateRunRequest.required.includes("environment"));
+  assert.ok(document.components.schemas.CreateRunRequest.required.includes("hardware"));
+  assert.ok(document.components.schemas.CreateRunRequest.required.includes("randomSeed"));
+  assert.ok(document.components.schemas.CreateRunRequest.required.includes("networkAccess"));
+  assert.ok(!document.components.schemas.CreateRunRequest.required.includes("args"));
+  assert.match(document.components.schemas.CreateRunRequest.properties.actorId.description, /agent or service/);
+  assert.match(document.components.schemas.CreateRunRequest.properties.signatureEnvelope.description, /human publisher/);
+  assert.match(document.components.schemas.CreateClaimRequest.properties.draftedByActorId.description, /created_by/);
+  assert.match(document.components.schemas.CreateClaimRequest.properties.draftedByActorId.description, /signatureEnvelope/);
+  assert.match(document.components.schemas.CreateClaimRequest.properties.draftedByActorId.description, /agent or service/);
 });
 
 test("gives every operation a stable id and guards all write operations with bearer auth", () => {

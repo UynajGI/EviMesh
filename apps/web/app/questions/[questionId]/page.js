@@ -8,6 +8,7 @@ import { Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
 import { Alert } from '@/components/ui/feedback';
 import { Check, Eye, Flag, FlaskConical, History, Mountain, Share2 } from 'lucide-react';
 import { IdChip } from '@/components/ui/idchip';
+import { actorHref } from '@/components/attribution';
 import { hydrateEvidenceLinks, hydrateReceiptFindings, evidenceRelations } from '@/lib/hydrate';
 import { PageContainer, PageHeader } from '@/components/ui/page';
 import { useVisitRecord } from '@/lib/visit-history';
@@ -609,7 +610,7 @@ export default function QuestionDetailPage({ params }) {
                         {event.actorId ? (
                           <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
                             Contributed by
-                            <Link className="font-medium text-foreground hover:underline" href={`/contributors/${encodeURIComponent(event.actorId)}`}>{event.actorId}</Link>
+                            <Link className="font-medium text-foreground hover:underline" href={actorHref(event.actorId)}>{event.actorId}</Link>
                           </p>
                         ) : null}
                       </div>

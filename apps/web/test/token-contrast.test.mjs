@@ -17,12 +17,20 @@ function parseBlock(source, start) {
 
 function extractTokens(block) {
   const tokens = {};
-  const pattern = /--evimesh-([a-z-]+):\s*(oklch\([^)]+\)|[^;]+);/g;
+  const pattern = /--evimesh-([a-z0-9-]+):\s*(oklch\([^)]+\)|[^;]+);/g;
   let match;
   while ((match = pattern.exec(block)) !== null) {
     tokens[match[1]] = match[2].trim();
   }
   return tokens;
+}
+
+function resolveColor(tokens, name, seen = new Set()) {
+  assert.ok(tokens[name], `missing token --evimesh-${name}`);
+  assert.ok(!seen.has(name), `cyclic token reference at --evimesh-${name}`);
+  const next = new Set(seen).add(name);
+  const reference = /^var\(--evimesh-([a-z0-9-]+)\)$/.exec(tokens[name]);
+  return reference ? resolveColor(tokens, reference[1], next) : tokens[name];
 }
 
 function parseOklch(value) {
@@ -82,10 +90,21 @@ test("defines the complete semantic token set in both themes", () => {
   }
 });
 
+test("keeps primitive, semantic, and component token layers", () => {
+  const light = tokensFor("light");
+  const primitiveNames = Object.keys(light).filter((name) => name.startsWith("p-"));
+  const componentNames = Object.keys(light).filter((name) => name.startsWith("c-"));
+  assert.ok(primitiveNames.length >= 30, `expected primitive ramp, got ${primitiveNames.length}`);
+  assert.ok(componentNames.length >= 6, `expected component decisions, got ${componentNames.length}`);
+  assert.match(css, /--evimesh-background:\s*var\(--evimesh-p-/);
+  assert.match(css, /--evimesh-c-card-bg:\s*var\(--evimesh-card\)/);
+  assert.equal(resolveColor(light, "background"), light["p-neutral-50"]);
+});
+
 test("text pairs meet WCAG 2.2 AA contrast (4.5:1) in both themes", () => {
   for (const theme of ["light", "dark"]) {
     const tokens = tokensFor(theme);
-    const color = (name) => oklchToLinearRgb(parseOklch(tokens[name]));
+    const color = (name) => oklchToLinearRgb(parseOklch(resolveColor(tokens, name)));
     const pairs = [
       ["foreground", "background"],
       ["card-foreground", "card"],

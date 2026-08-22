@@ -108,7 +108,7 @@
     "/auth/me": {
       "get": {
         "operationId": "getAuthenticatedActor",
-        "summary": "Read the authenticated Supabase subject",
+        "summary": "Read the authenticated subject and Actor binding",
         "security": [
           {
             "bearerAuth": []
@@ -1701,7 +1701,7 @@
     "/claims/{claimId}/graph": {
       "get": {
         "operationId": "getClaimGraph",
-        "summary": "Read the bounded upstream or downstream dependency graph for one Claim",
+        "summary": "Read the bounded upstream or downstream typed relation graph for one Claim",
         "parameters": [
           {
             "name": "claimId",
@@ -1737,11 +1737,11 @@
         ],
         "responses": {
           "200": {
-            "description": "Claim dependency graph.",
+            "description": "Bounded Claim relation graph with typed edges.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ObjectResponse"
+                  "$ref": "#/components/schemas/ClaimGraphResponse"
                 }
               }
             }
@@ -2931,6 +2931,19 @@
             }
           },
           {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "asc"
+            }
+          },
+          {
             "$ref": "#/components/parameters/LimitParam"
           },
           {
@@ -3553,7 +3566,9 @@
         "type": "object",
         "required": [
           "subject",
-          "email"
+          "email",
+          "actorId",
+          "signingKey"
         ],
         "properties": {
           "subject": {
@@ -3565,6 +3580,51 @@
               "string",
               "null"
             ]
+          },
+          "actorId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "actorType": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "human",
+              "agent",
+              "organization",
+              "service",
+              "maintainer",
+              "witness",
+              null
+            ]
+          },
+          "signingKey": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "required": [
+              "keyId",
+              "algorithm",
+              "publicKey"
+            ],
+            "properties": {
+              "keyId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "algorithm": {
+                "type": "string",
+                "const": "Ed25519"
+              },
+              "publicKey": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "additionalProperties": false
           }
         },
         "additionalProperties": false
@@ -3945,6 +4005,128 @@
           }
         }
       },
+      "ClaimGraphResponse": {
+        "type": "object",
+        "required": [
+          "rootClaimId",
+          "maxDepth",
+          "nodes",
+          "edges"
+        ],
+        "properties": {
+          "rootClaimId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "maxDepth": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 32
+          },
+          "nodes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "claimId",
+                "depth",
+                "path"
+              ],
+              "properties": {
+                "claimId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "depth": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "path": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "state": {
+                  "type": "string",
+                  "enum": [
+                    "hypothesis",
+                    "candidate",
+                    "under_verification",
+                    "provisionally_accepted",
+                    "accepted",
+                    "contested",
+                    "refuted",
+                    "superseded",
+                    "retracted",
+                    "dependency_tainted"
+                  ]
+                },
+                "dependencyTainted": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "edges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ClaimGraphEdge"
+            }
+          }
+        }
+      },
+      "ClaimGraphEdge": {
+        "type": "object",
+        "required": [
+          "sourceClaimId",
+          "targetClaimId",
+          "relationType",
+          "depth",
+          "path"
+        ],
+        "properties": {
+          "sourceClaimId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "targetClaimId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "relationType": {
+            "type": "string",
+            "enum": [
+              "depends_on",
+              "supports",
+              "refutes",
+              "qualifies",
+              "reproduces",
+              "extends",
+              "supersedes",
+              "contradicts",
+              "derived_from",
+              "uses_method",
+              "uses_dataset",
+              "implements",
+              "verifies",
+              "challenges"
+            ]
+          },
+          "depth": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "path": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      },
       "ObjectResponse": {
         "type": "object"
       },
@@ -4226,6 +4408,11 @@
               "string",
               "null"
             ]
+          },
+          "draftedByActorId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Stable Actor ID from the source Claim document's created_by field. When it differs from the authenticated publisher, the complete request including this field must be covered by signatureEnvelope and the Actor must be registered as an agent or service."
           },
           "statement": {
             "type": "string",
@@ -4519,8 +4706,12 @@
           "randomSeed",
           "startedAt",
           "endedAt",
+          "networkAccess",
           "exitCode",
-          "signature"
+          "actorId",
+          "signingKeyId",
+          "signature",
+          "signatureEnvelope"
         ],
         "properties": {
           "runId": {
@@ -4576,10 +4767,21 @@
           "exitCode": {
             "type": "integer"
           },
-          "signature": {
+          "actorId": {
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "description": "Registered agent or service Actor that executed and signed the srp.run.v1 receipt. This is distinct from the authenticated human publisher."
           },
+        "signingKeyId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Active Ed25519 key owned by the Run producer identified by actorId."
+        },
+        "signature": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Base64url Ed25519 signature over the canonical srp.run.v1 document without its signature field. Signed text fields must be non-empty strings without leading or trailing whitespace. ArtifactRevisionRef arrays use ascending full artifactId@artifactRevision strings, and timestamps use UTC ISO strings from Date.toISOString()."
+        },
           "inputs": {
             "type": "array",
             "items": {
@@ -4593,7 +4795,8 @@
             }
           },
           "signatureEnvelope": {
-            "$ref": "#/components/schemas/ClientSignatureEnvelope"
+            "$ref": "#/components/schemas/ClientSignatureEnvelope",
+            "description": "Mandatory outer signature over the exact CreateRunRequest payload, made by the authenticated registered human publisher. It does not replace or alter the Run producer's inner signature."
           }
         }
       },
@@ -4897,6 +5100,11 @@
             "description": "Owning human actor for agents."
           },
           "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "updatedAt": {
             "type": "string",
             "format": "date-time",
             "nullable": true

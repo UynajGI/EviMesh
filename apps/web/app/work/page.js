@@ -8,6 +8,7 @@ import {
 import { Card, CardContent, StatusBadge } from '@/components/ui/data';
 import { Alert, Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
 import { IdChip } from '@/components/ui/idchip';
+import { actorHref } from '@/components/attribution';
 import { PageContainer, PageHeader } from '@/components/ui/page';
 import { RoleBar, CONTRIBUTION_ROLES } from '@/components/role-bar';
 import { HandoffSheet } from '@/components/handoff-sheet';
@@ -299,7 +300,7 @@ export default function WorkPage() {
                   </div>
                   <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                     {claim.questionId ? <Link className="hover:text-foreground" href={`/questions/${claim.questionId}`}>question {claim.questionId}</Link> : null}
-                    {claim.createdBy ? <Link className="hover:text-foreground" href={`/contributors/${encodeURIComponent(claim.createdBy)}`}>by {claim.createdBy}</Link> : null}
+                    {claim.createdBy ? <Link className="hover:text-foreground" href={actorHref(claim.createdBy)}>by {claim.createdBy}</Link> : null}
                   </div>
                 </article>
               ))}

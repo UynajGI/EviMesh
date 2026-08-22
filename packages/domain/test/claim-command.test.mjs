@@ -21,6 +21,62 @@ test("creates a hypothesis Claim, first revision, and event atomically", async (
   assert.equal(result.revision.revision, 1);
   assert.equal(result.revision.statement, "The intervention improves recovery.");
   assert.equal(result.event.eventType, "claim.created");
+  assert.equal(Object.hasOwn(result.event.payload, "publisher_signature_envelope"), false);
+});
+
+test("keeps human ownership while atomically attributing an agent-authored draft", async () => {
+  const calls = [];
+  const publisherSignatureEnvelope = {
+    schema: "srp.client-signature-envelope.v1",
+    event_type: "claim.created",
+    payload: { claimId: "claim-1", draftedByActorId: "agent-1" },
+    nonce: "nonce-0123456789abcdef",
+    signing_bytes_hash: `sha256:${"b".repeat(64)}`,
+    signature: { algorithm: "Ed25519", key_id: "human-key", value: "publisher-signature" },
+  };
+  const repository = {
+    withTransaction: (callback) => callback(repository),
+    insertClaim: async (value) => { calls.push(["claim", value]); return value; },
+    insertClaimRevision: async (value) => { calls.push(["revision", value]); return value; },
+    appendResearchEvent: async (value) => { calls.push(["event", value]); return value; },
+    insertContributionStatement: async (value) => { calls.push(["contribution", value]); return value; },
+    insertContributionEdge: async (value) => { calls.push(["edge", value]); return value; },
+  };
+  const result = await createClaim({
+    repository, actorId: "human-1", draftedByActorId: "agent-1", publisherSignatureEnvelope, actorRole: "maintainer", claimId: "claim-1",
+    statement: "The intervention improves recovery.", scope: { population: "adults" }, falsification: { threshold: 0 },
+    eventFactory: async ({ eventType, payload }) => ({ eventId: "event-16", eventType, payload }),
+  });
+  assert.deepEqual(calls.map(([kind]) => kind), ["claim", "revision", "event", "contribution", "edge"]);
+  assert.equal(result.claim.createdBy, "human-1");
+  assert.equal(result.revision.createdBy, "human-1");
+  assert.equal(result.event.payload.signer_actor_id, "human-1");
+  assert.equal(result.event.payload.drafted_by_actor_id, "agent-1");
+  assert.deepEqual(result.event.payload.publisher_signature_envelope, publisherSignatureEnvelope);
+  publisherSignatureEnvelope.payload.claimId = "tampered-after-call";
+  assert.equal(result.event.payload.publisher_signature_envelope.payload.claimId, "claim-1");
+  assert.match(result.contribution.statementId, /^statement_[a-f0-9]{64}$/);
+  assert.deepEqual({ ...result.contribution, statementId: "stable" }, {
+    statementId: "stable", eventId: "event-16", actorId: "agent-1", role: "originator", description: "Drafted Claim claim-1@1",
+  });
+  assert.deepEqual(result.contributionEdge, {
+    statementId: result.contribution.statementId, edgeType: "produced", objectType: "claim", objectId: "claim-1", objectRevision: 1,
+  });
+});
+
+test("does not duplicate contribution attribution when drafter and signer match", async () => {
+  const repository = {
+    withTransaction: (callback) => callback(repository),
+    insertClaim: async (value) => value,
+    insertClaimRevision: async (value) => value,
+    appendResearchEvent: async (value) => value,
+  };
+  const result = await createClaim({
+    repository, actorId: "human-1", draftedByActorId: "human-1", actorRole: "maintainer", claimId: "claim-1",
+    statement: "Statement", scope: [], falsification: [], eventFactory: async ({ eventType, payload }) => ({ eventId: "event-1", eventType, payload }),
+  });
+  assert.equal(result.contribution, undefined);
+  assert.equal(result.claim.createdBy, "human-1");
 });
 
 test("rejects malformed Claim content before writing", async () => {
@@ -32,6 +88,14 @@ test("rejects malformed Claim content before writing", async () => {
   await assert.rejects(
     createClaim({ repository, actorId: "actor-1", actorRole: "maintainer", claimId: "claim-1", statement: " ", scope: {}, falsification: {}, eventFactory: () => ({}) }),
     /claim statement must be a non-empty string/,
+  );
+  await assert.rejects(
+    createClaim({ repository, actorId: "actor-1", actorRole: "maintainer", claimId: "claim-1", statement: "Statement", scope: {}, falsification: {}, publisherSignatureEnvelope: { payload: undefined }, eventFactory: () => ({}) }),
+    /publisher signature envelope is not JSON-compatible/,
+  );
+  await assert.rejects(
+    createClaim({ repository, actorId: "human-1", draftedByActorId: "agent-1", actorRole: "maintainer", claimId: "claim-1", statement: "Statement", scope: {}, falsification: {}, eventFactory: () => ({}) }),
+    (error) => error.code === "CLAIM_DRAFTER_SIGNATURE_REQUIRED",
   );
   assert.equal(called, false);
 });

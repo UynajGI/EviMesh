@@ -3,7 +3,7 @@ import { dirname, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import { buildClient } from "./client.mjs";
 import { flagString, flagBool, requirePositional } from "./args.mjs";
-import { claimTemplate, runTemplate, readDocument, validateDocument, submissionRoute } from "./documents.mjs";
+import { claimTemplate, runTemplate, readDocument, validateDocument, assertCanonicalRunDocument, submissionRoute } from "./documents.mjs";
 import { signSubmission, createNonce } from "./signing.mjs";
 import { sha256Bytes } from "../../artifact/src/hash.mjs";
 import { createObjectId } from "../../protocol/src/uuidv7.mjs";
@@ -67,6 +67,7 @@ export async function submit({ flags, output, positionals, env = process.env, fe
   const path = requirePositional(positionals, 0, "file");
   const document = readDocument(path);
   validateDocument(document);
+  if (document.schema === "srp.run.v1") assertCanonicalRunDocument(document);
   const route = submissionRoute(document);
   if (!route) throw new Error(`submission is not supported for schema ${document.schema}`);
   const body = route.toApi(document);

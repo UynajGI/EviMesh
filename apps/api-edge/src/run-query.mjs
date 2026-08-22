@@ -24,6 +24,28 @@ function requireRepository(repository, methods, message) {
   if (!repository || methods.some((method) => typeof repository[method] !== 'function')) throw new RunQueryError(message);
 }
 
+export function canonicalRunArtifactRefs(refs, field = 'run artifact refs') {
+  if (!Array.isArray(refs)) throw new RunQueryError(`${field} must be an array`, 'RUN_ARTIFACT_REFS_INVALID');
+  const canonicalRefs = refs.map((ref, index) => {
+    if (!ref || typeof ref !== 'object' || Array.isArray(ref)) {
+      throw new RunQueryError(`${field}[${index}] must be an artifact reference object`, 'RUN_ARTIFACT_REFS_INVALID');
+    }
+    if (typeof ref.artifactId !== 'string' || ref.artifactId.length === 0 || ref.artifactId.trim() !== ref.artifactId) {
+      throw new RunQueryError(`${field}[${index}].artifactId must be a non-empty string without leading or trailing whitespace`, 'RUN_ARTIFACT_REFS_INVALID');
+    }
+    if (!Number.isInteger(ref.artifactRevision) || ref.artifactRevision < 1) {
+      throw new RunQueryError(`${field}[${index}].artifactRevision must be a positive integer`, 'RUN_ARTIFACT_REFS_INVALID');
+    }
+    return ref;
+  });
+  const keyOf = (ref) => `${ref.artifactId}@${ref.artifactRevision}`;
+  return canonicalRefs.sort((left, right) => {
+    const leftKey = keyOf(left);
+    const rightKey = keyOf(right);
+    return leftKey < rightKey ? -1 : leftKey > rightKey ? 1 : 0;
+  });
+}
+
 export async function listRuns({ repository, taskId = null, actorId = null, limit = 20, cursor = null } = {}) {
   requireRepository(repository, ['listRuns'], 'repository listRuns is required');
   const runs = await repository.listRuns({ taskId: optionalFilter(taskId, 'task id'), actorId: optionalFilter(actorId, 'actor id') });
@@ -38,5 +60,5 @@ export async function getRun({ repository, runId } = {}) {
   const run = await repository.getRun(runId);
   if (!run) throw new RunQueryError('run not found', 'RUN_NOT_FOUND', 404);
   const [inputs, outputs] = await Promise.all([repository.listRunInputs(runId), repository.listRunOutputs(runId)]);
-  return { run, inputs: Array.isArray(inputs) ? inputs : [], outputs: Array.isArray(outputs) ? outputs : [] };
+  return { run, inputs: canonicalRunArtifactRefs(inputs), outputs: canonicalRunArtifactRefs(outputs) };
 }

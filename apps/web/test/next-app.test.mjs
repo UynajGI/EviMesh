@@ -101,11 +101,11 @@ test('provides configured-provider and email authentication from the sign-in pag
   assert.match(legacy, /redirect\('\/login'\)/);
 });
 
-test('renders a reusable Cytoscape Claim DAG component', async () => {
+test('renders a reusable React Flow Claim relation graph component', async () => {
   const [dag, verification] = await Promise.all([read('../components/claim-dag.js'), read('../app/verification/page.js')]);
   assert.match(dag, /from 'd3-dag'/);
   assert.match(dag, /<ReactFlow/);
-  assert.match(dag, /Claim dependency graph/);
+  assert.match(dag, /Claim relation graph/);
   assert.match(verification, /<ClaimDag elements=\{sampleElements\}/);
 });
 
@@ -264,11 +264,11 @@ test('renders Claim details with statement, scope, falsification, and revisions'
   assert.match(page, /currentRevision\.revision/);
 });
 
-test('renders a Cytoscape Claim DAG on the Claim detail page', async () => {
+test('renders a React Flow Claim relation graph on the Claim detail page', async () => {
   const page = await read('../app/claims/[claimId]/page.js');
   assert.match(page, /import \{ ClaimDag \}/);
   assert.match(page, /<ClaimDag elements=\{dagElements\} \/>/);
-  assert.match(page, /Claim dependency graph/);
+  assert.match(page, /Claim relation graph/);
 });
 
 test('supports upstream and downstream Claim graph switching', async () => {

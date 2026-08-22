@@ -35,6 +35,19 @@ export function normalizeRandomSeed(value) {
   }
 }
 
+function clonePublisherSignatureEnvelope(value) {
+  if (value === null) return null;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new RunCommandError('publisher signature envelope must be a JSON object or null');
+  }
+  try {
+    return JSON.parse(canonicalJson(value));
+  } catch (error) {
+    if (error instanceof RunCommandError) throw error;
+    throw new RunCommandError(`publisher signature envelope is not JSON-compatible: ${error.message}`);
+  }
+}
+
 function artifactRefs(values, field) {
   if (!Array.isArray(values)) throw new RunCommandError(`${field} must be an array`);
   const rows = values.map((value) => ({ runId: null, artifactId: requiredText(value?.artifactId, `${field}.artifactId`), artifactRevision: Number.isInteger(value?.artifactRevision) && value.artifactRevision > 0 ? value.artifactRevision : (() => { throw new RunCommandError(`${field}.artifactRevision must be positive`); })() }));
@@ -60,33 +73,36 @@ async function assertVerifiedOutputArtifacts(transaction, rows) {
 }
 
 /** Persist a reproducibility Run and its immutable input/output artifact references. */
-export async function createRun({ repository, actorId, actorRole, runId, taskId, contextBundleId, sourceCode, container, command, args = [], environment, hardware, randomSeed, startedAt, endedAt, networkAccess = false, exitCode, signature, inputs = [], outputs = [], eventFactory } = {}) {
+export async function createRun({ repository, actorId, publisherActorId = actorId, publisherSignatureEnvelope = null, actorRole, runId, taskId, contextBundleId, sourceCode, container, command, args = [], environment, hardware, randomSeed, startedAt, endedAt, networkAccess = false, exitCode, signingKeyId, signature, inputs = [], outputs = [], eventFactory } = {}) {
   if (!repository || typeof repository.withTransaction !== 'function') throw new RunCommandError('repository withTransaction is required');
   for (const method of ['getArtifactRevision', 'getArtifactVerification', 'insertRun', 'insertRunInput', 'insertRunOutput', 'appendResearchEvent']) if (typeof repository[method] !== 'function') throw new RunCommandError(`repository ${method} is required`);
   actorId = requiredText(actorId, 'actor id');
+  publisherActorId = requiredText(publisherActorId, 'publisher actor id');
   runId = requiredText(runId, 'run id');
   taskId = requiredText(taskId, 'task id');
   contextBundleId = requiredText(contextBundleId, 'context bundle id');
   sourceCode = requiredText(sourceCode, 'source code');
   container = assertOciDigest(container);
   command = requiredText(command, 'command');
+  signingKeyId = requiredText(signingKeyId, 'signing key id');
   signature = requiredText(signature, 'signature');
   if (!Array.isArray(args)) throw new RunCommandError('args must be an array');
   if (environment === null || typeof environment !== 'object' || Array.isArray(environment)) throw new RunCommandError('environment must be a JSON object');
   if (hardware === null || typeof hardware !== 'object' || Array.isArray(hardware)) throw new RunCommandError('hardware must be a JSON object');
   const normalizedRandomSeed = normalizeRandomSeed(randomSeed);
+  const normalizedPublisherSignatureEnvelope = clonePublisherSignatureEnvelope(publisherSignatureEnvelope);
   if (!(startedAt instanceof Date) || !(endedAt instanceof Date) || Number.isNaN(startedAt.getTime()) || Number.isNaN(endedAt.getTime()) || endedAt < startedAt) throw new RunCommandError('run timestamps must be valid and ordered');
   if (typeof networkAccess !== 'boolean' || !Number.isInteger(exitCode)) throw new RunCommandError('network access and exit code are required');
   const inputRows = artifactRefs(inputs, 'inputs').map((row) => ({ ...row, runId }));
   const outputRows = artifactRefs(outputs, 'outputs').map((row) => ({ ...row, runId }));
   if (typeof eventFactory !== 'function') throw new RunCommandError('eventFactory is required');
   assertProjectRoleForAction({ actorRole, requiredRole: 'contributor' });
-  const run = { runId, taskId, contextBundleId, sourceCode, container, command, args, environment, hardware, randomSeed: normalizedRandomSeed.value, startedAt, endedAt, networkAccess, exitCode, createdBy: actorId, signature };
+  const run = { runId, taskId, contextBundleId, sourceCode, container, command, args, environment, hardware, randomSeed: normalizedRandomSeed.value, startedAt, endedAt, networkAccess, exitCode, createdBy: actorId, signingKeyId, signature };
   return repository.withTransaction(async (transaction) => {
     await assertArtifactRevisions(transaction, inputRows, 'inputs');
     await assertArtifactRevisions(transaction, outputRows, 'outputs');
     await assertVerifiedOutputArtifacts(transaction, outputRows);
-    const event = await eventFactory({ eventType: 'run.created', payload: { entity_type: 'run', run_id: runId, task_id: taskId, actor_id: actorId, input_count: inputRows.length, output_count: outputRows.length, random_seed_semantic_hash: normalizedRandomSeed.semanticHash } });
+    const event = await eventFactory({ eventType: 'run.created', payload: { entity_type: 'run', run_id: runId, task_id: taskId, actor_id: publisherActorId, signer_actor_id: publisherActorId, publisher_actor_id: publisherActorId, run_actor_id: actorId, producer_actor_id: actorId, signing_key_id: signingKeyId, publisher_signature_envelope: normalizedPublisherSignatureEnvelope, input_count: inputRows.length, output_count: outputRows.length, random_seed_semantic_hash: normalizedRandomSeed.semanticHash } });
     if (!event || typeof event !== 'object') throw new RunCommandError('eventFactory must return an event object');
     return {
       run: await transaction.insertRun(run) ?? run,

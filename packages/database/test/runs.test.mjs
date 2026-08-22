@@ -14,10 +14,11 @@ test('runs persist the immutable Run Receipt execution boundary', () => {
     ['args', 'args'], ['environment', 'environment'], ['hardware', 'hardware'],
     ['randomSeed', 'random_seed'], ['startedAt', 'started_at'], ['endedAt', 'ended_at'],
     ['networkAccess', 'network_access'], ['exitCode', 'exit_code'],
-    ['actorId', 'actor_id'], ['signature', 'signature'],
+    ['actorId', 'actor_id'], ['signingKeyId', 'signing_key_id'], ['signature', 'signature'],
   ]) assert.equal(columns[property].name, name);
   assert.equal(columns.args.hasDefault, true);
+  assert.equal(columns.signingKeyId.notNull, false, 'legacy keyless Run rows stay readable; new writes require the key in the domain command');
   assert.equal(config.primaryKeys.length, 0);
   assert.equal(config.checks.length, 1);
-  assert.equal(config.foreignKeys.length, 2);
+  assert.equal(config.foreignKeys.length, 3);
 });

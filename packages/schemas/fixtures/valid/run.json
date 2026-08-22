@@ -17,5 +17,6 @@
   "output_artifact_ids": ["evidence_02"],
   "exit_code": 0,
   "actor_id": "actor_01",
+  "signing_key_id": "key_01",
   "signature": "signature-bytes"
 }

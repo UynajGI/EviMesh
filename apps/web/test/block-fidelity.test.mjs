@@ -94,7 +94,13 @@ test('hydration carries provenance and fielded receipt data', async () => {
 test('claim page defaults upstream, lists revisions, expands evidence, fields receipts', async () => {
   const page = await read('../app/claims/[claimId]/page.js');
   assert.match(page, /useState\('upstream'\)/);
-  assert.match(page, /Upstream: what this claim depends on\./);
+  assert.match(page, /Upstream context: prerequisites, origins, and prior context\./);
+  assert.match(page, /Downstream context: dependents, responses, and subsequent context\./);
+  assert.match(page, /depth: node\.depth/);
+  assert.match(page, /claimLayoutEndpoints/);
+  assert.doesNotMatch(page, /Upstream: what this claim depends on\.|Downstream: what depends on this claim\./);
+  assert.match(page, /published by\{' '\}/);
+  assert.doesNotMatch(page, /drafted by\{' '\}/);
   assert.match(page, /setRevisionList/);
   assert.match(page, /Math\.min\(total, 8\)/);
   assert.match(page, /Compare any two revisions field by field/);
@@ -160,6 +166,9 @@ test('attempt page ships the identity card, self-declaration boundary, and publi
   assert.match(page, /\/actors\/\$\{encodeURIComponent\(act\)\}/);
   // Identity-card fields render from the actors endpoint; null stays honest.
   assert.match(page, /const card = agentRecord\?\.actor \?\? \{\};/);
+  assert.match(page, /const actorIsAgent = card\.actorType === 'agent' \|\| card\.actorType === 'service';/);
+  assert.match(page, /actorHref\(actor, actorIsAgent \? 'agent' : card\.actorType\)/);
+  assert.doesNotMatch(page, /agent\|bot\|atlas\|merope/i);
   assert.match(page, /\{card\.modelName \?\? 'not stated'\}/);
   assert.match(page, /\{card\.runtime \?\? 'not stated'\}/);
   assert.match(page, /\{card\.scope \?\? 'not stated'\}/);

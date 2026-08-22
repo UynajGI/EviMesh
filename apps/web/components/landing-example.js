@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { actorHref } from '@/components/attribution';
 import { useEffect, useState } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { Card, StatusBadge } from '@/components/ui/data';
@@ -127,7 +128,7 @@ export function LandingExample({ fallback }) {
           {contributor ? (
             <span>
               {' '}· contributed by{' '}
-              <Link className="font-medium text-foreground hover:underline" href={`/contributors/${encodeURIComponent(contributor)}`}>{contributor}</Link>
+              <Link className="font-medium text-foreground hover:underline" href={actorHref(contributor)}>{contributor}</Link>
             </span>
           ) : null}
         </span>

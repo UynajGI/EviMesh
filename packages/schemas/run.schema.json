@@ -24,6 +24,7 @@
     "output_artifact_ids": { "type": "array", "items": { "type": "string", "minLength": 1 } },
     "exit_code": { "type": "integer" },
     "actor_id": { "type": "string", "minLength": 1 },
+    "signing_key_id": { "type": "string", "minLength": 1 },
     "signature": { "type": "string", "minLength": 1 }
   }
 }

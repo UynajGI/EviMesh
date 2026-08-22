@@ -59,7 +59,7 @@ export function createFakeClient(overrides = {}) {
     evidence: { create: async (input) => ({ evidence: input }) },
     verifications: { submit: async (input) => ({ receipt: { receiptId: input.receiptId } }) },
     challenges: { create: async (input) => ({ challenge: { challengeId: input.challengeId } }) },
-    http: { request: async (method, path, { body }) => ({ method, path, body }) },
+    http: { request: async (method, path, { body } = {}) => path === "/auth/me" ? { actorId: "agent_01", actorType: "agent" } : { method, path, body } },
     ...overrides,
   };
 }
