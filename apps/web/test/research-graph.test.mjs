@@ -6,7 +6,7 @@ import { readFile } from "node:fs/promises";
 const source = await readFile(new URL("../components/claim-dag.js", import.meta.url), "utf8");
 
 test("graph keeps the canvas, legend, and node details", () => {
-  assert.match(source, /aria-label="Claim dependency graph"/);
+  assert.match(source, /aria-label="Claim relation graph"/);
   assert.match(source, /aria-label="Claim node details"/);
   assert.match(source, /aria-label="Claim state legend"/);
   assert.match(source, /CLAIM_STATE_COLORS/);
@@ -34,4 +34,6 @@ test("graph list rows carry text labels, not color alone", () => {
   assert.match(source, /Badge/);
   assert.match(source, /edge\.source/);
   assert.match(source, /edge\.target/);
+  assert.match(source, /edge\.relation/);
+  assert.doesNotMatch(source, /#[0-9a-f]{3,8}\b/i, "graph colors must come from semantic tokens");
 });

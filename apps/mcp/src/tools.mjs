@@ -29,6 +29,13 @@ function requiredArg(value, field) {
   return value;
 }
 
+function requiredObject(value, field) {
+  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).length === 0) {
+    throw new McpToolError(`argument ${field} must be a non-empty object`);
+  }
+  return value;
+}
+
 function consentResult(tool, summary) {
   return {
     isError: true,
@@ -181,19 +188,21 @@ const TOOL_DEFINITIONS = [
     write: true,
     inputSchema: {
       type: "object",
-      required: ["statement", "scope", "falsification"],
+      required: ["statement", "scope", "falsification", "actorId"],
       properties: {
         statement: STRING,
         scope: { type: "array", items: STRING },
         assumptions: { type: "array", items: STRING },
         falsification: { type: "array", items: STRING },
         questionId: STRING,
+        actorId: { ...STRING, description: "Registered actor attributed to this draft; agents must supply their own actor ID" },
         confirm: BOOLEAN,
       },
     },
     outputSchema: { type: "object", required: ["draft"], properties: { draft: OBJECT } },
     run: async ({ args }) => {
       requiredArg(args.statement, "statement");
+      requiredArg(args.actorId, "actorId");
       const summary = { action: "create a local Claim draft", statement: args.statement };
       if (args.confirm !== true) return consentResult("create_claim", summary);
       const claimId = createObjectId("Claim");
@@ -207,9 +216,10 @@ const TOOL_DEFINITIONS = [
         assumptions: args.assumptions ?? [],
         falsification: args.falsification,
         created_at: new Date().toISOString(),
-        created_by: "TODO: actor id",
+        created_by: args.actorId,
       };
       if (args.questionId) draft.question_id = args.questionId;
+      validateDocument(draft);
       return ok({ draft });
     },
   },
@@ -261,19 +271,22 @@ const TOOL_DEFINITIONS = [
     write: true,
     inputSchema: {
       type: "object",
-      required: ["taskId", "contextBundleId", "command"],
+      required: ["taskId", "contextBundleId", "sourceCode", "container", "command", "environment", "hardware", "actorId", "signature"],
       properties: {
         taskId: STRING,
         contextBundleId: STRING,
+        sourceCode: { ...STRING, description: "Artifact or VCS reference for the executed source" },
+        container: { ...STRING, description: "Immutable OCI image reference with a sha256 digest" },
         command: STRING,
         args: { type: "array", items: STRING },
-        container: STRING,
         environment: OBJECT,
         hardware: OBJECT,
         randomSeed: OBJECT,
         exitCode: { type: "integer" },
         inputArtifactRefs: { type: "array", items: { ...STRING, description: "artifactId@revision" } },
         outputArtifactRefs: { type: "array", items: { ...STRING, description: "artifactId@revision" } },
+        actorId: { ...STRING, description: "Actor attributed to this run; agents must not use a human identity" },
+        signature: { ...STRING, description: "Run-level signature supplied by the executing actor" },
         confirm: BOOLEAN,
       },
     },
@@ -281,7 +294,13 @@ const TOOL_DEFINITIONS = [
     run: async ({ args }) => {
       requiredArg(args.taskId, "taskId");
       requiredArg(args.contextBundleId, "contextBundleId");
+      requiredArg(args.sourceCode, "sourceCode");
+      requiredArg(args.container, "container");
       requiredArg(args.command, "command");
+      requiredObject(args.environment, "environment");
+      requiredObject(args.hardware, "hardware");
+      requiredArg(args.actorId, "actorId");
+      requiredArg(args.signature, "signature");
       const summary = { action: "create a local Run Receipt draft", taskId: args.taskId, command: args.command };
       if (args.confirm !== true) return consentResult("record_run", summary);
       const now = new Date().toISOString();
@@ -291,8 +310,8 @@ const TOOL_DEFINITIONS = [
         task_id: args.taskId,
         context_bundle_id: args.contextBundleId,
         input_artifact_ids: args.inputArtifactRefs ?? [],
-        source_code: "TODO: code reference (artifact id or VCS revision)",
-        container: args.container ?? `TODO-image@sha256:${"0".repeat(64)}`,
+        source_code: args.sourceCode,
+        container: args.container,
         command: args.command,
         args: args.args ?? [],
         environment: args.environment ?? {},
@@ -303,9 +322,10 @@ const TOOL_DEFINITIONS = [
         network_access: false,
         output_artifact_ids: args.outputArtifactRefs ?? [],
         exit_code: args.exitCode ?? 0,
-        actor_id: "TODO: actor id",
-        signature: "TODO: run signature",
+        actor_id: args.actorId,
+        signature: args.signature,
       };
+      validateDocument(draft);
       return ok({ draft });
     },
   },

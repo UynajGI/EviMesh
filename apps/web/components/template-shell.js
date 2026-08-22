@@ -193,7 +193,7 @@ export function TemplateShell({ children }) {
 
         {/* Account chip: settings entry until web sign-in ships a real menu. */}
         <Link
-          className="inline-flex h-8 items-center gap-2 rounded-md border border-border bg-card px-2.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+          className="hidden h-8 items-center gap-2 rounded-md border border-border bg-card px-2.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground sm:inline-flex"
           href="/settings"
         >
           <span aria-hidden="true" className="grid size-5 place-items-center rounded-full bg-accent text-[10px] font-semibold text-accent-foreground">?</span>
@@ -201,7 +201,7 @@ export function TemplateShell({ children }) {
         </Link>
 
         <Link
-          className="inline-flex h-8 items-center gap-2 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-accent-foreground/90"
+          className="hidden h-8 items-center gap-2 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-accent-foreground/90 sm:inline-flex"
           href="/login"
         >
           <LogIn aria-hidden="true" size={14} />
@@ -240,6 +240,14 @@ export function TemplateShell({ children }) {
                   {label}
                 </Link>
               ))}
+              <Link
+                className="mt-3 inline-flex h-10 items-center gap-3 rounded-md border-t border-border px-3 text-sm font-medium text-primary hover:bg-muted"
+                href="/login"
+                onClick={close}
+              >
+                <LogIn aria-hidden="true" size={16} />
+                Sign in
+              </Link>
             </nav>
           </div>
         </div>

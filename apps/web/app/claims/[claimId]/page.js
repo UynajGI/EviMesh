@@ -211,7 +211,21 @@ function ClaimDetailView({ params }) {
   const currentRevision = pinned ? { ...data.currentRevision, ...pinnedRevisionData, revision: pinnedRevision } : data.currentRevision;
   const graphNodes = Array.isArray(graph?.nodes) ? graph.nodes : [];
   const graphEntries = graphNodes.map((node) => ({ id: node.claimId ?? node.id, state: node.state ?? node.status })).filter((node) => typeof node.id === 'string' && node.id !== claim.claimId);
-  const dagElements = [{ data: { id: claim.claimId, label: claim.claimId, state: claim.state } }, ...graphEntries.map(({ id, state }) => ({ data: { id, label: id, state } })), ...graphEntries.map(({ id }) => ({ data: { id: `${direction}-${id}`, source: direction === 'upstream' ? id : claim.claimId, target: direction === 'upstream' ? claim.claimId : id } }))];
+  const graphRelations = Array.isArray(graph?.edges) ? graph.edges : [];
+  const dagEdges = graphRelations.length > 0 ? graphRelations.map((edge, index) => ({
+    id: edge.id ?? `${direction}-${edge.sourceClaimId}-${edge.targetClaimId}-${edge.relationType ?? index}`,
+    /* The reader's DAG points from upstream context toward the dependent
+     * claim; the protocol relation retains its source/target in the label. */
+    source: edge.targetClaimId,
+    target: edge.sourceClaimId,
+    relation: edge.relationType ?? 'depends_on',
+  })) : graphEntries.map(({ id }) => ({ id: `${direction}-${id}`, source: direction === 'upstream' ? id : claim.claimId, target: direction === 'upstream' ? claim.claimId : id, relation: 'depends_on' }));
+  const dagElements = [{ data: { id: claim.claimId, label: claim.claimId, state: claim.state } }, ...graphEntries.map(({ id, state }) => ({ data: { id, label: id, state } })), ...dagEdges.map((edge) => ({ data: { ...edge, source: edge.source, target: edge.target, relationType: edge.relation } }))];
+  const graphListEntries = graphRelations.length > 0 ? graphRelations.map((edge, index) => {
+    const relatedId = direction === 'upstream' ? edge.targetClaimId : edge.sourceClaimId;
+    const node = graphNodes.find((item) => (item.claimId ?? item.id) === relatedId);
+    return { id: relatedId, relation: edge.relationType ?? 'depends_on', state: node?.state ?? node?.status, key: `${relatedId}-${edge.relationType ?? index}-${index}` };
+  }) : graphEntries.map((entry) => ({ ...entry, relation: 'depends_on', key: entry.id }));
 
   const evidenceFor = (relation) => evidence.filter((item) => evidenceRelations(item).includes(relation));
   const receiptsFor = (outcome) => receipts.filter((receipt) => receipt.outcome === outcome);
@@ -261,7 +275,7 @@ function ClaimDetailView({ params }) {
                 <span aria-hidden="true">·</span>
                 <span className="flex items-center gap-1">
                   drafted by{' '}
-                  <Link className="font-medium text-foreground hover:underline" href={`/contributors/${encodeURIComponent(currentRevision.createdBy ?? claim.createdBy)}`}>{currentRevision.createdBy ?? claim.createdBy}</Link>
+                  <Link className="font-medium text-foreground hover:underline" href={`/people/${encodeURIComponent(currentRevision.createdBy ?? claim.createdBy)}`}>{currentRevision.createdBy ?? claim.createdBy}</Link>
                 </span>
               </>
             ) : null}
@@ -338,7 +352,7 @@ function ClaimDetailView({ params }) {
 
           <section aria-labelledby="graph-heading">
             <div className="mb-1 flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold" id="graph-heading">Claim dependency graph</h2>
+              <h2 className="text-lg font-semibold" id="graph-heading">Claim relation graph</h2>
               <div className="flex flex-wrap gap-2">
                 <div className="flex gap-1" role="tablist" aria-label="Graph or list view">
                   {[['graph', 'Graph'], ['list', 'List']].map(([id, label]) => (
@@ -363,17 +377,18 @@ function ClaimDetailView({ params }) {
             <p className="mb-3 text-sm text-muted-foreground">{direction === 'upstream' ? 'Upstream: what this claim depends on.' : 'Downstream: what depends on this claim.'}</p>
             {graphView === 'graph' ? <ClaimDag elements={dagElements} /> : (
               <div>
-                {graphEntries.length === 0 ? (
+                {graphListEntries.length === 0 ? (
                   <Empty title={`No ${direction} relations in range`} description="Relations of this claim within three hops will be listed here; the graph shows the same set." />
                 ) : (
                   <Card className="divide-y divide-border">
-                    <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] gap-3 px-5 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      <span>Direction</span><span>Related claim</span><span>State</span>
+                    <div className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] gap-3 px-5 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      <span>Direction</span><span>Related claim</span><span>Relation</span><span>State</span>
                     </div>
-                    {graphEntries.map(({ id, state }) => (
-                      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-5 py-3 text-sm" key={id}>
+                    {graphListEntries.map(({ id, relation, state, key }) => (
+                      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-3 px-5 py-3 text-sm" key={key}>
                         <span className="capitalize text-muted-foreground">{direction}</span>
                         <IdChip value={id} /><Link className="text-xs text-primary hover:underline" href={`/claims/${id}`}>open</Link>
+                        <span className="font-mono text-xs text-muted-foreground">{relation}</span>
                         {state ? <StatusBadge state={state} /> : <span className="text-xs text-muted-foreground">unknown</span>}
                       </div>
                     ))}
@@ -396,7 +411,7 @@ function ClaimDetailView({ params }) {
                       <li className="flex flex-wrap items-baseline gap-3 px-4 py-2.5 text-sm" key={row.revision}>
                         <span className="font-mono text-xs tabular-nums text-muted-foreground">r{row.revision}</span>
                         {row.revision === currentRevision.revision ? <span className="rounded-full border border-status-accent-border bg-status-accent-bg px-2 py-0.5 text-[11px] font-medium text-status-accent-fg">current</span> : null}
-                        {row.createdBy ? <Link className="text-xs text-muted-foreground hover:text-foreground" href={`/contributors/${encodeURIComponent(row.createdBy)}`}>by {row.createdBy}</Link> : null}
+                        {row.createdBy ? <Link className="text-xs text-muted-foreground hover:text-foreground" href={`/people/${encodeURIComponent(row.createdBy)}`}>by {row.createdBy}</Link> : null}
                         {row.createdAt ? <span className="ml-auto text-xs tabular-nums text-muted-foreground">{new Date(row.createdAt).toISOString().slice(0, 10)}</span> : null}
                       </li>
                     ))}

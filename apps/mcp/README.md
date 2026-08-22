@@ -49,7 +49,7 @@ node apps/mcp/bin/evimesh-mcp.mjs
 `start_attempt`、`record_trace`、`create_claim`、`attach_evidence`、`record_run`、
 `publish_submission`、`submit_verification`、`submit_challenge`。
 
-- `create_claim` / `record_run` 只产出本地草稿对象，不触网。
+- `create_claim` / `record_run` 只产出本地草稿对象，不触网；两者都要求显式 actor 归属，Run 草稿还必须携带 source、不可变容器摘要、环境/硬件和运行签名，返回前按协议 schema 校验。
 - `publish_submission` / `submit_verification` / `submit_challenge` 在确认后校验 schema、
   用 `~/.evimesh` 的 Ed25519 身份签名（`srp.client-signature-envelope.v1`）再提交。
 - 所有工具都声明 `inputSchema` 与 `outputSchema`，并返回 `structuredContent`。

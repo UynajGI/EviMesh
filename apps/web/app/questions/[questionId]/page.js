@@ -609,7 +609,7 @@ export default function QuestionDetailPage({ params }) {
                         {event.actorId ? (
                           <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
                             Contributed by
-                            <Link className="font-medium text-foreground hover:underline" href={`/contributors/${encodeURIComponent(event.actorId)}`}>{event.actorId}</Link>
+                            <Link className="font-medium text-foreground hover:underline" href={`/people/${encodeURIComponent(event.actorId)}`}>{event.actorId}</Link>
                           </p>
                         ) : null}
                       </div>

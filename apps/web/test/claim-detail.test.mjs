@@ -13,10 +13,10 @@ test("claim detail keeps the full section hierarchy", () => {
   assert.match(source, /statusPolicy\.allowedTransitions/);
 });
 
-test("claim detail keeps the dependency graph with direction switching", () => {
+test("claim detail keeps the relation graph with direction switching", () => {
   assert.match(source, /import \{ ClaimDag \}/);
   assert.match(source, /<ClaimDag elements=\{dagElements\} \/>/);
-  assert.match(source, /Claim dependency graph/);
+  assert.match(source, /Claim relation graph/);
   assert.match(source, /direction=\$\{direction\}/);
   assert.match(source, /Upstream/);
   assert.match(source, /Downstream/);

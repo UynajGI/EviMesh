@@ -81,7 +81,7 @@ export default function ContributionsPage() {
             <div className="flex flex-wrap items-center gap-3">
               <span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-full bg-accent text-sm font-semibold text-accent-foreground">{entry.actor.slice(0, 1).toUpperCase()}</span>
               <div className="min-w-0">
-                <Link className="block truncate font-medium tabular-nums hover:underline" href={`/contributors/${encodeURIComponent(entry.actor)}`}>{entry.actor}</Link>
+                <Link className="block truncate font-medium tabular-nums hover:underline" href={`/people/${encodeURIComponent(entry.actor)}`}>{entry.actor}</Link>
                 <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">{entry.count} {entry.count === 1 ? 'event' : 'events'} · latest {entry.latest ?? 'unknown'}</p>
               </div>
             </div>

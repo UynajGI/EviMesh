@@ -127,7 +127,7 @@ export function LandingExample({ fallback }) {
           {contributor ? (
             <span>
               {' '}· contributed by{' '}
-              <Link className="font-medium text-foreground hover:underline" href={`/contributors/${encodeURIComponent(contributor)}`}>{contributor}</Link>
+              <Link className="font-medium text-foreground hover:underline" href={`/people/${encodeURIComponent(contributor)}`}>{contributor}</Link>
             </span>
           ) : null}
         </span>

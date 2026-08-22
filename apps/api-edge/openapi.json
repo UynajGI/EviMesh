@@ -1701,7 +1701,7 @@
     "/claims/{claimId}/graph": {
       "get": {
         "operationId": "getClaimGraph",
-        "summary": "Read the bounded upstream or downstream dependency graph for one Claim",
+        "summary": "Read the bounded upstream or downstream typed relation graph for one Claim",
         "parameters": [
           {
             "name": "claimId",
@@ -1737,11 +1737,11 @@
         ],
         "responses": {
           "200": {
-            "description": "Claim dependency graph.",
+            "description": "Bounded Claim relation graph with typed edges.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ObjectResponse"
+                  "$ref": "#/components/schemas/ClaimGraphResponse"
                 }
               }
             }
@@ -3942,6 +3942,110 @@
               "string",
               "null"
             ]
+          }
+        }
+      },
+      "ClaimGraphResponse": {
+        "type": "object",
+        "required": [
+          "rootClaimId",
+          "maxDepth",
+          "nodes",
+          "edges"
+        ],
+        "properties": {
+          "rootClaimId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "maxDepth": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 32
+          },
+          "nodes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "claimId",
+                "depth",
+                "path"
+              ],
+              "properties": {
+                "claimId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "depth": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "path": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            }
+          },
+          "edges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ClaimGraphEdge"
+            }
+          }
+        }
+      },
+      "ClaimGraphEdge": {
+        "type": "object",
+        "required": [
+          "sourceClaimId",
+          "targetClaimId",
+          "relationType",
+          "depth",
+          "path"
+        ],
+        "properties": {
+          "sourceClaimId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "targetClaimId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "relationType": {
+            "type": "string",
+            "enum": [
+              "depends_on",
+              "supports",
+              "refutes",
+              "qualifies",
+              "reproduces",
+              "extends",
+              "supersedes",
+              "contradicts",
+              "derived_from",
+              "uses_method",
+              "uses_dataset",
+              "implements",
+              "verifies",
+              "challenges"
+            ]
+          },
+          "depth": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "path": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
           }
         }
       },

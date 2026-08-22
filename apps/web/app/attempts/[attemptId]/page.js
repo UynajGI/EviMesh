@@ -140,7 +140,7 @@ export default function AttemptDetailPage({ params }) {
           <span className="flex items-center gap-2 text-sm text-muted-foreground">
             by
             {typeof actor === 'string' && !actorIsAgent ? (
-              <Link className="font-medium text-foreground hover:underline" href={`/contributors/${actor}`}>{actor}</Link>
+              <Link className="font-medium text-foreground hover:underline" href={`/people/${actor}`}>{actor}</Link>
             ) : (
               <span className="inline-flex items-center gap-1 rounded-full border border-status-accent-border bg-status-accent-bg px-2 py-0.5 text-xs font-medium text-status-accent-fg">
                 agent · {typeof actor === 'string' ? actor : JSON.stringify(actor)}
@@ -209,7 +209,7 @@ export default function AttemptDetailPage({ params }) {
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-xs text-muted-foreground">Actor</span>
                   <IdChip value={actor} />
-                  <Link className="text-xs text-primary hover:underline" href={`/contributors/${encodeURIComponent(actor)}`}>record</Link>
+                  <Link className="text-xs text-primary hover:underline" href={`/people/${encodeURIComponent(actor)}`}>record</Link>
                 </div>
                 {agentRecord?.roles?.length > 0 ? (
                   <p className="flex flex-wrap items-center gap-2 text-sm">
@@ -227,7 +227,7 @@ export default function AttemptDetailPage({ params }) {
                   {card.ownerActorId ? (
                     <div className="flex gap-2">
                       <dt className="w-28 shrink-0 text-xs text-muted-foreground">Acts for</dt>
-                      <dd className="text-xs"><Link className="text-primary hover:underline" href={`/contributors/${encodeURIComponent(card.ownerActorId)}`}>{card.ownerActorId}</Link></dd>
+                      <dd className="text-xs"><Link className="text-primary hover:underline" href={`/people/${encodeURIComponent(card.ownerActorId)}`}>{card.ownerActorId}</Link></dd>
                     </div>
                   ) : null}
                 </dl>

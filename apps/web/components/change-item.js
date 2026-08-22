@@ -21,11 +21,11 @@ const LEVELS = {
 export function ChangeItem({ level = 'update', what, why, time, href, id, idLabel, meta, className }) {
   const { icon: Icon, ring } = LEVELS[level] ?? LEVELS.update;
   return (
-    <article className={cn('grid grid-cols-[2rem_minmax(0,1fr)] gap-3 px-5 py-4', className)}>
-      <span aria-hidden="true" className={cn('mt-0.5 grid size-8 place-items-center rounded-full', ring)}>
+    <article className={cn('changeitem grid grid-cols-[2rem_minmax(0,1fr)] gap-3 px-5 py-4', className)}>
+      <span aria-hidden="true" className={cn('changeitem__icon mt-0.5 grid size-8 place-items-center rounded-full', ring)}>
         <Icon size={15} />
       </span>
-      <div className="min-w-0">
+      <div className="changeitem__body min-w-0">
         <p className="font-medium leading-snug">
           {href ? <Link className="hover:underline" href={href}>{what}</Link> : what}
         </p>

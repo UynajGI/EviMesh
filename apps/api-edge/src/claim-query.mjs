@@ -21,6 +21,14 @@ function graphDepth(value) {
   return value;
 }
 
+function normalizeGraph(value) {
+  if (Array.isArray(value)) return { nodes: value, edges: [] };
+  return {
+    nodes: Array.isArray(value?.nodes) ? value.nodes : [],
+    edges: Array.isArray(value?.edges) ? value.edges : [],
+  };
+}
+
 /** List Claim identity rows with stable, opaque cursor pagination. */
 export async function listClaims({ repository, projectId = null, status = null, tag = null, limit = 20, cursor = null } = {}) {
   if (!repository || typeof repository.listClaims !== "function") throw new ClaimQueryError("repository listClaims is required");
@@ -74,8 +82,8 @@ export async function getClaimUpstreamGraph({ repository, claimId, maxDepth = 3 
   claimId = claimId.trim();
   maxDepth = graphDepth(maxDepth);
   if (!repository || typeof repository.getClaimUpstreamGraph !== "function") throw new ClaimQueryError("repository getClaimUpstreamGraph is required");
-  const nodes = await repository.getClaimUpstreamGraph({ claimId, maxDepth });
-  return { rootClaimId: claimId, maxDepth, nodes: Array.isArray(nodes) ? nodes : [] };
+  const graph = normalizeGraph(await repository.getClaimUpstreamGraph({ claimId, maxDepth }));
+  return { rootClaimId: claimId, maxDepth, ...graph };
 }
 
 /** Return the bounded downstream dependency graph with taint markers. */
@@ -84,13 +92,14 @@ export async function getClaimDownstreamGraph({ repository, claimId, maxDepth = 
   claimId = claimId.trim();
   maxDepth = graphDepth(maxDepth);
   if (!repository || typeof repository.getClaimDownstreamGraph !== "function") throw new ClaimQueryError("repository getClaimDownstreamGraph is required");
-  const nodes = await repository.getClaimDownstreamGraph({ claimId, maxDepth });
+  const graph = normalizeGraph(await repository.getClaimDownstreamGraph({ claimId, maxDepth }));
   return {
     rootClaimId: claimId,
     maxDepth,
-    nodes: (Array.isArray(nodes) ? nodes : []).map((node) => ({
+    nodes: graph.nodes.map((node) => ({
       ...node,
       dependencyTainted: Boolean(node.dependencyTainted ?? node.state === "dependency_tainted"),
     })),
+    edges: graph.edges,
   };
 }

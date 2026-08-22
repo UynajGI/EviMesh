@@ -217,7 +217,11 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
 
   async function claimGraph({ claimId, maxDepth, direction }) {
     const [relations, claims] = await Promise.all([
-      list("claimRelations", { relation_type: "depends_on" }),
+      /* The protocol has fourteen typed ClaimRelation edges. The dependency
+       * graph remains a DAG traversal, but the read model must not silently
+       * discard supports/refutes/qualifies/lineage edges before the UI can
+       * label them. */
+      list("claimRelations"),
       list("claims"),
     ]);
     const neighbours = new Map();
@@ -225,17 +229,25 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
       const from = direction === "upstream" ? relation.sourceClaimId : relation.targetClaimId;
       const to = direction === "upstream" ? relation.targetClaimId : relation.sourceClaimId;
       const values = neighbours.get(from) ?? [];
-      values.push(to);
+      values.push({ to, relation });
       neighbours.set(from, values);
     }
     const claimById = new Map(claims.map((claim) => [claim.claimId, claim]));
     const visited = new Set([claimId]);
     const queue = [{ claimId, depth: 0, path: [claimId] }];
     const nodes = [];
+    const edges = [];
     for (let cursor = 0; cursor < queue.length; cursor += 1) {
       const current = queue[cursor];
       if (current.depth >= maxDepth) continue;
-      for (const nextId of neighbours.get(current.claimId) ?? []) {
+      for (const { to: nextId, relation } of neighbours.get(current.claimId) ?? []) {
+        edges.push({
+          sourceClaimId: relation.sourceClaimId,
+          targetClaimId: relation.targetClaimId,
+          relationType: relation.relationType,
+          depth: current.depth + 1,
+          path: [...current.path, nextId],
+        });
         if (visited.has(nextId)) continue;
         visited.add(nextId);
         const next = { claimId: nextId, depth: current.depth + 1, path: [...current.path, nextId] };
@@ -243,7 +255,7 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
         nodes.push({ ...(claimById.get(nextId) ?? {}), ...next });
       }
     }
-    return nodes;
+    return { nodes, edges };
   }
 
   /* Revision getter per object type for the provenance path. */
