@@ -73,7 +73,8 @@ test("reads bounded upstream and downstream Claim graphs with typed relations", 
 
   assert.deepEqual(await repository.listDirectDependentClaimIds("claim-a"), ["claim-child"]);
   assert.ok(relationQueries.length > 0);
-  assert.ok(relationQueries.every((endpoint) => endpoint.searchParams.get("or")?.includes("source_claim_id.eq.")), "graph reads must query only incident relations");
+  assert.ok(relationQueries.every((endpoint) => endpoint.searchParams.get("or")?.includes("source_claim_id.in.")), "graph reads must query only the current frontier");
+  assert.ok(relationQueries.some((endpoint) => endpoint.searchParams.get("or")?.includes("claim-a,claim-support")), "broad frontiers must share one relation query");
   assert.ok(claimQueries.length > 0);
   assert.ok(claimQueries.every((endpoint) => endpoint.searchParams.get("claim_id")?.startsWith("in.(")), "graph reads must hydrate only discovered Claims");
 });

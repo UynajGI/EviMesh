@@ -55,6 +55,23 @@ test("protected routes accept API tokens end to end", async () => {
   assert.deepEqual(await me.json(), { subject: "actor-1", email: null, actorId: "actor-1", actorType: "agent", signingKey: null });
 });
 
+test("auth/me forwards the caller JWT when resolving a Supabase identity", async () => {
+  const calls = [];
+  const repository = {
+    findIdentity: async (...args) => { calls.push(args); return { actorId: "actor-1" }; },
+    getActor: async (actorId) => ({ actorId, actorType: "human" }),
+  };
+  const app = createApp({ repository, authenticate: async () => ({ sub: "supabase-subject" }) });
+  const response = await app.fetch(new Request("https://api.example.test/auth/me", {
+    headers: { authorization: "Bearer supabase-jwt" },
+  }), {});
+  assert.equal(response.status, 200, await response.clone().text());
+  assert.equal(calls.length, 2, "rate limiting and the route both resolve the authenticated actor");
+  assert.ok(calls.every((args) => args[0] === "supabase"
+    && args[1] === "supabase-subject"
+    && args[2]?.accessToken === "supabase-jwt"));
+});
+
 test("signing-key registration works with API tokens", async () => {
   const { token, records } = await issueToken();
   const keys = [];

@@ -6,7 +6,7 @@ import { ContextQueryError, getTaskContext } from "./context-query.mjs";
 import { RequestValidationError } from "./validation.mjs";
 import { getPlatformPublicKeys, PlatformPublicKeysError } from './platform-public-keys.mjs';
 import { getOwnProfile, patchOwnProfile } from './profile-api.mjs';
-import { ActorIdentityError, resolveActorForSupabaseClaims } from './actor-identity.mjs';
+import { ActorIdentityError, resolveActorForSupabaseClaims as resolveBoundActor } from './actor-identity.mjs';
 import { recordInteraction, removeInteraction, listMyInteractions, getMyRecommendations, provisionSelfActor } from './interaction-query.mjs';
 import { ActorProfileError } from '../../../packages/domain/src/actor-profile.mjs';
 import { ProjectAuthorizationError } from '../../../packages/domain/src/project-authorization.mjs';
@@ -59,6 +59,7 @@ import { createSupabaseNonceStore } from './supabase-nonce-store.mjs';
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
 const authenticatedRequestClaims = new WeakMap();
+const authenticatedClaimAccessTokens = new WeakMap();
 
 function configuredCorsOrigins(env) {
   return String(env?.CORS_ALLOWED_ORIGINS ?? "")
@@ -117,8 +118,16 @@ async function authenticateRequest(request, env) {
   } else {
     claims = await authenticate(request, env);
   }
-  if (request && claims) authenticatedRequestClaims.set(request, claims);
+  if (request && claims) {
+    authenticatedRequestClaims.set(request, claims);
+    if (typeof claims === 'object') authenticatedClaimAccessTokens.set(claims, match?.[1] ?? null);
+  }
   return claims;
+}
+
+function resolveActorForSupabaseClaims(options = {}) {
+  const accessToken = options.accessToken ?? authenticatedClaimAccessTokens.get(options.claims) ?? null;
+  return resolveBoundActor({ ...options, accessToken });
 }
 
 app.use("*", async (context, next) => {
@@ -207,7 +216,7 @@ app.get('/platform/keys', (context) => {
 app.get("/auth/me", async (context) => {
   try {
     const claims = await authenticateRequest(context.req.raw, context.env);
-    const actorId = await resolveActorForSupabaseClaims({ repository, claims });
+    const actorId = await resolveActorForSupabaseClaims({ repository, claims, accessToken: bearerTokenOf(context.req.raw) });
     const actor = typeof repository?.getActor === "function" ? await repository.getActor(actorId) : null;
     const activeSigningKey = typeof repository?.findActiveSigningKey === "function" ? await repository.findActiveSigningKey(actorId) : null;
     const signingKey = activeSigningKey ? {

@@ -68,6 +68,7 @@ function mapRow(row) {
 }
 
 const PAGE_SIZE = 1000;
+const CLAIM_GRAPH_FRONTIER_BATCH_SIZE = 50;
 const TABLE_ORDERS = Object.freeze({
   actors: "created_at.desc,actor_id.desc",
   actorProfiles: "actor_id.asc",
@@ -250,39 +251,52 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
 
   async function claimGraph({ claimId, maxDepth, direction }) {
     const visited = new Set([claimId]);
-    const queue = [{ claimId, depth: 0, path: [claimId] }];
+    let frontier = [{ claimId, depth: 0, path: [claimId] }];
     const nodes = [];
     const edges = [];
     const edgeAdjacency = new Map();
-    for (let cursor = 0; cursor < queue.length; cursor += 1) {
-      const current = queue[cursor];
-      if (current.depth >= maxDepth) continue;
-      /* Query only edges incident to the current bounded frontier node. The
-       * protocol direction is applied after retrieval because relation families
-       * have different reader traversal semantics. */
-      const incident = await list("claimRelations", {
-        or: `(source_claim_id.eq.${current.claimId},target_claim_id.eq.${current.claimId})`,
-      });
-      for (const relation of incident) {
-        const { from, to: nextId } = traversalEndpoints(relation, direction);
-        if (from !== current.claimId) continue;
-        if (hasGraphPath(edgeAdjacency, relation.targetClaimId, relation.sourceClaimId)) continue;
-        edges.push({
-          sourceClaimId: relation.sourceClaimId,
-          targetClaimId: relation.targetClaimId,
-          relationType: relation.relationType,
-          depth: current.depth + 1,
-          path: [...current.path, nextId],
-        });
-        const targets = edgeAdjacency.get(relation.sourceClaimId) ?? new Set();
-        targets.add(relation.targetClaimId);
-        edgeAdjacency.set(relation.sourceClaimId, targets);
-        if (visited.has(nextId)) continue;
-        visited.add(nextId);
-        const next = { claimId: nextId, depth: current.depth + 1, path: [...current.path, nextId] };
-        queue.push(next);
-        nodes.push(next);
+    while (frontier.length > 0 && frontier[0].depth < maxDepth) {
+      /* Query each breadth-first frontier in bounded parallel batches. This
+       * keeps request URLs bounded without issuing one serial round trip per
+       * Claim. A relation spanning two batches is deduplicated below. */
+      const batches = [];
+      for (let offset = 0; offset < frontier.length; offset += CLAIM_GRAPH_FRONTIER_BATCH_SIZE) {
+        batches.push(frontier.slice(offset, offset + CLAIM_GRAPH_FRONTIER_BATCH_SIZE).map((node) => node.claimId));
       }
+      const incidentRows = (await Promise.all(batches.map((claimIds) => {
+        const membership = filterValue(claimIds);
+        return list("claimRelations", {
+          or: `(source_claim_id.${membership},target_claim_id.${membership})`,
+        });
+      }))).flat();
+      const incident = [...new Map(incidentRows.map((relation) => [
+        `${relation.sourceClaimId}\u0000${relation.targetClaimId}\u0000${relation.relationType}`,
+        relation,
+      ])).values()];
+      const nextFrontier = [];
+      for (const current of frontier) {
+        for (const relation of incident) {
+          const { from, to: nextId } = traversalEndpoints(relation, direction);
+          if (from !== current.claimId) continue;
+          if (hasGraphPath(edgeAdjacency, relation.targetClaimId, relation.sourceClaimId)) continue;
+          edges.push({
+            sourceClaimId: relation.sourceClaimId,
+            targetClaimId: relation.targetClaimId,
+            relationType: relation.relationType,
+            depth: current.depth + 1,
+            path: [...current.path, nextId],
+          });
+          const targets = edgeAdjacency.get(relation.sourceClaimId) ?? new Set();
+          targets.add(relation.targetClaimId);
+          edgeAdjacency.set(relation.sourceClaimId, targets);
+          if (visited.has(nextId)) continue;
+          visited.add(nextId);
+          const next = { claimId: nextId, depth: current.depth + 1, path: [...current.path, nextId] };
+          nextFrontier.push(next);
+          nodes.push(next);
+        }
+      }
+      frontier = nextFrontier;
     }
     const claims = nodes.length > 0 ? await list("claims", { claim_id: nodes.map((node) => node.claimId) }) : [];
     const claimById = new Map(claims.map((claim) => [claim.claimId, claim]));
