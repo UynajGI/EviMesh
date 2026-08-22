@@ -54,6 +54,85 @@ test("accepts a valid Supabase JWT at the authenticated route", async () => {
   assert.deepEqual(await response.json(), { subject: "actor_test_01", email: "test@example.test", actorId: "actor_test_01", actorType: "agent", signingKey: null });
 });
 
+test("returns the typed identity error for a valid but unprovisioned Supabase identity", async () => {
+  const fixture = await createFixture();
+  const unprovisioned = createApp({ repository: { findIdentity: async () => null } });
+  const response = await unprovisioned.fetch(new Request("https://api.example.test/auth/me", {
+    headers: { authorization: `Bearer ${fixture.token}`, "x-request-id": "auth-me-unprovisioned" },
+  }), fixture.env);
+
+  assert.equal(response.status, 403);
+  assert.equal(response.headers.get("x-request-id"), "auth-me-unprovisioned");
+  assert.deepEqual(await response.json(), {
+    code: "ACTOR_IDENTITY_NOT_FOUND",
+    message: "authenticated actor identity is not provisioned",
+    request_id: "auth-me-unprovisioned",
+  });
+});
+
+test("passes through typed actor and active signing-key lookup failures", async () => {
+  const typedError = (message, code, status) => Object.assign(new Error(message), { code, status });
+  const request = (requestId) => new Request("https://api.example.test/auth/me", {
+    headers: { authorization: "Bearer test-token", "x-request-id": requestId },
+  });
+  const cases = [
+    {
+      requestId: "auth-me-actor-failure",
+      code: "ACTOR_LOOKUP_UNAVAILABLE",
+      message: "actor lookup is unavailable",
+      status: 503,
+      repository: {
+        findIdentity: async () => ({ actorId: "actor-1" }),
+        getActor: async () => { throw typedError("actor lookup is unavailable", "ACTOR_LOOKUP_UNAVAILABLE", 503); },
+      },
+    },
+    {
+      requestId: "auth-me-key-failure",
+      code: "SIGNING_KEY_LOOKUP_DENIED",
+      message: "active signing-key lookup is denied",
+      status: 403,
+      repository: {
+        findIdentity: async () => ({ actorId: "actor-1" }),
+        getActor: async () => ({ actorId: "actor-1", actorType: "human" }),
+        findActiveSigningKey: async () => { throw typedError("active signing-key lookup is denied", "SIGNING_KEY_LOOKUP_DENIED", 403); },
+      },
+    },
+  ];
+
+  for (const scenario of cases) {
+    const route = createApp({ repository: scenario.repository, authenticate: async () => ({ sub: "subject-1" }) });
+    const response = await route.fetch(request(scenario.requestId), {});
+    assert.equal(response.status, scenario.status);
+    assert.equal(response.headers.get("x-request-id"), scenario.requestId);
+    assert.deepEqual(await response.json(), {
+      code: scenario.code,
+      message: scenario.message,
+      request_id: scenario.requestId,
+    });
+  }
+});
+
+test("does not convert unknown auth/me lookup errors into known failures", async () => {
+  const route = createApp({
+    repository: {
+      findIdentity: async () => ({ actorId: "actor-1" }),
+      getActor: async () => { throw new Error("unexpected actor lookup failure"); },
+    },
+    authenticate: async () => ({ sub: "subject-1" }),
+  });
+  const response = await route.fetch(new Request("https://api.example.test/auth/me", {
+    headers: { authorization: "Bearer test-token", "x-request-id": "auth-me-unknown" },
+  }), {});
+
+  assert.equal(response.status, 500);
+  assert.equal(response.headers.get("x-request-id"), "auth-me-unknown");
+  assert.deepEqual(await response.json(), {
+    code: "internal_error",
+    message: "internal server error",
+    request_id: "auth-me-unknown",
+  });
+});
+
 test("rejects missing, tampered, and expired JWTs", async () => {
   const fixture = await createFixture();
   const [header, payload, signaturePart] = fixture.token.split(".");

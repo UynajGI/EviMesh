@@ -374,9 +374,8 @@ app.get("/auth/me", async (context) => {
     } : null;
     return context.json({ subject: claims.sub, email: claims.email ?? null, actorId, actorType: actor?.actorType ?? null, signingKey });
   } catch (error) {
-    if (error instanceof JwtVerificationError || error instanceof SyntaxError) {
-      return context.json(errorBody("unauthorized", "authentication required", context.get("requestId")), 401);
-    }
+    const response = knownFailure(error, context);
+    if (response) return response;
     throw error;
   }
 });
