@@ -158,6 +158,10 @@ test("record_run preserves the agent inner signature when a human identity publi
   } } });
   const recorded = await callTool({ client, name: "record_run", args: { taskId: "task_0193f2c8-5c00-4000-8000-000000000001", contextBundleId: "context-1", sourceCode: "git:abc123", container: `oci:python@sha256:${"a".repeat(64)}`, command: "python", environment: { runtime: "python" }, hardware: { cpu: "x86_64" }, inputArtifactRefs: ["artifact-a@2", "artifact-z"], outputArtifactRefs: ["output-a@2", "output-z"], confirm: true }, env: agentEnv });
   const runDocument = recorded.structuredContent.draft;
+  const whitespaceActor = await callTool({ client, name: "publish_submission", args: { document: { ...runDocument, actor_id: " agent_01 " } }, env: humanEnv });
+  assert.equal(whitespaceActor.isError, true);
+  assert.equal(whitespaceActor.structuredContent.error, "RUN_TEXT_INVALID");
+  assert.equal(posts.length, 0, "local canonicalization must reject before consent or network publication");
   const published = await callTool({ client, name: "publish_submission", args: { document: runDocument, confirm: true }, env: humanEnv });
   assert.equal(published.isError, false, JSON.stringify(published.structuredContent));
   assert.equal(posts.length, 1);

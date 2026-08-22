@@ -173,6 +173,7 @@ function canonicalRunDocument(document) {
     source_code: canonicalRunText(withCanonicalRefs.source_code, "source_code"),
     container: canonicalRunText(withCanonicalRefs.container, "container"),
     command: canonicalRunText(withCanonicalRefs.command, "command"),
+    actor_id: canonicalRunText(withCanonicalRefs.actor_id, "actor_id"),
     signing_key_id: canonicalRunText(withCanonicalRefs.signing_key_id, "signing_key_id"),
     started_at: canonicalRunTimestamp(withCanonicalRefs.started_at),
     ended_at: canonicalRunTimestamp(withCanonicalRefs.ended_at),
