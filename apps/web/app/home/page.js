@@ -344,12 +344,12 @@ function ChangeEvent({ event, level, observationWindow }) {
   );
 }
 
-function partialDescription(partial, loadedWatchCount, watchCount) {
+function partialDescription(partial) {
   const notes = [];
-  if (partial.omittedObjects) notes.push(`${loadedWatchCount} of ${watchCount} watched objects were queried by this bounded view`);
-  if (partial.failedObjects) notes.push(`${partial.failedObjects} object event ${partial.failedObjects === 1 ? 'query was' : 'queries were'} unavailable`);
-  if (partial.truncatedObjects) notes.push(`${partial.truncatedObjects} object ${partial.truncatedObjects === 1 ? 'query has' : 'queries have'} another event page`);
-  if (partial.invalidEvents) notes.push(`${partial.invalidEvents} event ${partial.invalidEvents === 1 ? 'record lacked' : 'records lacked'} required provenance fields`);
+  if (partial.omittedObjects) notes.push('Some watched objects were omitted from this bounded view');
+  if (partial.failedObjects) notes.push('Some object event queries were unavailable');
+  if (partial.truncatedObjects) notes.push('Some object event queries have another page');
+  if (partial.invalidEvents) notes.push('Some event records lacked required provenance fields');
   return `${notes.join('. ')}. Displayed events remain in newest protocol order; this partial result cannot support a quiet conclusion.`;
 }
 
@@ -357,7 +357,6 @@ export default function HomePage() {
   const [status, setStatus] = useState('loading');
   const [events, setEvents] = useState([]);
   const [watchCount, setWatchCount] = useState(0);
-  const [loadedWatchCount, setLoadedWatchCount] = useState(0);
   const [partial, setPartial] = useState({ omittedObjects: 0, failedObjects: 0, truncatedObjects: 0, invalidEvents: 0 });
   const [error, setError] = useState(null);
   const [requestId, setRequestId] = useState(null);
@@ -417,7 +416,6 @@ export default function HomePage() {
     const connection = await agentPromise;
     if (generation !== loadGeneration.current) return;
     setWatchCount(allScopes.length);
-    setLoadedWatchCount(scopes.length);
     setAgentConnection(connection);
     if (scopes.length > 0 && successfulPages.length === 0) {
       setStatus('error');
@@ -486,7 +484,7 @@ export default function HomePage() {
               {isPartial ? (
                 <Alert
                   className="mb-6"
-                  description={partialDescription(partial, loadedWatchCount, watchCount)}
+                  description={partialDescription(partial)}
                   title="Partial watch coverage"
                   variant="warning"
                 />

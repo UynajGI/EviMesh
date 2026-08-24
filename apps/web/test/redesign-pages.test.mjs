@@ -74,6 +74,8 @@ test('home restores the private watchlist change stream and design-book hierarch
   assert.doesNotMatch(page, /<ChangeGroup count=/, 'change totals are not rendered as non-navigation badges');
   assert.doesNotMatch(page, /\{agentConnection\.activeGrantCount\}<\/span>/, 'active grant totals are not rendered as non-navigation counts');
   assert.match(page, /Active API grants are configured\./);
+  assert.match(page, /Some watched objects were omitted from this bounded view/);
+  assert.doesNotMatch(page, /loadedWatchCount/, 'partial coverage warnings do not render non-navigation totals');
   for (const rail of ['My work', 'Agent connection', 'Recently visited']) {
     assert.ok(page.includes(rail), 'home rail missing ' + rail);
   }

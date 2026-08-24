@@ -70,7 +70,7 @@ test("validate fails for an invalid document and exits non-zero", async (t) => {
   assert.equal(code, 1);
 });
 
-test("validates legacy Run receipts while new templates remain key-qualified", async (t) => {
+test("rejects Run receipts without a signing key while templates remain key-qualified", async (t) => {
   const { dir, env, cleanup } = setup();
   t.after(cleanup);
 
@@ -78,7 +78,7 @@ test("validates legacy Run receipts while new templates remain key-qualified", a
   delete legacyRun.signing_key_id;
   const legacyPath = join(dir, "legacy.run.json");
   writeFileSync(legacyPath, JSON.stringify(legacyRun));
-  assert.equal(await runCli(["validate", legacyPath, "--json"], { env }), 0);
+  assert.equal(await runCli(["validate", legacyPath, "--json"], { env }), 1);
 
   const templatePath = join(dir, "new.run.json");
   assert.equal(await runCli(["run", "record", "--out", templatePath], { env }), 0);
