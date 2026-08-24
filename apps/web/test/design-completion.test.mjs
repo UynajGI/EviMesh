@@ -25,6 +25,10 @@ test("design route map has canonical public people and agent activity routes", a
   assert.doesNotMatch(agent, /pendingReview|href="\/people"/);
   assert.match(agent, /data\.lastEventAt \?\? events\[0\]/);
   assert.match(agent, /limit=50&order=desc/);
+  assert.match(agent, /eventPayload\.nextCursor/);
+  assert.match(agent, /cursor=\$\{encodeURIComponent\(cursor\)\}/);
+  assert.match(agent, /Previous activity/);
+  assert.match(agent, /Next activity/);
   assert.match(agent, /event\.payload\?\.attempt_id/);
   assert.match(agent, /const encodedId = encodeURIComponent\(edge\.objectId\)/);
   assert.match(agent, /setError\(reason\)/);
@@ -42,6 +46,9 @@ test("agent activity keeps public output attributable and avoids scoring languag
   assert.match(source, /signedBy/);
   assert.match(source, /\/people\/\$\{encodeURIComponent\(edge\.signedBy\)\}/);
   assert.match(source, /edge\.objectType === 'artifact'.*\/artifacts\/\$\{encodedId\}/);
+  assert.match(source, /edge\.objectType === 'claim'.*\?rev=\$\{revision\}/);
+  assert.match(source, /objectReference\(edge\)/);
+  assert.match(source, /edge\.objectRevision/);
   assert.match(source, /allOutputs\.slice\(outputStart, outputStart \+ OUTPUT_PAGE_SIZE\)/);
   assert.match(source, /Previous outputs/);
   assert.match(source, /Next outputs/);

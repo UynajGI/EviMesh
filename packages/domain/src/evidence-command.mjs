@@ -45,11 +45,32 @@ export async function createEvidence({ repository, actorId, actorRole, evidenceI
   const evidence = { evidenceId, evidenceType, artifactId, artifactRevision, runId, createdBy: actorId };
   const event = await eventFactory({ eventType: 'evidence.created', payload: { entity_type: 'evidence', evidence_id: evidenceId, actor_id: actorId, link_count: normalizedLinks.length } });
   if (!event || typeof event !== 'object') throw new EvidenceCommandError('eventFactory must return an event object');
-  return repository.withTransaction(async (transaction) => ({
-    evidence: await transaction.insertEvidence(evidence) ?? evidence,
-    links: await Promise.all(normalizedLinks.map((link) => transaction.insertEvidenceClaimLink(link))),
-    event: await transaction.appendResearchEvent(event) ?? event,
-  }));
+  const linkEvents = await Promise.all(normalizedLinks.map((link) => eventFactory({
+    eventType: 'evidence.claim_linked',
+    payload: {
+      entity_type: 'evidence',
+      evidence_id: evidenceId,
+      claim_id: link.claimId,
+      claim_revision: link.claimRevision,
+      relation_type: link.relationType,
+      actor_id: actorId,
+    },
+  })));
+  if (linkEvents.some((linkEvent) => !linkEvent || typeof linkEvent !== 'object')) throw new EvidenceCommandError('eventFactory must return an event object');
+  return repository.withTransaction(async (transaction) => {
+    const persistedEvidence = await transaction.insertEvidence(evidence);
+    const persistedLinks = [];
+    for (const link of normalizedLinks) persistedLinks.push(await transaction.insertEvidenceClaimLink(link));
+    const persistedEvent = await transaction.appendResearchEvent(event);
+    const persistedLinkEvents = [];
+    for (const linkEvent of linkEvents) persistedLinkEvents.push(await transaction.appendResearchEvent(linkEvent) ?? linkEvent);
+    return {
+      evidence: persistedEvidence ?? evidence,
+      links: persistedLinks,
+      event: persistedEvent ?? event,
+      linkEvents: persistedLinkEvents,
+    };
+  });
 }
 
 /** Link immutable Evidence to one specific immutable Claim revision atomically. */

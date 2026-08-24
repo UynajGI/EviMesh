@@ -30,13 +30,24 @@ function display(value, fallback = 'not stated') {
 
 function objectHref(edge) {
   const encodedId = encodeURIComponent(edge.objectId);
-  if (edge.objectType === 'claim') return `/claims/${encodedId}`;
+  const revision = Number(edge.objectRevision);
+  if (edge.objectType === 'claim') return `/claims/${encodedId}${Number.isInteger(revision) && revision > 0 ? `?rev=${revision}` : ''}`;
   if (edge.objectType === 'question') return `/questions/${encodedId}`;
   if (edge.objectType === 'project') return `/projects/${encodedId}`;
   if (edge.objectType === 'task') return `/tasks/${encodedId}`;
   if (edge.objectType === 'attempt') return `/attempts/${encodedId}`;
   if (edge.objectType === 'artifact') return `/artifacts/${encodedId}`;
   return null;
+}
+
+function objectReference(edge) {
+  const revision = Number(edge.objectRevision);
+  return Number.isInteger(revision) && revision > 0 ? `${display(edge.objectId)}@${revision}` : display(edge.objectId);
+}
+
+function eventPath(actorId, cursor = null) {
+  const base = `/events?actorId=${encodeURIComponent(actorId)}&limit=50&order=desc`;
+  return cursor ? `${base}&cursor=${encodeURIComponent(cursor)}` : base;
 }
 
 /* Agent activity is a public actor view, not a second task system. It reads
@@ -47,6 +58,10 @@ export default function AgentActivityPage({ params }) {
   const [data, setData] = useState(null);
   const [events, setEvents] = useState([]);
   const [eventError, setEventError] = useState(null);
+  const [eventCursor, setEventCursor] = useState(null);
+  const [eventNextCursor, setEventNextCursor] = useState(null);
+  const [eventCursorHistory, setEventCursorHistory] = useState([]);
+  const [eventPending, setEventPending] = useState(false);
   const [error, setError] = useState(null);
   const [outputPage, setOutputPage] = useState(0);
 
@@ -63,13 +78,33 @@ export default function AgentActivityPage({ params }) {
       setOutputPage(0);
       setData(payload);
       try {
-        const eventPayload = await request(`/events?actorId=${encodeURIComponent(actorId)}&limit=50&order=desc`);
+        const eventPayload = await request(eventPath(actorId));
         setEvents(Array.isArray(eventPayload.items) ? eventPayload.items : []);
+        setEventCursor(null);
+        setEventNextCursor(eventPayload.nextCursor ?? null);
+        setEventCursorHistory([]);
       } catch (reason) {
         setEventError(reason);
       }
     } catch (reason) {
       setError(reason);
+    }
+  }
+
+  async function loadEventPage(cursor, history) {
+    if (!actorId) return;
+    setEventPending(true);
+    setEventError(null);
+    try {
+      const eventPayload = await request(eventPath(actorId, cursor));
+      setEvents(Array.isArray(eventPayload.items) ? eventPayload.items : []);
+      setEventCursor(cursor);
+      setEventNextCursor(eventPayload.nextCursor ?? null);
+      setEventCursorHistory(history);
+    } catch (reason) {
+      setEventError(reason);
+    } finally {
+      setEventPending(false);
     }
   }
 
@@ -138,6 +173,12 @@ export default function AgentActivityPage({ params }) {
                   })}
                 </ol>
               )}
+              {(eventCursorHistory.length > 0 || eventNextCursor) ? (
+                <nav aria-label="Attempt trail pages" className="mt-4 flex justify-end gap-2">
+                  <Button disabled={eventPending || eventCursorHistory.length === 0} onClick={() => loadEventPage(eventCursorHistory.at(-1) ?? null, eventCursorHistory.slice(0, -1))} size="sm" type="button" variant="outline">Previous activity</Button>
+                  <Button disabled={eventPending || !eventNextCursor} onClick={() => loadEventPage(eventNextCursor, [...eventCursorHistory, eventCursor])} size="sm" type="button" variant="outline">Next activity</Button>
+                </nav>
+              ) : null}
             </CardContent>
           </Card>
 
@@ -145,7 +186,7 @@ export default function AgentActivityPage({ params }) {
             <div className="mb-3 flex flex-wrap items-baseline justify-between gap-3"><h2 className="text-xl font-semibold tracking-tight" id="output-heading">Public output</h2><span className="text-sm text-muted-foreground">Produced and used attribution edges</span></div>
             {allOutputs.length === 0 ? <Empty description="Objects this agent produced or used will appear here with their attribution edge." title="No public output yet" /> : (
               <>
-                <ul className="divide-y divide-border rounded-lg border border-border bg-card">{outputs.map((edge, index) => { const href = objectHref(edge); return <li className="flex flex-wrap items-center gap-3 px-5 py-3.5" key={`${edge.objectType}-${edge.objectId}-${outputStart + index}`}><StatusBadge label={edge.edgeType ?? (produced.includes(edge) ? 'produced' : 'used')} state="update" /><span className="text-xs text-muted-foreground">{edge.objectType}</span><IdChip value={display(edge.objectId)} />{href ? <Link className="text-xs text-primary hover:underline" href={href}>open</Link> : null}<span className="ml-auto text-xs text-muted-foreground">{edge.signedBy ? <>signed by <Link className="text-primary hover:underline" href={`/people/${encodeURIComponent(edge.signedBy)}`}>{edge.signedBy}</Link></> : 'signature not stated'}</span></li>; })}</ul>
+                <ul className="divide-y divide-border rounded-lg border border-border bg-card">{outputs.map((edge, index) => { const href = objectHref(edge); return <li className="flex flex-wrap items-center gap-3 px-5 py-3.5" key={`${edge.objectType}-${edge.objectId}-${outputStart + index}`}><StatusBadge label={edge.edgeType ?? (produced.includes(edge) ? 'produced' : 'used')} state="update" /><span className="text-xs text-muted-foreground">{edge.objectType}</span><IdChip value={objectReference(edge)} />{href ? <Link className="text-xs text-primary hover:underline" href={href}>open</Link> : null}<span className="ml-auto text-xs text-muted-foreground">{edge.signedBy ? <>signed by <Link className="text-primary hover:underline" href={`/people/${encodeURIComponent(edge.signedBy)}`}>{edge.signedBy}</Link></> : 'signature not stated'}</span></li>; })}</ul>
                 {(hasPreviousOutputs || hasNextOutputs) ? (
                   <nav aria-label="Public output pages" className="mt-4 flex justify-end gap-2">
                     <Button disabled={!hasPreviousOutputs} onClick={() => setOutputPage((page) => Math.max(0, page - 1))} size="sm" type="button" variant="outline">Previous outputs</Button>

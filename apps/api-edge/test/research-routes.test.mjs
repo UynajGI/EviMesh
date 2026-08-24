@@ -595,10 +595,20 @@ test("creates Evidence and links it to a fixed ClaimRevision", async () => {
   const created = await app.fetch(new Request("https://api.example.test/evidence", {
     method: "POST",
     headers: { authorization: "Bearer test-token", "content-type": "application/json" },
-    body: JSON.stringify({ evidenceId: "evidence-1", evidenceType: "experimental_result", artifactId: "artifact-1", artifactRevision: 1 }),
+    body: JSON.stringify({ evidenceId: "evidence-1", evidenceType: "experimental_result", artifactId: "artifact-1", artifactRevision: 1, links: [{ claimId: "claim-1", claimRevision: 2, relationType: "refutes" }] }),
   }), {});
   assert.equal(created.status, 201, await created.clone().text());
-  assert.equal((await created.json()).evidence.evidenceId, "evidence-1");
+  const createdPayload = await created.json();
+  assert.equal(createdPayload.evidence.evidenceId, "evidence-1");
+  assert.equal(createdPayload.linkEvents[0].eventType, "evidence.claim_linked");
+  assert.deepEqual(createdPayload.linkEvents[0].payload, {
+    entity_type: "evidence",
+    evidence_id: "evidence-1",
+    claim_id: "claim-1",
+    claim_revision: 2,
+    relation_type: "refutes",
+    actor_id: "actor-1",
+  });
   const linked = await app.fetch(new Request("https://api.example.test/evidence/evidence-1/links", {
     method: "POST",
     headers: { authorization: "Bearer test-token", "content-type": "application/json" },
