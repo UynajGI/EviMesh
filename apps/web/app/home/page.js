@@ -16,6 +16,7 @@ const API = process.env.NEXT_PUBLIC_EVIMESH_API_URL;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_WATCHED_OBJECTS = 24;
 const EVENTS_PER_OBJECT = 100;
+const DETAIL_HYDRATION_BATCH_SIZE = 8;
 
 const GROUPS = [
   { level: 'critical', title: 'Needs prompt review', meta: 'critical' },
@@ -187,19 +188,85 @@ function hasExplicitImpact(payload) {
   });
 }
 
+function classificationDetailTarget(event) {
+  const type = normalized(event.eventType);
+  const payload = event.payload && typeof event.payload === 'object' ? event.payload : {};
+  if (type === 'verification.submitted') {
+    const receiptId = payloadValue(payload, 'receipt_id', 'receiptId');
+    const findingCount = payloadValue(payload, 'finding_count', 'findingCount');
+    if (receiptId && (findingCount === null || Number(findingCount) > 0)) {
+      return { key: `verification:${receiptId}`, kind: 'verification', id: String(receiptId) };
+    }
+  }
+  if (type === 'challenge.upheld' && !hasExplicitImpact(payload)) {
+    const challengeId = payloadValue(payload, 'challenge_id', 'challengeId');
+    if (challengeId) return { key: `challenge:${challengeId}`, kind: 'challenge', id: String(challengeId) };
+  }
+  return null;
+}
+
+function highestFindingSeverity(findings) {
+  const severities = new Set((Array.isArray(findings) ? findings : []).map((finding) => normalized(finding?.severity)));
+  return ['critical', 'major', 'warning', 'note'].find((severity) => severities.has(severity)) ?? null;
+}
+
+async function classificationContextFor(target) {
+  if (target.kind === 'verification') {
+    const detail = await getJson(`/verifications/${encodeURIComponent(target.id)}`);
+    return { findingSeverity: highestFindingSeverity(detail.findings) };
+  }
+  const detail = await getJson(`/challenges/${encodeURIComponent(target.id)}`);
+  return {
+    challengeHasImpact: hasExplicitImpact(detail.currentRevision)
+      || (Array.isArray(detail.impacts) && detail.impacts.length > 0),
+  };
+}
+
+async function hydrateClassificationContexts(events) {
+  const targets = new Map();
+  for (const event of events) {
+    const target = classificationDetailTarget(event);
+    if (target) targets.set(target.key, target);
+  }
+  const contexts = new Map();
+  let failedDetails = 0;
+  const values = [...targets.values()];
+  for (let index = 0; index < values.length; index += DETAIL_HYDRATION_BATCH_SIZE) {
+    const chunk = values.slice(index, index + DETAIL_HYDRATION_BATCH_SIZE);
+    const settled = await Promise.allSettled(chunk.map(async (target) => ({
+      key: target.key,
+      context: await classificationContextFor(target),
+    })));
+    for (const result of settled) {
+      if (result.status === 'fulfilled') contexts.set(result.value.key, result.value.context);
+      else failedDetails += 1;
+    }
+  }
+  return {
+    events: events.map((event) => {
+      const target = classificationDetailTarget(event);
+      const classificationContext = target ? contexts.get(target.key) : null;
+      return classificationContext ? { ...event, classificationContext } : event;
+    }),
+    failedDetails,
+  };
+}
+
 function classifyEvent(event) {
   const type = normalized(event.eventType);
   const payload = event.payload && typeof event.payload === 'object' ? event.payload : {};
+  const classificationContext = event.classificationContext && typeof event.classificationContext === 'object' ? event.classificationContext : {};
   const claimState = normalized(payloadValue(payload, 'claim_state', 'claimState', 'to_state', 'toState', 'state', 'status', 'outcome'));
-  const findingSeverity = normalized(payloadValue(payload, 'severity', 'finding_severity', 'findingSeverity'));
+  const findingSeverity = normalized(classificationContext.findingSeverity ?? payloadValue(payload, 'severity', 'finding_severity', 'findingSeverity'));
   const challengeState = normalized(payloadValue(payload, 'challenge_state', 'challengeState', 'to_state', 'toState', 'state', 'status', 'outcome'));
   const relationType = normalized(payloadValue(payload, 'relation_type', 'relationType', 'evidence_relation', 'evidenceRelation'));
   const frontierAction = normalized(payloadValue(payload, 'action', 'change_type', 'changeType', 'membership_change', 'membershipChange', 'state', 'status'));
 
   const explicitRefutedOrRetracted = type.startsWith('claim.')
     && (/(^|\.)(refuted|retracted)$/.test(type) || ['refuted', 'retracted'].includes(claimState));
-  const criticalFinding = type.includes('finding') && findingSeverity === 'critical';
-  const upheldChallengeWithImpact = type.includes('challenge') && challengeState === 'upheld' && hasExplicitImpact(payload);
+  const criticalFinding = (type.includes('finding') || type.startsWith('verification.')) && findingSeverity === 'critical';
+  const upheldChallengeWithImpact = type.includes('challenge') && challengeState === 'upheld'
+    && (classificationContext.challengeHasImpact === true || hasExplicitImpact(payload));
   const frontierTaintOrRemovalImpact = type.includes('frontier')
     && (/taint|remove|replace/.test(type) || /taint|remove|replace/.test(frontierAction))
     && hasExplicitImpact(payload);
@@ -208,7 +275,7 @@ function classifyEvent(event) {
   const explicitlyContested = type.startsWith('claim.')
     && (/(^|\.)contested$/.test(type) || claimState === 'contested');
   const refutingEvidence = type.includes('evidence') && relationType === 'refutes';
-  const majorFinding = type.includes('finding') && findingSeverity === 'major';
+  const majorFinding = (type.includes('finding') || type.startsWith('verification.')) && findingSeverity === 'major';
   const createdChallenge = type === 'challenge.created';
   const investigatingChallenge = type.includes('challenge') && challengeState === 'investigating';
   const verificationContextChanged = type.startsWith('verification.')
@@ -228,10 +295,11 @@ function classifyEvent(event) {
 
 function eventFacts(event) {
   const payload = event.payload && typeof event.payload === 'object' ? event.payload : {};
+  const classificationContext = event.classificationContext && typeof event.classificationContext === 'object' ? event.classificationContext : {};
   return {
     type: String(event.eventType),
     claimState: normalized(payloadValue(payload, 'claim_state', 'claimState', 'to_state', 'toState', 'state', 'status', 'outcome')),
-    findingSeverity: normalized(payloadValue(payload, 'severity', 'finding_severity', 'findingSeverity')),
+    findingSeverity: normalized(classificationContext.findingSeverity ?? payloadValue(payload, 'severity', 'finding_severity', 'findingSeverity')),
     challengeState: normalized(payloadValue(payload, 'challenge_state', 'challengeState', 'to_state', 'toState', 'state', 'status', 'outcome')),
     relationType: normalized(payloadValue(payload, 'relation_type', 'relationType', 'evidence_relation', 'evidenceRelation')),
     claimRevision: payloadValue(payload, 'claim_revision_id', 'claimRevisionId', 'claim_revision', 'claimRevision'),
@@ -249,9 +317,9 @@ function whatHappened(event) {
   if (event.eventType.startsWith('claim.') && ['refuted', 'retracted'].includes(facts.claimState)) {
     return `Claim revision ${facts.claimRevision ?? scope.objectId} entered ${facts.claimState}.`;
   }
-  if (facts.findingSeverity && event.eventType.includes('finding')) {
+  if (facts.findingSeverity && (event.eventType.includes('finding') || event.eventType.startsWith('verification.'))) {
     const receipt = facts.receiptId ? ` on receipt ${facts.receiptId}` : '';
-    return `Finding ${facts.findingId ?? event.eventId} recorded severity ${facts.findingSeverity}${receipt}.`;
+    return `Verification${receipt} recorded a ${facts.findingSeverity} finding.`;
   }
   if (facts.relationType === 'refutes' && event.eventType.includes('evidence')) {
     const target = facts.claimRevision ? ` targeting claim revision ${facts.claimRevision}` : '';
@@ -351,6 +419,7 @@ function partialDescription(partial) {
   if (partial.failedObjects) notes.push('Some object event queries were unavailable');
   if (partial.truncatedObjects) notes.push('Some object event queries have another page');
   if (partial.invalidEvents) notes.push('Some event records lacked required provenance fields');
+  if (partial.failedDetails) notes.push('Some verification or Challenge details needed for change classification were unavailable');
   return `${notes.join('. ')}. Displayed events remain in newest protocol order; this partial result cannot support a quiet conclusion.`;
 }
 
@@ -358,7 +427,7 @@ export default function HomePage() {
   const [status, setStatus] = useState('loading');
   const [events, setEvents] = useState([]);
   const [watchCount, setWatchCount] = useState(0);
-  const [partial, setPartial] = useState({ omittedObjects: 0, failedObjects: 0, truncatedObjects: 0, invalidEvents: 0 });
+  const [partial, setPartial] = useState({ omittedObjects: 0, failedObjects: 0, truncatedObjects: 0, invalidEvents: 0, failedDetails: 0 });
   const [error, setError] = useState(null);
   const [requestId, setRequestId] = useState(null);
   const [observationWindow, setObservationWindow] = useState(null);
@@ -373,7 +442,7 @@ export default function HomePage() {
     setStatus('loading');
     setError(null);
     setRequestId(null);
-    setPartial({ omittedObjects: 0, failedObjects: 0, truncatedObjects: 0, invalidEvents: 0 });
+    setPartial({ omittedObjects: 0, failedObjects: 0, truncatedObjects: 0, invalidEvents: 0, failedDetails: 0 });
     setAgentConnection({ state: 'checking' });
 
     let interactions;
@@ -407,15 +476,17 @@ export default function HomePage() {
     const failures = settled.filter((result) => result.status === 'rejected');
     const firstFailure = failures[0]?.reason;
     const merged = mergeEventPages(successfulPages);
+    const classificationPromise = hydrateClassificationContexts(merged.events);
+    const [connection, classified] = await Promise.all([agentPromise, classificationPromise]);
+    if (generation !== loadGeneration.current) return;
     const nextPartial = {
       omittedObjects: Math.max(0, allScopes.length - scopes.length),
       failedObjects: failures.length,
       truncatedObjects: successfulPages.filter(({ payload }) => Boolean(payload.nextCursor)).length,
       invalidEvents: merged.invalidEvents,
+      failedDetails: classified.failedDetails,
     };
 
-    const connection = await agentPromise;
-    if (generation !== loadGeneration.current) return;
     setWatchCount(allScopes.length);
     setAgentConnection(connection);
     if (scopes.length > 0 && successfulPages.length === 0) {
@@ -424,7 +495,7 @@ export default function HomePage() {
       setRequestId(firstFailure?.requestId ?? null);
       return;
     }
-    setEvents(merged.events);
+    setEvents(classified.events);
     setPartial(nextPartial);
     setStatus('ready');
   }, []);

@@ -167,7 +167,6 @@ function requiredRunInteger(value, field) {
 
 function canonicalRunBody(body) {
   return {
-    ...body,
     actorId: canonicalRunText(body.actorId, 'run actor id'),
     runId: canonicalRunText(body.runId, 'run id'),
     taskId: canonicalRunText(body.taskId, 'task id'),
@@ -176,6 +175,7 @@ function canonicalRunBody(body) {
     container: canonicalRunText(body.container, 'container'),
     command: canonicalRunText(body.command, 'command'),
     signingKeyId: canonicalRunText(body.signingKeyId, 'signing key id'),
+    ...(Object.hasOwn(body, 'signature') ? { signature: body.signature } : {}),
     args: canonicalRunArgs(body.args),
     environment: requiredRunObject(body.environment, 'environment'),
     hardware: requiredRunObject(body.hardware, 'hardware'),

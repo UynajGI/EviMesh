@@ -58,6 +58,12 @@ test('home restores the private watchlist change stream and design-book hierarch
   for (const level of ["return 'critical'", "return 'attention'", "return 'update'"]) assert.ok(page.includes(level));
   assert.match(page, /criticalFinding/);
   assert.match(page, /upheldChallengeWithImpact/);
+  assert.match(page, /hydrateClassificationContexts\(merged\.events\)/);
+  assert.match(page, /\/verifications\/\$\{encodeURIComponent\(target\.id\)\}/);
+  assert.match(page, /\/challenges\/\$\{encodeURIComponent\(target\.id\)\}/);
+  assert.match(page, /classificationContext\.findingSeverity/);
+  assert.match(page, /classificationContext\.challengeHasImpact === true/);
+  assert.match(page, /failedDetails/);
   assert.match(page, /refutingEvidence/);
   assert.match(page, /const createdChallenge = type === 'challenge\.created'/);
   assert.match(page, /majorFinding \|\| createdChallenge \|\| investigatingChallenge/);
