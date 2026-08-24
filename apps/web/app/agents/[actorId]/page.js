@@ -7,9 +7,11 @@ import { Card, CardContent, StatusBadge } from '@/components/ui/data';
 import { Alert, Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
 import { IdChip } from '@/components/ui/idchip';
 import { PageContainer, PageHeader } from '@/components/ui/page';
+import { Button } from '@/components/ui/button';
 import { Attribution } from '@/components/attribution';
 
 const API = process.env.NEXT_PUBLIC_EVIMESH_API_URL;
+const OUTPUT_PAGE_SIZE = 20;
 
 async function request(path) {
   const response = await fetch(`${API}${path}`);
@@ -33,6 +35,7 @@ function objectHref(edge) {
   if (edge.objectType === 'project') return `/projects/${encodedId}`;
   if (edge.objectType === 'task') return `/tasks/${encodedId}`;
   if (edge.objectType === 'attempt') return `/attempts/${encodedId}`;
+  if (edge.objectType === 'artifact') return `/artifacts/${encodedId}`;
   return null;
 }
 
@@ -45,6 +48,7 @@ export default function AgentActivityPage({ params }) {
   const [events, setEvents] = useState([]);
   const [eventError, setEventError] = useState(null);
   const [error, setError] = useState(null);
+  const [outputPage, setOutputPage] = useState(0);
 
   useEffect(() => { Promise.resolve(params).then(({ actorId: value }) => setActorId(value)); }, [params]);
 
@@ -56,6 +60,7 @@ export default function AgentActivityPage({ params }) {
       const payload = await request(`/actors/${encodeURIComponent(actorId)}`);
       const actor = payload.actor ?? payload;
       if (actor.actorType !== 'agent' && actor.actorType !== 'service') throw new Error('Agent not found. This Actor is not registered as an agent or service.');
+      setOutputPage(0);
       setData(payload);
       try {
         const eventPayload = await request(`/events?actorId=${encodeURIComponent(actorId)}&limit=50&order=desc`);
@@ -76,7 +81,11 @@ export default function AgentActivityPage({ params }) {
   const actor = data.actor ?? data;
   const produced = Array.isArray(data.produced) ? data.produced : [];
   const used = Array.isArray(data.used) ? data.used : [];
-  const outputs = [...produced, ...used].slice(0, 20);
+  const allOutputs = [...produced, ...used];
+  const outputStart = outputPage * OUTPUT_PAGE_SIZE;
+  const outputs = allOutputs.slice(outputStart, outputStart + OUTPUT_PAGE_SIZE);
+  const hasPreviousOutputs = outputPage > 0;
+  const hasNextOutputs = outputStart + OUTPUT_PAGE_SIZE < allOutputs.length;
   const lastEvent = data.lastEventAt ?? events[0]?.createdAt ?? actor.updatedAt ?? null;
   const owner = actor.ownerActorId;
 
@@ -134,7 +143,17 @@ export default function AgentActivityPage({ params }) {
 
           <section aria-labelledby="output-heading" className="mt-8">
             <div className="mb-3 flex flex-wrap items-baseline justify-between gap-3"><h2 className="text-xl font-semibold tracking-tight" id="output-heading">Public output</h2><span className="text-sm text-muted-foreground">Produced and used attribution edges</span></div>
-            {outputs.length === 0 ? <Empty description="Objects this agent produced or used will appear here with their attribution edge." title="No public output yet" /> : <ul className="divide-y divide-border rounded-lg border border-border bg-card">{outputs.map((edge, index) => { const href = objectHref(edge); return <li className="flex flex-wrap items-center gap-3 px-5 py-3.5" key={`${edge.objectType}-${edge.objectId}-${index}`}><StatusBadge label={edge.edgeType ?? (produced.includes(edge) ? 'produced' : 'used')} state="update" /><span className="text-xs text-muted-foreground">{edge.objectType}</span><IdChip value={display(edge.objectId)} />{href ? <Link className="text-xs text-primary hover:underline" href={href}>open</Link> : null}<span className="ml-auto text-xs text-muted-foreground">{edge.signedBy ? <>signed by <Link className="text-primary hover:underline" href={`/people/${encodeURIComponent(edge.signedBy)}`}>{edge.signedBy}</Link></> : 'signature not stated'}</span></li>; })}</ul>}
+            {allOutputs.length === 0 ? <Empty description="Objects this agent produced or used will appear here with their attribution edge." title="No public output yet" /> : (
+              <>
+                <ul className="divide-y divide-border rounded-lg border border-border bg-card">{outputs.map((edge, index) => { const href = objectHref(edge); return <li className="flex flex-wrap items-center gap-3 px-5 py-3.5" key={`${edge.objectType}-${edge.objectId}-${outputStart + index}`}><StatusBadge label={edge.edgeType ?? (produced.includes(edge) ? 'produced' : 'used')} state="update" /><span className="text-xs text-muted-foreground">{edge.objectType}</span><IdChip value={display(edge.objectId)} />{href ? <Link className="text-xs text-primary hover:underline" href={href}>open</Link> : null}<span className="ml-auto text-xs text-muted-foreground">{edge.signedBy ? <>signed by <Link className="text-primary hover:underline" href={`/people/${encodeURIComponent(edge.signedBy)}`}>{edge.signedBy}</Link></> : 'signature not stated'}</span></li>; })}</ul>
+                {(hasPreviousOutputs || hasNextOutputs) ? (
+                  <nav aria-label="Public output pages" className="mt-4 flex justify-end gap-2">
+                    <Button disabled={!hasPreviousOutputs} onClick={() => setOutputPage((page) => Math.max(0, page - 1))} size="sm" type="button" variant="outline">Previous outputs</Button>
+                    <Button disabled={!hasNextOutputs} onClick={() => setOutputPage((page) => page + 1)} size="sm" type="button" variant="outline">Next outputs</Button>
+                  </nav>
+                ) : null}
+              </>
+            )}
           </section>
 
           <section aria-labelledby="review-heading" className="mt-8">

@@ -41,6 +41,11 @@ test("agent activity keeps public output attributable and avoids scoring languag
   const source = await read("../app/agents/[actorId]/page.js");
   assert.match(source, /signedBy/);
   assert.match(source, /\/people\/\$\{encodeURIComponent\(edge\.signedBy\)\}/);
+  assert.match(source, /edge\.objectType === 'artifact'.*\/artifacts\/\$\{encodedId\}/);
+  assert.match(source, /allOutputs\.slice\(outputStart, outputStart \+ OUTPUT_PAGE_SIZE\)/);
+  assert.match(source, /Previous outputs/);
+  assert.match(source, /Next outputs/);
+  assert.doesNotMatch(source, /\.slice\(0, 20\)/);
   assert.match(source, /signature not stated/);
   assert.match(source, /ownerActorId/);
   assert.doesNotMatch(source, /score|rating|ranking|percentage/i);
