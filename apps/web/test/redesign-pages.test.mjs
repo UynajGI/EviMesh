@@ -98,7 +98,8 @@ test('landing shows a real live example with a graceful fallback', async () => {
   assert.match(page, /<LandingExample/);
   assert.match(page, /fallback={/);
   assert.match(page, />Demo data</);
-  assert.match(page, /Frontier #12/);
+  assert.match(page, /Illustrative frontier/);
+  assert.doesNotMatch(page, /Frontier #\d+/);
   assert.match(page, /state="provisionally_accepted"/);
   assert.match(page, /state="contested"/);
   assert.match(page, /Human signer/);

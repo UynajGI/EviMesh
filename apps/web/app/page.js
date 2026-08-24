@@ -93,7 +93,7 @@ export default function LandingPage() {
                   </h3>
                   <p className="mt-2 text-sm text-muted-foreground">Contrastive learning reproducibility project</p>
                 </div>
-                <span className="shrink-0 text-sm tabular-nums text-muted-foreground">Frontier #12</span>
+                <span className="shrink-0 text-sm text-muted-foreground">Illustrative frontier</span>
               </div>
 
               <div className="divide-y divide-border px-5">
