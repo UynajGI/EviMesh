@@ -86,7 +86,7 @@ test("immutable signer event hydration uses bounded batch filters", async () => 
   const events = await repository.listResearchEventsByIds(eventIds);
   assert.equal(events[0].eventId, "event-1");
   assert.equal(seen[0].searchParams.get("event_id").split(",").length, 50);
-  assert.equal(seen[1].searchParams.get("event_id"), "in.(event-51)");
+  assert.equal(seen[1].searchParams.get("event_id"), 'in.("event-51")');
   assert.equal(seen.length, 2);
 });
 

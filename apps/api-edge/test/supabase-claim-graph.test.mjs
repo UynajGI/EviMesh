@@ -74,10 +74,39 @@ test("reads bounded upstream and downstream Claim graphs with typed relations", 
   assert.deepEqual(await repository.listDirectDependentClaimIds("claim-a"), ["claim-child"]);
   assert.ok(relationQueries.length > 0);
   assert.ok(relationQueries.every((endpoint) => endpoint.searchParams.get("or")?.includes("source_claim_id.in.")), "graph reads must query only the current frontier");
-  assert.ok(relationQueries.some((endpoint) => endpoint.searchParams.get("or")?.includes("claim-a,claim-support")), "broad frontiers must share one relation query");
+  assert.ok(relationQueries.some((endpoint) => endpoint.searchParams.get("or")?.includes('"claim-a","claim-support"')), "broad frontiers must share one relation query");
   assert.ok(claimQueries.length > 0);
   assert.ok(claimQueries.every((endpoint) => endpoint.searchParams.get("claim_id")?.startsWith("in.(")), "graph reads must hydrate only discovered Claims");
   assert.ok(claimQueries.every((endpoint) => endpoint.searchParams.get("claim_id")?.split(",").length <= 50), "Claim hydration batches must remain bounded");
+});
+
+test("preserves punctuation in Claim IDs used by graph membership filters", async () => {
+  let relationFilter;
+  let claimFilter;
+  const repository = createSupabaseReadRepository({
+    url: "https://project.supabase.co",
+    publishableKey: "sb_publishable_test",
+    fetchImpl: async (url) => {
+      const endpoint = new URL(url);
+      if (endpoint.pathname.endsWith("/claim_relations")) {
+        relationFilter = endpoint.searchParams.get("or");
+        return Response.json([
+          { source_claim_id: "claim,a", target_claim_id: "claim)root", relation_type: "depends_on", deleted_at: null },
+        ]);
+      }
+      if (endpoint.pathname.endsWith("/claims")) {
+        claimFilter = endpoint.searchParams.get("claim_id");
+        return Response.json([{ claim_id: "claim)root", state: "candidate", deleted_at: null }]);
+      }
+      return Response.json([]);
+    },
+  });
+
+  const graph = await repository.getClaimUpstreamGraph({ claimId: "claim,a", maxDepth: 1 });
+
+  assert.deepEqual(graph.nodes.map((node) => node.claimId), ["claim)root"]);
+  assert.equal(relationFilter, '(source_claim_id.in.("claim,a"),target_claim_id.in.("claim,a"))');
+  assert.equal(claimFilter, 'in.("claim)root")');
 });
 
 test("hydrates broad Claim graph frontiers in bounded batches", async () => {

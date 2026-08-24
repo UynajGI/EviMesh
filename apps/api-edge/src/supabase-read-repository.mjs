@@ -119,7 +119,7 @@ const TABLE_ORDERS = Object.freeze({
 /** PostgREST filter value: `eq.x` for scalars, `in.(a,b)` for arrays, and
  *  `{ op, value }` for explicit operators (gte/lte/gt/lt/like/ilike). */
 function filterValue(value) {
-  if (Array.isArray(value)) return `in.(${value.map((entry) => String(entry).replaceAll(",", "").replaceAll(")", "")).join(",")})`;
+  if (Array.isArray(value)) return `in.(${value.map(postgrestLogicLiteral).join(",")})`;
   if (value && typeof value === "object" && typeof value.op === "string") return `${value.op}.${value.value}`;
   return `eq.${value}`;
 }
