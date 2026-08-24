@@ -71,6 +71,7 @@ test('home restores the private watchlist change stream and design-book hierarch
   assert.match(page, /frontierContextChanged = type\.includes\('frontier'\)[\s\S]*hasExplicitImpact\(payload\)/, 'ordinary frontier events are not guessed upward');
   assert.match(page, /ChangeGroup/);
   assert.match(page, /ChangeEvent/);
+  assert.doesNotMatch(page, /<ChangeGroup count=/, 'change totals are not rendered as non-navigation badges');
   for (const rail of ['My work', 'Agent connection', 'Recently visited']) {
     assert.ok(page.includes(rail), 'home rail missing ' + rail);
   }

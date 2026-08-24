@@ -506,7 +506,7 @@ export default function HomePage() {
                 />
               ) : (
                 GROUPS.map((group) => grouped[group.level].length > 0 ? (
-                  <ChangeGroup count={grouped[group.level].length} key={group.level} level={group.level} meta={group.meta} title={group.title}>
+                  <ChangeGroup key={group.level} level={group.level} meta={group.meta} title={group.title}>
                     <div className="divide-y divide-border rounded-lg border border-border bg-card">
                       {grouped[group.level].map((event) => (
                         <ChangeEvent event={event} key={event.eventId} level={group.level} observationWindow={observationWindow} />

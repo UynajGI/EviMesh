@@ -54,6 +54,11 @@ async function ensureActor() {
   return response.ok;
 }
 
+function actorNeedsProvisioning(error) {
+  return error.status === 403
+    && (error.code === 'ACTOR_IDENTITY_NOT_FOUND' || error.code === 'ACTOR_IDENTITY_UNAVAILABLE');
+}
+
 export async function setInteraction(objectType, objectId, kind, active) {
   const attempt = () => (active
     ? callInteractions(`/interactions/${encodeURIComponent(objectType)}/${encodeURIComponent(objectId)}`, { method: 'PUT', body: { kind } })
@@ -61,7 +66,7 @@ export async function setInteraction(objectType, objectId, kind, active) {
   try {
     return await attempt();
   } catch (error) {
-    if (error.status === 403 && (error.code === 'ACTOR_IDENTITY_NOT_FOUND' || error.code === 'ACTOR_IDENTITY_UNAVAILABLE')) {
+    if (actorNeedsProvisioning(error)) {
       if (await ensureActor()) return attempt();
     }
     throw error;
@@ -70,8 +75,18 @@ export async function setInteraction(objectType, objectId, kind, active) {
 
 export async function fetchMyInteractions(kinds = null) {
   const query = kinds && kinds.length ? `?kind=${kinds.join(',')}` : '';
-  const payload = await callInteractions(`/interactions/mine${query}`);
-  return payload.interactions ?? [];
+  const attempt = async () => {
+    const payload = await callInteractions(`/interactions/mine${query}`);
+    return payload.interactions ?? [];
+  };
+  try {
+    return await attempt();
+  } catch (error) {
+    if (actorNeedsProvisioning(error)) {
+      if (await ensureActor()) return attempt();
+    }
+    throw error;
+  }
 }
 
 export async function fetchRecommendations(limit = 12) {

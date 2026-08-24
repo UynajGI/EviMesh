@@ -27,6 +27,21 @@ test('interaction client retries through self-provisioning on first authenticate
   assert.match(src, /\/actors\/self/, 'provisioning endpoint is wired');
   assert.match(src, /view-sent/, 'view signals are deduplicated per session');
   assert.doesNotMatch(src, /score/, 'no recommendation score may pass through the client');
+  const readFlow = src.slice(src.indexOf('export async function fetchMyInteractions'), src.indexOf('export async function fetchRecommendations'));
+  assert.match(readFlow, /actorNeedsProvisioning/);
+  assert.match(readFlow, /ensureActor\(\)/, 'read-first Home can provision a newly signed-in Actor before retrying');
+});
+
+test('detail Watch controls persist the same private interaction scope Home reads', async () => {
+  const [question, claim] = await Promise.all([
+    read('../app/questions/[questionId]/page.js'),
+    read('../app/claims/[claimId]/page.js'),
+  ]);
+  for (const [objectType, src] of [['question', question], ['claim', claim]]) {
+    assert.match(src, /useMyInteractions\(\)/);
+    assert.match(src, new RegExp(`toggleInteraction\\('${objectType}', \\w+Id, 'watch'\\)`));
+    assert.doesNotMatch(src, /evimesh-watch|setWatched|localStorage/, `${objectType} Watch must not pretend a local-only toggle is in Home`);
+  }
 });
 
 test('home uses the viewer private watch signal as its only object scope', async () => {

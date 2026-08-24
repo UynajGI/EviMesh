@@ -14,7 +14,7 @@ import { Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
 import { IdChip } from '@/components/ui/idchip';
 import { hydrateEvidenceLinks, hydrateReceiptFindings, evidenceRelations } from '@/lib/hydrate';
 import { useVisitRecord } from '@/lib/visit-history';
-import { recordView } from '@/lib/interactions';
+import { recordView, useMyInteractions } from '@/lib/interactions';
 import { claimLayoutEndpoints } from '@/lib/claim-graph-layout.mjs';
 import { PageContainer } from '@/components/ui/page';
 import { Check, Eye, Share2 } from 'lucide-react';
@@ -97,13 +97,14 @@ function ClaimDetailView({ params }) {
   const [direction, setDirection] = useState('upstream');
   const [graphView, setGraphView] = useState('graph');
   const [handoffOpen, setHandoffOpen] = useState(false);
-  const [watched, setWatched] = useState(false);
   const [shared, setShared] = useState(false);
   const [revisionDiff, setRevisionDiff] = useState(null);
   const [revisionList, setRevisionList] = useState(null);
   const [evidence, setEvidence] = useState([]);
   const [receipts, setReceipts] = useState([]);
   const [error, setError] = useState(null);
+  const { mine: interactions, ready: interactionsReady, has: hasInteraction, toggle: toggleInteraction } = useMyInteractions();
+  const watched = hasInteraction('claim', claimId, 'watch');
 
   useEffect(() => { Promise.resolve(params).then(({ claimId: value }) => setClaimId(value)); }, [params]);
 
@@ -181,9 +182,6 @@ function ClaimDetailView({ params }) {
   }
 
   useEffect(() => { if (claimId) load(); }, [claimId]);
-  useEffect(() => {
-    try { setWatched(localStorage.getItem(`evimesh-watch-claim-${claimId}`) === '1'); } catch { /* unavailable */ }
-  }, [claimId]);
   useEffect(() => { if (claimId) request(`/claims/${claimId}/graph?direction=${direction}&maxDepth=3`).then(setGraph).catch((reason) => setError(reason.message)); }, [claimId, direction]);
   useEffect(() => {
     const label = data?.currentRevision?.statement ?? claimId ?? '';
@@ -298,15 +296,10 @@ function ClaimDetailView({ params }) {
         <div className="flex shrink-0 flex-wrap gap-2">
           <button
             aria-pressed={watched}
-            className={cn('inline-flex h-9 items-center gap-2 rounded-md border px-3 text-sm font-medium', watched ? 'border-primary bg-accent text-accent-foreground' : 'border-border bg-card hover:bg-muted')}
-            onClick={() => {
-              const next = !watched;
-              setWatched(next);
-              try {
-                if (next) localStorage.setItem(`evimesh-watch-claim-${claimId}`, '1');
-                else localStorage.removeItem(`evimesh-watch-claim-${claimId}`);
-              } catch { /* unavailable */ }
-            }}
+            className={cn('inline-flex h-9 items-center gap-2 rounded-md border px-3 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50', watched ? 'border-primary bg-accent text-accent-foreground' : 'border-border bg-card hover:bg-muted')}
+            disabled={!claimId || !interactionsReady || interactions === null}
+            onClick={() => toggleInteraction('claim', claimId, 'watch')}
+            title={interactionsReady && interactions === null ? 'Sign in to watch' : undefined}
             type="button"
           >
             <Eye aria-hidden="true" size={14} />
