@@ -74,6 +74,7 @@ const CLAIM_GRAPH_MAX_NODES = 256;
 const CLAIM_GRAPH_MAX_EDGES = 512;
 const CLAIM_GRAPH_RELATION_QUERY_LIMIT = CLAIM_GRAPH_MAX_EDGES + 1;
 const ATTRIBUTION_BATCH_SIZE = 50;
+const QUESTION_EVENT_CLAIM_LIMIT = 50;
 const EVENT_ACTOR_PAYLOAD_KEYS = Object.freeze(["actor_id", "signer_actor_id", "publisher_actor_id", "drafted_by_actor_id", "producer_actor_id", "run_actor_id"]);
 const TABLE_ORDERS = Object.freeze({
   actors: "created_at.desc,actor_id.desc",
@@ -162,7 +163,7 @@ function eventObjectIdKeys(objectType) {
   return keys;
 }
 
-function eventObjectPredicate(objectType, objectId) {
+function eventObjectPredicate(objectType, objectId, descendantClaimIds = []) {
   const typeLiteral = postgrestLogicLiteral(objectType);
   const idLiteral = postgrestLogicLiteral(objectId);
   const typedKeys = eventObjectIdKeys(objectType);
@@ -170,14 +171,21 @@ function eventObjectPredicate(objectType, objectId) {
     `and(or(payload->>object_type.eq.${typeLiteral},payload->>entity_type.eq.${typeLiteral}),payload->>object_id.eq.${idLiteral})`,
   ];
   predicates.unshift(...typedKeys.map((key) => `payload->>${key}.eq.${idLiteral}`));
-  if (objectType === "question") predicates.unshift(`payload->projection->state->claim->>questionId.eq.${idLiteral}`);
+  if (objectType === "question") {
+    predicates.unshift(`payload->projection->state->claim->>questionId.eq.${idLiteral}`);
+    if (descendantClaimIds.length > 0) {
+      const membership = filterValue(descendantClaimIds);
+      predicates.unshift(`payload->>claim_id.${membership}`, `payload->>source_claim_id.${membership}`, `payload->>target_claim_id.${membership}`);
+    }
+  }
   return predicates.join(",");
 }
 
-function eventReferencesObject(payload, objectType, objectId) {
+function eventReferencesObject(payload, objectType, objectId, descendantClaimIds = new Set()) {
   const typedReference = eventObjectIdKeys(objectType).some((key) => payload[key] === objectId);
   const descendantReference = objectType === "question"
-    && payload.projection?.state?.claim?.questionId === objectId;
+    && (payload.projection?.state?.claim?.questionId === objectId
+      || [payload.claim_id, payload.source_claim_id, payload.target_claim_id].some((claimId) => descendantClaimIds.has(claimId)));
   const genericReference = (payload.object_type === objectType || payload.entity_type === objectType)
     && payload.object_id === objectId;
   return typedReference || descendantReference || genericReference;
@@ -617,13 +625,21 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
 
     /* ---- research events ---- */
     async listResearchEvents({ objectType = null, objectId = null, actorId = null, eventType = null, createdAfter = null, createdBefore = null, order = "asc", page = null } = {}) {
+      let descendantClaimIds = new Set();
+      if (objectType === "question" && objectId) {
+        const claims = await query("claims", { filters: { question_id: objectId }, select: "claim_id", limit: QUESTION_EVENT_CLAIM_LIMIT + 1 });
+        if (claims.length > QUESTION_EVENT_CLAIM_LIMIT) {
+          throw new SupabaseReadRepositoryError("Question event scope exceeds the hosted Claim membership limit", "SUPABASE_READ_SCOPE_TOO_BROAD", 413);
+        }
+        descendantClaimIds = new Set(claims.map((claim) => claim.claimId));
+      }
       const filters = {};
       if (eventType) filters.event_type = eventType;
       if (createdAfter) filters.created_at = { op: "gte", value: createdAfter };
       else if (createdBefore) filters.created_at = { op: "lte", value: createdBefore };
       const logicalPredicates = [];
       if (actorId) logicalPredicates.push(eventActorPredicate(actorId));
-      if (objectType && objectId) logicalPredicates.push(eventObjectPredicate(objectType, objectId));
+      if (objectType && objectId) logicalPredicates.push(eventObjectPredicate(objectType, objectId, [...descendantClaimIds]));
       if (createdAfter && createdBefore) logicalPredicates.push(`created_at.lte.${createdBefore}`);
       if (page?.after) {
         const comparison = order === "desc" ? "lt" : "gt";
@@ -639,7 +655,7 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
       return rows.filter((row) => {
         const payload = row.payload ?? {};
         if (createdBefore && !(Date.parse(row.createdAt ?? "") <= Date.parse(createdBefore))) return false;
-        if (objectType && objectId && !eventReferencesObject(payload, objectType, objectId)) return false;
+        if (objectType && objectId && !eventReferencesObject(payload, objectType, objectId, descendantClaimIds)) return false;
         if (actorId && !EVENT_ACTOR_PAYLOAD_KEYS.some((key) => payload[key] === actorId)) return false;
         return true;
       });

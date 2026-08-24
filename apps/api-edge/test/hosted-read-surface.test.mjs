@@ -106,27 +106,50 @@ test("events filter by payload ids and actors, ordered ascending", async () => {
     publishableKey: "anon",
     fetchImpl: async (endpoint) => {
       seen.push(String(endpoint));
+      if (new URL(endpoint).pathname.endsWith("/claims")) {
+        return Response.json([{ claim_id: "claim-9" }, { claim_id: "claim-child" }]);
+      }
       return new Response(JSON.stringify(rows), { headers: { "content-type": "application/json" } });
     },
   });
   const filtered = await repository.listResearchEvents({ objectType: "claim", objectId: "claim-9", actorId: "a1" });
   assert.deepEqual(filtered.map((row) => row.eventId), ["e2", "e5"]);
   const questionScoped = await repository.listResearchEvents({ objectType: "question", objectId: "q1" });
-  assert.deepEqual(questionScoped.map((row) => row.eventId), ["e1", "e7"]);
+  assert.deepEqual(questionScoped.map((row) => row.eventId), ["e2", "e1", "e5", "e6", "e7"]);
   const producerScoped = await repository.listResearchEvents({ actorId: "agent,(one)\"x" });
   assert.deepEqual(producerScoped.map((row) => row.eventId), ["e3"]);
   const drafterScoped = await repository.listResearchEvents({ actorId: "agent-drafter" });
   assert.deepEqual(drafterScoped.map((row) => row.eventId), ["e4"]);
   const verificationScoped = await repository.listResearchEvents({ objectType: "verification", objectId: "receipt-1" });
   assert.deepEqual(verificationScoped.map((row) => row.eventId), ["e6"]);
-  assert.ok(seen[0].includes("order=created_at.asc"), "events must be read ascending for cursor pagination");
-  assert.match(new URL(seen[0]).searchParams.get("and"), /payload->>actor_id\.eq\."a1"/);
-  assert.match(new URL(seen[0]).searchParams.get("and"), /payload->>claim_id\.eq\."claim-9"/);
-  assert.match(new URL(seen[0]).searchParams.get("and"), /payload->>entity_type\.eq\."claim"/);
-  assert.match(new URL(seen[0]).searchParams.get("and"), /payload->>producer_actor_id\.eq\."a1"/);
-  assert.match(new URL(seen[1]).searchParams.get("or"), /payload->projection->state->claim->>questionId\.eq\."q1"/);
-  assert.match(new URL(seen[2]).searchParams.get("or"), /payload->>producer_actor_id\.eq\."agent,\(one\)\\"x"/);
-  assert.match(seen[2], /%2C/);
+  const eventRequests = seen.filter((endpoint) => new URL(endpoint).pathname.endsWith("/research_events"));
+  assert.ok(eventRequests[0].includes("order=created_at.asc"), "events must be read ascending for cursor pagination");
+  assert.match(new URL(eventRequests[0]).searchParams.get("and"), /payload->>actor_id\.eq\."a1"/);
+  assert.match(new URL(eventRequests[0]).searchParams.get("and"), /payload->>claim_id\.eq\."claim-9"/);
+  assert.match(new URL(eventRequests[0]).searchParams.get("and"), /payload->>entity_type\.eq\."claim"/);
+  assert.match(new URL(eventRequests[0]).searchParams.get("and"), /payload->>producer_actor_id\.eq\."a1"/);
+  assert.match(new URL(eventRequests[1]).searchParams.get("or"), /payload->projection->state->claim->>questionId\.eq\."q1"/);
+  assert.match(new URL(eventRequests[1]).searchParams.get("or"), /payload->>claim_id\.in\.\("claim-9","claim-child"\)/);
+  assert.match(new URL(eventRequests[2]).searchParams.get("or"), /payload->>producer_actor_id\.eq\."agent,\(one\)\\"x"/);
+  assert.match(eventRequests[2], /%2C/);
+});
+
+test("fails closed when a Question event scope exceeds the hosted Claim membership limit", async () => {
+  const repository = createSupabaseReadRepository({
+    url: "https://example.supabase.co",
+    publishableKey: "anon",
+    fetchImpl: async (endpoint) => {
+      const url = new URL(endpoint);
+      if (url.pathname.endsWith("/claims")) {
+        return Response.json(Array.from({ length: 51 }, (_, index) => ({ claim_id: `claim-${index}` })));
+      }
+      return assert.fail("ResearchEvents must not be queried for an over-broad Question scope");
+    },
+  });
+  await assert.rejects(
+    repository.listResearchEvents({ objectType: "question", objectId: "q1" }),
+    (error) => error.code === "SUPABASE_READ_SCOPE_TOO_BROAD" && error.status === 413,
+  );
 });
 
 test("actor-only event pagination pushes the page size and cursor boundary into PostgREST", async () => {

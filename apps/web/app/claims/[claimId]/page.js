@@ -209,6 +209,8 @@ function ClaimDetailView({ params }) {
     </p>
   ) : null;
   const currentRevision = pinned ? { ...data.currentRevision, ...pinnedRevisionData, revision: pinnedRevision } : data.currentRevision;
+  const draftingContribution = (Array.isArray(data.originatorContributions) ? data.originatorContributions : [])
+    .find((contribution) => contribution.draftedByActorId === contribution.actorId);
   const graphNodes = Array.isArray(graph?.nodes) ? graph.nodes : [];
   const graphEntries = graphNodes.map((node) => ({ id: node.claimId ?? node.id, state: node.state ?? node.status, depth: node.depth })).filter((node) => typeof node.id === 'string' && node.id !== claim.claimId);
   const graphDepthById = new Map([[claim.claimId, 0], ...graphEntries.map(({ id, depth }) => [id, depth])]);
@@ -282,6 +284,16 @@ function ClaimDetailView({ params }) {
                 <span className="flex items-center gap-1">
                   published by{' '}
                   <Link className="font-medium text-foreground hover:underline" href={actorHref(currentRevision.createdBy ?? claim.createdBy)}>{currentRevision.createdBy ?? claim.createdBy}</Link>
+                </span>
+              </>
+            ) : null}
+            {draftingContribution ? (
+              <>
+                <span aria-hidden="true">·</span>
+                <span className="flex flex-wrap items-center gap-1">
+                  drafted by agent <Link className="font-medium text-foreground hover:underline" href={actorHref(draftingContribution.actorId, 'agent')}>{draftingContribution.actorId}</Link>
+                  <span aria-hidden="true">·</span>
+                  {draftingContribution.signedBy ? <>signed by human <Link className="font-medium text-foreground hover:underline" href={actorHref(draftingContribution.signedBy, 'human')}>{draftingContribution.signedBy}</Link></> : <span>human signature not stated</span>}
                 </span>
               </>
             ) : null}

@@ -27,6 +27,11 @@ test("claim detail keeps the relation graph with direction switching", () => {
   assert.match(source, /targetId === claim\.claimId \? claim/);
   assert.match(source, /graph\?\.truncated/);
   assert.match(source, /Graph view truncated/);
+  assert.match(source, /originatorContributions/);
+  assert.match(source, /drafted by agent/);
+  assert.match(source, /signed by human/);
+  assert.match(source, /actorHref\(draftingContribution\.actorId, 'agent'\)/);
+  assert.match(source, /actorHref\(draftingContribution\.signedBy, 'human'\)/);
   assert.match(source, /map\(\(\{ sourceId, targetId, relation, state, key \}\)/);
   assert.match(source, /<span>Source<\/span><span>Relation<\/span><span>Target<\/span>/);
   assert.match(source, /flex min-w-0 items-center gap-2/);

@@ -37,11 +37,23 @@ test("returns the current Claim revision and protocol status policy", async () =
     repository: {
       getClaim: async (claimId) => ({ claimId, state: "candidate" }),
       getCurrentClaimRevision: async (claimId) => ({ claimId, revision: 2, statement: "Current" }),
+      listContributionEdgesForObject: async () => [{ statementId: "statement-1", edgeType: "produced", objectRevision: 1 }],
+      listContributionStatementsByIds: async () => [{ statementId: "statement-1", actorId: "agent-1", role: "originator", description: "Drafted", eventId: "event-1" }],
+      listResearchEventsByIds: async () => [{ eventId: "event-1", eventType: "claim.created", payload: { claim_id: "claim-1", drafted_by_actor_id: "agent-1", signer_actor_id: "human-1" } }],
     },
     claimId: " claim-1 ",
   });
   assert.equal(result.claim.claimId, "claim-1");
   assert.equal(result.currentRevision.revision, 2);
+  assert.deepEqual(result.originatorContributions, [{
+    actorId: "agent-1",
+    role: "originator",
+    description: "Drafted",
+    objectRevision: 1,
+    eventId: "event-1",
+    draftedByActorId: "agent-1",
+    signedBy: "human-1",
+  }]);
   assert.deepEqual(result.statusPolicy, { state: "candidate", allowedTransitions: ["under_verification", "contested", "refuted", "superseded", "retracted", "dependency_tainted"] });
 });
 
