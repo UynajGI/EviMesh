@@ -37,7 +37,7 @@ export type WitnessReceiptRequest = { receipt: { schema: "evimesh.witness-checkp
 
 export type PagedResponse = { items: Record<string, unknown>[]; nextCursor?: string | null; };
 
-export type ClaimGraphResponse = { rootClaimId: string; maxDepth: number; nodes: { claimId: string; depth: number; path: string[]; state?: "hypothesis" | "candidate" | "under_verification" | "provisionally_accepted" | "accepted" | "contested" | "refuted" | "superseded" | "retracted" | "dependency_tainted"; dependencyTainted?: boolean; }[]; edges: ClaimGraphEdge[]; };
+export type ClaimGraphResponse = { rootClaimId: string; maxDepth: number; nodes: { claimId: string; depth: number; path: string[]; state?: "hypothesis" | "candidate" | "under_verification" | "provisionally_accepted" | "accepted" | "contested" | "refuted" | "superseded" | "retracted" | "dependency_tainted"; dependencyTainted?: boolean; }[]; edges: ClaimGraphEdge[]; truncated: boolean; };
 
 export type ClaimGraphEdge = { sourceClaimId: string; targetClaimId: string; relationType: "depends_on" | "supports" | "refutes" | "qualifies" | "reproduces" | "extends" | "supersedes" | "contradicts" | "derived_from" | "uses_method" | "uses_dataset" | "implements" | "verifies" | "challenges"; depth: number; path: string[]; };
 
