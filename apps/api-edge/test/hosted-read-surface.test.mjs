@@ -98,6 +98,7 @@ test("events filter by payload ids and actors, ordered ascending", async () => {
     { event_id: "e4", event_type: "claim.created", payload: { entity_type: "claim", claim_id: "claim-agent", actor_id: "human-1", drafted_by_actor_id: "agent-drafter" }, created_at: "2026-08-04T00:00:00Z" },
     { event_id: "e5", event_type: "evidence.claim_linked", payload: { entity_type: "evidence", evidence_id: "ev-1", claim_id: "claim-9", actor_id: "a1" }, created_at: "2026-08-02T12:00:00Z" },
     { event_id: "e6", event_type: "verification.submitted", payload: { entity_type: "verification_receipt", receipt_id: "receipt-1", claim_id: "claim-9", actor_id: "a2" }, created_at: "2026-08-05T00:00:00Z" },
+    { event_id: "e7", event_type: "claim.state_changed", payload: { entity_type: "claim", claim_id: "claim-child", actor_id: "a2", projection: { state: { claim: { claimId: "claim-child", questionId: "q1", state: "refuted" } } } }, created_at: "2026-08-06T00:00:00Z" },
   ];
   const seen = [];
   const repository = createSupabaseReadRepository({
@@ -111,7 +112,7 @@ test("events filter by payload ids and actors, ordered ascending", async () => {
   const filtered = await repository.listResearchEvents({ objectType: "claim", objectId: "claim-9", actorId: "a1" });
   assert.deepEqual(filtered.map((row) => row.eventId), ["e2", "e5"]);
   const questionScoped = await repository.listResearchEvents({ objectType: "question", objectId: "q1" });
-  assert.deepEqual(questionScoped.map((row) => row.eventId), ["e1"]);
+  assert.deepEqual(questionScoped.map((row) => row.eventId), ["e1", "e7"]);
   const producerScoped = await repository.listResearchEvents({ actorId: "agent,(one)\"x" });
   assert.deepEqual(producerScoped.map((row) => row.eventId), ["e3"]);
   const drafterScoped = await repository.listResearchEvents({ actorId: "agent-drafter" });
@@ -123,6 +124,7 @@ test("events filter by payload ids and actors, ordered ascending", async () => {
   assert.match(new URL(seen[0]).searchParams.get("and"), /payload->>claim_id\.eq\."claim-9"/);
   assert.match(new URL(seen[0]).searchParams.get("and"), /payload->>entity_type\.eq\."claim"/);
   assert.match(new URL(seen[0]).searchParams.get("and"), /payload->>producer_actor_id\.eq\."a1"/);
+  assert.match(new URL(seen[1]).searchParams.get("or"), /payload->projection->state->claim->>questionId\.eq\."q1"/);
   assert.match(new URL(seen[2]).searchParams.get("or"), /payload->>producer_actor_id\.eq\."agent,\(one\)\\"x"/);
   assert.match(seen[2], /%2C/);
 });

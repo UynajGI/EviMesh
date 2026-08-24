@@ -152,14 +152,17 @@ function eventObjectPredicate(objectType, objectId) {
     `and(or(payload->>object_type.eq.${typeLiteral},payload->>entity_type.eq.${typeLiteral}),payload->>object_id.eq.${idLiteral})`,
   ];
   predicates.unshift(...typedKeys.map((key) => `payload->>${key}.eq.${idLiteral}`));
+  if (objectType === "question") predicates.unshift(`payload->projection->state->claim->>questionId.eq.${idLiteral}`);
   return predicates.join(",");
 }
 
 function eventReferencesObject(payload, objectType, objectId) {
   const typedReference = eventObjectIdKeys(objectType).some((key) => payload[key] === objectId);
+  const descendantReference = objectType === "question"
+    && payload.projection?.state?.claim?.questionId === objectId;
   const genericReference = (payload.object_type === objectType || payload.entity_type === objectType)
     && payload.object_id === objectId;
-  return typedReference || genericReference;
+  return typedReference || descendantReference || genericReference;
 }
 
 /* Only mutable-projection tables carry lifecycle columns; the soft-delete
