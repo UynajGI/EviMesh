@@ -112,6 +112,7 @@ test("submit rejects schema-valid noncanonical Runs before signing or network ac
     { name: "missing-revision", document: schemaValidRun, code: "RUN_DOCUMENT_NONCANONICAL" },
     { name: "offset-timestamp", document: { ...canonicalRun, started_at: "2026-08-04T14:00:00+08:00" }, code: "RUN_DOCUMENT_NONCANONICAL" },
     { name: "text-whitespace", document: { ...canonicalRun, source_code: " git:0123456789abcdef" }, code: "RUN_TEXT_INVALID" },
+    { name: "duplicate-input", document: { ...canonicalRun, input_artifact_ids: [canonicalRun.input_artifact_ids[0], canonicalRun.input_artifact_ids[0]] }, code: "CLI_DOCUMENT_VALIDATION" },
   ];
   let fetchCalls = 0;
   const fetchImpl = async () => { fetchCalls += 1; return jsonResponse(201, {}); };

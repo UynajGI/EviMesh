@@ -95,7 +95,11 @@ function canonicalRunArtifactRefs(document) {
   };
   const normalizeAndSort = (refs, field) => {
     if (!Array.isArray(refs)) throw new CliDocumentError(`${field} must be an array`, "RUN_ARTIFACT_REFS_INVALID");
-    return [...refs].map(canonicalRef).sort((left, right) => left < right ? -1 : left > right ? 1 : 0);
+    const canonicalRefs = [...refs].map(canonicalRef);
+    if (new Set(canonicalRefs).size !== canonicalRefs.length) {
+      throw new CliDocumentError(`${field} must not repeat an artifact revision`, "RUN_ARTIFACT_REFS_DUPLICATE");
+    }
+    return canonicalRefs.sort((left, right) => left < right ? -1 : left > right ? 1 : 0);
   };
   return {
     ...document,

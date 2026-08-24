@@ -39,6 +39,10 @@ export function canonicalRunArtifactRefs(refs, field = 'run artifact refs') {
     return ref;
   });
   const keyOf = (ref) => `${ref.artifactId}@${ref.artifactRevision}`;
+  const keys = canonicalRefs.map(keyOf);
+  if (new Set(keys).size !== keys.length) {
+    throw new RunQueryError(`${field} must not repeat an artifact revision`, 'RUN_ARTIFACT_REFS_DUPLICATE');
+  }
   return canonicalRefs.sort((left, right) => {
     const leftKey = keyOf(left);
     const rightKey = keyOf(right);

@@ -35,6 +35,7 @@ function validateRun(value) {
   if (!/^run_[0-9a-f-]{36}$/.test(value.run_id) || !/^task_[0-9a-f-]{36}$/.test(value.task_id)) return 'ID format';
   if (typeof value.context_bundle_id !== 'string' || value.context_bundle_id.length < 1) return 'context';
   for (const field of ['input_artifact_ids', 'output_artifact_ids', 'args']) if (!Array.isArray(value[field])) return field;
+  for (const field of ['input_artifact_ids', 'output_artifact_ids']) if (new Set(value[field]).size !== value[field].length) return `${field} duplicates`;
   for (const field of ['source_code', 'command', 'actor_id', 'signature']) if (typeof value[field] !== 'string' || value[field].length < 1) return field;
   if (typeof value.signing_key_id !== 'string' || value.signing_key_id.length < 1) return 'signing_key_id';
   if (typeof value.container !== 'string' || !new RegExp(schema.properties.container.pattern).test(value.container)) return 'container';
@@ -49,6 +50,8 @@ test('defines the minimum Run Receipt fields', () => {
   assert.equal(schema.properties.network_access.type, 'boolean');
   assert.equal(schema.properties.exit_code.type, 'integer');
   assert.equal(schema.required.includes('signing_key_id'), true);
+  assert.equal(schema.properties.input_artifact_ids.uniqueItems, true);
+  assert.equal(schema.properties.output_artifact_ids.uniqueItems, true);
   assert.deepEqual(schema.properties.signing_key_id, { type: 'string', minLength: 1 });
   assert.equal(validateRun(validRun), null);
 });
@@ -70,6 +73,7 @@ test('rejects incomplete or invalid Run vectors', () => {
     { ...validRun, ended_at: '2026-08-04T05:00:00.000Z' },
     { ...validRun, signature: '' },
     { ...validRun, signing_key_id: '' },
+    { ...validRun, input_artifact_ids: ['evidence_01', 'evidence_01'] },
   ]) {
     assert.notEqual(validateRun(invalid), null);
   }

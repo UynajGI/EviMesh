@@ -641,6 +641,7 @@ test("rejects malformed Run canonical fields before actor/key lookup, verificati
     [{ exitCode: null }, "RUN_INTEGER_INVALID"], [{ exitCode: "0" }, "RUN_INTEGER_INVALID"], [{ exitCode: 0.5 }, "RUN_INTEGER_INVALID"],
     [{ startedAt: "2026-08-06T08:00:00.000+08:00" }, "RUN_BODY_NONCANONICAL"],
     [{ inputs: [{ artifactId: "artifact-z", artifactRevision: 1 }, { artifactId: "artifact-a", artifactRevision: 1 }] }, "RUN_BODY_NONCANONICAL"],
+    [{ inputs: [{ artifactId: "artifact-a", artifactRevision: 1 }, { artifactId: "artifact-a", artifactRevision: 1 }] }, "RUN_ARTIFACT_REFS_DUPLICATE"],
   ]) {
     const response = await app.fetch(new Request("https://api.example.test/runs", {
       method: "POST",
