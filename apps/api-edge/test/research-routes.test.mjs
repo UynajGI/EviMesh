@@ -639,6 +639,8 @@ test("rejects malformed Run canonical fields before actor/key lookup, verificati
     [{ hardware: null }, "RUN_OBJECT_INVALID"], [{ randomSeed: "42" }, "RUN_OBJECT_INVALID"], [{ randomSeed: undefined }, "RUN_OBJECT_INVALID"],
     [{ networkAccess: null }, "RUN_BOOLEAN_INVALID"], [{ networkAccess: "false" }, "RUN_BOOLEAN_INVALID"], [{ networkAccess: undefined }, "RUN_BOOLEAN_INVALID"],
     [{ exitCode: null }, "RUN_INTEGER_INVALID"], [{ exitCode: "0" }, "RUN_INTEGER_INVALID"], [{ exitCode: 0.5 }, "RUN_INTEGER_INVALID"],
+    [{ startedAt: "2026-08-06T08:00:00.000+08:00" }, "RUN_BODY_NONCANONICAL"],
+    [{ inputs: [{ artifactId: "artifact-z", artifactRevision: 1 }, { artifactId: "artifact-a", artifactRevision: 1 }] }, "RUN_BODY_NONCANONICAL"],
   ]) {
     const response = await app.fetch(new Request("https://api.example.test/runs", {
       method: "POST",
@@ -783,21 +785,21 @@ test("records a Run receipt through the API", async () => {
     sourceCode: "artifact-code@1",
     container: "python@sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
     command: "python", args: ["reproduce.py"], environment: { python: "3.12" }, hardware: { cpu: "x86_64" },
-    randomSeed: { seed: 42 }, startedAt: "2026-08-06T08:00:00.123456+08:00", endedAt: "2026-08-06T00:05:00Z", networkAccess: false, exitCode: 0,
+    randomSeed: { seed: 42 }, startedAt: "2026-08-06T00:00:00.123Z", endedAt: "2026-08-06T00:05:00.000Z", networkAccess: false, exitCode: 0,
     actorId: "agent-1",
     signingKeyId: "producer-key",
     signature,
     inputs: [
-      { artifactId: "artifact-input-z", artifactRevision: 1 },
-      { artifactId: "artifact-input-shared", artifactRevision: 2 },
       { artifactId: "artifact-input-a", artifactRevision: 1 },
       { artifactId: "artifact-input-shared", artifactRevision: 10 },
+      { artifactId: "artifact-input-shared", artifactRevision: 2 },
+      { artifactId: "artifact-input-z", artifactRevision: 1 },
     ],
     outputs: [
-      { artifactId: "artifact-output-z", artifactRevision: 1 },
-      { artifactId: "artifact-output-shared", artifactRevision: 2 },
       { artifactId: "artifact-output-a", artifactRevision: 1 },
       { artifactId: "artifact-output-shared", artifactRevision: 10 },
+      { artifactId: "artifact-output-shared", artifactRevision: 2 },
+      { artifactId: "artifact-output-z", artifactRevision: 1 },
     ],
   };
   const envelope = await signatureEnvelope({ keyPair: publisherKeyPair, keyId: "publisher-key", eventType: "run.created", payload: runBody });

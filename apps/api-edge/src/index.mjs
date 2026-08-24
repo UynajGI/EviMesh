@@ -1286,6 +1286,16 @@ app.post('/runs', async (context) => {
       throw new RunCommandError('publisher and producer actor lookup is not configured', 'RUN_ACTOR_LOOKUP_UNAVAILABLE', 503);
     }
     const canonicalBody = canonicalRunBody(body);
+    const signedPayload = { ...body };
+    const canonicalSignedPayload = { ...canonicalBody };
+    delete signedPayload.signatureEnvelope;
+    delete canonicalSignedPayload.signatureEnvelope;
+    for (const field of ['args', 'inputs', 'outputs']) {
+      if (!Object.hasOwn(signedPayload, field)) delete canonicalSignedPayload[field];
+    }
+    if (canonicalJson(signedPayload) !== canonicalJson(canonicalSignedPayload)) {
+      throw new RunCommandError('run body must already be canonical before publisher signing', 'RUN_BODY_NONCANONICAL');
+    }
     const [publisherActor, producerActor] = await Promise.all([
       repository.getActor(publisherActorId),
       repository.getActor(canonicalBody.actorId),
@@ -1328,8 +1338,6 @@ app.post('/runs', async (context) => {
       inputs: canonicalBody.inputs,
       outputs: canonicalBody.outputs,
     };
-    const signedPayload = { ...body };
-    delete signedPayload.signatureEnvelope;
     await verifyClientSignatureEnvelope({ repository, signatureNonceStore: nonceStoreFor(context), actorId: publisherActorId, envelope: body.signatureEnvelope, payload: signedPayload, expectedEventType: 'run.created' });
     const publisherSignatureEnvelope = persistedClientSignatureEnvelope(body.signatureEnvelope, signedPayload);
     const actorRole = await runRoleResolver({ repository, actorId: publisherActorId, taskId: canonicalBody.taskId });

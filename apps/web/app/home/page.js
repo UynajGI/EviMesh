@@ -555,7 +555,7 @@ export default function HomePage() {
             ) : agentConnection.state === 'available' ? (
               <>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  <span className="font-medium tabular-nums text-foreground">{agentConnection.activeGrantCount}</span> active API {agentConnection.activeGrantCount === 1 ? 'grant' : 'grants'}.
+                  {agentConnection.activeGrantCount > 0 ? 'Active API grants are configured.' : 'No active API grants are configured.'}
                 </p>
                 <p className="mt-1 text-xs leading-5 text-muted-foreground">Human confirmation is enforced by each write flow. Pending approval totals are not exposed by the API.</p>
               </>

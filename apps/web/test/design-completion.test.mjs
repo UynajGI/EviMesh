@@ -26,6 +26,7 @@ test("design route map has canonical public people and agent activity routes", a
   assert.match(agent, /data\.lastEventAt \?\? events\[0\]/);
   assert.match(agent, /limit=50&order=desc/);
   assert.match(agent, /event\.payload\?\.attempt_id/);
+  assert.match(agent, /const encodedId = encodeURIComponent\(edge\.objectId\)/);
   assert.match(agent, /setError\(reason\)/);
 });
 

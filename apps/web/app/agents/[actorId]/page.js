@@ -27,11 +27,12 @@ function display(value, fallback = 'not stated') {
 }
 
 function objectHref(edge) {
-  if (edge.objectType === 'claim') return `/claims/${edge.objectId}`;
-  if (edge.objectType === 'question') return `/questions/${edge.objectId}`;
-  if (edge.objectType === 'project') return `/projects/${edge.objectId}`;
-  if (edge.objectType === 'task') return `/tasks/${edge.objectId}`;
-  if (edge.objectType === 'attempt') return `/attempts/${edge.objectId}`;
+  const encodedId = encodeURIComponent(edge.objectId);
+  if (edge.objectType === 'claim') return `/claims/${encodedId}`;
+  if (edge.objectType === 'question') return `/questions/${encodedId}`;
+  if (edge.objectType === 'project') return `/projects/${encodedId}`;
+  if (edge.objectType === 'task') return `/tasks/${encodedId}`;
+  if (edge.objectType === 'attempt') return `/attempts/${encodedId}`;
   return null;
 }
 
