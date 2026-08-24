@@ -59,6 +59,8 @@ test('home restores the private watchlist change stream and design-book hierarch
   assert.match(page, /criticalFinding/);
   assert.match(page, /upheldChallengeWithImpact/);
   assert.match(page, /refutingEvidence/);
+  assert.match(page, /const createdChallenge = type === 'challenge\.created'/);
+  assert.match(page, /majorFinding \|\| createdChallenge \|\| investigatingChallenge/);
   assert.match(page, /investigatingChallenge/);
   assert.match(page, /Quiet is not asserted/);
   assert.match(page, /carried-active-impact evidence are not exposed/);

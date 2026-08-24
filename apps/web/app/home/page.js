@@ -209,6 +209,7 @@ function classifyEvent(event) {
     && (/(^|\.)contested$/.test(type) || claimState === 'contested');
   const refutingEvidence = type.includes('evidence') && relationType === 'refutes';
   const majorFinding = type.includes('finding') && findingSeverity === 'major';
+  const createdChallenge = type === 'challenge.created';
   const investigatingChallenge = type.includes('challenge') && challengeState === 'investigating';
   const verificationContextChanged = type.startsWith('verification.')
     && (payloadValue(payload, 'outcome', 'verification_outcome', 'verificationOutcome') !== null || /submitted|completed|revised|evaluated|invalidated/.test(type));
@@ -220,7 +221,7 @@ function classifyEvent(event) {
     && (/member|snapshot|publish|replace|remove|add/.test(type)
       || /member|snapshot|publish|replace|remove|add|taint/.test(frontierAction)
       || payloadValue(payload, 'frontier_snapshot_id', 'frontierSnapshotId', 'snapshot_id', 'snapshotId') !== null);
-  if (explicitlyContested || refutingEvidence || majorFinding || investigatingChallenge || verificationContextChanged || policyContextChanged || frontierContextChanged) return 'attention';
+  if (explicitlyContested || refutingEvidence || majorFinding || createdChallenge || investigatingChallenge || verificationContextChanged || policyContextChanged || frontierContextChanged) return 'attention';
 
   return 'update';
 }
