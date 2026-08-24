@@ -112,20 +112,12 @@ export async function listResearchEvents({
     throw new ResearchEventQueryError('created after must not be later than created before');
   }
   const pagination = paginationOptions({ limit, cursor });
-  const actorOnly = filters.actorId !== null
-    && filters.objectType === null
-    && filters.objectId === null
-    && filters.eventType === null
-    && filters.createdAfter === null
-    && filters.createdBefore === null;
   const events = await repository.listResearchEvents({
     ...filters,
-    ...(actorOnly ? {
-      page: {
-        after: decodePaginationCursor(pagination.cursor),
-        limit: pagination.limit + 1,
-      },
-    } : {}),
+    page: {
+      after: decodePaginationCursor(pagination.cursor),
+      limit: pagination.limit + 1,
+    },
   });
   return paginate(Array.isArray(events) ? events : [], {
     ...pagination,

@@ -37,6 +37,7 @@ test('filters Events by object, Actor, type, and time range before cursor pagina
     createdAfter: '2026-08-06T00:00:00.000Z',
     createdBefore: '2026-08-06T04:00:00.000Z',
     order: 'asc',
+    page: { after: null, limit: 3 },
   });
   assert.deepEqual(result.items.map((event) => event.eventId), ['event_1', 'event_2']);
   assert.ok(result.nextCursor);
@@ -61,7 +62,7 @@ test('supports newest-first event pagination', async () => {
   assert.deepEqual(next.items.map((event) => event.eventId), ['event_1']);
 });
 
-test('offers actor-only pagination boundaries to repositories without changing cursor semantics', async () => {
+test('offers pagination boundaries to repositories for every filter shape without changing cursor semantics', async () => {
   const requests = [];
   const repository = {
     listResearchEvents: async (filters) => {
@@ -81,7 +82,7 @@ test('offers actor-only pagination boundaries to repositories without changing c
   assert.deepEqual(second.items.map((event) => event.eventId), ['event_3']);
 });
 
-test('rejects unsafe actor-only cursor structures before calling the repository', async () => {
+test('rejects unsafe cursor structures before calling the repository', async () => {
   let calls = 0;
   const repository = { listResearchEvents: async () => { calls += 1; return []; } };
   const invalidCursors = [
@@ -103,7 +104,7 @@ test('rejects unsafe actor-only cursor structures before calling the repository'
   assert.equal(calls, 0);
 });
 
-test('accepts UUIDv7 actor-only cursor identifiers', async () => {
+test('accepts UUIDv7 cursor identifiers', async () => {
   let received;
   const after = {
     createdAt: '2026-08-06T02:00:00.000Z',

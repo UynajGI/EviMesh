@@ -133,6 +133,35 @@ function eventActorPredicate(actorId) {
   return EVENT_ACTOR_PAYLOAD_KEYS.map((key) => `payload->>${key}.eq.${literal}`).join(",");
 }
 
+function eventObjectIdKeys(objectType) {
+  if (!/^[A-Za-z][A-Za-z0-9_]*$/.test(objectType)) return [];
+  const keys = [`${objectType}_id`];
+  if (objectType === "claim") keys.push("source_claim_id", "target_claim_id");
+  if (objectType === "task") keys.push("source_task_id", "target_task_id");
+  if (objectType === "verification" || objectType === "verification_receipt") keys.push("receipt_id");
+  if (objectType === "frontier" || objectType === "frontier_snapshot") keys.push("snapshot_id", "frontier_snapshot_id");
+  if (objectType === "merge_proposal") keys.push("proposal_id");
+  return keys;
+}
+
+function eventObjectPredicate(objectType, objectId) {
+  const typeLiteral = postgrestLogicLiteral(objectType);
+  const idLiteral = postgrestLogicLiteral(objectId);
+  const typedKeys = eventObjectIdKeys(objectType);
+  const predicates = [
+    `and(or(payload->>object_type.eq.${typeLiteral},payload->>entity_type.eq.${typeLiteral}),payload->>object_id.eq.${idLiteral})`,
+  ];
+  predicates.unshift(...typedKeys.map((key) => `payload->>${key}.eq.${idLiteral}`));
+  return predicates.join(",");
+}
+
+function eventReferencesObject(payload, objectType, objectId) {
+  const typedReference = eventObjectIdKeys(objectType).some((key) => payload[key] === objectId);
+  const genericReference = (payload.object_type === objectType || payload.entity_type === objectType)
+    && payload.object_id === objectId;
+  return typedReference || genericReference;
+}
+
 /* Only mutable-projection tables carry lifecycle columns; the soft-delete
  * filter must not be applied to revision, event, or junction fact tables. */
 const SOFT_DELETE_TABLES = new Set(["actors", "actorProfiles", "artifacts", "attempts", "challenges", "claimRelations", "claims", "identities", "projects", "questions", "signingKeys"]);
@@ -560,15 +589,17 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
       const filters = {};
       if (eventType) filters.event_type = eventType;
       if (createdAfter) filters.created_at = { op: "gte", value: createdAfter };
-      const actorPredicate = actorId ? eventActorPredicate(actorId) : null;
-      let cursorPredicate = null;
+      else if (createdBefore) filters.created_at = { op: "lte", value: createdBefore };
+      const logicalPredicates = [];
+      if (actorId) logicalPredicates.push(eventActorPredicate(actorId));
+      if (objectType && objectId) logicalPredicates.push(eventObjectPredicate(objectType, objectId));
+      if (createdAfter && createdBefore) logicalPredicates.push(`created_at.lte.${createdBefore}`);
       if (page?.after) {
         const comparison = order === "desc" ? "lt" : "gt";
-        cursorPredicate = `created_at.${comparison}.${page.after.createdAt},and(created_at.eq.${page.after.createdAt},event_id.${comparison}.${page.after.id})`;
+        logicalPredicates.push(`created_at.${comparison}.${page.after.createdAt},and(created_at.eq.${page.after.createdAt},event_id.${comparison}.${page.after.id})`);
       }
-      if (actorPredicate && cursorPredicate) filters.and = `(or(${actorPredicate}),or(${cursorPredicate}))`;
-      else if (actorPredicate) filters.or = `(${actorPredicate})`;
-      else if (cursorPredicate) filters.or = `(${cursorPredicate})`;
+      if (logicalPredicates.length === 1) filters.or = `(${logicalPredicates[0]})`;
+      else if (logicalPredicates.length > 1) filters.and = `(${logicalPredicates.map((predicate) => `or(${predicate})`).join(",")})`;
       const rows = await query("researchEvents", {
         filters,
         order: order === "desc" ? "created_at.desc,event_id.desc" : TABLE_ORDERS.researchEvents,
@@ -577,11 +608,7 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
       return rows.filter((row) => {
         const payload = row.payload ?? {};
         if (createdBefore && !(Date.parse(row.createdAt ?? "") <= Date.parse(createdBefore))) return false;
-        if (objectType && !(payload.object_type === objectType || payload.entity_type === objectType)) return false;
-        if (objectId) {
-          const idKeys = objectId ? ["object_id", ...(objectType ? [`${objectType}_id`] : []), "claim_id", "question_id", "task_id", "project_id", "attempt_id", "evidence_id", "receipt_id"] : [];
-          if (!idKeys.some((key) => payload[key] === objectId)) return false;
-        }
+        if (objectType && objectId && !eventReferencesObject(payload, objectType, objectId)) return false;
         if (actorId && !EVENT_ACTOR_PAYLOAD_KEYS.some((key) => payload[key] === actorId)) return false;
         return true;
       });
