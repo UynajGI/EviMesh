@@ -98,7 +98,10 @@ test('rejects unsafe cursor structures before calling the repository', async () 
   for (const cursor of invalidCursors) {
     await assert.rejects(
       listResearchEvents({ repository, actorId: 'actor_1', cursor }),
-      (error) => error instanceof TypeError && error.message === 'invalid pagination cursor',
+      (error) => error instanceof ResearchEventQueryError
+        && error.code === 'RESEARCH_EVENT_QUERY_INVALID'
+        && error.status === 400
+        && error.message === 'invalid pagination cursor',
     );
   }
   assert.equal(calls, 0);

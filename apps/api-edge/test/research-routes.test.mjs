@@ -166,6 +166,13 @@ test("lists research events and exports contiguous NDJSON ranges", async () => {
   const list = await app.fetch(new Request("https://api.example.test/events?eventType=claim.created&limit=6"), {});
   assert.equal(list.status, 200);
   assert.deepEqual((await list.json()).items.map((event) => event.eventId), ["event-1"]);
+  const invalidCursor = await app.fetch(new Request("https://api.example.test/events?cursor=not-base64"), {});
+  assert.equal(invalidCursor.status, 400);
+  assert.deepEqual(await invalidCursor.json(), {
+    code: "RESEARCH_EVENT_QUERY_INVALID",
+    message: "invalid pagination cursor",
+    request_id: invalidCursor.headers.get("x-request-id"),
+  });
   const exportResponse = await app.fetch(new Request("https://api.example.test/events/export?firstEventId=event-1&lastEventId=event-2"), {});
   assert.equal(exportResponse.status, 200);
   assert.equal(exportResponse.headers.get("content-type"), "application/x-ndjson");

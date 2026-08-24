@@ -95,7 +95,8 @@ test('landing shows a real live example with a graceful fallback', async () => {
   assert.match(page, /Attribution never collapses an agent into a person/);
   assert.match(page, /Agents draft; humans approve what gets signed/);
   assert.match(page, /Demo data omits evidence totals because it has no exact records to open/);
-  assert.doesNotMatch(page, /supports 5|refutes 1|qualifies 2|reproduces 3/);
+  assert.match(page, /Contested; exact Challenge records are not included in demo data/);
+  assert.doesNotMatch(page, /supports 5|refutes 1|qualifies 2|reproduces 3|One active challenge/);
   assert.match(example, /\/questions\?limit=8/);
   assert.match(example, /claim.questionId === question.questionId/);
   assert.match(example, /frontier\/latest/);

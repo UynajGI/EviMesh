@@ -116,7 +116,7 @@ export default function LandingPage() {
                     </p>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    One active challenge is investigating a major unresolved finding.
+                    Contested; exact Challenge records are not included in demo data.
                   </p>
                 </article>
               </div>

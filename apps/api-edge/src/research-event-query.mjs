@@ -67,10 +67,11 @@ function decodePaginationCursor(cursor) {
     const validId = plainObject
       && typeof decoded.id === 'string'
       && /^[A-Za-z0-9_-]+$/.test(decoded.id);
-    if (!validCreatedAt || !validId) throw new TypeError('invalid pagination cursor');
+    if (!validCreatedAt || !validId) throw new ResearchEventQueryError('invalid pagination cursor');
     return { createdAt: decoded.createdAt, id: decoded.id };
-  } catch {
-    throw new TypeError('invalid pagination cursor');
+  } catch (error) {
+    if (error instanceof ResearchEventQueryError) throw error;
+    throw new ResearchEventQueryError('invalid pagination cursor');
   }
 }
 
