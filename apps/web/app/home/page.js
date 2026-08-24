@@ -79,6 +79,13 @@ async function getJson(path, options) {
   return payload;
 }
 
+function apiGrantIsActive(grant, now = new Date()) {
+  if (!grant || grant.revokedAt) return false;
+  if (grant.expiresAt === null || grant.expiresAt === undefined) return true;
+  const expiresAt = new Date(grant.expiresAt);
+  return !Number.isNaN(expiresAt.getTime()) && expiresAt > now;
+}
+
 async function fetchAgentConnection() {
   try {
     const { data } = await createBrowserSupabaseClient().auth.getSession();
@@ -88,7 +95,7 @@ async function fetchAgentConnection() {
     const grants = Array.isArray(payload) ? payload : payload.tokens ?? payload.items ?? [];
     return {
       state: 'available',
-      activeGrantCount: grants.filter((grant) => !grant.revokedAt).length,
+      activeGrantCount: grants.filter((grant) => apiGrantIsActive(grant)).length,
     };
   } catch {
     return { state: 'unavailable' };

@@ -63,6 +63,8 @@ test('home restores the private watchlist change stream and design-book hierarch
   assert.match(page, /Quiet is not asserted/);
   assert.match(page, /carried-active-impact evidence are not exposed/);
   assert.match(page, /const grants = Array\.isArray\(payload\)/, 'agent grant totals accept the documented array response');
+  assert.match(page, /function apiGrantIsActive\(grant, now = new Date\(\)\)/);
+  assert.match(page, /expiresAt > now/, 'expired API grants are not reported as active');
   assert.match(page, /function eventAuditHref\(event, observationWindow\)/, 'event links retain the object scope and observation window');
   assert.match(page, /createdAfter: observationWindow\.windowStart/);
   assert.match(page, /createdBefore: observationWindow\.asOf/);
@@ -87,9 +89,13 @@ test('landing shows a real live example with a graceful fallback', async () => {
   assert.match(page, /Agent draft/);
   assert.match(page, /Attribution never collapses an agent into a person/);
   assert.match(page, /Agents draft; humans approve what gets signed/);
+  assert.match(page, /Demo data omits evidence totals because it has no exact records to open/);
+  assert.doesNotMatch(page, /supports 5|refutes 1|qualifies 2|reproduces 3/);
   assert.match(example, /\/questions\?limit=8/);
   assert.match(example, /claim.questionId === question.questionId/);
   assert.match(example, /frontier\/latest/);
+  assert.match(example, /Object\.values\(claim\.evidenceCounts\)\.some\(\(count\) => count > 0\)/);
+  assert.doesNotMatch(example, /<span>supports 0<\/span>|<span>refutes 0<\/span>|<span>qualifies 0<\/span>|<span>reproduces 0<\/span>/);
   assert.doesNotMatch(page, /Frontier snapshot #\d+/);
 });
 

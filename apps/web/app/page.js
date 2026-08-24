@@ -104,11 +104,8 @@ export default function LandingPage() {
                       SimCLR gains narrow across four few-shot benchmarks when the supervised baseline is matched.
                     </p>
                   </div>
-                  <p className="flex flex-wrap gap-x-4 gap-y-1 text-sm tabular-nums text-muted-foreground">
-                    <span>supports 5</span>
-                    <span>refutes 1</span>
-                    <span>qualifies 2</span>
-                    <span>reproduces 3</span>
+                  <p className="text-sm text-muted-foreground">
+                    Demo data omits evidence totals because it has no exact records to open.
                   </p>
                 </article>
                 <article className="grid gap-3 py-5">
@@ -141,7 +138,7 @@ export default function LandingPage() {
                 </Link>
               </div>
               <p className="border-t border-border px-5 py-4 text-sm text-muted-foreground">
-                Counts are entry points, never scores. Each one leads to an exact revision, receipt, finding, or event.
+                Counts are entry points, never scores. This demo omits them because it has no exact revision, receipt, finding, or event to open.
               </p>
             </Card>
           )}
