@@ -22,45 +22,71 @@ test('landing does exactly its four jobs: positioning, example, two paths, trust
   for (const trust of ['Verified research identity', 'Immutable revisions', 'signed event chain', 'Shareable permanent links']) {
     assert.match(page, new RegExp(trust));
   }
+
+  assert.equal((page.match(/data-landing-cta-group/g) ?? []).length, 1, 'landing has one CTA group');
+  assert.equal((page.match(/data-landing-cta="/g) ?? []).length, 2, 'landing CTA group has exactly two paths');
+  assert.equal((page.match(/<section\b/g) ?? []).length, 3, 'attribution belongs to the example, not an extra panel');
+  assert.doesNotMatch(page, /agent-heading|Read the agent manual/);
+
+  const trustRows = page.match(/const TRUST_ROWS = \[([\s\S]*?)\n\];/)?.[1] ?? '';
+  assert.equal((trustRows.match(/\btitle:/g) ?? []).length, 4, 'trust list has exactly four rows');
+  const trustSection = page.match(/<section aria-labelledby="trust-heading"[\s\S]*?<\/section>/)?.[0] ?? '';
+  assert.ok(trustSection, 'trust section is present');
+  assert.doesNotMatch(trustSection, /<Card\b/, 'trust is a hairline list/grid, not a card wall');
 });
 
 test('landing never fakes live data or sells a score', async () => {
   const page = await read('../app/page.js');
   assert.match(page, /Counts are entry points, never scores/);
   assert.doesNotMatch(page, /support score|truth score|percentage of support/i);
+  assert.doesNotMatch(page, /(?:bg|text|border)-\[\s*#/i, 'landing has no raw color utilities');
+  assert.doesNotMatch(page, /(?:from|via|to)-[a-z]/i, 'landing has no gradient utilities');
 });
 
-test('home is a discovery feed: masonry cards, topic chips, newest-first, no ranking', async () => {
+test('home restores the private watchlist change stream and design-book hierarchy', async () => {
   const page = await read('../app/home/page.js');
-  // Masonry card stream (owner direction: recommendation-home shape).
-  assert.match(page, /columns-1 gap-4 sm:columns-2 xl:columns-3/);
-  assert.match(page, /break-inside-avoid/);
-  // Card kinds with status badges, serif claims, topic chips.
-  assert.match(page, /kind: 'question'/);
-  assert.match(page, /kind: 'claim'/);
-  assert.match(page, /kind: 'frontier'/);
-  assert.match(page, /StatusBadge/);
-  assert.match(page, /claim-statement/);
-  assert.match(page, /setTopicFilter/);
-  // Attention strip keeps its level semantics without ranking the feed.
-  assert.match(page, /Needs attention/);
-  assert.match(page, /ATTENTION_STATES/);
-  // The only ordering is time; the no-score boundary stays stated.
-  assert.match(page, /Date.parse\(right.when \?\? 0\) - Date.parse\(left.when \?\? 0\)/);
-  assert.match(page, /Newest first\. Ordering never expresses research value\./);
-  // Load-more uses real cursors.
-  assert.match(page, /nextCursor/);
-  assert.match(page, /Load more/);
-  // Context rail copy stays locked (Codex review suggestion).
-  for (const rail of ['My work', 'Agent connection', 'Event audit', 'Recently visited']) {
+  assert.match(page, /fetchMyInteractions\(\['watch'\]\)/);
+  assert.match(page, /Seven-day observation window:/);
+  assert.match(page, /Change levels show attention priority, not truth, acceptance, or evidence quality/);
+  for (const filter of ['objectType', 'objectId', 'createdAfter', 'createdBefore', "order: 'desc'", 'EVENTS_PER_OBJECT']) {
+    assert.ok(page.includes(filter), `home event query missing ${filter}`);
+  }
+  assert.match(page, /const MAX_WATCHED_OBJECTS = 24/);
+  assert.match(page, /Promise\.allSettled/);
+  assert.match(page, /eventsById = new Map/);
+  assert.match(page, /sort\(sortNewestProtocolOrder\)/);
+  for (const level of ["return 'critical'", "return 'attention'", "return 'update'"]) assert.ok(page.includes(level));
+  assert.match(page, /criticalFinding/);
+  assert.match(page, /upheldChallengeWithImpact/);
+  assert.match(page, /refutingEvidence/);
+  assert.match(page, /investigatingChallenge/);
+  assert.match(page, /Quiet is not asserted/);
+  assert.match(page, /carried-active-impact evidence are not exposed/);
+  assert.match(page, /const grants = Array\.isArray\(payload\)/, 'agent grant totals accept the documented array response');
+  assert.match(page, /function eventAuditHref\(event, observationWindow\)/, 'event links retain the object scope and observation window');
+  assert.match(page, /createdAfter: observationWindow\.windowStart/);
+  assert.match(page, /createdBefore: observationWindow\.asOf/);
+  assert.match(page, /frontierContextChanged = type\.includes\('frontier'\)[\s\S]*hasExplicitImpact\(payload\)/, 'ordinary frontier events are not guessed upward');
+  assert.match(page, /ChangeGroup/);
+  assert.match(page, /ChangeEvent/);
+  for (const rail of ['My work', 'Agent connection', 'Recently visited']) {
     assert.ok(page.includes(rail), 'home rail missing ' + rail);
   }
+  assert.doesNotMatch(page, /fetchRecommendations|EngagementActions|break-inside-avoid|For you/);
 });
 
 test('landing shows a real live example with a graceful fallback', async () => {
   const [page, example] = await Promise.all([read('../app/page.js'), read('../components/landing-example.js')]);
   assert.match(page, /<LandingExample/);
   assert.match(page, /fallback={/);
+  assert.match(page, />Demo data</);
+  assert.match(page, /Frontier #12/);
+  assert.match(page, /state="provisionally_accepted"/);
+  assert.match(page, /state="contested"/);
+  assert.match(page, /Human signer/);
+  assert.match(page, /Agent draft/);
+  assert.match(page, /Attribution never collapses an agent into a person/);
+  assert.match(page, /Agents draft; humans approve what gets signed/);
   assert.match(example, /\/questions\?limit=8/);
   assert.match(example, /claim.questionId === question.questionId/);
   assert.match(example, /frontier\/latest/);

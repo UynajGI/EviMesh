@@ -125,20 +125,16 @@ test('manages API tokens with one-time secret display', async () => {
   assert.match(page, /Revoke/);
 });
 
-test('home feed carries questions, claims, frontiers, and tagged newcomer tasks', async () => {
+test('home carries formal event provenance for watched objects', async () => {
   const page = await read('../app/home/page.js');
-  // Questions: closed states stay filtered, cards sorted by time.
-  assert.match(page, /CLOSED_STATES/);
-  assert.match(page, /\/questions\?limit=/);
-  // Claims feed in at full status range (feed, not a verification queue).
-  assert.match(page, /\/claims\?limit=/);
-  // Each project's latest frontier appears as a card.
-  assert.match(page, /\/projects\?limit=6/);
-  assert.match(page, /frontier\/latest/);
-  assert.match(page, /Frontier #/);
-  // Tagged newcomer tasks still feed the My-work rail counts.
-  assert.match(page, /\['cpu-only', 'under-60-min'\]/);
-  assert.match(page, /tag=\$\{tag\}/);
+  assert.match(page, /event\?\.eventId \|\| !event\?\.eventType/);
+  assert.match(page, /watchedScopes/);
+  assert.match(page, /payloadIdentifiers\(event\.payload\)/);
+  assert.match(page, /dateTime=\{event\.createdAt\}/);
+  assert.match(page, /eventAuditHref\(event, observationWindow\)/);
+  assert.match(page, /objectType: scope\.objectType/);
+  assert.match(page, /objectId: scope\.objectId/);
+  assert.match(page, /View ResearchEvent/);
 });
 
 test('renders project details with Questions, Frontier, and Task summaries', async () => {
@@ -473,7 +469,14 @@ test('renders contributor detail with roles, produced, used, and Frontier usage'
 
 test('renders Event audit with signatures and parent hash chain', async () => {
   const page = await read('../app/events/page.js');
-  assert.match(page, /events\?limit=100/);
+  assert.match(page, /const EVENT_FILTERS = \['objectType', 'objectId', 'createdAfter', 'createdBefore', 'eventType', 'actorId'\]/);
+  assert.match(page, /eventQuery\(typeof window === 'undefined' \? '' : window\.location\.search\)/);
+  assert.match(page, /new URLSearchParams\(\{ limit: '100', order:/);
+  assert.match(page, /id=\{`event-\$\{event\.eventId\}`\}/);
+  assert.match(page, /tabIndex=\{-1\}/);
+  assert.match(page, /decodeURIComponent\(window\.location\.hash\.slice\(1\)\)/);
+  assert.match(page, /scrollIntoView\(\{ block: 'start' \}\)/);
+  assert.match(page, /focus\(\{ preventScroll: true \}\)/);
   assert.match(page, /Hash/);
   assert.match(page, /Signature/);
   assert.match(page, /Parents/);

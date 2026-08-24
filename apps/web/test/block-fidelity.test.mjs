@@ -149,14 +149,16 @@ test('explore carries the joinable filter, summaries, and the honest count line'
   assert.match(page, /of \{windowed\.length\} loaded object/);
 });
 
-test('home keeps request ids, empty-state CTAs, the denied scope card, and gated agent copy', async () => {
+test('home keeps signed-out, empty, partial, error, and honest rail states', async () => {
   const home = await read('../app/home/page.js');
   assert.match(home, /failure\.requestId = payload\.request_id \?\? payload\.requestId \?\? null/);
   assert.match(home, /requestId=\{requestId \?\? undefined\}/);
-  assert.match(home, /Find research to follow/);
-      assert.match(home, /DeniedState/);
-  assert.match(home, /signed-in scope/);
-  assert.ok(home.includes("Six steps from hearing about EviMesh to a first trusted read."));
+  for (const state of ['DeniedState', 'Empty', 'ErrorState', 'Alert', 'Skeleton']) assert.match(home, new RegExp(state));
+  assert.match(home, /Partial watch coverage/);
+  assert.match(home, /No watched research yet/);
+  assert.match(home, /viewer-assignment total/);
+  assert.match(home, /Pending approval totals are not exposed by the API/);
+  assert.match(home, /No recent local visits are stored in this browser/);
 });
 
 test('attempt page ships the identity card, self-declaration boundary, and public output', async () => {

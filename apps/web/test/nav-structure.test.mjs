@@ -33,15 +33,37 @@ test('shell exposes global search, theme toggle, and sign-in without hiding them
   assert.match(shell, /Sign in/);
 });
 
+test('shell keeps anonymous and signed navigation inventories distinct on every viewport', () => {
+  assert.match(shell, /const LANDING_NAV_ITEMS = NAV_ITEMS\.filter/);
+  assert.match(shell, /const isLanding = pathname === '\/'/);
+  assert.match(shell, /const visibleNavItems = isLanding \? LANDING_NAV_ITEMS : NAV_ITEMS/);
+  assert.match(shell, /<GlobalNav items=\{visibleNavItems\}/);
+  assert.match(shell, /<MobileDrawer isLanding=\{isLanding\} items=\{visibleNavItems\}/);
+  for (const route of ['/explore', '/agent', '/docs', '/notifications', '/settings', '/login', '/events', '/contributions']) {
+    assert.ok(shell.includes(route), `shell is missing ${route}`);
+  }
+  assert.match(shell, /<ShellFooter \/>/);
+});
+
 test('mobile navigation uses an accessible drawer and backdrop', () => {
   assert.match(shell, /aria-label="Open navigation"/);
   assert.match(shell, /aria-label="Close navigation"/);
   assert.match(shell, /aria-label="Primary mobile"/);
   assert.match(shell, /bg-foreground\/40/);
+  assert.match(shell, /Search research/);
+  assert.match(shell, /> Notifications/);
+  assert.match(shell, /> Account/);
 });
 
 test('skip link is the first focusable element of the page', () => {
   assert.match(shell, /href="#main-content"/);
   assert.match(shell, /Skip to main content/);
   assert.match(shell, /sr-only focus:not-sr-only/);
+});
+
+test('shell styling stays token-based, focus-visible, and motion restrained', () => {
+  assert.match(shell, /const FOCUS_RING = 'focus-visible:/);
+  assert.doesNotMatch(shell, /(?:bg|text|border)-\[\s*#/i, 'shell has no raw color utilities');
+  assert.doesNotMatch(shell, /(?:from|via|to)-[a-z]/i, 'shell has no gradient utilities');
+  assert.doesNotMatch(shell, /transition-(?:all|opacity|transform)/);
 });
