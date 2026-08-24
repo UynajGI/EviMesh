@@ -69,6 +69,10 @@ function mapRow(row) {
 
 const PAGE_SIZE = 1000;
 const CLAIM_GRAPH_FRONTIER_BATCH_SIZE = 50;
+const CLAIM_GRAPH_QUERY_CONCURRENCY = 4;
+const CLAIM_GRAPH_MAX_NODES = 256;
+const CLAIM_GRAPH_MAX_EDGES = 512;
+const CLAIM_GRAPH_RELATION_QUERY_LIMIT = CLAIM_GRAPH_MAX_EDGES + 1;
 const ATTRIBUTION_BATCH_SIZE = 50;
 const EVENT_ACTOR_PAYLOAD_KEYS = Object.freeze(["actor_id", "signer_actor_id", "publisher_actor_id", "drafted_by_actor_id", "producer_actor_id", "run_actor_id"]);
 const TABLE_ORDERS = Object.freeze({
@@ -126,6 +130,20 @@ function filterValue(value) {
 
 function postgrestLogicLiteral(value) {
   return `"${String(value).replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`;
+}
+
+async function mapWithConcurrency(items, concurrency, mapper) {
+  const results = new Array(items.length);
+  let nextIndex = 0;
+  async function worker() {
+    while (nextIndex < items.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await mapper(items[index], index);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, () => worker()));
+  return results;
 }
 
 function eventActorPredicate(actorId) {
@@ -308,6 +326,7 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
     const nodes = [];
     const edges = [];
     const edgeAdjacency = new Map();
+    let truncated = false;
     while (frontier.length > 0 && frontier[0].depth < maxDepth) {
       /* Query each breadth-first frontier in bounded parallel batches. This
        * keeps request URLs bounded without issuing one serial round trip per
@@ -316,22 +335,31 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
       for (let offset = 0; offset < frontier.length; offset += CLAIM_GRAPH_FRONTIER_BATCH_SIZE) {
         batches.push(frontier.slice(offset, offset + CLAIM_GRAPH_FRONTIER_BATCH_SIZE).map((node) => node.claimId));
       }
-      const incidentRows = (await Promise.all(batches.map((claimIds) => {
+      const relationPages = await mapWithConcurrency(batches, CLAIM_GRAPH_QUERY_CONCURRENCY, (claimIds) => {
         const membership = filterValue(claimIds);
-        return list("claimRelations", {
-          or: `(source_claim_id.${membership},target_claim_id.${membership})`,
+        return query("claimRelations", {
+          filters: { or: `(source_claim_id.${membership},target_claim_id.${membership})` },
+          limit: CLAIM_GRAPH_RELATION_QUERY_LIMIT,
         });
-      }))).flat();
+      });
+      if (relationPages.some((page) => page.length >= CLAIM_GRAPH_RELATION_QUERY_LIMIT)) truncated = true;
+      const incidentRows = relationPages.flatMap((page) => page.slice(0, CLAIM_GRAPH_MAX_EDGES));
       const incident = [...new Map(incidentRows.map((relation) => [
         `${relation.sourceClaimId}\u0000${relation.targetClaimId}\u0000${relation.relationType}`,
         relation,
       ])).values()];
       const nextFrontier = [];
-      for (const current of frontier) {
+      let budgetExhausted = false;
+      traversal: for (const current of frontier) {
         for (const relation of incident) {
           const { from, to: nextId } = traversalEndpoints(relation, direction);
           if (from !== current.claimId) continue;
           if (hasGraphPath(edgeAdjacency, relation.targetClaimId, relation.sourceClaimId)) continue;
+          if (edges.length >= CLAIM_GRAPH_MAX_EDGES || (!visited.has(nextId) && nodes.length >= CLAIM_GRAPH_MAX_NODES)) {
+            truncated = true;
+            budgetExhausted = true;
+            break traversal;
+          }
           edges.push({
             sourceClaimId: relation.sourceClaimId,
             targetClaimId: relation.targetClaimId,
@@ -349,15 +377,15 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
           nodes.push(next);
         }
       }
-      frontier = nextFrontier;
+      frontier = budgetExhausted ? [] : nextFrontier;
     }
     const claimIdBatches = [];
     for (let offset = 0; offset < nodes.length; offset += CLAIM_GRAPH_FRONTIER_BATCH_SIZE) {
       claimIdBatches.push(nodes.slice(offset, offset + CLAIM_GRAPH_FRONTIER_BATCH_SIZE).map((node) => node.claimId));
     }
-    const claims = (await Promise.all(claimIdBatches.map((claimIds) => list("claims", { claim_id: claimIds })))).flat();
+    const claims = (await mapWithConcurrency(claimIdBatches, CLAIM_GRAPH_QUERY_CONCURRENCY, (claimIds) => list("claims", { claim_id: claimIds }))).flat();
     const claimById = new Map(claims.map((claim) => [claim.claimId, claim]));
-    return { nodes: nodes.map((node) => ({ ...(claimById.get(node.claimId) ?? {}), ...node })), edges };
+    return { nodes: nodes.map((node) => ({ ...(claimById.get(node.claimId) ?? {}), ...node })), edges, truncated };
   }
 
   /* Revision getter per object type for the provenance path. */

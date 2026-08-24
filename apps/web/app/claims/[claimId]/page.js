@@ -10,7 +10,7 @@ import { ClaimDag } from '@/components/claim-dag';
 import { actorHref } from '@/components/attribution';
 import { HandoffSheet } from '@/components/handoff-sheet';
 import { Badge, Card, CardContent, StatusBadge } from '@/components/ui/data';
-import { Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
+import { Alert, Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
 import { IdChip } from '@/components/ui/idchip';
 import { hydrateEvidenceLinks, hydrateReceiptFindings, evidenceRelations } from '@/lib/hydrate';
 import { useVisitRecord } from '@/lib/visit-history';
@@ -376,6 +376,7 @@ function ClaimDetailView({ params }) {
               </div>
             </div>
             <p className="mb-3 text-sm text-muted-foreground">{direction === 'upstream' ? 'Upstream context: prerequisites, origins, and prior context.' : 'Downstream context: dependents, responses, and subsequent context.'}</p>
+            {graph?.truncated ? <Alert className="mb-3" description="This bounded graph reached the server node, edge, or relation-read ceiling. The visible DAG and list are partial." title="Graph view truncated" variant="warning" /> : null}
             {graphView === 'graph' ? <ClaimDag elements={dagElements} /> : (
               <div>
                 {graphListEntries.length === 0 ? (

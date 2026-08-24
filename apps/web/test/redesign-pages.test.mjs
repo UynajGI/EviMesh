@@ -64,6 +64,9 @@ test('home restores the private watchlist change stream and design-book hierarch
   assert.match(page, /classificationContext\.findingSeverity/);
   assert.match(page, /classificationContext\.challengeHasImpact === true/);
   assert.match(page, /failedDetails/);
+  assert.match(page, /const MAX_CLASSIFICATION_DETAILS = 48/);
+  assert.match(page, /allValues\.slice\(0, MAX_CLASSIFICATION_DETAILS\)/);
+  assert.match(page, /omittedDetails/);
   assert.match(page, /refutingEvidence/);
   assert.match(page, /const createdChallenge = type === 'challenge\.created'/);
   assert.match(page, /majorFinding \|\| createdChallenge \|\| investigatingChallenge/);

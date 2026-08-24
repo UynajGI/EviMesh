@@ -137,4 +137,77 @@ test("hydrates broad Claim graph frontiers in bounded batches", async () => {
   const graph = await repository.getClaimDownstreamGraph({ claimId: "claim-root", maxDepth: 1 });
   assert.equal(graph.nodes.length, 121);
   assert.deepEqual(hydrationBatchSizes, [50, 50, 21]);
+  assert.equal(graph.truncated, false);
+});
+
+test("caps high-degree Claim graphs and reports truncation", async () => {
+  const relationLimits = [];
+  const hydrationBatchSizes = [];
+  const repository = createSupabaseReadRepository({
+    url: "https://project.supabase.co",
+    publishableKey: "sb_publishable_test",
+    fetchImpl: async (url) => {
+      const endpoint = new URL(url);
+      if (endpoint.pathname.endsWith("/claim_relations")) {
+        relationLimits.push(Number(endpoint.searchParams.get("limit")));
+        return Response.json(Array.from({ length: 300 }, (_, index) => ({
+          source_claim_id: `claim-${index}`,
+          target_claim_id: "claim-root",
+          relation_type: "depends_on",
+          deleted_at: null,
+        })));
+      }
+      if (endpoint.pathname.endsWith("/claims")) {
+        const filter = endpoint.searchParams.get("claim_id");
+        const claimIds = filter.slice("in.(".length, -1).split(",");
+        hydrationBatchSizes.push(claimIds.length);
+        return Response.json([]);
+      }
+      return Response.json([]);
+    },
+  });
+
+  const graph = await repository.getClaimDownstreamGraph({ claimId: "claim-root", maxDepth: 2 });
+  assert.equal(graph.nodes.length, 256);
+  assert.equal(graph.edges.length, 256);
+  assert.equal(graph.truncated, true);
+  assert.deepEqual(relationLimits, [513]);
+  assert.deepEqual(hydrationBatchSizes, [50, 50, 50, 50, 50, 6]);
+});
+
+test("limits concurrent Claim graph relation batches", async () => {
+  let activeRelationQueries = 0;
+  let maximumActiveRelationQueries = 0;
+  let relationQueries = 0;
+  const repository = createSupabaseReadRepository({
+    url: "https://project.supabase.co",
+    publishableKey: "sb_publishable_test",
+    fetchImpl: async (url) => {
+      const endpoint = new URL(url);
+      if (endpoint.pathname.endsWith("/claim_relations")) {
+        relationQueries += 1;
+        const membership = endpoint.searchParams.get("or") ?? "";
+        if (membership.includes('"claim-root"')) {
+          return Response.json(Array.from({ length: 251 }, (_, index) => ({
+            source_claim_id: `claim-${index}`,
+            target_claim_id: "claim-root",
+            relation_type: "depends_on",
+            deleted_at: null,
+          })));
+        }
+        activeRelationQueries += 1;
+        maximumActiveRelationQueries = Math.max(maximumActiveRelationQueries, activeRelationQueries);
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        activeRelationQueries -= 1;
+        return Response.json([]);
+      }
+      return Response.json([]);
+    },
+  });
+
+  const graph = await repository.getClaimDownstreamGraph({ claimId: "claim-root", maxDepth: 2 });
+  assert.equal(graph.nodes.length, 251);
+  assert.equal(graph.truncated, false);
+  assert.equal(relationQueries, 7);
+  assert.equal(maximumActiveRelationQueries, 4);
 });

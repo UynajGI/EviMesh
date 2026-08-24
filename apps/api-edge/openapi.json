@@ -4011,7 +4011,8 @@
           "rootClaimId",
           "maxDepth",
           "nodes",
-          "edges"
+          "edges",
+          "truncated"
         ],
         "properties": {
           "rootClaimId": {
@@ -4074,6 +4075,10 @@
             "items": {
               "$ref": "#/components/schemas/ClaimGraphEdge"
             }
+          },
+          "truncated": {
+            "type": "boolean",
+            "description": "True when the server node, edge, or relation-read ceiling omitted part of the reachable graph."
           }
         }
       },

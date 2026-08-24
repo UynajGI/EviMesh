@@ -155,6 +155,7 @@ test('home keeps signed-out, empty, partial, error, and honest rail states', asy
   assert.match(home, /requestId=\{requestId \?\? undefined\}/);
   for (const state of ['DeniedState', 'Empty', 'ErrorState', 'Alert', 'Skeleton']) assert.match(home, new RegExp(state));
   assert.match(home, /Partial watch coverage/);
+  assert.match(home, /Some classification details were omitted from this bounded view/);
   assert.match(home, /No watched research yet/);
   assert.match(home, /viewer-assignment total/);
   assert.match(home, /Pending approval totals are not exposed by the API/);

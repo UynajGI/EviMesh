@@ -84,6 +84,7 @@ test("returns a bounded upstream Claim graph", async () => {
   assert.deepEqual(received, { claimId: "claim-1", maxDepth: 4 });
   assert.equal(result.rootClaimId, "claim-1");
   assert.equal(result.nodes[0].depth, 1);
+  assert.equal(result.truncated, false);
 });
 
 test("rejects unbounded upstream graph depths", async () => {
@@ -95,12 +96,17 @@ test("rejects unbounded upstream graph depths", async () => {
 
 test("returns downstream nodes with dependency taint markers", async () => {
   const result = await getClaimDownstreamGraph({
-    repository: { getClaimDownstreamGraph: async () => [
-      { claimId: "claim-2", depth: 1, state: "dependency_tainted" },
-      { claimId: "claim-3", depth: 2, state: "candidate", dependencyTainted: true },
-    ] },
+    repository: { getClaimDownstreamGraph: async () => ({
+      nodes: [
+        { claimId: "claim-2", depth: 1, state: "dependency_tainted" },
+        { claimId: "claim-3", depth: 2, state: "candidate", dependencyTainted: true },
+      ],
+      edges: [],
+      truncated: true,
+    }) },
     claimId: "claim-1", maxDepth: 2,
   });
   assert.equal(result.nodes[0].dependencyTainted, true);
   assert.equal(result.nodes[1].dependencyTainted, true);
+  assert.equal(result.truncated, true);
 });

@@ -17,6 +17,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_WATCHED_OBJECTS = 24;
 const EVENTS_PER_OBJECT = 100;
 const DETAIL_HYDRATION_BATCH_SIZE = 8;
+const MAX_CLASSIFICATION_DETAILS = 48;
 
 const GROUPS = [
   { level: 'critical', title: 'Needs prompt review', meta: 'critical' },
@@ -230,7 +231,9 @@ async function hydrateClassificationContexts(events) {
   }
   const contexts = new Map();
   let failedDetails = 0;
-  const values = [...targets.values()];
+  const allValues = [...targets.values()];
+  const values = allValues.slice(0, MAX_CLASSIFICATION_DETAILS);
+  const omittedDetails = Math.max(0, allValues.length - values.length);
   for (let index = 0; index < values.length; index += DETAIL_HYDRATION_BATCH_SIZE) {
     const chunk = values.slice(index, index + DETAIL_HYDRATION_BATCH_SIZE);
     const settled = await Promise.allSettled(chunk.map(async (target) => ({
@@ -249,6 +252,7 @@ async function hydrateClassificationContexts(events) {
       return classificationContext ? { ...event, classificationContext } : event;
     }),
     failedDetails,
+    omittedDetails,
   };
 }
 
@@ -420,6 +424,7 @@ function partialDescription(partial) {
   if (partial.truncatedObjects) notes.push('Some object event queries have another page');
   if (partial.invalidEvents) notes.push('Some event records lacked required provenance fields');
   if (partial.failedDetails) notes.push('Some verification or Challenge details needed for change classification were unavailable');
+  if (partial.omittedDetails) notes.push('Some classification details were omitted from this bounded view');
   return `${notes.join('. ')}. Displayed events remain in newest protocol order; this partial result cannot support a quiet conclusion.`;
 }
 
@@ -427,7 +432,7 @@ export default function HomePage() {
   const [status, setStatus] = useState('loading');
   const [events, setEvents] = useState([]);
   const [watchCount, setWatchCount] = useState(0);
-  const [partial, setPartial] = useState({ omittedObjects: 0, failedObjects: 0, truncatedObjects: 0, invalidEvents: 0, failedDetails: 0 });
+  const [partial, setPartial] = useState({ omittedObjects: 0, failedObjects: 0, truncatedObjects: 0, invalidEvents: 0, failedDetails: 0, omittedDetails: 0 });
   const [error, setError] = useState(null);
   const [requestId, setRequestId] = useState(null);
   const [observationWindow, setObservationWindow] = useState(null);
@@ -485,6 +490,7 @@ export default function HomePage() {
       truncatedObjects: successfulPages.filter(({ payload }) => Boolean(payload.nextCursor)).length,
       invalidEvents: merged.invalidEvents,
       failedDetails: classified.failedDetails,
+      omittedDetails: classified.omittedDetails,
     };
 
     setWatchCount(allScopes.length);
