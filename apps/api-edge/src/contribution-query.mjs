@@ -16,6 +16,10 @@ function requiredActorId(value) {
   return value.trim();
 }
 
+function canonicalEventActorId(value) {
+  return typeof value === "string" && value.length > 0 && value.trim() === value ? value : null;
+}
+
 function actorIdentityCard(actor, profile) {
   if (!actor) return null;
   return {
@@ -33,6 +37,7 @@ function actorIdentityCard(actor, profile) {
     publicKeyFingerprint: actor.publicKeyFingerprint ?? null,
     ownerActorId: actor.ownerActorId ?? null,
     createdAt: actor.createdAt ?? null,
+    updatedAt: actor.updatedAt ?? null,
   };
 }
 
@@ -72,6 +77,26 @@ export async function getContribution({ repository, actorId } = {}) {
   const statementIds = statements.map((statement) => statement.statementId);
   const edges = statementIds.length > 0 ? await repository.listContributionEdges(statementIds) : [];
   const normalizedEdges = Array.isArray(edges) ? edges : [];
+  const statementById = new Map(statements.map((statement) => [statement.statementId, statement]));
+  const contributionEventIds = [...new Set(statements.map((statement) => statement?.eventId).filter((eventId) => typeof eventId === "string" && eventId.length > 0))];
+  const contributionEvents = contributionEventIds.length > 0 && typeof repository.listResearchEventsByIds === "function"
+    ? await repository.listResearchEventsByIds(contributionEventIds)
+    : [];
+  const eventById = new Map((Array.isArray(contributionEvents) ? contributionEvents : []).map((event) => [event?.eventId, event]));
+  const attributedEdges = normalizedEdges.map((edge) => {
+    const statement = statementById.get(edge?.statementId);
+    const event = eventById.get(statement?.eventId);
+    const isMatchingClaimCreation = edge?.edgeType === "produced"
+      && edge?.objectType === "claim"
+      && event?.eventType === "claim.created"
+      && event?.payload?.claim_id === edge?.objectId
+      && event?.payload?.revision === edge?.objectRevision;
+    const signerActorId = isMatchingClaimCreation ? canonicalEventActorId(event?.payload?.signer_actor_id) : null;
+    return { ...edge, signedBy: signerActorId };
+  });
+  const lastEvent = typeof repository.getLatestResearchEventForActor === "function"
+    ? await repository.getLatestResearchEventForActor(actorId)
+    : null;
   const roles = [...new Set(statements.map((statement) => statement.role))].sort();
   const roleDetails = roles.map((role) => ({ role, semantics: contributionRoleSemantics(role) }));
 
@@ -79,8 +104,10 @@ export async function getContribution({ repository, actorId } = {}) {
     actorId,
     actor: actorIdentityCard(actor, profile),
     roles: roleDetails,
-    produced: normalizedEdges.filter((edge) => edge.edgeType === "produced"),
-    used: normalizedEdges.filter((edge) => edge.edgeType === "used"),
+    produced: attributedEdges.filter((edge) => edge.edgeType === "produced"),
+    used: attributedEdges.filter((edge) => edge.edgeType === "used"),
     statements,
+    lastEventAt: lastEvent?.createdAt ?? null,
+    lastEventId: lastEvent?.eventId ?? null,
   };
 }

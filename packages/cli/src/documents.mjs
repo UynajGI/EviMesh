@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { schemaFileForDocument, validateAgainstSchema } from "../../schemas/src/validator.mjs";
+import { canonicalJson } from "../../protocol/src/hash.mjs";
 
 const moduleDir = dirname(fileURLToPath(import.meta.url));
 const packagedSchemaDir = join(moduleDir, "schemas");
@@ -71,9 +72,106 @@ function artifactRefs(ids, label) {
   });
 }
 
+function canonicalRunArtifactRefs(document) {
+  const canonicalRef = (value) => {
+    if (typeof value !== "string" || value.length === 0 || value.trim() !== value) {
+      throw new CliDocumentError("Run artifact refs must be non-empty strings", "RUN_ARTIFACT_REF_INVALID");
+    }
+    const separator = value.indexOf("@");
+    if (separator !== value.lastIndexOf("@")) {
+      throw new CliDocumentError("Run artifact refs must contain at most one @", "RUN_ARTIFACT_REF_INVALID");
+    }
+    if (separator === -1) return `${value}@1`;
+    const artifactId = value.slice(0, separator);
+    const revisionText = value.slice(separator + 1);
+    if (!artifactId || artifactId.trim() !== artifactId || !/^[0-9]+$/.test(revisionText)) {
+      throw new CliDocumentError("Run artifact refs must be formatted as artifactId@positiveRevision", "RUN_ARTIFACT_REF_INVALID");
+    }
+    const revision = Number(revisionText);
+    if (!Number.isSafeInteger(revision) || revision < 1) {
+      throw new CliDocumentError("Run artifact revisions must be positive safe integers", "RUN_ARTIFACT_REF_INVALID");
+    }
+    return `${artifactId}@${revision}`;
+  };
+  const normalizeAndSort = (refs, field) => {
+    if (!Array.isArray(refs)) throw new CliDocumentError(`${field} must be an array`, "RUN_ARTIFACT_REFS_INVALID");
+    const canonicalRefs = [...refs].map(canonicalRef);
+    if (new Set(canonicalRefs).size !== canonicalRefs.length) {
+      throw new CliDocumentError(`${field} must not repeat an artifact revision`, "RUN_ARTIFACT_REFS_DUPLICATE");
+    }
+    return canonicalRefs.sort((left, right) => left < right ? -1 : left > right ? 1 : 0);
+  };
+  return {
+    ...document,
+    input_artifact_ids: normalizeAndSort(document.input_artifact_ids, "input_artifact_ids"),
+    output_artifact_ids: normalizeAndSort(document.output_artifact_ids, "output_artifact_ids"),
+  };
+}
+
+const RUN_TIMESTAMP_PATTERN = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?(?:Z|[+-](\d{2}):(\d{2}))$/;
+
+function hasValidRunTimestampParts(match) {
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const hour = Number(match[4]);
+  const minute = Number(match[5]);
+  const second = Number(match[6]);
+  const offsetHour = Number(match[8] ?? 0);
+  const offsetMinute = Number(match[9] ?? 0);
+  const leapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  const daysInMonth = [31, leapYear ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  return month >= 1 && month <= 12
+    && day >= 1 && day <= daysInMonth[month - 1]
+    && hour <= 23 && minute <= 59 && second <= 59
+    && offsetHour <= 23 && offsetMinute <= 59;
+}
+
+function canonicalRunTimestamp(value) {
+  const match = typeof value === "string" && value.trim() === value ? RUN_TIMESTAMP_PATTERN.exec(value) : null;
+  if (!match || !hasValidRunTimestampParts(match)) {
+    throw new CliDocumentError("Run timestamps must be RFC3339 date-time strings", "RUN_TIMESTAMP_INVALID");
+  }
+  const timestamp = new Date(value);
+  if (Number.isNaN(timestamp.getTime())) throw new CliDocumentError("Run timestamps must be valid date-times", "RUN_TIMESTAMP_INVALID");
+  return timestamp.toISOString();
+}
+
+function canonicalRunText(value, field) {
+  if (typeof value !== "string" || value.length === 0 || value.trim() !== value) {
+    throw new CliDocumentError(`${field} must be a non-empty string without leading or trailing whitespace`, "RUN_TEXT_INVALID");
+  }
+  return value;
+}
+
+export function canonicalRunDocument(document) {
+  const withCanonicalRefs = canonicalRunArtifactRefs(document);
+  return {
+    ...withCanonicalRefs,
+    run_id: canonicalRunText(withCanonicalRefs.run_id, "run_id"),
+    task_id: canonicalRunText(withCanonicalRefs.task_id, "task_id"),
+    context_bundle_id: canonicalRunText(withCanonicalRefs.context_bundle_id, "context_bundle_id"),
+    source_code: canonicalRunText(withCanonicalRefs.source_code, "source_code"),
+    container: canonicalRunText(withCanonicalRefs.container, "container"),
+    command: canonicalRunText(withCanonicalRefs.command, "command"),
+    actor_id: canonicalRunText(withCanonicalRefs.actor_id, "actor_id"),
+    signing_key_id: canonicalRunText(withCanonicalRefs.signing_key_id, "signing_key_id"),
+    started_at: canonicalRunTimestamp(withCanonicalRefs.started_at),
+    ended_at: canonicalRunTimestamp(withCanonicalRefs.ended_at),
+  };
+}
+
+export function assertCanonicalRunDocument(document) {
+  if (canonicalJson(canonicalRunDocument(document)) !== canonicalJson(document)) {
+    throw new CliDocumentError("Run document must already use canonical artifact revisions and UTC timestamps", "RUN_DOCUMENT_NONCANONICAL");
+  }
+  return document;
+}
+
 export function claimDocToApi(document) {
   return {
     claimId: document.claim_id,
+    draftedByActorId: document.created_by,
     questionId: document.question_id ?? null,
     statement: document.statement,
     scope: document.scope,
@@ -98,6 +196,8 @@ export function runDocToApi(document) {
     endedAt: document.ended_at,
     networkAccess: document.network_access ?? false,
     exitCode: document.exit_code,
+    actorId: document.actor_id,
+    signingKeyId: document.signing_key_id,
     signature: document.signature,
     inputs: artifactRefs(document.input_artifact_ids, "inputs"),
     outputs: artifactRefs(document.output_artifact_ids, "outputs"),
@@ -188,6 +288,7 @@ export function runTemplate({ runId, taskId, contextBundleId }) {
     output_artifact_ids: [],
     exit_code: 0,
     actor_id: "TODO: actor id",
+    signing_key_id: "TODO: signing key id",
     signature: "TODO: run signature",
   };
 }

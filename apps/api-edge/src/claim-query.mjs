@@ -21,6 +21,46 @@ function graphDepth(value) {
   return value;
 }
 
+function normalizeGraph(value) {
+  if (Array.isArray(value)) return { nodes: value, edges: [], truncated: false };
+  return {
+    nodes: Array.isArray(value?.nodes) ? value.nodes : [],
+    edges: Array.isArray(value?.edges) ? value.edges : [],
+    truncated: Boolean(value?.truncated),
+  };
+}
+
+async function claimOriginatorContributions(repository, claimId) {
+  const methods = ["listContributionEdgesForObject", "listContributionStatementsByIds", "listResearchEventsByIds"];
+  if (methods.some((method) => typeof repository[method] !== "function")) return [];
+  const edges = await repository.listContributionEdgesForObject({ objectType: "claim", objectId: claimId });
+  const produced = (Array.isArray(edges) ? edges : []).filter((edge) => edge?.edgeType === "produced");
+  const statementIds = [...new Set(produced.map((edge) => edge?.statementId).filter(Boolean))];
+  const statements = statementIds.length > 0 ? await repository.listContributionStatementsByIds(statementIds) : [];
+  const statementById = new Map((Array.isArray(statements) ? statements : []).map((statement) => [statement?.statementId, statement]));
+  const eventIds = [...new Set((Array.isArray(statements) ? statements : []).map((statement) => statement?.eventId).filter(Boolean))];
+  const events = eventIds.length > 0 ? await repository.listResearchEventsByIds(eventIds) : [];
+  const eventById = new Map((Array.isArray(events) ? events : []).map((event) => [event?.eventId, event]));
+  return produced.map((edge) => {
+    const statement = statementById.get(edge.statementId);
+    const event = eventById.get(statement?.eventId);
+    const payload = event?.payload ?? {};
+    const actorId = statement?.actorId;
+    const draftedByActorId = payload.drafted_by_actor_id ?? payload.draftedByActorId ?? null;
+    const signedBy = payload.signer_actor_id ?? payload.signerActorId ?? null;
+    if (statement?.role !== "originator" || event?.eventType !== "claim.created" || payload.claim_id !== claimId || draftedByActorId !== actorId) return null;
+    return {
+      actorId,
+      role: statement.role,
+      description: statement.description ?? null,
+      objectRevision: edge.objectRevision,
+      eventId: event.eventId,
+      draftedByActorId,
+      signedBy,
+    };
+  }).filter(Boolean);
+}
+
 /** List Claim identity rows with stable, opaque cursor pagination. */
 export async function listClaims({ repository, projectId = null, status = null, tag = null, limit = 20, cursor = null } = {}) {
   if (!repository || typeof repository.listClaims !== "function") throw new ClaimQueryError("repository listClaims is required");
@@ -44,6 +84,7 @@ export async function getClaim({ repository, claimId } = {}) {
   if (!claim) throw new ClaimQueryError("claim not found", "CLAIM_NOT_FOUND", 404);
   const currentRevision = await repository.getCurrentClaimRevision(claimId);
   if (!currentRevision) throw new ClaimQueryError("current claim revision not found", "CLAIM_REVISION_NOT_FOUND", 500);
+  const originatorContributions = await claimOriginatorContributions(repository, claimId);
   let allowedTransitions;
   try {
     allowedTransitions = claimTransitionsFrom(claim.state);
@@ -53,6 +94,7 @@ export async function getClaim({ repository, claimId } = {}) {
   return {
     claim,
     currentRevision,
+    originatorContributions,
     statusPolicy: { state: claim.state, allowedTransitions: [...allowedTransitions] },
   };
 }
@@ -74,8 +116,8 @@ export async function getClaimUpstreamGraph({ repository, claimId, maxDepth = 3 
   claimId = claimId.trim();
   maxDepth = graphDepth(maxDepth);
   if (!repository || typeof repository.getClaimUpstreamGraph !== "function") throw new ClaimQueryError("repository getClaimUpstreamGraph is required");
-  const nodes = await repository.getClaimUpstreamGraph({ claimId, maxDepth });
-  return { rootClaimId: claimId, maxDepth, nodes: Array.isArray(nodes) ? nodes : [] };
+  const graph = normalizeGraph(await repository.getClaimUpstreamGraph({ claimId, maxDepth }));
+  return { rootClaimId: claimId, maxDepth, ...graph };
 }
 
 /** Return the bounded downstream dependency graph with taint markers. */
@@ -84,13 +126,15 @@ export async function getClaimDownstreamGraph({ repository, claimId, maxDepth = 
   claimId = claimId.trim();
   maxDepth = graphDepth(maxDepth);
   if (!repository || typeof repository.getClaimDownstreamGraph !== "function") throw new ClaimQueryError("repository getClaimDownstreamGraph is required");
-  const nodes = await repository.getClaimDownstreamGraph({ claimId, maxDepth });
+  const graph = normalizeGraph(await repository.getClaimDownstreamGraph({ claimId, maxDepth }));
   return {
     rootClaimId: claimId,
     maxDepth,
-    nodes: (Array.isArray(nodes) ? nodes : []).map((node) => ({
+    nodes: graph.nodes.map((node) => ({
       ...node,
       dependencyTainted: Boolean(node.dependencyTainted ?? node.state === "dependency_tainted"),
     })),
+    edges: graph.edges,
+    truncated: graph.truncated,
   };
 }

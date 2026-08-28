@@ -3,14 +3,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { graphStratify, sugiyama, layeringLongestPath, decrossTwoLayer, coordSimplex } from 'd3-dag';
 import {
-  Background, Controls, ReactFlow, ReactFlowProvider, useReactFlow,
+  Background, Controls, MarkerType, ReactFlow, ReactFlowProvider, useReactFlow,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Badge } from '@/components/ui/data';
 import { Select } from '@/components/ui/selection';
 
 /*
- * Claim dependency graph (design book 00 §5.3 / 10 implementation map):
+ * Claim relation graph (design book 00 §5.3 / 10 implementation map):
  * d3-dag Sugiyama layered layout as the layout engine + React Flow as the
  * interaction layer (pan, zoom, selection). The keyboard- and list-accessible
  * equivalent view stays a first-class citizen (M13.5 C11). Color is never the
@@ -19,23 +19,56 @@ import { Select } from '@/components/ui/selection';
  */
 
 export const CLAIM_STATE_COLORS = Object.freeze({
-  hypothesis: '#64748b',
-  candidate: '#2563eb',
-  under_verification: '#7c3aed',
-  provisionally_accepted: '#0891b2',
-  accepted: '#16a34a',
-  contested: '#d97706',
-  refuted: '#dc2626',
-  superseded: '#9333ea',
-  retracted: '#475569',
-  dependency_tainted: '#ea580c',
+  hypothesis: { background: 'var(--evimesh-status-neutral-bg)', foreground: 'var(--evimesh-status-neutral-fg)' },
+  candidate: { background: 'var(--evimesh-status-accent-bg)', foreground: 'var(--evimesh-status-accent-fg)' },
+  under_verification: { background: 'var(--evimesh-status-info-bg)', foreground: 'var(--evimesh-status-info-fg)' },
+  provisionally_accepted: { background: 'var(--evimesh-status-success-bg)', foreground: 'var(--evimesh-status-success-fg)' },
+  accepted: { background: 'var(--evimesh-status-success-bg)', foreground: 'var(--evimesh-status-success-fg)' },
+  contested: { background: 'var(--evimesh-status-warning-bg)', foreground: 'var(--evimesh-status-warning-fg)' },
+  refuted: { background: 'var(--evimesh-status-danger-bg)', foreground: 'var(--evimesh-status-danger-fg)' },
+  superseded: { background: 'var(--evimesh-status-neutral-bg)', foreground: 'var(--evimesh-status-neutral-fg)' },
+  retracted: { background: 'var(--evimesh-status-neutral-bg)', foreground: 'var(--evimesh-status-neutral-fg)' },
+  dependency_tainted: { background: 'var(--evimesh-status-warning-bg)', foreground: 'var(--evimesh-status-warning-fg)' },
 });
+
+const EDGE_FAMILIES = Object.freeze({
+  depends_on: 'structural',
+  supports: 'positive',
+  refutes: 'negative',
+  qualifies: 'qualify',
+  reproduces: 'positive',
+  extends: 'lineage',
+  supersedes: 'lineage',
+  contradicts: 'negative',
+  derived_from: 'lineage',
+  uses_method: 'structural',
+  uses_dataset: 'structural',
+  implements: 'structural',
+  verifies: 'positive',
+  challenges: 'negative',
+});
+
+const EDGE_FAMILY_STYLES = Object.freeze({
+  positive: Object.freeze({ label: 'supports / reproduces / verifies', strokeDasharray: 'none', strokeWidth: 1.5 }),
+  negative: Object.freeze({ label: 'refutes / contradicts / challenges', strokeDasharray: 'none', strokeWidth: 2 }),
+  qualify: Object.freeze({ label: 'qualifies', strokeDasharray: '6 4', strokeWidth: 1.5 }),
+  structural: Object.freeze({ label: 'depends on / uses / implements', strokeDasharray: '2 3', strokeWidth: 1.5 }),
+  lineage: Object.freeze({ label: 'extends / supersedes / derived from', strokeDasharray: '10 3 2 3', strokeWidth: 1.5 }),
+});
+
+function edgeFamilyFor(relation) {
+  return EDGE_FAMILIES[relation] ?? 'structural';
+}
+
+function edgeStyleFor(family) {
+  return EDGE_FAMILY_STYLES[family] ?? EDGE_FAMILY_STYLES.structural;
+}
 
 /** Keyboard- and list-accessible alternative to the graph canvas. */
 function ClaimDagList({ nodes, edges }) {
   return <div aria-label="Claim graph list view" className="grid gap-6 md:grid-cols-2">
     <div><h3 className="text-sm font-semibold">Nodes</h3><ul className="mt-3 space-y-2">{nodes.map((node) => <li className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card p-3" key={node.id}><span className="text-sm font-medium tabular-nums">{node.id}</span><Badge>{node.state ?? 'unknown'}</Badge></li>)}</ul></div>
-    <div><h3 className="text-sm font-semibold">Edges</h3>{edges.length === 0 ? <p className="mt-3 text-sm text-muted-foreground">No connections.</p> : <ul className="mt-3 space-y-2">{edges.map((edge) => <li className="rounded-lg border border-border bg-card p-3 text-sm tabular-nums" key={edge.id}>{edge.source} → {edge.target}</li>)}</ul>}</div>
+    <div><h3 className="text-sm font-semibold">Edges</h3>{edges.length === 0 ? <p className="mt-3 text-sm text-muted-foreground">No connections.</p> : <ul className="mt-3 space-y-2">{edges.map((edge) => <li className="rounded-lg border border-border bg-card p-3 text-sm tabular-nums" key={edge.id}>{edge.source} → {edge.target} <span className="ml-2 text-xs text-muted-foreground">{edge.relation ?? 'depends_on'}</span></li>)}</ul>}</div>
   </div>;
 }
 
@@ -45,7 +78,7 @@ function layoutGraph(nodes, edges) {
   const byId = new Map(nodes.map((node) => [node.id, node]));
   const stratifyData = nodes.map((node) => ({
     id: node.id,
-    parentIds: edges.filter((edge) => edge.target === node.id && byId.has(edge.source)).map((edge) => edge.source),
+    parentIds: edges.filter((edge) => edge.layoutTarget === node.id && byId.has(edge.layoutSource)).map((edge) => edge.layoutSource),
   }));
   try {
     const dagBuilder = graphStratify();
@@ -70,35 +103,47 @@ function ClaimGraphCanvas({ nodes, edges, onSelect }) {
 
   const flowNodes = useMemo(() => nodes.map((node) => {
     const point = coordinates.get(node.id) ?? { x: 0, y: 0 };
-    const color = CLAIM_STATE_COLORS[node.state] ?? '#5146e5';
+    const color = CLAIM_STATE_COLORS[node.state] ?? { background: 'var(--evimesh-status-accent-bg)', foreground: 'var(--evimesh-status-accent-fg)' };
     return {
       id: node.id,
       position: { x: point.x, y: point.y },
       data: { label: `${node.id} · ${node.state ?? 'unknown'}`, color, state: node.state },
       style: {
-        background: color, color: '#ffffff', border: 'none', borderRadius: '8px',
+        background: color.background, color: color.foreground, border: '1px solid var(--evimesh-border)', borderRadius: '8px',
         fontSize: '11px', width: 160, padding: '4px 8px',
       },
     };
   }), [nodes, coordinates]);
 
-  /* The graph API currently traverses depends_on edges only and returns no
-   * per-edge relation types (api-edge claimGraph lists claimRelations with
-   * relation_type: "depends_on"); labels stay honest to that scope. */
-  const flowEdges = useMemo(() => edges.map((edge, index) => ({
-    id: edge.id ?? `edge-${index}`,
-    source: edge.source, target: edge.target,
-    animated: false, type: 'default',
-    label: 'depends_on',
-    labelStyle: { fill: 'var(--evimesh-fg-muted, #6b7284)', fontSize: 9 },
-    labelBgStyle: { fill: 'var(--evimesh-bg-card, #ffffff)' },
-    style: { stroke: 'var(--evimesh-dag-structural, #a8a29e)', strokeWidth: 1.5 },
-  })), [edges]);
+  /* The graph API returns typed relation edges. Keep a depends_on label only
+   * for legacy payloads that predate the edge list. */
+  const flowEdges = useMemo(() => edges.map((edge, index) => {
+    const family = edgeFamilyFor(edge.relation);
+    const edgeStyle = edgeStyleFor(family);
+    const edgeColor = `var(--evimesh-dag-${family}, var(--evimesh-border))`;
+    return {
+      id: edge.id ?? `edge-${index}`,
+      source: edge.source,
+      target: edge.target,
+      animated: false,
+      type: 'default',
+      label: edge.relation ?? 'depends_on',
+      labelStyle: { fill: 'var(--evimesh-muted-foreground)', fontSize: 9 },
+      labelBgStyle: { fill: 'var(--evimesh-card)' },
+      className: `dag__edge dag__edge--${family}`,
+      markerEnd: { type: MarkerType.ArrowClosed, color: edgeColor },
+      style: {
+        stroke: edgeColor,
+        strokeDasharray: edgeStyle.strokeDasharray,
+        strokeWidth: edgeStyle.strokeWidth,
+      },
+    };
+  }), [edges]);
 
   const onNodeClick = useCallback((_, node) => onSelect({ id: node.id, state: node.data.state }), [onSelect]);
 
   return (
-    <div aria-label="Claim dependency graph" className="mt-3 h-80 w-full overflow-hidden rounded-lg border border-border bg-card" role="application">
+    <div aria-label="Claim relation graph" className="dag mt-3 h-80 w-full overflow-hidden rounded-lg border border-border bg-card" role="application">
       <ReactFlow
         edges={flowEdges}
         fitView
@@ -124,7 +169,7 @@ export function ClaimDag({ elements }) {
   const [selectedDetail, setSelectedDetail] = useState(null);
 
   const rawNodes = (elements ?? []).filter((element) => element.data?.id && !element.data?.source).map((element) => ({ id: element.data.id, state: element.data.state ?? null }));
-  const rawEdges = (elements ?? []).filter((element) => element.data?.source).map((element) => ({ id: element.data.id, source: element.data.source, target: element.data.target }));
+  const rawEdges = (elements ?? []).filter((element) => element.data?.source).map((element) => ({ id: element.data.id, source: element.data.source, target: element.data.target, layoutSource: element.data.layoutSource ?? element.data.source, layoutTarget: element.data.layoutTarget ?? element.data.target, relation: element.data.relationType ?? element.data.relation ?? 'depends_on' }));
   const visibleNodeIds = new Set(stateFilter ? rawNodes.filter((node) => node.state === stateFilter).map((node) => node.id) : rawNodes.map((node) => node.id));
   const nodes = rawNodes.filter((node) => visibleNodeIds.has(node.id));
   const edges = rawEdges.filter((edge) => visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target));
@@ -151,18 +196,32 @@ export function ClaimDag({ elements }) {
       ? <ReactFlowProvider><ClaimGraphCanvas edges={edges} nodes={nodes} onSelect={setSelectedNode} /></ReactFlowProvider>
       : <div className="mt-3"><ClaimDagList edges={edges} nodes={nodes} /></div>}
     {selectedNode && view === 'graph' && <aside aria-label="Claim node details" className="mt-4 rounded-lg border border-border bg-card p-4"><div className="flex items-center justify-between gap-3"><h3 className="font-mono text-sm tabular-nums">{selectedNode.id}</h3><button className="rounded-md border border-border px-2 py-1 text-xs" type="button" onClick={() => { setSelectedNode(null); setSelectedDetail(null); }}>Close</button></div><p className="mt-2 text-xs uppercase tracking-wide text-muted-foreground">State: {selectedNode.state ?? 'unknown'}</p><p className="mt-3 text-sm">Revision: {selectedDetail?.currentRevision?.revision ?? selectedNode.revision ?? 'Unavailable'}</p><p className="mt-2 text-sm">Evidence: {Array.isArray(evidence) ? evidence.length : 0} linked items</p>{Array.isArray(evidence) && evidence.length > 0 && <pre className="mt-3 overflow-x-auto rounded-lg bg-muted p-3 text-xs leading-6">{JSON.stringify(evidence, null, 2)}</pre>}</aside>}
-    <p className="mt-2 text-xs text-muted-foreground">Edges currently follow depends_on relations.</p>
-    <div aria-label="Claim state legend" className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">{Object.keys(CLAIM_STATE_COLORS).map((state) => <span className="inline-flex items-center gap-2" key={state}><span aria-hidden="true" className="h-3 w-3 rounded-full" style={{ backgroundColor: CLAIM_STATE_COLORS[state] }} />{state.replaceAll('_', ' ')}</span>)}</div>
-    {/* Edge family legend (design book 02: five DAG edge families). Today only
-        the structural family can appear; the rest color themselves once the
-        graph API returns their relation types. */}
+    <p className="mt-2 text-xs text-muted-foreground">Edges retain the protocol relation type; the list view exposes the same typed edges.</p>
+    <div aria-label="Claim state legend" className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">{Object.keys(CLAIM_STATE_COLORS).map((state) => <span className="inline-flex items-center gap-2" key={state}><span aria-hidden="true" className="h-3 w-3 rounded-full" style={{ backgroundColor: CLAIM_STATE_COLORS[state].background }} />{state.replaceAll('_', ' ')}</span>)}</div>
+    {/* Edge family legend (design book 02: five DAG edge families). */}
     <div aria-label="DAG edge family legend" className="mt-2 flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">
-      {[['positive', 'supports'], ['negative', 'refutes'], ['qualify', 'qualifies'], ['structural', 'depends on'], ['lineage', 'reproduces / derives']].map(([family, label]) => (
-        <span className="inline-flex items-center gap-2" key={family}>
-          <span aria-hidden="true" className="h-1 w-4 rounded-full" style={{ backgroundColor: `var(--evimesh-dag-${family}, var(--evimesh-border))` }} />
-          {label}
-        </span>
-      ))}
+      {Object.entries(EDGE_FAMILY_STYLES).map(([family, edgeStyle]) => {
+        const edgeColor = `var(--evimesh-dag-${family}, var(--evimesh-border))`;
+        return <span className="inline-flex items-center gap-2" key={family}>
+          <span aria-hidden="true" className="inline-flex items-center gap-0">
+            <svg className="h-2 w-5 shrink-0" viewBox="0 0 20 8">
+              <line
+                x1="0"
+                x2="20"
+                y1="4"
+                y2="4"
+                style={{
+                  stroke: edgeColor,
+                  strokeDasharray: edgeStyle.strokeDasharray,
+                  strokeWidth: edgeStyle.strokeWidth,
+                }}
+              />
+            </svg>
+            <span style={{ color: edgeColor }}>→</span>
+          </span>
+          {edgeStyle.label}
+        </span>;
+      })}
     </div>
   </div>;
 }

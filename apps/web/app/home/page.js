@@ -1,30 +1,60 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
-import { Activity, Bot, Clock, Compass, ListTodo, Sparkles } from 'lucide-react';
-import { DeniedState, Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Bot, CircleDashed, Clock, FileCheck2, ListTodo } from 'lucide-react';
+import { ChangeGroup, ChangeItem } from '@/components/change-item';
 import { StatusBadge } from '@/components/ui/data';
+import { Alert, DeniedState, Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
 import { IdChip } from '@/components/ui/idchip';
 import { PageContainer, PageHeader } from '@/components/ui/page';
-import { EngagementActions } from '@/components/engagement-actions';
-import { fetchRecommendations, useMyInteractions } from '@/lib/interactions';
+import { fetchMyInteractions } from '@/lib/interactions';
+import { createBrowserSupabaseClient } from '@/lib/supabase-browser';
 import { readVisitHistory } from '@/lib/visit-history';
-import { cn } from '@/lib/utils';
 
 const API = process.env.NEXT_PUBLIC_EVIMESH_API_URL;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const MAX_WATCHED_OBJECTS = 24;
+const EVENTS_PER_OBJECT = 100;
+const DETAIL_HYDRATION_BATCH_SIZE = 8;
+const MAX_CLASSIFICATION_DETAILS = 48;
 
-const CLOSED_STATES = new Set(['resolved', 'archived', 'rejected']);
-const ATTENTION_STATES = new Set(['refuted', 'retracted', 'contested', 'dependency_tainted']);
+const GROUPS = [
+  { level: 'critical', title: 'Needs prompt review', meta: 'critical' },
+  { level: 'attention', title: 'Worth attention', meta: 'attention' },
+  { level: 'update', title: 'Routine updates', meta: 'update' },
+];
 
-const PAGE = 30;
-/* Card titles live on detail endpoints; hydrate the first cards' heads and
- * let the rest fall back to the stable id line. */
-const HYDRATE = 12;
+function createObservationWindow() {
+  const asOf = new Date();
+  const windowStart = new Date(asOf.getTime() - (7 * DAY_MS));
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  const offsetMinutes = -asOf.getTimezoneOffset();
+  const sign = offsetMinutes >= 0 ? '+' : '-';
+  const hours = String(Math.floor(Math.abs(offsetMinutes) / 60)).padStart(2, '0');
+  const minutes = String(Math.abs(offsetMinutes) % 60).padStart(2, '0');
+  return {
+    asOf: asOf.toISOString(),
+    windowStart: windowStart.toISOString(),
+    timeZone,
+    offset: `UTC${sign}${hours}:${minutes}`,
+  };
+}
+
+function formatDateTime(value, timeZone) {
+  const timestamp = Date.parse(value ?? '');
+  if (Number.isNaN(timestamp)) return 'Timestamp unavailable';
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+    hourCycle: 'h23',
+    timeZone,
+  }).format(new Date(timestamp));
+}
 
 function toRelativeTime(value) {
   const timestamp = Date.parse(value ?? '');
-  if (Number.isNaN(timestamp)) return 'Activity time unavailable';
+  if (Number.isNaN(timestamp)) return 'Time unavailable';
   const minutes = Math.max(0, Math.floor((Date.now() - timestamp) / 60_000));
   if (minutes < 60) return `${minutes || 1}m ago`;
   const hours = Math.floor(minutes / 60);
@@ -32,62 +62,454 @@ function toRelativeTime(value) {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
-async function getJson(path) {
-  const response = await fetch(`${API}${path}`);
-  const payload = await response.json();
+function observationDescription(window) {
+  if (!window) return 'Preparing the seven-day observation window.';
+  const start = formatDateTime(window.windowStart, window.timeZone);
+  const end = formatDateTime(window.asOf, window.timeZone);
+  return `Seven-day observation window: ${start} to ${end} (${window.timeZone}, ${window.offset}). Change levels show attention priority, not truth, acceptance, or evidence quality.`;
+}
+
+async function getJson(path, options) {
+  const response = await fetch(`${API}${path}`, options);
+  const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
     const failure = new Error(payload.message ?? `${path} is unavailable.`);
     failure.requestId = payload.request_id ?? payload.requestId ?? null;
+    failure.status = response.status;
     throw failure;
   }
   return payload;
 }
 
-/*
- * Discovery feed (owner direction 2026-08-21: the home page is a
- * recommendation-style browsing surface in the shape of RED / Bilibili /
- * Toutiao — a masonry card stream with topic chips, load-more, and a
- * personal rail). The protocol boundary holds underneath the new shape:
- * the only ordering is time (newest first), counts stay navigation entry
- * points, and there are no popularity, engagement, or relevance scores.
- */
+function apiGrantIsActive(grant, now = new Date()) {
+  if (!grant || grant.revokedAt) return false;
+  if (grant.expiresAt === null || grant.expiresAt === undefined) return true;
+  const expiresAt = new Date(grant.expiresAt);
+  return !Number.isNaN(expiresAt.getTime()) && expiresAt > now;
+}
+
+async function fetchAgentConnection() {
+  try {
+    const { data } = await createBrowserSupabaseClient().auth.getSession();
+    const token = data.session?.access_token ?? null;
+    if (!token) return { state: 'signed-out' };
+    const payload = await getJson('/api-tokens', { headers: { authorization: `Bearer ${token}` } });
+    const grants = Array.isArray(payload) ? payload : payload.tokens ?? payload.items ?? [];
+    return {
+      state: 'available',
+      activeGrantCount: grants.filter((grant) => apiGrantIsActive(grant)).length,
+    };
+  } catch {
+    return { state: 'unavailable' };
+  }
+}
+
+function uniqueWatchScope(interactions) {
+  const scopes = new Map();
+  for (const interaction of Array.isArray(interactions) ? interactions : []) {
+    if (interaction?.kind !== 'watch' || !interaction.objectType || !interaction.objectId) continue;
+    const key = `${interaction.objectType}:${interaction.objectId}`;
+    if (!scopes.has(key)) scopes.set(key, { objectType: interaction.objectType, objectId: interaction.objectId });
+  }
+  return [...scopes.values()];
+}
+
+function eventsPath(scope, window, cursor = null) {
+  const query = new URLSearchParams({
+    objectType: scope.objectType,
+    objectId: scope.objectId,
+    createdAfter: window.windowStart,
+    createdBefore: window.asOf,
+    order: 'desc',
+    limit: String(EVENTS_PER_OBJECT),
+  });
+  if (cursor) query.set('cursor', cursor);
+  return `/events?${query.toString()}`;
+}
+
+function sortNewestProtocolOrder(left, right) {
+  const timeDifference = Date.parse(right.createdAt ?? 0) - Date.parse(left.createdAt ?? 0);
+  if (timeDifference !== 0 && !Number.isNaN(timeDifference)) return timeDifference;
+  return String(right.eventId).localeCompare(String(left.eventId));
+}
+
+function mergeEventPages(successfulPages) {
+  const eventsById = new Map();
+  let invalidEvents = 0;
+  for (const { scope, payload } of successfulPages) {
+    for (const event of Array.isArray(payload.items) ? payload.items : []) {
+      if (!event?.eventId || !event?.eventType) {
+        invalidEvents += 1;
+        continue;
+      }
+      const existing = eventsById.get(event.eventId);
+      if (existing) {
+        if (!existing.watchedScopes.some((item) => item.objectType === scope.objectType && item.objectId === scope.objectId)) {
+          existing.watchedScopes.push(scope);
+        }
+      } else {
+        eventsById.set(event.eventId, { ...event, watchedScopes: [scope] });
+      }
+    }
+  }
+  return {
+    events: [...eventsById.values()].sort(sortNewestProtocolOrder),
+    invalidEvents,
+  };
+}
+
+function payloadValue(payload, ...keys) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null;
+  for (const key of keys) {
+    const value = payload[key];
+    if (typeof value === 'string' && value.trim()) return value.trim();
+    if (typeof value === 'number' || typeof value === 'boolean') return value;
+  }
+  return null;
+}
+
+function normalized(value) {
+  return String(value ?? '').trim().toLowerCase();
+}
+
+function hasExplicitImpact(payload) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return false;
+  const keys = [
+    'impact', 'impact_scope', 'impactScope', 'affected_object_id', 'affectedObjectId',
+    'affected_claim_revision_id', 'affectedClaimRevisionId', 'downstream_claim_revision_ids',
+    'downstreamClaimRevisionIds', 'blocked', 'blocking', 'tainted',
+  ];
+  return keys.some((key) => {
+    const value = payload[key];
+    if (value === true) return true;
+    if (Array.isArray(value)) return value.length > 0;
+    if (value && typeof value === 'object') return Object.keys(value).length > 0;
+    if (typeof value !== 'string' && typeof value !== 'number') return false;
+    return !['', '0', 'false', 'none', 'no', 'unaffected'].includes(normalized(value));
+  });
+}
+
+function classificationDetailTarget(event) {
+  const type = normalized(event.eventType);
+  const payload = event.payload && typeof event.payload === 'object' ? event.payload : {};
+  if (type === 'verification.submitted') {
+    const receiptId = payloadValue(payload, 'receipt_id', 'receiptId');
+    const findingCount = payloadValue(payload, 'finding_count', 'findingCount');
+    if (receiptId && (findingCount === null || Number(findingCount) > 0)) {
+      return { key: `verification:${receiptId}`, kind: 'verification', id: String(receiptId) };
+    }
+  }
+  if (type === 'challenge.upheld' && !hasExplicitImpact(payload)) {
+    const challengeId = payloadValue(payload, 'challenge_id', 'challengeId');
+    if (challengeId) return { key: `challenge:${challengeId}`, kind: 'challenge', id: String(challengeId) };
+  }
+  return null;
+}
+
+function highestFindingSeverity(findings) {
+  const severities = new Set((Array.isArray(findings) ? findings : []).map((finding) => normalized(finding?.severity)));
+  return ['critical', 'major', 'warning', 'note'].find((severity) => severities.has(severity)) ?? null;
+}
+
+async function classificationContextFor(target) {
+  if (target.kind === 'verification') {
+    const detail = await getJson(`/verifications/${encodeURIComponent(target.id)}`);
+    return { findingSeverity: highestFindingSeverity(detail.findings) };
+  }
+  const detail = await getJson(`/challenges/${encodeURIComponent(target.id)}`);
+  return {
+    challengeHasImpact: hasExplicitImpact(detail.currentRevision)
+      || (Array.isArray(detail.impacts) && detail.impacts.length > 0),
+  };
+}
+
+async function hydrateClassificationContexts(events) {
+  const targets = new Map();
+  for (const event of events) {
+    const target = classificationDetailTarget(event);
+    if (target) targets.set(target.key, target);
+  }
+  const contexts = new Map();
+  let failedDetails = 0;
+  const allValues = [...targets.values()];
+  const values = allValues.slice(0, MAX_CLASSIFICATION_DETAILS);
+  const omittedDetails = Math.max(0, allValues.length - values.length);
+  for (let index = 0; index < values.length; index += DETAIL_HYDRATION_BATCH_SIZE) {
+    const chunk = values.slice(index, index + DETAIL_HYDRATION_BATCH_SIZE);
+    const settled = await Promise.allSettled(chunk.map(async (target) => ({
+      key: target.key,
+      context: await classificationContextFor(target),
+    })));
+    for (const result of settled) {
+      if (result.status === 'fulfilled') contexts.set(result.value.key, result.value.context);
+      else failedDetails += 1;
+    }
+  }
+  return {
+    events: events.map((event) => {
+      const target = classificationDetailTarget(event);
+      const classificationContext = target ? contexts.get(target.key) : null;
+      return classificationContext ? { ...event, classificationContext } : event;
+    }),
+    failedDetails,
+    omittedDetails,
+  };
+}
+
+function classifyEvent(event) {
+  const type = normalized(event.eventType);
+  const payload = event.payload && typeof event.payload === 'object' ? event.payload : {};
+  const classificationContext = event.classificationContext && typeof event.classificationContext === 'object' ? event.classificationContext : {};
+  const claimState = normalized(payloadValue(payload, 'claim_state', 'claimState', 'to_state', 'toState', 'state', 'status', 'outcome'));
+  const findingSeverity = normalized(classificationContext.findingSeverity ?? payloadValue(payload, 'severity', 'finding_severity', 'findingSeverity'));
+  const challengeState = normalized(payloadValue(payload, 'challenge_state', 'challengeState', 'to_state', 'toState', 'state', 'status', 'outcome'));
+  const relationType = normalized(payloadValue(payload, 'relation_type', 'relationType', 'evidence_relation', 'evidenceRelation'));
+  const frontierAction = normalized(payloadValue(payload, 'action', 'change_type', 'changeType', 'membership_change', 'membershipChange', 'state', 'status'));
+
+  const explicitRefutedOrRetracted = type.startsWith('claim.')
+    && (/(^|\.)(refuted|retracted)$/.test(type) || ['refuted', 'retracted'].includes(claimState));
+  const criticalFinding = (type.includes('finding') || type.startsWith('verification.')) && findingSeverity === 'critical';
+  const upheldChallengeWithImpact = type.includes('challenge') && challengeState === 'upheld'
+    && (classificationContext.challengeHasImpact === true || hasExplicitImpact(payload));
+  const frontierTaintOrRemovalImpact = type.includes('frontier')
+    && (/taint|remove|replace/.test(type) || /taint|remove|replace/.test(frontierAction))
+    && hasExplicitImpact(payload);
+  if (explicitRefutedOrRetracted || criticalFinding || upheldChallengeWithImpact || frontierTaintOrRemovalImpact) return 'critical';
+
+  const explicitlyContested = type.startsWith('claim.')
+    && (/(^|\.)contested$/.test(type) || claimState === 'contested');
+  const refutingEvidence = type.includes('evidence') && relationType === 'refutes';
+  const majorFinding = (type.includes('finding') || type.startsWith('verification.')) && findingSeverity === 'major';
+  const createdChallenge = type === 'challenge.created';
+  const investigatingChallenge = type.includes('challenge') && challengeState === 'investigating';
+  const verificationContextChanged = type.startsWith('verification.')
+    && (payloadValue(payload, 'outcome', 'verification_outcome', 'verificationOutcome') !== null || /submitted|completed|revised|evaluated|invalidated/.test(type));
+  const policyContextChanged = /(policy|contract)/.test(type)
+    && (/revised|published|updated|evaluated/.test(type)
+      || payloadValue(payload, 'policy_revision_id', 'policyRevisionId', 'policy_revision', 'policyRevision', 'contract_revision_id', 'contractRevisionId', 'contract_revision', 'contractRevision') !== null);
+  const frontierContextChanged = type.includes('frontier')
+    && hasExplicitImpact(payload)
+    && (/member|snapshot|publish|replace|remove|add/.test(type)
+      || /member|snapshot|publish|replace|remove|add|taint/.test(frontierAction)
+      || payloadValue(payload, 'frontier_snapshot_id', 'frontierSnapshotId', 'snapshot_id', 'snapshotId') !== null);
+  if (explicitlyContested || refutingEvidence || majorFinding || createdChallenge || investigatingChallenge || verificationContextChanged || policyContextChanged || frontierContextChanged) return 'attention';
+
+  return 'update';
+}
+
+function eventFacts(event) {
+  const payload = event.payload && typeof event.payload === 'object' ? event.payload : {};
+  const classificationContext = event.classificationContext && typeof event.classificationContext === 'object' ? event.classificationContext : {};
+  return {
+    type: String(event.eventType),
+    claimState: normalized(payloadValue(payload, 'claim_state', 'claimState', 'to_state', 'toState', 'state', 'status', 'outcome')),
+    findingSeverity: normalized(classificationContext.findingSeverity ?? payloadValue(payload, 'severity', 'finding_severity', 'findingSeverity')),
+    challengeState: normalized(payloadValue(payload, 'challenge_state', 'challengeState', 'to_state', 'toState', 'state', 'status', 'outcome')),
+    relationType: normalized(payloadValue(payload, 'relation_type', 'relationType', 'evidence_relation', 'evidenceRelation')),
+    claimRevision: payloadValue(payload, 'claim_revision_id', 'claimRevisionId', 'claim_revision', 'claimRevision'),
+    evidenceId: payloadValue(payload, 'evidence_id', 'evidenceId'),
+    findingId: payloadValue(payload, 'finding_id', 'findingId'),
+    receiptId: payloadValue(payload, 'receipt_id', 'receiptId'),
+    challengeId: payloadValue(payload, 'challenge_id', 'challengeId'),
+    snapshotId: payloadValue(payload, 'frontier_snapshot_id', 'frontierSnapshotId', 'snapshot_id', 'snapshotId'),
+  };
+}
+
+function whatHappened(event) {
+  const facts = eventFacts(event);
+  const scope = event.watchedScopes[0];
+  if (event.eventType.startsWith('claim.') && ['refuted', 'retracted'].includes(facts.claimState)) {
+    return `Claim revision ${facts.claimRevision ?? scope.objectId} entered ${facts.claimState}.`;
+  }
+  if (facts.findingSeverity && (event.eventType.includes('finding') || event.eventType.startsWith('verification.'))) {
+    const receipt = facts.receiptId ? ` on receipt ${facts.receiptId}` : '';
+    return `Verification${receipt} recorded a ${facts.findingSeverity} finding.`;
+  }
+  if (facts.relationType === 'refutes' && event.eventType.includes('evidence')) {
+    const target = facts.claimRevision ? ` targeting claim revision ${facts.claimRevision}` : '';
+    return `Evidence ${facts.evidenceId ?? event.eventId} was recorded as refutes${target}.`;
+  }
+  if (facts.challengeState && event.eventType.includes('challenge')) {
+    return `Challenge ${facts.challengeId ?? event.eventId} entered ${facts.challengeState}.`;
+  }
+  if (facts.snapshotId && event.eventType.includes('frontier')) {
+    return `Frontier event ${facts.type} was recorded for snapshot ${facts.snapshotId}.`;
+  }
+  return `Formal event ${facts.type} was recorded for watched ${scope.objectType} ${scope.objectId}.`;
+}
+
+function whyItMatters(level) {
+  if (level === 'critical') return 'Research state or an explicitly recorded usage assumption changed with high impact. Review the formal event before relying on this object.';
+  if (level === 'attention') return 'The event records a dispute, limitation, or context change that deserves review before this object is reused.';
+  return 'This is a formal change in the watched object record. It does not by itself establish truth, acceptance, or research value.';
+}
+
+function payloadIdentifiers(payload) {
+  if (!payload || typeof payload !== 'object') return [];
+  const found = [];
+  const seen = new Set();
+  function visit(value, path = '', depth = 0) {
+    if (!value || typeof value !== 'object' || depth > 2) return;
+    for (const [key, entry] of Object.entries(value)) {
+      const nextPath = path ? `${path}.${key}` : key;
+      const identifierKey = /(^|_)(id|revision)$|Id$|Revision$|_ids$|Ids$/.test(key);
+      if (identifierKey && (typeof entry === 'string' || typeof entry === 'number')) {
+        const fingerprint = `${nextPath}:${entry}`;
+        if (!seen.has(fingerprint)) {
+          seen.add(fingerprint);
+          found.push({ label: nextPath, value: String(entry) });
+        }
+      } else if (identifierKey && Array.isArray(entry)) {
+        entry.forEach((item) => {
+          if (typeof item !== 'string' && typeof item !== 'number') return;
+          const fingerprint = `${nextPath}:${item}`;
+          if (!seen.has(fingerprint)) {
+            seen.add(fingerprint);
+            found.push({ label: nextPath, value: String(item) });
+          }
+        });
+      } else if (Array.isArray(entry)) {
+        entry.forEach((item, index) => {
+          if (item && typeof item === 'object') visit(item, `${nextPath}.${index}`, depth + 1);
+        });
+      } else if (entry && typeof entry === 'object') {
+        visit(entry, nextPath, depth + 1);
+      }
+    }
+  }
+  visit(payload);
+  return found;
+}
+
+function eventAuditHref(event, observationWindow) {
+  const scope = event.watchedScopes[0];
+  const query = new URLSearchParams({
+    objectType: scope.objectType,
+    objectId: scope.objectId,
+    createdAfter: observationWindow.windowStart,
+    createdBefore: observationWindow.asOf,
+    order: 'desc',
+  });
+  return `/events?${query.toString()}#event-${encodeURIComponent(event.eventId)}`;
+}
+
+function ChangeEvent({ event, level, observationWindow }) {
+  const href = eventAuditHref(event, observationWindow);
+  const exactTime = formatDateTime(event.createdAt, observationWindow.timeZone);
+  return (
+    <ChangeItem
+      href={href}
+      id={event.eventId}
+      idLabel="event"
+      level={level}
+      meta={(
+        <>
+          <StatusBadge label={event.eventType} state={level} />
+          {event.watchedScopes.map((scope) => <IdChip key={`${scope.objectType}:${scope.objectId}`} label={scope.objectType} value={scope.objectId} />)}
+          {payloadIdentifiers(event.payload).map((identifier) => <IdChip key={`${identifier.label}:${identifier.value}`} label={identifier.label} value={identifier.value} />)}
+          <Link className="text-xs font-medium text-primary hover:underline" href={href}>View ResearchEvent</Link>
+        </>
+      )}
+      time={<time dateTime={event.createdAt} title={exactTime}>{toRelativeTime(event.createdAt)} ({exactTime})</time>}
+      what={whatHappened(event)}
+      why={whyItMatters(level)}
+    />
+  );
+}
+
+function partialDescription(partial) {
+  const notes = [];
+  if (partial.omittedObjects) notes.push('Some watched objects were omitted from this bounded view');
+  if (partial.failedObjects) notes.push('Some object event queries were unavailable');
+  if (partial.truncatedObjects) notes.push('Some object event queries have another page');
+  if (partial.invalidEvents) notes.push('Some event records lacked required provenance fields');
+  if (partial.failedDetails) notes.push('Some verification or Challenge details needed for change classification were unavailable');
+  if (partial.omittedDetails) notes.push('Some classification details were omitted from this bounded view');
+  return `${notes.join('. ')}. Displayed events remain in newest protocol order; this partial result cannot support a quiet conclusion.`;
+}
+
 export default function HomePage() {
-  const [questions, setQuestions] = useState([]);
-  const [claims, setClaims] = useState([]);
-  const [frontiers, setFrontiers] = useState([]);
-  const [tasks, setTasks] = useState([]);
-  const [cursors, setCursors] = useState({ questions: null, claims: null });
-  const [topicFilter, setTopicFilter] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
+  const [status, setStatus] = useState('loading');
+  const [events, setEvents] = useState([]);
+  const [watchCount, setWatchCount] = useState(0);
+  const [partial, setPartial] = useState({ omittedObjects: 0, failedObjects: 0, truncatedObjects: 0, invalidEvents: 0, failedDetails: 0, omittedDetails: 0 });
   const [error, setError] = useState(null);
   const [requestId, setRequestId] = useState(null);
+  const [observationWindow, setObservationWindow] = useState(null);
+  const [agentConnection, setAgentConnection] = useState({ state: 'checking' });
   const [visits, setVisits] = useState([]);
-  const [recommendations, setRecommendations] = useState(null);
-  const { has, toggle } = useMyInteractions();
+  const loadGeneration = useRef(0);
 
-  /* Personal rail: loads after the feed and only exists for signed-in
-   * viewers with trained signal. It never reorders the feed itself. */
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const payload = await fetchRecommendations(12);
-        if (cancelled || !Array.isArray(payload.items) || payload.items.length === 0) return;
-        const heads = await Promise.all(payload.items.map(async (item) => {
-          if (item.objectType === 'question') {
-            try { const detail = await getJson(`/questions/${item.objectId}`); return detail.currentRevision?.title ?? null; } catch { return null; }
-          }
-          if (item.objectType === 'claim') {
-            try { const detail = await getJson(`/claims/${item.objectId}`); const statement = detail.currentRevision?.statement; return statement ? `${statement.slice(0, 90)}${statement.length > 90 ? '…' : ''}` : null; } catch { return null; }
-          }
-          return null;
-        }));
-        if (!cancelled) setRecommendations(payload.items.map((item, position) => ({ ...item, title: heads[position] })));
-      } catch { /* signed out or not trained yet: the rail simply stays away */ }
-    })();
-    return () => { cancelled = true; };
+  const load = useCallback(async () => {
+    const generation = ++loadGeneration.current;
+    const nextWindow = createObservationWindow();
+    setObservationWindow(nextWindow);
+    setStatus('loading');
+    setError(null);
+    setRequestId(null);
+    setPartial({ omittedObjects: 0, failedObjects: 0, truncatedObjects: 0, invalidEvents: 0, failedDetails: 0 });
+    setAgentConnection({ state: 'checking' });
+
+    let interactions;
+    try {
+      interactions = await fetchMyInteractions(['watch']);
+    } catch (reason) {
+      if (generation !== loadGeneration.current) return;
+      if (reason.status === 401 || reason.code === 'INTERACTION_AUTH_REQUIRED') {
+        setStatus('signed-out');
+        setAgentConnection({ state: 'signed-out' });
+        return;
+      }
+      setStatus('error');
+      setError(reason.message ?? 'Your private watch scope is unavailable.');
+      setRequestId(reason.requestId ?? null);
+      const connection = await fetchAgentConnection();
+      if (generation === loadGeneration.current) setAgentConnection(connection);
+      return;
+    }
+
+    const allScopes = uniqueWatchScope(interactions);
+    const scopes = allScopes.slice(0, MAX_WATCHED_OBJECTS);
+    const agentPromise = fetchAgentConnection();
+    const settled = await Promise.allSettled(scopes.map(async (scope) => ({
+      scope,
+      payload: await getJson(eventsPath(scope, nextWindow)),
+    })));
+    if (generation !== loadGeneration.current) return;
+
+    const successfulPages = settled.filter((result) => result.status === 'fulfilled').map((result) => result.value);
+    const failures = settled.filter((result) => result.status === 'rejected');
+    const firstFailure = failures[0]?.reason;
+    const merged = mergeEventPages(successfulPages);
+    const classificationPromise = hydrateClassificationContexts(merged.events);
+    const [connection, classified] = await Promise.all([agentPromise, classificationPromise]);
+    if (generation !== loadGeneration.current) return;
+    const nextPartial = {
+      omittedObjects: Math.max(0, allScopes.length - scopes.length),
+      failedObjects: failures.length,
+      truncatedObjects: successfulPages.filter(({ payload }) => Boolean(payload.nextCursor)).length,
+      invalidEvents: merged.invalidEvents,
+      failedDetails: classified.failedDetails,
+      omittedDetails: classified.omittedDetails,
+    };
+
+    setWatchCount(allScopes.length);
+    setAgentConnection(connection);
+    if (scopes.length > 0 && successfulPages.length === 0) {
+      setStatus('error');
+      setError(firstFailure?.message ?? 'Formal event queries are unavailable for the watched objects.');
+      setRequestId(firstFailure?.requestId ?? null);
+      return;
+    }
+    setEvents(classified.events);
+    setPartial(nextPartial);
+    setStatus('ready');
   }, []);
+
+  useEffect(() => {
+    load();
+    return () => { loadGeneration.current += 1; };
+  }, [load]);
 
   useEffect(() => {
     setVisits(readVisitHistory());
@@ -96,316 +518,151 @@ export default function HomePage() {
     return () => window.removeEventListener('focus', onFocus);
   }, []);
 
-  async function load() {
-    setLoading(true);
-    setError(null);
-    setRequestId(null);
-    try {
-      const [questionPage, claimPage, projectItems, taskGroups] = await Promise.all([
-        getJson(`/questions?limit=${PAGE}`),
-        getJson(`/claims?limit=${PAGE}`),
-        getJson('/projects?limit=6').then((payload) => payload.items ?? []),
-        Promise.all(['cpu-only', 'under-60-min'].map((tag) => getJson(`/tasks?status=open&tag=${tag}&limit=6`).then((payload) => (payload.items ?? []).map((task) => ({ ...task, tag }))))),
-      ]);
-      const frontierRows = await Promise.all(projectItems.map(async (project) => {
-        try {
-          const payload = await getJson(`/projects/${project.projectId}/frontier/latest`);
-          return payload.frontier ? { project, frontier: payload.frontier } : null;
-        } catch { return null; }
-      }));
-
-      /* Card heads hydrate from detail endpoints (bounded), then the lists
-       * land once with heads attached. */
-      const heads = await Promise.all([
-        ...((questionPage.items ?? []).slice(0, HYDRATE).map(async (question) => {
-          try {
-            const detail = await getJson(`/questions/${question.questionId}`);
-            return { kind: 'question', id: question.questionId, title: detail.currentRevision?.title ?? null, summary: detail.currentRevision?.statement ?? null };
-          } catch { return null; }
-        })),
-        ...((claimPage.items ?? []).slice(0, HYDRATE).map(async (claim) => {
-          try {
-            const detail = await getJson(`/claims/${claim.claimId}`);
-            const statement = detail.currentRevision?.statement ?? null;
-            return { kind: 'claim', id: claim.claimId, title: statement ? `${statement.slice(0, 110)}${statement.length > 110 ? '…' : ''}` : null };
-          } catch { return null; }
-        })),
-      ]);
-      const headFor = (kind, id) => heads.find((head) => head && head.kind === kind && head.id === id) ?? {};
-
-      setQuestions((questionPage.items ?? []).map((question) => ({ ...question, cardTitle: headFor('question', question.questionId).title, cardSummary: headFor('question', question.questionId).summary })));
-      setClaims((claimPage.items ?? []).map((claim) => ({ ...claim, cardTitle: headFor('claim', claim.claimId).title })));
-      setFrontiers(frontierRows.filter(Boolean));
-      setTasks(taskGroups.flat().slice(0, 6));
-      setCursors({ questions: questionPage.nextCursor ?? null, claims: claimPage.nextCursor ?? null });
-    } catch (reason) {
-      setError(reason.message);
-      setRequestId(reason.requestId ?? null);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function loadMore() {
-    if (loadingMore || (!cursors.questions && !cursors.claims)) return;
-    setLoadingMore(true);
-    try {
-      const [nextQuestions, nextClaims] = await Promise.all([
-        cursors.questions
-          ? getJson(`/questions?limit=${PAGE}&cursor=${encodeURIComponent(cursors.questions)}`).catch(() => null)
-          : Promise.resolve(null),
-        cursors.claims
-          ? getJson(`/claims?limit=${PAGE}&cursor=${encodeURIComponent(cursors.claims)}`).catch(() => null)
-          : Promise.resolve(null),
-      ]);
-      if (nextQuestions?.items?.length) setQuestions((current) => [...current, ...nextQuestions.items]);
-      if (nextClaims?.items?.length) setClaims((current) => [...current, ...nextClaims.items]);
-      setCursors({
-        questions: nextQuestions?.nextCursor ?? (nextQuestions ? null : cursors.questions),
-        claims: nextClaims?.nextCursor ?? (nextClaims ? null : cursors.claims),
-      });
-    } finally {
-      setLoadingMore(false);
-    }
-  }
-
-  useEffect(() => { load(); }, []);
   useEffect(() => { document.title = 'Home · EviMesh'; }, []);
 
-  /* Topic chips from the loaded questions' own tags (alphabetical; a chip
-   * narrows the feed to the questions carrying that topic). */
-  const topics = useMemo(() => {
-    const counts = new Map();
-    for (const question of questions) {
-      for (const topic of Array.isArray(question.topics) ? question.topics : []) counts.set(topic, (counts.get(topic) ?? 0) + 1);
-    }
-    return [...counts.entries()].map(([label, count]) => ({ label, count })).sort((left, right) => left.label.localeCompare(right.label));
-  }, [questions]);
-
-  /* The feed is strictly newest-first; levels never rank it. */
-  const feed = useMemo(() => {
-    const cards = [
-      ...questions.filter((question) => !CLOSED_STATES.has(question.state)).map((question) => ({
-        kind: 'question', id: question.questionId, state: question.state, when: question.createdAt,
-        title: question.cardTitle, summary: question.cardSummary, topics: Array.isArray(question.topics) ? question.topics : [], projectId: question.projectId,
-      })),
-      ...claims.map((claim) => ({ kind: 'claim', id: claim.claimId, state: claim.state, when: claim.createdAt, title: claim.cardTitle, questionId: claim.questionId })),
-      ...frontiers.map(({ project, frontier }) => ({ kind: 'frontier', id: frontier.snapshotId, state: 'update', when: frontier.createdAt, sequence: frontier.sequence, project })),
-    ];
-    return cards
-      .filter((card) => !topicFilter || (card.kind === 'question' && card.topics.includes(topicFilter)))
-      .sort((left, right) => Date.parse(right.when ?? 0) - Date.parse(left.when ?? 0));
-  }, [questions, claims, frontiers, topicFilter]);
-
-  const attentionClaims = claims.filter((claim) => ATTENTION_STATES.has(claim.state)).slice(0, 4);
-
-  const hrefFor = (card) => (card.kind === 'question' ? `/questions/${card.id}` : card.kind === 'claim' ? `/claims/${card.id}` : `/projects/${card.project.projectId}`);
-  const hasMore = Boolean(cursors.questions || cursors.claims);
+  const grouped = useMemo(() => {
+    const result = { critical: [], attention: [], update: [] };
+    for (const event of events) result[classifyEvent(event)].push(event);
+    return result;
+  }, [events]);
+  const isPartial = Object.values(partial).some(Boolean);
 
   return (
     <PageContainer wide>
       <PageHeader
         action={(
-          <Link className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-sm font-medium hover:bg-muted" href="/explore">
-            <Compass aria-hidden="true" size={14} />
-            Explore everything
+          <Link className="inline-flex h-11 items-center gap-2 rounded-md border border-border bg-card px-3 text-sm font-medium hover:bg-muted" href="/events">
+            <FileCheck2 aria-hidden="true" size={15} />
+            Open event audit
           </Link>
         )}
-        description="Newest first. Ordering never expresses research value."
+        description={observationDescription(observationWindow)}
         eyebrow="Home"
-        title="Research as it happens"
+        title="What changed in the research you watch"
       />
-      {error ? <ErrorState className="mt-10" message={error} requestId={requestId ?? undefined} onRetry={load} /> : null}
 
-      <div className="mt-2 grid gap-10 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
+      <div className="mt-8 grid gap-12 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
         <div className="min-w-0">
-          {attentionClaims.length > 0 ? (
-            <section aria-label="Needs attention" className="mb-6">
-              <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-status-danger-fg">Needs attention</h2>
-              <div className="flex gap-3 overflow-x-auto pb-1">
-                {attentionClaims.map((claim) => (
-                  <Link className="min-w-64 shrink-0 rounded-lg border border-status-danger-border bg-status-danger-bg px-4 py-3 hover:border-primary" href={`/claims/${claim.claimId}`} key={claim.claimId}>
-                    <StatusBadge state={claim.state} />
-                    <p className="mt-1.5 line-clamp-2 text-sm font-medium">{claim.cardTitle ?? claim.claimId}</p>
-                  </Link>
-                ))}
-              </div>
-            </section>
-          ) : null}
-
-          {recommendations?.length ? (
-            <section aria-label="For you" className="mb-6">
-              <div className="mb-2 flex items-baseline justify-between gap-2">
-                <h2 className="flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide"><Sparkles aria-hidden="true" size={14} /> For you</h2>
-                <p className="text-[11px] text-muted-foreground">From your activity · navigation, not a rating</p>
-              </div>
-              <div className="flex gap-3 overflow-x-auto pb-1">
-                {recommendations.map((item) => (
-                  <Link
-                    className="min-w-64 shrink-0 rounded-lg border border-primary bg-card px-4 py-3 transition-colors hover:bg-muted"
-                    href={item.objectType === 'question' ? `/questions/${item.objectId}` : item.objectType === 'claim' ? `/claims/${item.objectId}` : `/tasks/${item.objectId}`}
-                    key={`${item.objectType}-${item.objectId}`}
-                  >
-                    <span className="text-[10px] font-medium uppercase tracking-wide text-primary">{item.objectType}</span>
-                    <p className="mt-1 line-clamp-2 text-sm font-medium">{item.title ?? item.objectId}</p>
-                    {item.reason ? <p className="mt-1 line-clamp-1 text-[11px] text-muted-foreground">{item.reason}</p> : null}
-                  </Link>
-                ))}
-              </div>
-            </section>
-          ) : null}
-
-          {topics.length > 0 ? (
-            <div className="mb-5 flex flex-wrap items-center gap-2" aria-label="Topics">
-              <button
-                className={cn('rounded-full border px-3 py-1 text-xs font-medium', topicFilter === null ? 'border-primary bg-accent text-accent-foreground' : 'border-border bg-card text-muted-foreground hover:text-foreground')}
-                onClick={() => setTopicFilter(null)}
-                type="button"
-              >
-                All
-              </button>
-              {topics.slice(0, 10).map((topic) => (
-                <button
-                  className={cn('rounded-full border px-3 py-1 text-xs font-medium', topicFilter === topic.label ? 'border-primary bg-accent text-accent-foreground' : 'border-border bg-card text-muted-foreground hover:text-foreground')}
-                  key={topic.label}
-                  onClick={() => setTopicFilter(topicFilter === topic.label ? null : topic.label)}
-                  type="button"
-                >
-                  {topic.label}
-                </button>
-              ))}
+          {status === 'loading' ? (
+            <div aria-label="Loading watched research changes" className="grid gap-4">
+              {[0, 1, 2].map((key) => <Skeleton className="h-32 w-full" key={key} />)}
             </div>
-          ) : null}
-
-          {loading ? (
-            <div className="columns-1 gap-4 sm:columns-2 xl:columns-3">
-              {[0, 1, 2, 3, 4, 5].map((key) => <Skeleton className="mb-4 h-40 w-full break-inside-avoid" key={key} />)}
-            </div>
-          ) : feed.length === 0 ? (
-            <Empty
-              action={<Link className="rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground" href="/explore">Find research to follow</Link>}
-              description={topicFilter ? `No questions tagged “${topicFilter}” yet.` : 'Questions, claims, and frontier snapshots will flow here as the network grows.'}
-              title={topicFilter ? 'Nothing under this topic' : 'The feed is empty'}
+          ) : status === 'signed-out' ? (
+            <DeniedState
+              action={<Link className="rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground" href="/login">Sign in</Link>}
+              actionLabel="Sign in"
+              description="Your watch interactions are private and require a signed-in scope. Home does not substitute a public feed."
+              scope="signed-in watch interactions"
+              title="Sign in to load watched research"
             />
+          ) : status === 'error' ? (
+            <ErrorState message={error} requestId={requestId ?? undefined} onRetry={load} />
           ) : (
             <>
-              <div className="columns-1 gap-4 sm:columns-2 xl:columns-3">
-                {feed.map((card) => (
-                  <article className="mb-4 break-inside-avoid rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary" key={`${card.kind}-${card.id}`}>
-                    <div className="flex items-center gap-2">
-                      <StatusBadge label={card.kind} state={card.state} />
-                      <span className="ml-auto text-xs tabular-nums text-muted-foreground">{toRelativeTime(card.when)}</span>
-                    </div>
-                    {card.kind === 'claim' ? (
-                      <Link className="claim-statement mt-2.5 block font-serif text-base leading-relaxed hover:underline" href={hrefFor(card)}>{card.title ?? card.id}</Link>
-                    ) : card.kind === 'question' ? (
-                      <>
-                        <Link className="mt-2.5 block text-base font-semibold leading-snug hover:underline" href={hrefFor(card)}>{card.title ?? card.id}</Link>
-                        {card.summary ? <p className="mt-1.5 line-clamp-3 text-sm leading-6 text-muted-foreground">{card.summary.length > 150 ? `${card.summary.slice(0, 150)}…` : card.summary}</p> : null}
-                        {card.topics.length > 0 ? (
-                          <div className="mt-2.5 flex flex-wrap gap-1.5">
-                            {card.topics.slice(0, 3).map((topic) => (
-                              <button className="rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground hover:text-foreground" key={topic} onClick={() => setTopicFilter(topic)} type="button">{topic}</button>
-                            ))}
-                          </div>
-                        ) : null}
-                      </>
-                    ) : (
-                      <Link className="mt-2.5 block text-base font-semibold leading-snug hover:underline" href={hrefFor(card)}>
-                        Frontier #{card.sequence}
-                        <span className="mt-0.5 block text-sm font-normal text-muted-foreground">{card.project.projectId}</span>
-                      </Link>
-                    )}
-                    <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-2.5">
-                      <IdChip label={card.kind === 'frontier' ? 'snapshot' : card.kind} value={card.id} />
-                      {card.kind !== 'frontier' ? <EngagementActions compact has={has} objectId={card.id} objectType={card.kind} onToggle={toggle} /> : null}
-                      <Link className="ml-auto text-xs font-medium text-primary hover:underline" href={hrefFor(card)}>open</Link>
-                    </div>
-                  </article>
-                ))}
-              </div>
-              {hasMore ? (
-                <button
-                  className="mx-auto mt-2 block rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground disabled:opacity-60"
-                  disabled={loadingMore}
-                  onClick={loadMore}
-                  type="button"
-                >
-                  {loadingMore ? 'Loading…' : 'Load more'}
-                </button>
+              {isPartial ? (
+                <Alert
+                  className="mb-6"
+                  description={partialDescription(partial)}
+                  title="Partial watch coverage"
+                  variant="warning"
+                />
               ) : null}
+
+              {watchCount === 0 ? (
+                <Empty
+                  action={<Link className="rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground" href="/explore">Explore research</Link>}
+                  description="No private watch interactions were returned for this account. Home does not fill the space with network-wide claims."
+                  title="No watched research yet"
+                />
+              ) : events.length === 0 ? (
+                <Empty
+                  action={<Link className="rounded-md border border-border bg-card px-3.5 py-2 text-sm font-medium" href="/events">Open event audit</Link>}
+                  description="No formal events were returned by the bounded object queries. This is not a quiet conclusion."
+                  title="No formal changes loaded for this window"
+                />
+              ) : (
+                GROUPS.map((group) => grouped[group.level].length > 0 ? (
+                  <ChangeGroup key={group.level} level={group.level} meta={group.meta} title={group.title}>
+                    <div className="divide-y divide-border rounded-lg border border-border bg-card">
+                      {grouped[group.level].map((event) => (
+                        <ChangeEvent event={event} key={event.eventId} level={group.level} observationWindow={observationWindow} />
+                      ))}
+                    </div>
+                  </ChangeGroup>
+                ) : null)
+              )}
+
+              <section aria-labelledby="quiet-unavailable-heading" className="mt-10 border-t border-border pt-5">
+                <div className="flex gap-3">
+                  <span aria-hidden="true" className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-full bg-status-neutral-bg text-status-neutral-fg">
+                    <CircleDashed size={15} />
+                  </span>
+                  <div>
+                    <h2 className="text-lg font-semibold tracking-tight" id="quiet-unavailable-heading">Quiet is not asserted</h2>
+                    <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                      Completeness and carried-active-impact evidence are not exposed by the current API. Home therefore does not claim that any watched object was quiet, even when an event query returned no rows.
+                    </p>
+                  </div>
+                </div>
+              </section>
             </>
           )}
         </div>
 
-        <aside aria-label="Context" className="grid gap-3">
-          <div className="rounded-lg border border-border bg-card p-4">
+        <aside aria-label="Home context" className="grid gap-7 lg:sticky lg:top-6">
+          <section aria-labelledby="my-work-heading" className="border-t border-border pt-4">
             <div className="flex items-center gap-2">
               <ListTodo aria-hidden="true" className="text-muted-foreground" size={16} />
-              <h2 className="text-sm font-semibold">My work</h2>
+              <h2 className="text-sm font-semibold" id="my-work-heading">My work</h2>
             </div>
-            <ul className="mt-3 grid gap-2">
-              {[
-                { label: 'Claims awaiting your verification', count: claims.length, href: '/work' },
-                { label: 'Open tasks to pick up', count: tasks.length, href: '/work' },
-                { label: 'Frontiers published', count: frontiers.length, href: '/explore' },
-              ].map((row) => (
-                <li className="flex items-center justify-between gap-2 text-xs" key={row.label}>
-                  <Link className="text-muted-foreground hover:text-foreground" href={row.href}>{row.label}</Link>
-                  <span className="rounded-full border border-border bg-muted px-2 py-0.5 font-medium tabular-nums text-muted-foreground">{row.count}</span>
-                </li>
-              ))}
-            </ul>
-            <Link className="mt-3 inline-block text-xs font-medium text-primary hover:underline" href="/work">Go to Work →</Link>
-            <Link className="mt-1.5 inline-block text-xs font-medium text-primary hover:underline" href="/saved">Saved for later →</Link>
-          </div>
+            <p className="mt-2 text-xs leading-5 text-muted-foreground">
+              The API does not expose a viewer-assignment total, so Home does not infer one from network-wide tasks, claims, or events.
+            </p>
+            <Link className="mt-2 inline-flex min-h-11 items-center text-xs font-medium text-primary hover:underline" href="/work">Open My work</Link>
+          </section>
 
-          {/* States matrix (08 §1): the signed-out surface names its scope
-              boundary instead of silently showing a narrower feed. */}
-          <DeniedState
-            className="p-4"
-            description="Your watchlist, drafts, and pending signatures need a signed-in scope."
-            scope="signed-in watchlist"
-            title="Signed-out scope"
-            action={<Link className="rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground" href="/login">Sign in</Link>}
-            actionLabel="Sign in"
-          />
-
-          <div className="rounded-lg border border-border bg-card p-4">
+          <section aria-labelledby="agent-connection-heading" className="border-t border-border pt-4">
             <div className="flex items-center gap-2">
               <Bot aria-hidden="true" className="text-muted-foreground" size={16} />
-              <h2 className="text-sm font-semibold">Agent connection</h2>
+              <h2 className="text-sm font-semibold" id="agent-connection-heading">Agent connection</h2>
             </div>
-            <p className="mt-1 text-xs text-muted-foreground">Six steps from hearing about EviMesh to a first trusted read.</p>
-            <Link className="mt-3 inline-block text-xs font-medium text-primary hover:underline" href="/agent">Open the center →</Link>
-          </div>
+            {agentConnection.state === 'checking' ? (
+              <Skeleton className="mt-3 h-14 w-full" />
+            ) : agentConnection.state === 'available' ? (
+              <>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {agentConnection.activeGrantCount > 0 ? 'Active API grants are configured.' : 'No active API grants are configured.'}
+                </p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">Human confirmation is enforced by each write flow. Pending approval totals are not exposed by the API.</p>
+              </>
+            ) : agentConnection.state === 'signed-out' ? (
+              <p className="mt-2 text-xs leading-5 text-muted-foreground">Sign in to inspect active API grants. No connection is inferred.</p>
+            ) : (
+              <p className="mt-2 text-xs leading-5 text-muted-foreground">Connection status is unavailable. No active grant or pending approval state is inferred.</p>
+            )}
+            <Link className="mt-2 inline-flex min-h-11 items-center text-xs font-medium text-primary hover:underline" href="/agent">Open connection center</Link>
+          </section>
 
-          {visits.length > 0 ? (
-            <div className="rounded-lg border border-border bg-card p-4" aria-label="Recently visited">
-              <div className="flex items-center gap-2">
-                <Clock aria-hidden="true" className="text-muted-foreground" size={16} />
-                <h2 className="text-sm font-semibold">Recently visited</h2>
-              </div>
-              <ul className="mt-3 grid gap-1">
+          <section aria-labelledby="recently-visited-heading" className="border-t border-border pt-4">
+            <div className="flex items-center gap-2">
+              <Clock aria-hidden="true" className="text-muted-foreground" size={16} />
+              <h2 className="text-sm font-semibold" id="recently-visited-heading">Recently visited</h2>
+            </div>
+            {visits.length > 0 ? (
+              <ul className="mt-2 grid gap-1">
                 {visits.map((visit) => (
                   <li key={visit.href}>
-                    <Link className="flex min-w-0 items-baseline gap-2 rounded px-1 py-1 text-xs hover:bg-muted" href={visit.href}>
+                    <Link className="flex min-h-11 min-w-0 items-center gap-2 text-xs hover:text-primary" href={visit.href}>
                       <span className="shrink-0 rounded-full border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{visit.kind}</span>
                       <span className="min-w-0 truncate">{visit.label}</span>
                     </Link>
                   </li>
                 ))}
               </ul>
-            </div>
-          ) : null}
-
-          <div className="rounded-lg border border-border bg-card p-4">
-            <div className="flex items-center gap-2">
-              <Activity aria-hidden="true" className="text-muted-foreground" size={16} />
-              <h2 className="text-sm font-semibold">Event audit</h2>
-            </div>
-            <Link className="mt-2 inline-block text-xs font-medium text-primary hover:underline" href="/events">Open audit →</Link>
-          </div>
+            ) : (
+              <p className="mt-2 text-xs leading-5 text-muted-foreground">No recent local visits are stored in this browser.</p>
+            )}
+          </section>
         </aside>
       </div>
     </PageContainer>

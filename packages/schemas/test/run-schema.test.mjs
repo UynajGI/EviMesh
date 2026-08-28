@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
+import { validateAgainstSchema } from '../src/validator.mjs';
 
 const schemaPath = fileURLToPath(new URL('../run.schema.json', import.meta.url));
 const schema = JSON.parse(await readFile(schemaPath, 'utf8'));
@@ -24,6 +25,7 @@ const validRun = {
   output_artifact_ids: ['evidence_02'],
   exit_code: 0,
   actor_id: 'actor_01',
+  signing_key_id: 'key_01',
   signature: 'signature-bytes',
 };
 
@@ -33,7 +35,9 @@ function validateRun(value) {
   if (!/^run_[0-9a-f-]{36}$/.test(value.run_id) || !/^task_[0-9a-f-]{36}$/.test(value.task_id)) return 'ID format';
   if (typeof value.context_bundle_id !== 'string' || value.context_bundle_id.length < 1) return 'context';
   for (const field of ['input_artifact_ids', 'output_artifact_ids', 'args']) if (!Array.isArray(value[field])) return field;
+  for (const field of ['input_artifact_ids', 'output_artifact_ids']) if (new Set(value[field]).size !== value[field].length) return `${field} duplicates`;
   for (const field of ['source_code', 'command', 'actor_id', 'signature']) if (typeof value[field] !== 'string' || value[field].length < 1) return field;
+  if (typeof value.signing_key_id !== 'string' || value.signing_key_id.length < 1) return 'signing_key_id';
   if (typeof value.container !== 'string' || !new RegExp(schema.properties.container.pattern).test(value.container)) return 'container';
   if (!value.environment || Object.keys(value.environment).length === 0 || !value.hardware || Object.keys(value.hardware).length === 0) return 'runtime metadata';
   if (typeof value.network_access !== 'boolean' || !Number.isInteger(value.exit_code)) return 'execution outcome';
@@ -45,7 +49,18 @@ test('defines the minimum Run Receipt fields', () => {
   assert.equal(schema.$id, 'https://evimesh.org/schema/run.schema.json');
   assert.equal(schema.properties.network_access.type, 'boolean');
   assert.equal(schema.properties.exit_code.type, 'integer');
+  assert.equal(schema.required.includes('signing_key_id'), true);
+  assert.equal(schema.properties.input_artifact_ids.uniqueItems, true);
+  assert.equal(schema.properties.output_artifact_ids.uniqueItems, true);
+  assert.deepEqual(schema.properties.signing_key_id, { type: 'string', minLength: 1 });
   assert.equal(validateRun(validRun), null);
+});
+
+test('requires key-qualified srp.run.v1 receipts', () => {
+  const { signing_key_id: _legacyMissingKey, ...legacyRun } = validRun;
+
+  assert.equal(validateAgainstSchema(schema, legacyRun).valid, false);
+  assert.equal(validateAgainstSchema(schema, validRun).valid, true);
 });
 
 test('rejects incomplete or invalid Run vectors', () => {
@@ -57,6 +72,8 @@ test('rejects incomplete or invalid Run vectors', () => {
     { ...validRun, exit_code: 0.5 },
     { ...validRun, ended_at: '2026-08-04T05:00:00.000Z' },
     { ...validRun, signature: '' },
+    { ...validRun, signing_key_id: '' },
+    { ...validRun, input_artifact_ids: ['evidence_01', 'evidence_01'] },
   ]) {
     assert.notEqual(validateRun(invalid), null);
   }

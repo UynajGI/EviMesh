@@ -8,6 +8,18 @@ import { IdChip } from '@/components/ui/idchip';
 import { PageContainer, PageHeader } from '@/components/ui/page';
 import { apiFetch } from '@/lib/api-client';
 
+const EVENT_FILTERS = ['objectType', 'objectId', 'createdAfter', 'createdBefore', 'eventType', 'actorId'];
+
+function eventQuery(search = '') {
+  const input = new URLSearchParams(search);
+  const query = new URLSearchParams({ limit: '100', order: input.get('order') === 'asc' ? 'asc' : 'desc' });
+  for (const key of EVENT_FILTERS) {
+    const value = input.get(key);
+    if (value) query.set(key, value);
+  }
+  return `/events?${query.toString()}`;
+}
+
 export default function EventsAuditPage() {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -19,7 +31,7 @@ export default function EventsAuditPage() {
     setError(null);
     setRequestId(null);
     try {
-      const body = await apiFetch('/events?limit=100');
+      const body = await apiFetch(eventQuery(typeof window === 'undefined' ? '' : window.location.search));
       setEvents(body.items ?? []);
     } catch (reason) {
       setError(reason.message);
@@ -31,6 +43,21 @@ export default function EventsAuditPage() {
 
   useEffect(() => { load(); }, []);
 
+  useEffect(() => {
+    if (loading || typeof window === 'undefined' || !window.location.hash) return;
+    let targetId;
+    try {
+      targetId = decodeURIComponent(window.location.hash.slice(1));
+    } catch {
+      return;
+    }
+    if (!targetId.startsWith('event-')) return;
+    const target = document.getElementById(targetId);
+    if (!target) return;
+    target.scrollIntoView({ block: 'start' });
+    target.focus({ preventScroll: true });
+  }, [events, loading]);
+
   if (error) {
     return <PageContainer><PageHeader eyebrow="Trust layer" title="Event audit" description="Inspect signed ResearchEvents and their immutable parent hash chain." /><ErrorState className="mt-8" message={error} requestId={requestId} onRetry={load} /></PageContainer>;
   }
@@ -40,7 +67,7 @@ export default function EventsAuditPage() {
       const type = event.eventType ?? 'event';
       const EventIcon = type.startsWith('frontier') ? FileCheck2 : type.startsWith('claim') ? GitPullRequestArrow : type.startsWith('evidence') ? FlaskConical : History;
       return (
-        <li className="grid grid-cols-[2rem_minmax(0,1fr)] gap-3 border-b border-border py-4 last:border-b-0" key={event.eventId}>
+        <li className="grid scroll-mt-24 grid-cols-[2rem_minmax(0,1fr)] gap-3 border-b border-border py-4 last:border-b-0" id={`event-${event.eventId}`} key={event.eventId} tabIndex={-1}>
           <span aria-hidden="true" className="mt-0.5 grid size-8 place-items-center rounded-full bg-muted text-muted-foreground"><EventIcon size={15} /></span>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">

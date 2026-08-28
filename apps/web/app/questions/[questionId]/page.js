@@ -8,10 +8,11 @@ import { Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
 import { Alert } from '@/components/ui/feedback';
 import { Check, Eye, Flag, FlaskConical, History, Mountain, Share2 } from 'lucide-react';
 import { IdChip } from '@/components/ui/idchip';
+import { actorHref } from '@/components/attribution';
 import { hydrateEvidenceLinks, hydrateReceiptFindings, evidenceRelations } from '@/lib/hydrate';
 import { PageContainer, PageHeader } from '@/components/ui/page';
 import { useVisitRecord } from '@/lib/visit-history';
-import { recordView } from '@/lib/interactions';
+import { recordView, useMyInteractions } from '@/lib/interactions';
 import { cn } from '@/lib/utils';
 
 const API = process.env.NEXT_PUBLIC_EVIMESH_API_URL;
@@ -57,7 +58,6 @@ export default function QuestionDetailPage({ params }) {
   const [questionId, setQuestionId] = useState(null);
   const [view, setView] = useState('summary');
   const [handoffOpen, setHandoffOpen] = useState(false);
-  const [watched, setWatched] = useState(false);
   const [shared, setShared] = useState(false);
   const [previousSnapshot, setPreviousSnapshot] = useState(null);
   const [sharedRev, setSharedRev] = useState(null);
@@ -68,6 +68,8 @@ export default function QuestionDetailPage({ params }) {
   const [taskTitles, setTaskTitles] = useState(null);
   const [claimStatements, setClaimStatements] = useState(null);
   const [error, setError] = useState(null);
+  const { mine: interactions, ready: interactionsReady, has: hasInteraction, toggle: toggleInteraction } = useMyInteractions();
+  const watched = hasInteraction('question', questionId, 'watch');
 
   useEffect(() => { Promise.resolve(params).then(({ questionId: value }) => setQuestionId(value)); }, [params]);
 
@@ -131,10 +133,6 @@ export default function QuestionDetailPage({ params }) {
     const rev = new URLSearchParams(window.location.search).get('rev');
     if (rev) setSharedRev(Number.parseInt(rev, 10));
   }, []);
-  useEffect(() => {
-    try { setWatched(localStorage.getItem(`evimesh-watch-${questionId}`) === '1'); } catch { /* unavailable */ }
-  }, [questionId]);
-
   /* Local recently-visited rail on Home records this page once its title is known. */
   useVisitRecord({ href: questionId ? `/questions/${questionId}` : null, label: data?.currentRevision?.title ?? null, kind: 'question' });
   /* Best-effort view signal for the personal recommender (once per session). */
@@ -259,15 +257,10 @@ export default function QuestionDetailPage({ params }) {
           <div className="flex flex-wrap gap-2">
             <button
               aria-pressed={watched}
-              className={cn('inline-flex h-9 items-center gap-2 rounded-md border px-3 text-sm font-medium', watched ? 'border-primary bg-accent text-accent-foreground' : 'border-border bg-card hover:bg-muted')}
-              onClick={() => {
-                const next = !watched;
-                setWatched(next);
-                try {
-                  if (next) localStorage.setItem(`evimesh-watch-${questionId}`, '1');
-                  else localStorage.removeItem(`evimesh-watch-${questionId}`);
-                } catch { /* unavailable */ }
-              }}
+              className={cn('inline-flex h-9 items-center gap-2 rounded-md border px-3 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50', watched ? 'border-primary bg-accent text-accent-foreground' : 'border-border bg-card hover:bg-muted')}
+              disabled={!questionId || !interactionsReady || interactions === null}
+              onClick={() => toggleInteraction('question', questionId, 'watch')}
+              title={interactionsReady && interactions === null ? 'Sign in to watch' : undefined}
               type="button"
             >
               <Eye aria-hidden="true" size={14} />
@@ -609,7 +602,7 @@ export default function QuestionDetailPage({ params }) {
                         {event.actorId ? (
                           <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
                             Contributed by
-                            <Link className="font-medium text-foreground hover:underline" href={`/contributors/${encodeURIComponent(event.actorId)}`}>{event.actorId}</Link>
+                            <Link className="font-medium text-foreground hover:underline" href={actorHref(event.actorId)}>{event.actorId}</Link>
                           </p>
                         ) : null}
                       </div>

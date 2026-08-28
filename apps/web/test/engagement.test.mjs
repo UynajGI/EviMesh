@@ -7,9 +7,9 @@ const read = (p) => readFile(new URL(p, import.meta.url), 'utf8');
 
 /*
  * Engagement signal contracts (owner direction 2026-08-21). Freezes the
- * constitutional boundaries of the recommendation work: private signals with
- * no public counts, a separately labeled "For you" surface, and a
- * chronological feed that recommendations never reorder.
+ * constitutional boundaries of engagement work: private signals with no
+ * public counts. Home reserves its object scope for private watch signals;
+ * recommendation output cannot replace that contract.
  */
 
 test('engagement actions render private toggles, never counts', async () => {
@@ -27,16 +27,29 @@ test('interaction client retries through self-provisioning on first authenticate
   assert.match(src, /\/actors\/self/, 'provisioning endpoint is wired');
   assert.match(src, /view-sent/, 'view signals are deduplicated per session');
   assert.doesNotMatch(src, /score/, 'no recommendation score may pass through the client');
+  const readFlow = src.slice(src.indexOf('export async function fetchMyInteractions'), src.indexOf('export async function fetchRecommendations'));
+  assert.match(readFlow, /actorNeedsProvisioning/);
+  assert.match(readFlow, /ensureActor\(\)/, 'read-first Home can provision a newly signed-in Actor before retrying');
 });
 
-test('home keeps the chronological feed and labels the personal rail', async () => {
+test('detail Watch controls persist the same private interaction scope Home reads', async () => {
+  const [question, claim] = await Promise.all([
+    read('../app/questions/[questionId]/page.js'),
+    read('../app/claims/[claimId]/page.js'),
+  ]);
+  for (const [objectType, src] of [['question', question], ['claim', claim]]) {
+    assert.match(src, /useMyInteractions\(\)/);
+    assert.match(src, new RegExp(`toggleInteraction\\('${objectType}', \\w+Id, 'watch'\\)`));
+    assert.doesNotMatch(src, /evimesh-watch|setWatched|localStorage/, `${objectType} Watch must not pretend a local-only toggle is in Home`);
+  }
+});
+
+test('home uses the viewer private watch signal as its only object scope', async () => {
   const src = await read('../app/home/page.js');
-  assert.match(src, /For you/, 'the personal rail is labeled');
-  assert.match(src, /navigation, not a rating/, 'the rail carries its protocol sentence');
-  assert.match(src, /fetchRecommendations/, 'the rail reads the recommendation endpoint');
-  assert.match(src, /EngagementActions/, 'feed cards expose useful/save toggles');
-  assert.match(src, /Date\.parse\(right\.when \?\? 0\) - Date\.parse\(left\.when \?\? 0\)/, 'feed ordering stays strictly newest-first');
-  assert.match(src, /href="\/saved"/, 'the saved list is reachable from home');
+  assert.match(src, /fetchMyInteractions\(\['watch'\]\)/, 'home reads only watch interactions');
+  assert.match(src, /signed-in watch interactions/, 'signed-out scope is explicit');
+  assert.match(src, /Home does not substitute a public feed/, 'the private scope has no network-wide fallback');
+  assert.doesNotMatch(src, /fetchRecommendations|useMyInteractions|EngagementActions/, 'recommendation and engagement feed plumbing stays off Home');
 });
 
 test('saved page lists only the viewer own saves with a signed-out scope state', async () => {

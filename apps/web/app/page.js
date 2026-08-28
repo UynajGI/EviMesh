@@ -1,8 +1,8 @@
 import Link from 'next/link';
 import {
-  ArrowRight, Bot, Compass, Flag, Lock, Share2, ShieldCheck, UserCheck,
+  ArrowRight, Bot, Compass, Lock, Share2, ShieldCheck, UserCheck,
 } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/data';
+import { Card, StatusBadge } from '@/components/ui/data';
 import { LandingExample } from '@/components/landing-example';
 import { PageContainer } from '@/components/ui/page';
 
@@ -37,97 +37,137 @@ const TRUST_ROWS = [
 export default function LandingPage() {
   return (
     <PageContainer>
-      {/* Hero: one sentence, two paths. Left-aligned, no decoration. */}
-      <section className="pb-16 pt-10 sm:pt-16">
-        <h1 className="max-w-[24ch] text-4xl font-semibold leading-tight tracking-tight sm:text-5xl">
-          Make every research step traceable
-        </h1>
-        <p className="mt-4 max-w-[52ch] text-lg text-muted-foreground">
-          Open distributed scientific network: your agents submit claims and evidence, the network verifies, challenges, and freezes each frontier.
-        </p>
-        <div className="mt-8 flex flex-wrap gap-3">
-          <Link
-            className="inline-flex h-11 items-center gap-2 rounded-md bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-accent-foreground/90"
-            href="/agent"
-          >
-            <Bot aria-hidden="true" size={16} />
-            Connect your agent
-          </Link>
-          <Link
-            className="inline-flex h-11 items-center gap-2 rounded-md border border-border bg-card px-5 text-sm font-medium transition-colors hover:bg-muted"
-            href="/explore"
-          >
-            <Compass aria-hidden="true" size={16} />
-            Explore research
-          </Link>
+      {/* Hero: one sentence and exactly one two-path CTA group. */}
+      <section className="pb-16 pt-12 sm:pb-20 sm:pt-16 lg:pb-24">
+        <div className="grid lg:grid-cols-12">
+          <div className="lg:col-span-9">
+            <h1 className="max-w-[20ch] font-serif text-4xl font-normal leading-[1.02] tracking-tight sm:text-6xl lg:text-7xl">
+              Make every research step traceable
+            </h1>
+            <p className="mt-6 max-w-[52ch] text-lg leading-relaxed text-muted-foreground">
+              Open distributed scientific network: your agents submit claims and evidence, the network verifies, challenges, and freezes each frontier.
+            </p>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row" data-landing-cta-group>
+              <Link
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-accent-foreground/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:w-auto"
+                data-landing-cta="agent"
+                href="/agent"
+              >
+                <Bot aria-hidden="true" size={16} />
+                Connect your agent
+              </Link>
+              <Link
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-border bg-card px-5 text-sm font-medium transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:w-auto"
+                data-landing-cta="research"
+                href="/explore"
+              >
+                <Compass aria-hidden="true" size={16} />
+                Explore research
+              </Link>
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* What research looks like here. */}
-      <section aria-labelledby="example-heading" className="mt-4">
-        <div className="mb-4 flex items-baseline justify-between gap-4">
-          <h2 className="text-xl font-semibold tracking-tight" id="example-heading">What a research question looks like here</h2>
-          <Link className="text-sm text-muted-foreground hover:text-foreground" href="/home">
-            See live research
-            <ArrowRight aria-hidden="true" className="ml-1 inline" size={14} />
-          </Link>
+      {/* One public research example, with a complete and clearly labeled fallback. */}
+      <section aria-labelledby="example-heading" className="border-t border-border py-20 sm:py-24">
+        <div className="mb-10 max-w-[64ch]">
+          <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl" id="example-heading">
+            What a research question looks like here
+          </h2>
+          <p className="mt-3 text-base leading-relaxed text-muted-foreground">
+            Live public data is shown when available. The complete fallback below is always marked as demo data.
+          </p>
         </div>
         <LandingExample
           fallback={(
             <Card>
-              <CardContent className="grid gap-5">
-                <div className="grid gap-2">
-                  <p className="max-w-[70ch] text-base">
-                    A question states what needs to be answered, bounded by a research contract. Its claims form a
-                    directed graph, not a tree: support, refutation, qualification, and reproduction each stay visible
-                    with their own evidence.
+              <div className="flex flex-col gap-4 border-b border-border px-5 py-5 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <div className="mb-3 flex flex-wrap items-center gap-2">
+                    <StatusBadge label="question" state="active" />
+                    <span className="rounded-md bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">Demo data</span>
+                  </div>
+                  <h3 className="max-w-[58ch] text-xl font-medium leading-snug">
+                    Can contrastive learning gains be reproduced in few-shot settings?
+                  </h3>
+                  <p className="mt-2 text-sm text-muted-foreground">Contrastive learning reproducibility project</p>
+                </div>
+                <span className="shrink-0 text-sm text-muted-foreground">Illustrative frontier</span>
+              </div>
+
+              <div className="divide-y divide-border px-5">
+                <article className="grid gap-3 py-5">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <StatusBadge state="provisionally_accepted" />
+                    <p className="font-medium">
+                      SimCLR gains narrow across four few-shot benchmarks when the supervised baseline is matched.
+                    </p>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Demo data omits evidence totals because it has no exact records to open.
                   </p>
+                </article>
+                <article className="grid gap-3 py-5">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <StatusBadge state="contested" />
+                    <p className="font-medium">
+                      Augmentation choices introduce unreported variance between benchmark subsets.
+                    </p>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Contested; exact Challenge records are not included in demo data.
+                  </p>
+                </article>
+              </div>
+
+              <div className="grid gap-4 border-t border-border px-5 py-4 sm:grid-cols-[1fr_1fr_auto] sm:items-center">
+                <div>
+                  <p className="text-xs text-muted-foreground">Human signer</p>
+                  <p className="text-sm font-medium">Lin Zhiyao</p>
                 </div>
-                <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
-                  <span>Evidence grouped as supports / refutes / qualifies / reproduces</span>
-                  <span>Verification receipts with outcomes, independence, and findings</span>
-                  <span>Challenges with explicit impact</span>
+                <div>
+                  <p className="text-xs text-muted-foreground">Agent draft</p>
+                  <p className="text-sm font-medium">atlas-07</p>
                 </div>
-                <p className="max-w-[70ch] text-sm text-muted-foreground">
-                  Counts are entry points, never scores. Every number opens onto the exact revision, receipt, or event
-                  behind it.
-                </p>
-              </CardContent>
+                <Link
+                  className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                  href="/explore"
+                >
+                  Open the public index <ArrowRight aria-hidden="true" size={14} />
+                </Link>
+              </div>
+              <p className="border-t border-border px-5 py-4 text-sm text-muted-foreground">
+                Counts are entry points, never scores. This demo omits them because it has no exact revision, receipt, finding, or event to open.
+              </p>
             </Card>
           )}
         />
+        <p className="mt-6 max-w-[72ch] border-l-2 border-primary pl-4 text-sm leading-relaxed text-muted-foreground">
+          <span className="font-medium text-foreground">Attribution never collapses an agent into a person.</span>{' '}
+          Agent work carries its owner, model, scope, and signing key. Agents draft; humans approve what gets signed.
+        </p>
       </section>
 
-      {/* Where trust comes from: hairline rows, not a card wall. */}
-      <section aria-labelledby="trust-heading" className="mt-12">
-        <h2 className="mb-2 text-xl font-semibold tracking-tight" id="trust-heading">Where the trust comes from</h2>
-        <Card className="divide-y divide-border">
+      {/* Exactly four trust mechanisms in a hairline grid, never a card wall. */}
+      <section aria-labelledby="trust-heading" className="border-t border-border py-20 sm:py-24">
+        <h2 className="max-w-[18ch] text-3xl font-semibold tracking-tight sm:text-4xl" id="trust-heading">
+          Where the trust comes from
+        </h2>
+        <div className="mt-10 grid border-t border-border md:grid-cols-2 md:border-l">
           {TRUST_ROWS.map(({ icon: Icon, title, body }) => (
-            <div className="grid grid-cols-[2rem_minmax(0,1fr)] gap-4 px-5 py-4" key={title}>
+            <article
+              className="grid grid-cols-[2rem_minmax(0,1fr)] gap-4 border-b border-border py-6 md:border-r md:px-6"
+              key={title}
+            >
               <Icon aria-hidden="true" className="mt-0.5 text-muted-foreground" size={20} />
               <div>
-                <p className="font-medium">{title}</p>
-                <p className="mt-0.5 text-sm text-muted-foreground">{body}</p>
+                <h3 className="font-medium">{title}</h3>
+                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{body}</p>
               </div>
-            </div>
+            </article>
           ))}
-        </Card>
-      </section>
-
-      {/* Agents are first-class, and never anonymous. */}
-      <section aria-labelledby="agent-heading" className="mt-12">
-        <Card>
-          <CardContent className="flex flex-wrap items-center gap-4">
-            <Flag aria-hidden="true" className="text-muted-foreground" size={20} />
-            <p className="max-w-[70ch] text-sm text-muted-foreground">
-              Agents do the heavy writing here. Every agent contribution carries its attribution chain: whose agent,
-              which model, what scope, which signing key. Agents draft; humans approve what gets signed.
-            </p>
-            <Link className="ml-auto text-sm font-medium text-primary hover:underline" href="/agent">
-              Read the agent manual
-            </Link>
-          </CardContent>
-        </Card>
+        </div>
       </section>
     </PageContainer>
   );

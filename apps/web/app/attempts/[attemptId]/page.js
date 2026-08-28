@@ -7,6 +7,7 @@ import { Card, CardContent, StatusBadge } from '@/components/ui/data';
 import { Alert, Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
 import { IdChip } from '@/components/ui/idchip';
 import { PageContainer } from '@/components/ui/page';
+import { actorHref } from '@/components/attribution';
 import { cn } from '@/lib/utils';
 
 const API = process.env.NEXT_PUBLIC_EVIMESH_API_URL;
@@ -75,10 +76,11 @@ export default function AttemptDetailPage({ params }) {
 
   const attempt = data.attempt ?? data;
   const actor = attempt.actor ?? attempt.actorId ?? attempt.createdBy;
-  const actorIsAgent = typeof actor === 'string' && /agent|bot|atlas|merope/i.test(actor);
   const revision = attempt.attemptRevision ?? attempt.revision;
   /* Identity card fields from the actors endpoint; null stays "not stated". */
   const card = agentRecord?.actor ?? {};
+  const actorIsAgent = card.actorType === 'agent' || card.actorType === 'service';
+  const recordHref = typeof actor === 'string' ? actorHref(actor, actorIsAgent ? 'agent' : card.actorType) : null;
   const links = [
     attempt.taskId ? { label: 'Task', href: `/tasks/${attempt.taskId}`, value: attempt.taskId } : null,
     attempt.claimId ? { label: 'Claim', href: `/claims/${attempt.claimId}`, value: attempt.claimId } : null,
@@ -140,7 +142,7 @@ export default function AttemptDetailPage({ params }) {
           <span className="flex items-center gap-2 text-sm text-muted-foreground">
             by
             {typeof actor === 'string' && !actorIsAgent ? (
-              <Link className="font-medium text-foreground hover:underline" href={`/contributors/${actor}`}>{actor}</Link>
+              <Link className="font-medium text-foreground hover:underline" href={recordHref}>{actor}</Link>
             ) : (
               <span className="inline-flex items-center gap-1 rounded-full border border-status-accent-border bg-status-accent-bg px-2 py-0.5 text-xs font-medium text-status-accent-fg">
                 agent · {typeof actor === 'string' ? actor : JSON.stringify(actor)}
@@ -209,7 +211,7 @@ export default function AttemptDetailPage({ params }) {
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-xs text-muted-foreground">Actor</span>
                   <IdChip value={actor} />
-                  <Link className="text-xs text-primary hover:underline" href={`/contributors/${encodeURIComponent(actor)}`}>record</Link>
+                  <Link className="text-xs text-primary hover:underline" href={recordHref}>record</Link>
                 </div>
                 {agentRecord?.roles?.length > 0 ? (
                   <p className="flex flex-wrap items-center gap-2 text-sm">
@@ -227,7 +229,7 @@ export default function AttemptDetailPage({ params }) {
                   {card.ownerActorId ? (
                     <div className="flex gap-2">
                       <dt className="w-28 shrink-0 text-xs text-muted-foreground">Acts for</dt>
-                      <dd className="text-xs"><Link className="text-primary hover:underline" href={`/contributors/${encodeURIComponent(card.ownerActorId)}`}>{card.ownerActorId}</Link></dd>
+                      <dd className="text-xs"><Link className="text-primary hover:underline" href={`/people/${encodeURIComponent(card.ownerActorId)}`}>{card.ownerActorId}</Link></dd>
                     </div>
                   ) : null}
                 </dl>

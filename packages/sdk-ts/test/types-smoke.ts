@@ -21,7 +21,7 @@ const health: HealthResponse = { service: "evimesh-api-edge", status: "ok", envi
 
 const uploadPlanRequest: UploadPlanRequest = { artifactId: "artifact-1", revision: 1, rawHash: `sha256:${"a".repeat(64)}`, sizeBytes: 10, mediaType: "text/plain", fileName: "evidence.txt" };
 
-const me: AuthMeResponse = { subject: "actor-1", email: null };
+const me: AuthMeResponse = { subject: "actor-1", email: null, actorId: "actor-1", actorType: "agent", signingKey: null };
 
 const error: ErrorResponse = { code: "CLAIM_NOT_FOUND", message: "claim not found", request_id: "req-1" };
 
@@ -40,6 +40,7 @@ const bundle: ContextBundleResponse = {
 
 const claimRequest: CreateClaimRequest = {
   claimId: "claim-1",
+  draftedByActorId: "agent-1",
   statement: "The method reproduces within tolerance.",
   scope: ["the dataset"],
   assumptions: [],
@@ -58,8 +59,19 @@ const runRequest: CreateRunRequest = {
   randomSeed: { seed: 42 },
   startedAt: "2026-08-06T00:00:00.000Z",
   endedAt: "2026-08-06T00:05:00.000Z",
+  networkAccess: false,
   exitCode: 0,
+  actorId: "agent-1",
+  signingKeyId: "key-1",
   signature: "ed25519:sig",
+  signatureEnvelope: {
+    schema: "srp.client-signature-envelope.v1",
+    event_type: "run.created",
+    payload: {},
+    nonce: "nonce-0123456789abcdef",
+    signing_bytes_hash: `sha256:${"a".repeat(64)}`,
+    signature: { algorithm: "Ed25519", key_id: "publisher-key", value: "ed25519:outer" },
+  },
 };
 
 const verificationRequest: SubmitVerificationRequest = {

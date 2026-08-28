@@ -4,6 +4,7 @@ import { createApp } from "../src/index.mjs";
 import { verifyClientSignatureEnvelope } from "../src/client-signature.mjs";
 import { generateEd25519KeyPair } from "../../../packages/signatures/src/ed25519.mjs";
 import { signEd25519Payload } from "../../../packages/signatures/src/client-signature.mjs";
+import { verifyEd25519Payload } from "../../../packages/signatures/src/server-verification.mjs";
 import { canonicalJson, rawHash } from "../../../packages/protocol/src/hash.mjs";
 
 function makeEnvelope({ keypair, keyId, eventType, payload, nonce = "nonce-0123456789abcdef", tamperSign = false } = {}) {
@@ -105,6 +106,7 @@ test("verifies the exact sent payload when optional fields are omitted", async (
   const appendResearchEvent = async (event) => event;
   const repository = {
     findIdentity: async () => ({ actorId: "actor-1" }),
+    getActor: async (actorId) => ({ actorId, actorType: "human" }),
     findActiveSigningKey: async () => ({ keyId: "key-1", actorId: "actor-1", algorithm: "Ed25519", publicKey: keypair.public_key }),
     claimSignatureNonce: async () => true,
     insertClaim,
@@ -131,6 +133,41 @@ test("verifies the exact sent payload when optional fields are omitted", async (
   assert.deepEqual(insertedRevisions[0].assumptions, []);
 });
 
+test("POST /claims rejects noncanonical text before publisher lookup, signature verification, nonce consumption, or writes", async () => {
+  const keypair = generateEd25519KeyPair();
+  let actorLookups = 0;
+  let nonceClaims = 0;
+  let writes = 0;
+  const body = { claimId: "claim-1", statement: " surrounding whitespace ", scope: ["s"], assumptions: [], falsification: ["f"] };
+  const envelope = await makeEnvelope({ keypair, keyId: "key-1", eventType: "claim.created", payload: body });
+  const repository = {
+    findIdentity: async () => ({ actorId: "human-1" }),
+    getActor: async () => { actorLookups += 1; return { actorId: "human-1", actorType: "human" }; },
+    findActiveSigningKey: async () => ({ keyId: "key-1", actorId: "human-1", algorithm: "Ed25519", publicKey: keypair.public_key }),
+    claimSignatureNonce: async () => { nonceClaims += 1; return true; },
+    insertClaim: async () => { writes += 1; },
+    insertClaimRevision: async () => { writes += 1; },
+    appendResearchEvent: async () => { writes += 1; },
+    withTransaction: async (callback) => callback(repository),
+  };
+  const app = createApp({
+    repository,
+    claimEventFactory: async ({ eventType, payload }) => ({ eventType, payload }),
+    claimRoleResolver: async () => "maintainer",
+    authenticate: async () => ({ sub: "supabase-subject" }),
+  });
+  const response = await app.fetch(new Request("https://api.example.test/claims", {
+    method: "POST",
+    headers: { authorization: "Bearer test-token", "content-type": "application/json" },
+    body: JSON.stringify({ ...body, signatureEnvelope: envelope }),
+  }), {});
+  assert.equal(response.status, 400);
+  assert.equal((await response.json()).code, "CLAIM_TEXT_NONCANONICAL");
+  assert.equal(actorLookups, 0);
+  assert.equal(nonceClaims, 0);
+  assert.equal(writes, 0);
+});
+
 test("POST /claims accepts a valid signed envelope and rejects a tampered one", async () => {
   const keypair = generateEd25519KeyPair();
   const inserted = [];
@@ -139,6 +176,7 @@ test("POST /claims accepts a valid signed envelope and rejects a tampered one", 
   const appendResearchEvent = async (event) => event;
   const repository = {
     findIdentity: async () => ({ actorId: "actor-1" }),
+    getActor: async (actorId) => ({ actorId, actorType: "human" }),
     findActiveSigningKey: async () => ({ keyId: "key-1", actorId: "actor-1", algorithm: "Ed25519", publicKey: keypair.public_key }),
     claimSignatureNonce: async () => true,
     insertClaim,
@@ -160,6 +198,17 @@ test("POST /claims accepts a valid signed envelope and rejects a tampered one", 
     body: JSON.stringify({ ...body, signatureEnvelope: envelope }),
   }), {});
   assert.equal(accepted.status, 201);
+  const acceptedResult = await accepted.json();
+  assert.deepEqual(acceptedResult.event.payload.publisher_signature_envelope.payload, body);
+  assert.deepEqual({
+    claimId: acceptedResult.revision.claimId,
+    questionId: acceptedResult.revision.questionId,
+    statement: acceptedResult.revision.statement,
+    scope: acceptedResult.revision.scope,
+    assumptions: acceptedResult.revision.assumptions,
+    falsification: acceptedResult.revision.falsification,
+  }, body);
+  assert.deepEqual(acceptedResult.event.payload.projection.state.revision, acceptedResult.revision);
   assert.equal(inserted[0].claimId, "claim-1");
 
   const tamperedBody = { ...body, statement: "tampered after signing" };
@@ -172,11 +221,178 @@ test("POST /claims accepts a valid signed envelope and rejects a tampered one", 
   assert.equal((await rejected.json()).code, "CLIENT_SIGNATURE_PAYLOAD_MISMATCH");
 });
 
+test("POST /claims preserves a signed agent drafting attribution and rejects forged or unknown drafters", async () => {
+  const keypair = generateEd25519KeyPair();
+  const calls = [];
+  const actorLookups = [];
+  const repository = {
+    findIdentity: async () => ({ actorId: "human-1" }),
+    findActiveSigningKey: async () => ({ keyId: "key-1", actorId: "human-1", algorithm: "Ed25519", publicKey: keypair.public_key }),
+    claimSignatureNonce: async () => true,
+    getActor: async (actorId) => {
+      actorLookups.push(actorId);
+      if (actorId === "human-1") return { actorId, actorType: "human" };
+      if (actorId === "agent-1") return { actorId, actorType: "agent" };
+      return null;
+    },
+    insertClaim: async (claim) => { calls.push(["claim", claim]); return claim; },
+    insertClaimRevision: async (revision) => { calls.push(["revision", revision]); return revision; },
+    appendResearchEvent: async (event) => { calls.push(["event", event]); return event; },
+    insertContributionStatement: async (statement) => { calls.push(["contribution", statement]); return statement; },
+    insertContributionEdge: async (edge) => { calls.push(["edge", edge]); return edge; },
+  };
+  repository.withTransaction = async (callback) => callback(repository);
+  const app = createApp({
+    repository,
+    claimEventFactory: async ({ eventType, payload }) => ({ eventId: `event-${calls.length + 1}`, eventType, payload }),
+    claimRoleResolver: async () => "maintainer",
+    authenticate: async () => ({ sub: "supabase-subject" }),
+  });
+  const body = { claimId: "claim-agent", draftedByActorId: "agent-1", statement: "agent draft", scope: ["s"], falsification: ["f"] };
+  const envelope = await makeEnvelope({ keypair, keyId: "key-1", eventType: "claim.created", payload: body });
+  const submittedEnvelope = {
+    ...envelope,
+    unsigned_extra: "discard me",
+    signature: { ...envelope.signature, key_id: " key-1 ", unsigned_extra: "discard me" },
+  };
+  const accepted = await app.fetch(new Request("https://api.example.test/claims", {
+    method: "POST",
+    headers: { authorization: "Bearer test-token", "content-type": "application/json" },
+    body: JSON.stringify({ ...body, signatureEnvelope: submittedEnvelope }),
+  }), {});
+  assert.equal(accepted.status, 201, await accepted.clone().text());
+  const result = await accepted.json();
+  assert.equal(result.claim.createdBy, "human-1");
+  assert.equal(result.revision.createdBy, "human-1");
+  assert.equal(result.contribution.actorId, "agent-1");
+  assert.equal(result.contribution.role, "originator");
+  const persistedPublisherEnvelope = result.event.payload.publisher_signature_envelope;
+  assert.deepEqual(persistedPublisherEnvelope, envelope);
+  assert.deepEqual(persistedPublisherEnvelope.payload, body);
+  assert.equal(persistedPublisherEnvelope.nonce, envelope.nonce);
+  assert.equal(persistedPublisherEnvelope.signing_bytes_hash, envelope.signing_bytes_hash);
+  assert.equal(persistedPublisherEnvelope.signature.key_id, "key-1");
+  assert.equal(persistedPublisherEnvelope.signature.value, envelope.signature.value);
+  assert.equal(persistedPublisherEnvelope.unsigned_extra, undefined);
+  assert.equal(persistedPublisherEnvelope.signature.unsigned_extra, undefined);
+  assert.equal(await verifyEd25519Payload({
+    signingBytes: new TextEncoder().encode(canonicalJson({
+      event_type: persistedPublisherEnvelope.event_type,
+      payload: persistedPublisherEnvelope.payload,
+      nonce: persistedPublisherEnvelope.nonce,
+    })),
+    signature: persistedPublisherEnvelope.signature.value,
+    publicKey: keypair.public_key,
+  }), true);
+  assert.deepEqual(calls.map(([kind]) => kind), ["claim", "revision", "event", "contribution", "edge"]);
+  assert.deepEqual(actorLookups, ["human-1", "agent-1"]);
+
+  const forged = await app.fetch(new Request("https://api.example.test/claims", {
+    method: "POST",
+    headers: { authorization: "Bearer test-token", "content-type": "application/json" },
+    body: JSON.stringify({ ...body, draftedByActorId: "agent-forged", signatureEnvelope: envelope }),
+  }), {});
+  assert.equal(forged.status, 404);
+  assert.equal((await forged.json()).code, "CLAIM_DRAFTER_NOT_FOUND");
+
+  const unknownBody = { ...body, claimId: "claim-unknown", draftedByActorId: "agent-missing" };
+  const unknownEnvelope = await makeEnvelope({ keypair, keyId: "key-1", eventType: "claim.created", payload: unknownBody, nonce: "nonce-unknown-agent-0001" });
+  const unknown = await app.fetch(new Request("https://api.example.test/claims", {
+    method: "POST",
+    headers: { authorization: "Bearer test-token", "content-type": "application/json" },
+    body: JSON.stringify({ ...unknownBody, signatureEnvelope: unknownEnvelope }),
+  }), {});
+  assert.equal(unknown.status, 404);
+  assert.equal((await unknown.json()).code, "CLAIM_DRAFTER_NOT_FOUND");
+
+  const unsigned = await app.fetch(new Request("https://api.example.test/claims", {
+    method: "POST",
+    headers: { authorization: "Bearer test-token", "content-type": "application/json" },
+    body: JSON.stringify({ ...body, claimId: "claim-unsigned" }),
+  }), {});
+  assert.equal(unsigned.status, 400);
+  assert.equal((await unsigned.json()).code, "CLAIM_DRAFTER_SIGNATURE_REQUIRED");
+});
+
+test("POST /claims rejects a machine or missing publisher for another agent's draft", async () => {
+  const keypair = generateEd25519KeyPair();
+  const body = { claimId: "claim-agent", draftedByActorId: "agent-drafter", statement: "agent draft", scope: ["s"], falsification: ["f"] };
+  const envelope = await makeEnvelope({ keypair, keyId: "key-1", eventType: "claim.created", payload: body });
+  const writes = [];
+  const request = () => new Request("https://api.example.test/claims", {
+    method: "POST",
+    headers: { authorization: "Bearer test-token", "content-type": "application/json" },
+    body: JSON.stringify({ ...body, signatureEnvelope: envelope }),
+  });
+  const appForPublisher = (publisherActor) => {
+    const repository = {
+      findIdentity: async () => ({ actorId: "publisher-1" }),
+      findActiveSigningKey: async () => ({ keyId: "key-1", actorId: "publisher-1", algorithm: "Ed25519", publicKey: keypair.public_key }),
+      claimSignatureNonce: async () => true,
+      getActor: async (actorId) => actorId === "publisher-1" ? publisherActor : { actorId, actorType: "agent" },
+      insertClaim: async (claim) => { writes.push(claim); return claim; },
+      insertClaimRevision: async (revision) => revision,
+      appendResearchEvent: async (event) => event,
+      insertContributionStatement: async (statement) => statement,
+      insertContributionEdge: async (edge) => edge,
+    };
+    repository.withTransaction = async (callback) => callback(repository);
+    return createApp({
+      repository,
+      claimEventFactory: async ({ eventType, payload }) => ({ eventId: "event-1", eventType, payload }),
+      claimRoleResolver: async () => "maintainer",
+      authenticate: async () => ({ sub: "supabase-subject" }),
+    });
+  };
+
+  for (const [publisherActor, code] of [
+    [{ actorId: "publisher-1", actorType: "agent" }, "CLAIM_PUBLISHER_TYPE_INVALID"],
+    [{ actorId: "publisher-1", actorType: "service" }, "CLAIM_PUBLISHER_TYPE_INVALID"],
+    [null, "CLAIM_PUBLISHER_NOT_FOUND"],
+  ]) {
+    const response = await appForPublisher(publisherActor).fetch(request(), {});
+    assert.equal(response.status, code === "CLAIM_PUBLISHER_NOT_FOUND" ? 404 : 403);
+    assert.equal((await response.json()).code, code);
+  }
+  assert.equal(writes.length, 0);
+});
+
+test("POST /claims rejects an agent or service publisher even when draftedByActorId is omitted or self", async () => {
+  const writes = [];
+  for (const actorType of ["agent", "service"]) {
+    for (const draftedByActorId of [undefined, "publisher-1"]) {
+      const repository = {
+        findIdentity: async () => ({ actorId: "publisher-1" }),
+        getActor: async () => ({ actorId: "publisher-1", actorType }),
+        insertClaim: async (claim) => { writes.push(claim); return claim; },
+        withTransaction: async (callback) => callback(repository),
+      };
+      const app = createApp({
+        repository,
+        claimEventFactory: async ({ eventType, payload }) => ({ eventType, payload }),
+        claimRoleResolver: async () => "maintainer",
+        authenticate: async () => ({ sub: "supabase-subject" }),
+      });
+      const body = { claimId: `claim-${actorType}-${draftedByActorId ? "self" : "default"}`, statement: "machine publish", scope: ["s"], falsification: ["f"] };
+      if (draftedByActorId) body.draftedByActorId = draftedByActorId;
+      const response = await app.fetch(new Request("https://api.example.test/claims", {
+        method: "POST",
+        headers: { authorization: "Bearer test-token", "content-type": "application/json" },
+        body: JSON.stringify(body),
+      }), {});
+      assert.equal(response.status, 403, `${actorType}:${draftedByActorId ?? "omitted"}`);
+      assert.equal((await response.json()).code, "CLAIM_PUBLISHER_TYPE_INVALID");
+    }
+  }
+  assert.equal(writes.length, 0);
+});
+
 test('signed routes use the injected persistent nonce store, reject a duplicate, and permit another actor', async () => {
   const keypair = generateEd25519KeyPair();
   const claimed = new Set();
   const repository = {
     findIdentity: async (_provider, subject) => ({ actorId: subject }),
+    getActor: async (actorId) => ({ actorId, actorType: 'human' }),
     findActiveSigningKey: async (actorId) => ({ keyId: 'key-1', actorId, algorithm: 'Ed25519', publicKey: keypair.public_key }),
     insertClaim: async (claim) => claim,
     insertClaimRevision: async (revision) => revision,
@@ -214,6 +430,7 @@ test('signed routes fail closed when no repository nonce method or Supabase conf
   const keypair = generateEd25519KeyPair();
   const repository = {
     findIdentity: async () => ({ actorId: 'actor-1' }),
+    getActor: async (actorId) => ({ actorId, actorType: 'human' }),
     findActiveSigningKey: async () => ({ keyId: 'key-1', actorId: 'actor-1', algorithm: 'Ed25519', publicKey: keypair.public_key }),
     insertClaim: async (claim) => claim,
     insertClaimRevision: async (revision) => revision,

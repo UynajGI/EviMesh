@@ -178,12 +178,12 @@ export default function AgentCenterPage() {
 
       <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
         <section aria-label="Connection steps" id="ac-connect">
-          <ol className="relative">
+          <ol aria-label="Agent connection stepper" className="stepper relative">
             {STEPS.map((step, index) => {
               const done = index < doneThrough;
               const current = index === doneThrough;
               return (
-                <li className="relative grid grid-cols-[2rem_minmax(0,1fr)] gap-4 pb-7" key={step.title}>
+                <li className="stepper__item relative grid grid-cols-[2rem_minmax(0,1fr)] gap-4 pb-7" key={step.title}>
                   {index < STEPS.length - 1 ? <span aria-hidden="true" className="absolute bottom-0 left-[0.9375rem] top-8 w-px bg-border" /> : null}
                   <span
                     aria-label={done ? 'done' : current ? 'current' : `step ${index + 1}`}

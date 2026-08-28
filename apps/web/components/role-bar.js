@@ -19,7 +19,7 @@ const ROLE_COLOR = {
 export function RoleBar({ counts, className }) {
   const total = CONTRIBUTION_ROLES.reduce((sum, role) => sum + (counts?.[role] ?? 0), 0);
   return (
-    <div className={cn('max-w-md', className)}>
+    <div aria-label={`Contribution roles: ${CONTRIBUTION_ROLES.map((role) => `${role} ${counts?.[role] ?? 0}`).join(', ')}`} className={cn('rolebar max-w-md', className)} role="img">
       <div
         aria-hidden="true"
         className="flex h-2 overflow-hidden rounded-full bg-muted"
@@ -28,7 +28,7 @@ export function RoleBar({ counts, className }) {
         {total > 0 ? CONTRIBUTION_ROLES.map((role) => {
           const value = counts?.[role] ?? 0;
           if (!value) return null;
-          return <span className={cn('h-full', ROLE_COLOR[role])} key={role} style={{ width: `${(value / total) * 100}%` }} />;
+          return <span aria-hidden="true" className={cn('rolebar__seg h-full', `rolebar__seg--${role}`, ROLE_COLOR[role])} key={role} style={{ width: `${(value / total) * 100}%` }} />;
         }) : <span className="h-full w-full" />}
       </div>
       <dl className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">

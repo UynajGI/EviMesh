@@ -1,5 +1,6 @@
 import { assertProjectRoleForAction } from "./project-authorization.mjs";
 import { assertClaimTransition } from "../../protocol/src/claim-state.mjs";
+import { canonicalJson, semanticHash } from "../../protocol/src/hash.mjs";
 
 export class ClaimCommandError extends Error {
   constructor(message, code = "CLAIM_INVALID", status = 400) {
@@ -20,6 +21,29 @@ function requiredJson(value, field) {
   return value;
 }
 
+function clonePublisherSignatureEnvelope(value) {
+  if (value === null) return null;
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new ClaimCommandError("publisher signature envelope must be a JSON object or null");
+  }
+  try {
+    return JSON.parse(canonicalJson(value));
+  } catch (error) {
+    if (error instanceof ClaimCommandError) throw error;
+    throw new ClaimCommandError(`publisher signature envelope is not JSON-compatible: ${error.message}`);
+  }
+}
+
+function draftingContributionStatementId({ claimId, actorId }) {
+  return `statement_${semanticHash({
+    schema: "evimesh.claim-draft-attribution.v1",
+    claimId,
+    claimRevision: 1,
+    actorId,
+    role: "originator",
+  })}`;
+}
+
 function assertIfMatch(ifMatch, currentEtag) {
   if (typeof ifMatch !== "string" || ifMatch.trim().length === 0 || ifMatch.trim() !== currentEtag) {
     throw new ClaimCommandError("If-Match does not match the current revision", "PRECONDITION_FAILED", 412);
@@ -31,6 +55,8 @@ export async function createClaim({
   repository,
   actorId,
   actorRole,
+  draftedByActorId = null,
+  publisherSignatureEnvelope = null,
   claimId,
   questionId = null,
   statement,
@@ -44,14 +70,26 @@ export async function createClaim({
     if (typeof repository[method] !== "function") throw new ClaimCommandError(`repository ${method} is required`);
   }
   actorId = requiredText(actorId, "actor id");
+  draftedByActorId = draftedByActorId === null ? actorId : requiredText(draftedByActorId, "drafting actor id");
   claimId = requiredText(claimId, "claim id");
   if (questionId !== null) questionId = requiredText(questionId, "question id");
   statement = requiredText(statement, "claim statement");
   scope = requiredJson(scope, "claim scope");
   assumptions = requiredJson(assumptions, "claim assumptions");
   falsification = requiredJson(falsification, "claim falsification");
+  const normalizedPublisherSignatureEnvelope = clonePublisherSignatureEnvelope(publisherSignatureEnvelope);
   if (typeof eventFactory !== "function") throw new ClaimCommandError("eventFactory is required");
   assertProjectRoleForAction({ actorRole, requiredRole: "maintainer" });
+
+  const hasSeparateDrafter = draftedByActorId !== actorId;
+  if (hasSeparateDrafter && normalizedPublisherSignatureEnvelope === null) {
+    throw new ClaimCommandError("publisher signature envelope is required for agent drafting attribution", "CLAIM_DRAFTER_SIGNATURE_REQUIRED");
+  }
+  if (hasSeparateDrafter) {
+    for (const method of ["insertContributionStatement", "insertContributionEdge"]) {
+      if (typeof repository[method] !== "function") throw new ClaimCommandError(`repository ${method} is required for agent drafting attribution`);
+    }
+  }
 
   const claim = { claimId, questionId, state: "hypothesis", createdBy: actorId };
   const revision = {
@@ -71,6 +109,8 @@ export async function createClaim({
     eventType: "claim.created",
     payload: {
       entity_type: "claim", claim_id: claimId, question_id: questionId, revision: 1, actor_id: actorId,
+      signer_actor_id: actorId, drafted_by_actor_id: draftedByActorId,
+      ...(normalizedPublisherSignatureEnvelope === null ? {} : { publisher_signature_envelope: normalizedPublisherSignatureEnvelope }),
       projection: { entity_type: "claim", entity_id: claimId, revision: 1, state: { claim: projected, revision } },
     },
   });
@@ -79,7 +119,33 @@ export async function createClaim({
     const persistedClaim = await transaction.insertClaim(claim);
     const persistedRevision = await transaction.insertClaimRevision(revision);
     const persistedEvent = await transaction.appendResearchEvent(event);
-    return { claim: persistedClaim ?? claim, revision: persistedRevision ?? revision, event: persistedEvent ?? event };
+    if (!hasSeparateDrafter) {
+      return { claim: persistedClaim ?? claim, revision: persistedRevision ?? revision, event: persistedEvent ?? event };
+    }
+    const eventId = requiredText((persistedEvent ?? event).eventId, "claim creation event id");
+    const contribution = {
+      statementId: draftingContributionStatementId({ claimId, actorId: draftedByActorId }),
+      eventId,
+      actorId: draftedByActorId,
+      role: "originator",
+      description: `Drafted Claim ${claimId}@1`,
+    };
+    const edge = {
+      statementId: contribution.statementId,
+      edgeType: "produced",
+      objectType: "claim",
+      objectId: claimId,
+      objectRevision: 1,
+    };
+    const persistedContribution = await transaction.insertContributionStatement(contribution);
+    const persistedEdge = await transaction.insertContributionEdge(edge);
+    return {
+      claim: persistedClaim ?? claim,
+      revision: persistedRevision ?? revision,
+      event: persistedEvent ?? event,
+      contribution: persistedContribution ?? contribution,
+      contributionEdge: persistedEdge ?? edge,
+    };
   });
 }
 

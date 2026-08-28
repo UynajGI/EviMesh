@@ -94,7 +94,13 @@ test('hydration carries provenance and fielded receipt data', async () => {
 test('claim page defaults upstream, lists revisions, expands evidence, fields receipts', async () => {
   const page = await read('../app/claims/[claimId]/page.js');
   assert.match(page, /useState\('upstream'\)/);
-  assert.match(page, /Upstream: what this claim depends on\./);
+  assert.match(page, /Upstream context: prerequisites, origins, and prior context\./);
+  assert.match(page, /Downstream context: dependents, responses, and subsequent context\./);
+  assert.match(page, /depth: node\.depth/);
+  assert.match(page, /claimLayoutEndpoints/);
+  assert.doesNotMatch(page, /Upstream: what this claim depends on\.|Downstream: what depends on this claim\./);
+  assert.match(page, /published by\{' '\}/);
+  assert.doesNotMatch(page, /drafted by\{' '\}/);
   assert.match(page, /setRevisionList/);
   assert.match(page, /Math\.min\(total, 8\)/);
   assert.match(page, /Compare any two revisions field by field/);
@@ -143,14 +149,17 @@ test('explore carries the joinable filter, summaries, and the honest count line'
   assert.match(page, /of \{windowed\.length\} loaded object/);
 });
 
-test('home keeps request ids, empty-state CTAs, the denied scope card, and gated agent copy', async () => {
+test('home keeps signed-out, empty, partial, error, and honest rail states', async () => {
   const home = await read('../app/home/page.js');
   assert.match(home, /failure\.requestId = payload\.request_id \?\? payload\.requestId \?\? null/);
   assert.match(home, /requestId=\{requestId \?\? undefined\}/);
-  assert.match(home, /Find research to follow/);
-      assert.match(home, /DeniedState/);
-  assert.match(home, /signed-in scope/);
-  assert.ok(home.includes("Six steps from hearing about EviMesh to a first trusted read."));
+  for (const state of ['DeniedState', 'Empty', 'ErrorState', 'Alert', 'Skeleton']) assert.match(home, new RegExp(state));
+  assert.match(home, /Partial watch coverage/);
+  assert.match(home, /Some classification details were omitted from this bounded view/);
+  assert.match(home, /No watched research yet/);
+  assert.match(home, /viewer-assignment total/);
+  assert.match(home, /Pending approval totals are not exposed by the API/);
+  assert.match(home, /No recent local visits are stored in this browser/);
 });
 
 test('attempt page ships the identity card, self-declaration boundary, and public output', async () => {
@@ -160,6 +169,9 @@ test('attempt page ships the identity card, self-declaration boundary, and publi
   assert.match(page, /\/actors\/\$\{encodeURIComponent\(act\)\}/);
   // Identity-card fields render from the actors endpoint; null stays honest.
   assert.match(page, /const card = agentRecord\?\.actor \?\? \{\};/);
+  assert.match(page, /const actorIsAgent = card\.actorType === 'agent' \|\| card\.actorType === 'service';/);
+  assert.match(page, /actorHref\(actor, actorIsAgent \? 'agent' : card\.actorType\)/);
+  assert.doesNotMatch(page, /agent\|bot\|atlas\|merope/i);
   assert.match(page, /\{card\.modelName \?\? 'not stated'\}/);
   assert.match(page, /\{card\.runtime \?\? 'not stated'\}/);
   assert.match(page, /\{card\.scope \?\? 'not stated'\}/);

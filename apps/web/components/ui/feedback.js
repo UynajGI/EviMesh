@@ -15,7 +15,7 @@ function BlankShell({ icon: Icon, tone, title, description, action, footer, role
       ? 'bg-status-neutral-bg text-status-neutral-fg'
       : 'bg-muted text-muted-foreground';
   return (
-    <div className={cn('rounded-lg border border-dashed border-border px-6 py-12 text-center', tone === 'error' && 'border-solid border-status-danger-border', className)} role={role}>
+    <div className={cn('blank rounded-lg border border-dashed border-border px-6 py-12 text-center', tone === 'error' && 'blank--error border-solid border-status-danger-border', tone === 'denied' && 'blank--denied', className)} role={role}>
       {Icon ? (
         <span aria-hidden="true" className={cn('mx-auto grid size-10 place-items-center rounded-full', disc)}>
           <Icon size={20} />
@@ -39,7 +39,7 @@ const alertStyles = {
 /** Status banner: title + optional description, variant-coded by border/label. */
 export function Alert({ variant = 'info', title, description, className, ...props }) {
   return (
-    <div className={cn('rounded-md border bg-card px-4 py-3', alertStyles[variant] ?? alertStyles.info, className)} role="alert" {...props}>
+    <div className={cn('alert rounded-md border bg-card px-4 py-3', `alert--${variant}`, alertStyles[variant] ?? alertStyles.info, className)} role="alert" {...props}>
       <p className="text-sm font-medium">{title}</p>
       {description ? <p className="mt-1 text-sm text-muted-foreground">{description}</p> : null}
     </div>
@@ -105,5 +105,5 @@ export function Progress({ value = 0, max = 100, className }) {
 
 /** Skeleton block; combine widths for a loading layout. */
 export function Skeleton({ className }) {
-  return <div aria-hidden="true" className={cn('animate-pulse rounded bg-muted', className)} />;
+  return <div aria-hidden="true" className={cn('skeleton animate-pulse rounded bg-muted', className)} />;
 }

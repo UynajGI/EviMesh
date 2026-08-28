@@ -9,6 +9,7 @@ import {
   timestamp,
 } from 'drizzle-orm/pg-core';
 import { actors } from './actors.mjs';
+import { signingKeys } from './signing-keys.mjs';
 import { tasks } from './tasks.mjs';
 
 export const runs = pgTable(
@@ -29,6 +30,9 @@ export const runs = pgTable(
     networkAccess: boolean('network_access').notNull(),
     exitCode: integer('exit_code').notNull(),
     actorId: text('actor_id').notNull().references(() => actors.actorId, { onDelete: 'restrict' }),
+    /* Nullable only for pre-0079 legacy rows whose historical key cannot be
+     * inferred safely. Every new Run command requires and persists this ID. */
+    signingKeyId: text('signing_key_id').references(() => signingKeys.keyId, { onDelete: 'restrict' }),
     signature: text('signature').notNull(),
   },
   (table) => [

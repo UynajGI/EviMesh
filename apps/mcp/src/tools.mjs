@@ -1,11 +1,13 @@
 import { randomUUID } from "node:crypto";
-import { validateDocument, claimDocToApi, runDocToApi, verificationDocToApi, challengeDocToApi, submissionRoute } from "../../../packages/cli/src/documents.mjs";
+import { validateDocument, CliDocumentError, canonicalRunDocument, assertCanonicalRunDocument, claimDocToApi, runDocToApi, verificationDocToApi, challengeDocToApi, submissionRoute } from "../../../packages/cli/src/documents.mjs";
 import { signSubmission, createNonce } from "../../../packages/cli/src/signing.mjs";
 import { loadIdentity, CliIdentityError } from "../../../packages/cli/src/identity.mjs";
 import { createObjectId } from "../../../packages/protocol/src/uuidv7.mjs";
 import { sha256Bytes } from "../../../packages/artifact/src/hash.mjs";
 import { verifyMerkleInclusionProof } from "../../../packages/merkle/src/verify-inclusion-proof.mjs";
 import { hashResearchEventLeaf } from "../../../packages/merkle/src/research-event-leaf.mjs";
+import { canonicalJson } from "../../../packages/protocol/src/hash.mjs";
+import { signEd25519Payload } from "../../../packages/signatures/src/client-signature.mjs";
 import { CONTEXT_MODES } from "./resources.mjs";
 
 export class McpToolError extends Error {
@@ -27,6 +29,26 @@ function requiredArg(value, field) {
     throw new McpToolError(`argument ${field} is required`);
   }
   return value;
+}
+
+function requiredObject(value, field) {
+  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).length === 0) {
+    throw new McpToolError(`argument ${field} must be a non-empty object`);
+  }
+  return value;
+}
+
+function validateToolDocument(document) {
+  try {
+    return validateDocument(document);
+  } catch (error) {
+    if (error instanceof CliDocumentError) {
+      const mapped = new McpToolError(error.message, error.code);
+      mapped.findings = error.findings;
+      throw mapped;
+    }
+    throw error;
+  }
 }
 
 function consentResult(tool, summary) {
@@ -66,6 +88,26 @@ function requireIdentity(env) {
     }
     throw error;
   }
+}
+
+async function requireActiveAgentActor(client, identity) {
+  const actor = await client.http.request("GET", "/auth/me");
+  if (typeof actor?.actorId !== "string" || !actor.actorId) throw new McpToolError("authenticated actor binding is unavailable", "AGENT_ACTOR_MISSING");
+  if (actor.actorType !== "agent" && actor.actorType !== "service") {
+    throw new McpToolError("MCP drafts require an authenticated agent or service actor", "AGENT_ACTOR_REQUIRED");
+  }
+  if (identity) {
+    if (!actor.signingKey) throw new McpToolError("authenticated agent has no active signing key", "AGENT_SIGNING_KEY_MISSING");
+    if (actor.signingKey.keyId !== identity.keyId || actor.signingKey.algorithm !== identity.algorithm || actor.signingKey.publicKey !== identity.publicKey) {
+      throw new McpToolError("configured signing identity does not match the authenticated agent", "AGENT_SIGNING_KEY_MISMATCH");
+    }
+  }
+  return actor;
+}
+
+async function signRunDraft(unsignedDraft, identity) {
+  const signingBytes = Buffer.from(canonicalJson(unsignedDraft), "utf8");
+  return signEd25519Payload({ signingBytes: new Uint8Array(signingBytes), privateKey: identity.privateKey });
 }
 
 function jsonContent(data) {
@@ -192,10 +234,12 @@ const TOOL_DEFINITIONS = [
       },
     },
     outputSchema: { type: "object", required: ["draft"], properties: { draft: OBJECT } },
-    run: async ({ args }) => {
+    run: async ({ client, args, env }) => {
       requiredArg(args.statement, "statement");
       const summary = { action: "create a local Claim draft", statement: args.statement };
       if (args.confirm !== true) return consentResult("create_claim", summary);
+      const identity = requireIdentity(env);
+      const actor = await requireActiveAgentActor(client, identity);
       const claimId = createObjectId("Claim");
       const draft = {
         schema: "srp.claim.v1",
@@ -207,9 +251,10 @@ const TOOL_DEFINITIONS = [
         assumptions: args.assumptions ?? [],
         falsification: args.falsification,
         created_at: new Date().toISOString(),
-        created_by: "TODO: actor id",
+        created_by: actor.actorId,
       };
       if (args.questionId) draft.question_id = args.questionId;
+      validateToolDocument(draft);
       return ok({ draft });
     },
   },
@@ -261,13 +306,14 @@ const TOOL_DEFINITIONS = [
     write: true,
     inputSchema: {
       type: "object",
-      required: ["taskId", "contextBundleId", "command"],
+      required: ["taskId", "contextBundleId", "sourceCode", "container", "command", "environment", "hardware"],
       properties: {
         taskId: STRING,
         contextBundleId: STRING,
+        sourceCode: { ...STRING, description: "Artifact or VCS reference for the executed source" },
+        container: { ...STRING, description: "Immutable OCI image reference with a sha256 digest" },
         command: STRING,
         args: { type: "array", items: STRING },
-        container: STRING,
         environment: OBJECT,
         hardware: OBJECT,
         randomSeed: OBJECT,
@@ -278,21 +324,27 @@ const TOOL_DEFINITIONS = [
       },
     },
     outputSchema: { type: "object", required: ["draft"], properties: { draft: OBJECT } },
-    run: async ({ args }) => {
+    run: async ({ client, args, env }) => {
       requiredArg(args.taskId, "taskId");
       requiredArg(args.contextBundleId, "contextBundleId");
+      requiredArg(args.sourceCode, "sourceCode");
+      requiredArg(args.container, "container");
       requiredArg(args.command, "command");
+      requiredObject(args.environment, "environment");
+      requiredObject(args.hardware, "hardware");
       const summary = { action: "create a local Run Receipt draft", taskId: args.taskId, command: args.command };
       if (args.confirm !== true) return consentResult("record_run", summary);
+      const identity = requireIdentity(env);
+      const actor = await requireActiveAgentActor(client, identity);
       const now = new Date().toISOString();
-      const draft = {
+      const unsignedDraft = canonicalRunDocument({
         schema: "srp.run.v1",
         run_id: createObjectId("Run"),
         task_id: args.taskId,
         context_bundle_id: args.contextBundleId,
         input_artifact_ids: args.inputArtifactRefs ?? [],
-        source_code: "TODO: code reference (artifact id or VCS revision)",
-        container: args.container ?? `TODO-image@sha256:${"0".repeat(64)}`,
+        source_code: args.sourceCode,
+        container: args.container,
         command: args.command,
         args: args.args ?? [],
         environment: args.environment ?? {},
@@ -303,9 +355,11 @@ const TOOL_DEFINITIONS = [
         network_access: false,
         output_artifact_ids: args.outputArtifactRefs ?? [],
         exit_code: args.exitCode ?? 0,
-        actor_id: "TODO: actor id",
-        signature: "TODO: run signature",
-      };
+        actor_id: actor.actorId,
+        signing_key_id: identity.keyId,
+      });
+      const draft = { ...unsignedDraft, signature: await signRunDraft(unsignedDraft, identity) };
+      validateToolDocument(draft);
       return ok({ draft });
     },
   },
@@ -328,16 +382,20 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: "publish_submission",
-    description: "Validate, sign, and publish one Claim, Run, or Challenge document. Only executes with confirm: true.",
+    description: "Validate and publish one Claim, Run, or Challenge document with the current human publisher's outer signature. Existing Run producer signatures are preserved. Only executes with confirm: true.",
     write: true,
     inputSchema: { type: "object", required: ["document"], properties: { document: OBJECT, confirm: BOOLEAN } },
     outputSchema: { type: "object", required: ["published", "route"], properties: { published: BOOLEAN, route: STRING, signingBytesHash: STRING, response: OBJECT } },
     run: async ({ client, args, env }) => {
       requiredArg(args.document, "document");
-      validateDocument(args.document);
-      const route = submissionRoute(args.document);
-      if (!route) throw new McpToolError(`submission is not supported for schema ${args.document.schema}`);
-      const body = route.toApi(args.document);
+      const document = args.document;
+      validateToolDocument(document);
+      if (document.schema === "srp.run.v1") {
+        assertCanonicalRunDocument(document);
+      }
+      const route = submissionRoute(document);
+      if (!route) throw new McpToolError(`submission is not supported for schema ${document.schema}`);
+      const body = route.toApi(document);
       const summary = { action: "sign and publish a submission", route: route.path, eventType: route.eventType, objectId: body.claimId ?? body.runId ?? body.challengeId };
       if (args.confirm !== true) return consentResult("publish_submission", summary);
       requireIdentity(env);
@@ -355,7 +413,7 @@ const TOOL_DEFINITIONS = [
     run: async ({ client, args, env }) => {
       requiredArg(args.document, "document");
       requiredArg(args.runId, "runId");
-      validateDocument(args.document);
+      validateToolDocument(args.document);
       if (args.document.schema !== "srp.verification-receipt.v1") throw new McpToolError(`expected srp.verification-receipt.v1, got ${args.document.schema}`);
       const receiptId = args.receiptId ?? createObjectId("Verification");
       const summary = { action: "sign and submit a VerificationReceipt", receiptId, runId: args.runId, claimRevision: args.document.claim_revision_id };
@@ -375,7 +433,7 @@ const TOOL_DEFINITIONS = [
     outputSchema: { type: "object", required: ["submitted", "challengeId"], properties: { submitted: BOOLEAN, challengeId: STRING, signingBytesHash: STRING, response: OBJECT } },
     run: async ({ client, args, env }) => {
       requiredArg(args.document, "document");
-      validateDocument(args.document);
+      validateToolDocument(args.document);
       if (args.document.schema !== "srp.challenge.v1") throw new McpToolError(`expected srp.challenge.v1, got ${args.document.schema}`);
       const body = challengeDocToApi(args.document);
       const summary = { action: "sign and submit a Challenge", challengeId: body.challengeId, targetClaimRevision: body.targetClaimId + "@" + body.targetClaimRevision };
@@ -439,8 +497,9 @@ export async function callTool({ client, name, args = {}, env = process.env }) {
     const result = await definition.run({ client, args, env });
     return { ...result, content: result.content ?? jsonContent(result.structuredContent) };
   } catch (error) {
-    if (error instanceof McpToolError || error?.code === "CLI_DOCUMENT_INVALID" || error?.code === "CLI_IDENTITY_MISSING") {
-      return { isError: true, structuredContent: { error: error.code, message: error.message }, content: [{ type: "text", text: `${error.code}: ${error.message}` }] };
+    if (error instanceof McpToolError || error instanceof CliDocumentError || error?.code === "CLI_IDENTITY_MISSING") {
+      const structuredContent = { error: error.code, message: error.message, ...(Array.isArray(error.findings) ? { findings: error.findings } : {}) };
+      return { isError: true, structuredContent, content: [{ type: "text", text: `${error.code}: ${error.message}` }] };
     }
     throw error;
   }

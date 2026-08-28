@@ -25,6 +25,7 @@ function repositoryOver(records, { trackUsage = [] } = {}) {
   return {
     findApiTokenByHash: async (hash) => records.get(hash) ?? null,
     updateApiTokenLastUsedAt: async (tokenId, usedAt) => { trackUsage.push({ tokenId, usedAt }); return { tokenId }; },
+    getActor: async (actorId) => ({ actorId, actorType: "agent" }),
   };
 }
 
@@ -51,7 +52,24 @@ test("protected routes accept API tokens end to end", async () => {
   const app = createApp({ repository: repositoryOver(records) });
   const me = await app.fetch(new Request("https://api.example.test/auth/me", { headers: { authorization: `Bearer ${token}` } }), {});
   assert.equal(me.status, 200);
-  assert.equal((await me.json()).subject, "actor-1");
+  assert.deepEqual(await me.json(), { subject: "actor-1", email: null, actorId: "actor-1", actorType: "agent", signingKey: null });
+});
+
+test("auth/me forwards the caller JWT when resolving a Supabase identity", async () => {
+  const calls = [];
+  const repository = {
+    findIdentity: async (...args) => { calls.push(args); return { actorId: "actor-1" }; },
+    getActor: async (actorId) => ({ actorId, actorType: "human" }),
+  };
+  const app = createApp({ repository, authenticate: async () => ({ sub: "supabase-subject" }) });
+  const response = await app.fetch(new Request("https://api.example.test/auth/me", {
+    headers: { authorization: "Bearer supabase-jwt" },
+  }), {});
+  assert.equal(response.status, 200, await response.clone().text());
+  assert.equal(calls.length, 2, "rate limiting and the route both resolve the authenticated actor");
+  assert.ok(calls.every((args) => args[0] === "supabase"
+    && args[1] === "supabase-subject"
+    && args[2]?.accessToken === "supabase-jwt"));
 });
 
 test("signing-key registration works with API tokens", async () => {
@@ -81,6 +99,7 @@ test("device-login tokens authenticate subsequent API calls", async () => {
   const records = new Map();
   const repository = {
     findIdentity: async () => ({ actorId: "actor-1" }),
+    getActor: async (actorId) => ({ actorId, actorType: "agent" }),
     findApiTokenByHash: async (hash) => records.get(hash) ?? null,
     insertApiToken: async (record) => {
       const persisted = { tokenId: `token-${records.size + 1}`, actorId: "actor-1", scopes: record.scopes, expiresAt: null, revokedAt: null, ...record };
@@ -102,5 +121,17 @@ test("device-login tokens authenticate subsequent API calls", async () => {
 
   const me = await app.fetch(new Request("https://api.example.test/auth/me", { headers: { authorization: `Bearer ${apiToken}` } }), {});
   assert.equal(me.status, 200);
-  assert.equal((await me.json()).subject, "actor-1");
+  assert.deepEqual(await me.json(), { subject: "actor-1", email: null, actorId: "actor-1", actorType: "agent", signingKey: null });
+});
+
+test("auth/me exposes only the authenticated actor's active public signing key", async () => {
+  const { token, records } = await issueToken();
+  const repository = {
+    ...repositoryOver(records),
+    findActiveSigningKey: async (actorId) => ({ keyId: "key-1", actorId, algorithm: "Ed25519", publicKey: "public-key" }),
+  };
+  const app = createApp({ repository });
+  const response = await app.fetch(new Request("https://api.example.test/auth/me", { headers: { authorization: `Bearer ${token}` } }), {});
+  assert.equal(response.status, 200);
+  assert.deepEqual((await response.json()).signingKey, { keyId: "key-1", algorithm: "Ed25519", publicKey: "public-key" });
 });

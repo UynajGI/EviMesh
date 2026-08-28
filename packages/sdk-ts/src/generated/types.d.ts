@@ -7,7 +7,7 @@ export type Json = string | number | boolean | null | Json[] | { [key: string]: 
 
 export type HealthResponse = { service: "evimesh-api-edge"; status: "ok"; environment: string; };
 
-export type AuthMeResponse = { subject: string; email: string | null; };
+export type AuthMeResponse = { subject: string; email: string | null; actorId: string; actorType?: "human" | "agent" | "organization" | "service" | "maintainer" | "witness" | null; signingKey: { keyId: string; algorithm: "Ed25519"; publicKey: string; } | null; };
 
 export type DeviceAuthorizationRequest = { client_id: string; };
 
@@ -37,6 +37,10 @@ export type WitnessReceiptRequest = { receipt: { schema: "evimesh.witness-checkp
 
 export type PagedResponse = { items: Record<string, unknown>[]; nextCursor?: string | null; };
 
+export type ClaimGraphResponse = { rootClaimId: string; maxDepth: number; nodes: { claimId: string; depth: number; path: string[]; state?: "hypothesis" | "candidate" | "under_verification" | "provisionally_accepted" | "accepted" | "contested" | "refuted" | "superseded" | "retracted" | "dependency_tainted"; dependencyTainted?: boolean; }[]; edges: ClaimGraphEdge[]; truncated: boolean; };
+
+export type ClaimGraphEdge = { sourceClaimId: string; targetClaimId: string; relationType: "depends_on" | "supports" | "refutes" | "qualifies" | "reproduces" | "extends" | "supersedes" | "contradicts" | "derived_from" | "uses_method" | "uses_dataset" | "implements" | "verifies" | "challenges"; depth: number; path: string[]; };
+
 export type ObjectResponse = Record<string, unknown>;
 
 export type EtagObjectResponse = { etag: string; };
@@ -57,7 +61,7 @@ export type StartAttemptRequest = { attemptId: string; contextBundleId: string; 
 
 export type TraceEventRequest = { eventId: string; eventType: string; payload: Record<string, unknown>; hash?: string | null; signature?: Record<string, unknown> | null; parents?: string[]; };
 
-export type CreateClaimRequest = { claimId: string; questionId?: string | null; statement: string; scope: Record<string, unknown> | unknown[]; assumptions?: Record<string, unknown> | unknown[]; falsification: Record<string, unknown> | unknown[]; signatureEnvelope?: ClientSignatureEnvelope; };
+export type CreateClaimRequest = { claimId: string; questionId?: string | null; draftedByActorId?: string; statement: string; scope: Record<string, unknown> | unknown[]; assumptions?: Record<string, unknown> | unknown[]; falsification: Record<string, unknown> | unknown[]; signatureEnvelope?: ClientSignatureEnvelope; };
 
 export type CreateArtifactRequest = { artifactId: string; artifactType: "code" | "dataset" | "document" | "figure" | "proof" | "notebook" | "container" | "model" | "report" | "other"; rawHash: string; semanticHash?: string | null; sizeBytes: number; mediaType: string; license: string; description?: string | null; locationId: string; location: string; };
 
@@ -69,7 +73,7 @@ export type CreateEvidenceRequest = { evidenceId: string; evidenceType: "formal_
 
 export type LinkEvidenceRequest = { claimId: string; claimRevision: number; relationType: "supports" | "refutes" | "qualifies" | "reproduces"; };
 
-export type CreateRunRequest = { runId: string; taskId: string; contextBundleId: string; sourceCode: string; container: string; command: string; args?: string[]; environment: Record<string, unknown>; hardware: Record<string, unknown>; randomSeed: Record<string, unknown>; startedAt: string; endedAt: string; networkAccess?: boolean; exitCode: number; signature: string; inputs?: ArtifactRevisionRef[]; outputs?: ArtifactRevisionRef[]; signatureEnvelope?: ClientSignatureEnvelope; };
+export type CreateRunRequest = { runId: string; taskId: string; contextBundleId: string; sourceCode: string; container: string; command: string; args?: string[]; environment: Record<string, unknown>; hardware: Record<string, unknown>; randomSeed: Record<string, unknown>; startedAt: string; endedAt: string; networkAccess: boolean; exitCode: number; actorId: string; signingKeyId: string; signature: string; inputs?: ArtifactRevisionRef[]; outputs?: ArtifactRevisionRef[]; signatureEnvelope: ClientSignatureEnvelope; };
 
 export type ArtifactRevisionRef = { artifactId: string; artifactRevision: number; };
 
@@ -81,7 +85,7 @@ export type CreateChallengeRequest = { challengeId: string; targetClaimId: strin
 
 export type ActorDirectoryResponse = { items: ActorIdentityCard[]; };
 
-export type ActorIdentityCard = { actorId: string; actorType?: "human" | "agent" | "organization" | "service" | "maintainer" | "witness"; identityStrength?: "verified" | "observed" | "self_declared" | "unknown"; displayName?: string; bio?: string; avatarUrl?: string; modelName?: string; runtime?: string; scope?: string; publicKeyFingerprint?: string; ownerActorId?: string; createdAt?: string; };
+export type ActorIdentityCard = { actorId: string; actorType?: "human" | "agent" | "organization" | "service" | "maintainer" | "witness"; identityStrength?: "verified" | "observed" | "self_declared" | "unknown"; displayName?: string; bio?: string; avatarUrl?: string; modelName?: string; runtime?: string; scope?: string; publicKeyFingerprint?: string; ownerActorId?: string; createdAt?: string; updatedAt?: string; };
 
 export type InteractionRecord = { objectType: "question" | "claim" | "task" | "project"; objectId: string; kind: "helpful" | "favorite" | "watch" | "view"; createdAt?: string; };
 

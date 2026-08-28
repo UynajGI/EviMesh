@@ -7,13 +7,15 @@ import { Suspense } from 'react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { ClaimDag } from '@/components/claim-dag';
+import { actorHref } from '@/components/attribution';
 import { HandoffSheet } from '@/components/handoff-sheet';
 import { Badge, Card, CardContent, StatusBadge } from '@/components/ui/data';
-import { Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
+import { Alert, Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
 import { IdChip } from '@/components/ui/idchip';
 import { hydrateEvidenceLinks, hydrateReceiptFindings, evidenceRelations } from '@/lib/hydrate';
 import { useVisitRecord } from '@/lib/visit-history';
-import { recordView } from '@/lib/interactions';
+import { recordView, useMyInteractions } from '@/lib/interactions';
+import { claimLayoutEndpoints } from '@/lib/claim-graph-layout.mjs';
 import { PageContainer } from '@/components/ui/page';
 import { Check, Eye, Share2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -91,17 +93,18 @@ function ClaimDetailView({ params }) {
   const [frontierMembership, setFrontierMembership] = useState(null);
   const [data, setData] = useState(null);
   const [graph, setGraph] = useState(null);
-  /* Mockup default: upstream — "what does this claim depend on". */
+  /* Keep the API traversal names, but describe all typed edges neutrally. */
   const [direction, setDirection] = useState('upstream');
   const [graphView, setGraphView] = useState('graph');
   const [handoffOpen, setHandoffOpen] = useState(false);
-  const [watched, setWatched] = useState(false);
   const [shared, setShared] = useState(false);
   const [revisionDiff, setRevisionDiff] = useState(null);
   const [revisionList, setRevisionList] = useState(null);
   const [evidence, setEvidence] = useState([]);
   const [receipts, setReceipts] = useState([]);
   const [error, setError] = useState(null);
+  const { mine: interactions, ready: interactionsReady, has: hasInteraction, toggle: toggleInteraction } = useMyInteractions();
+  const watched = hasInteraction('claim', claimId, 'watch');
 
   useEffect(() => { Promise.resolve(params).then(({ claimId: value }) => setClaimId(value)); }, [params]);
 
@@ -179,9 +182,6 @@ function ClaimDetailView({ params }) {
   }
 
   useEffect(() => { if (claimId) load(); }, [claimId]);
-  useEffect(() => {
-    try { setWatched(localStorage.getItem(`evimesh-watch-claim-${claimId}`) === '1'); } catch { /* unavailable */ }
-  }, [claimId]);
   useEffect(() => { if (claimId) request(`/claims/${claimId}/graph?direction=${direction}&maxDepth=3`).then(setGraph).catch((reason) => setError(reason.message)); }, [claimId, direction]);
   useEffect(() => {
     const label = data?.currentRevision?.statement ?? claimId ?? '';
@@ -209,9 +209,31 @@ function ClaimDetailView({ params }) {
     </p>
   ) : null;
   const currentRevision = pinned ? { ...data.currentRevision, ...pinnedRevisionData, revision: pinnedRevision } : data.currentRevision;
+  const draftingContribution = (Array.isArray(data.originatorContributions) ? data.originatorContributions : [])
+    .find((contribution) => contribution.draftedByActorId === contribution.actorId);
   const graphNodes = Array.isArray(graph?.nodes) ? graph.nodes : [];
-  const graphEntries = graphNodes.map((node) => ({ id: node.claimId ?? node.id, state: node.state ?? node.status })).filter((node) => typeof node.id === 'string' && node.id !== claim.claimId);
-  const dagElements = [{ data: { id: claim.claimId, label: claim.claimId, state: claim.state } }, ...graphEntries.map(({ id, state }) => ({ data: { id, label: id, state } })), ...graphEntries.map(({ id }) => ({ data: { id: `${direction}-${id}`, source: direction === 'upstream' ? id : claim.claimId, target: direction === 'upstream' ? claim.claimId : id } }))];
+  const graphEntries = graphNodes.map((node) => ({ id: node.claimId ?? node.id, state: node.state ?? node.status, depth: node.depth })).filter((node) => typeof node.id === 'string' && node.id !== claim.claimId);
+  const graphDepthById = new Map([[claim.claimId, 0], ...graphEntries.map(({ id, depth }) => [id, depth])]);
+  const graphRelations = Array.isArray(graph?.edges) ? graph.edges : [];
+  const dagEdges = graphRelations.length > 0 ? graphRelations.map((edge, index) => ({
+    id: edge.id ?? `${direction}-${edge.sourceClaimId}-${edge.targetClaimId}-${edge.relationType ?? index}`,
+    /* Reader direction changes traversal, never protocol source/target. */
+    source: edge.sourceClaimId,
+    target: edge.targetClaimId,
+    ...claimLayoutEndpoints({ source: edge.sourceClaimId, target: edge.targetClaimId, sourceDepth: graphDepthById.get(edge.sourceClaimId), targetDepth: graphDepthById.get(edge.targetClaimId), direction }),
+    relation: edge.relationType ?? 'depends_on',
+  })) : graphEntries.map(({ id, depth }) => {
+    const source = direction === 'upstream' ? id : claim.claimId;
+    const target = direction === 'upstream' ? claim.claimId : id;
+    return { id: `${direction}-${id}`, source, target, ...claimLayoutEndpoints({ source, target, sourceDepth: graphDepthById.get(source) ?? depth, targetDepth: graphDepthById.get(target) ?? depth, direction }), relation: 'depends_on' };
+  });
+  const dagElements = [{ data: { id: claim.claimId, label: claim.claimId, state: claim.state, depth: 0 } }, ...graphEntries.map(({ id, state, depth }) => ({ data: { id, label: id, state, depth } })), ...dagEdges.map((edge) => ({ data: { ...edge, source: edge.source, target: edge.target, relationType: edge.relation } }))];
+  const graphListEntries = graphRelations.length > 0 ? graphRelations.map((edge, index) => {
+    const sourceId = edge.sourceClaimId;
+    const targetId = edge.targetClaimId;
+    const node = targetId === claim.claimId ? claim : graphNodes.find((item) => (item.claimId ?? item.id) === targetId);
+    return { sourceId, targetId, relation: edge.relationType ?? 'depends_on', state: node?.state ?? node?.status, key: `${sourceId}-${targetId}-${edge.relationType ?? index}-${index}` };
+  }) : graphEntries.map((entry) => ({ sourceId: direction === 'upstream' ? entry.id : claim.claimId, targetId: direction === 'upstream' ? claim.claimId : entry.id, relation: 'depends_on', state: entry.state, key: entry.id }));
 
   const evidenceFor = (relation) => evidence.filter((item) => evidenceRelations(item).includes(relation));
   const receiptsFor = (outcome) => receipts.filter((receipt) => receipt.outcome === outcome);
@@ -260,8 +282,18 @@ function ClaimDetailView({ params }) {
               <>
                 <span aria-hidden="true">·</span>
                 <span className="flex items-center gap-1">
-                  drafted by{' '}
-                  <Link className="font-medium text-foreground hover:underline" href={`/contributors/${encodeURIComponent(currentRevision.createdBy ?? claim.createdBy)}`}>{currentRevision.createdBy ?? claim.createdBy}</Link>
+                  published by{' '}
+                  <Link className="font-medium text-foreground hover:underline" href={actorHref(currentRevision.createdBy ?? claim.createdBy)}>{currentRevision.createdBy ?? claim.createdBy}</Link>
+                </span>
+              </>
+            ) : null}
+            {draftingContribution ? (
+              <>
+                <span aria-hidden="true">·</span>
+                <span className="flex flex-wrap items-center gap-1">
+                  drafted by agent <Link className="font-medium text-foreground hover:underline" href={actorHref(draftingContribution.actorId, 'agent')}>{draftingContribution.actorId}</Link>
+                  <span aria-hidden="true">·</span>
+                  {draftingContribution.signedBy ? <>signed by human <Link className="font-medium text-foreground hover:underline" href={actorHref(draftingContribution.signedBy, 'human')}>{draftingContribution.signedBy}</Link></> : <span>human signature not stated</span>}
                 </span>
               </>
             ) : null}
@@ -276,15 +308,10 @@ function ClaimDetailView({ params }) {
         <div className="flex shrink-0 flex-wrap gap-2">
           <button
             aria-pressed={watched}
-            className={cn('inline-flex h-9 items-center gap-2 rounded-md border px-3 text-sm font-medium', watched ? 'border-primary bg-accent text-accent-foreground' : 'border-border bg-card hover:bg-muted')}
-            onClick={() => {
-              const next = !watched;
-              setWatched(next);
-              try {
-                if (next) localStorage.setItem(`evimesh-watch-claim-${claimId}`, '1');
-                else localStorage.removeItem(`evimesh-watch-claim-${claimId}`);
-              } catch { /* unavailable */ }
-            }}
+            className={cn('inline-flex h-9 items-center gap-2 rounded-md border px-3 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50', watched ? 'border-primary bg-accent text-accent-foreground' : 'border-border bg-card hover:bg-muted')}
+            disabled={!claimId || !interactionsReady || interactions === null}
+            onClick={() => toggleInteraction('claim', claimId, 'watch')}
+            title={interactionsReady && interactions === null ? 'Sign in to watch' : undefined}
             type="button"
           >
             <Eye aria-hidden="true" size={14} />
@@ -338,7 +365,7 @@ function ClaimDetailView({ params }) {
 
           <section aria-labelledby="graph-heading">
             <div className="mb-1 flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold" id="graph-heading">Claim dependency graph</h2>
+              <h2 className="text-lg font-semibold" id="graph-heading">Claim relation graph</h2>
               <div className="flex flex-wrap gap-2">
                 <div className="flex gap-1" role="tablist" aria-label="Graph or list view">
                   {[['graph', 'Graph'], ['list', 'List']].map(([id, label]) => (
@@ -360,20 +387,22 @@ function ClaimDetailView({ params }) {
                 </div>
               </div>
             </div>
-            <p className="mb-3 text-sm text-muted-foreground">{direction === 'upstream' ? 'Upstream: what this claim depends on.' : 'Downstream: what depends on this claim.'}</p>
+            <p className="mb-3 text-sm text-muted-foreground">{direction === 'upstream' ? 'Upstream context: prerequisites, origins, and prior context.' : 'Downstream context: dependents, responses, and subsequent context.'}</p>
+            {graph?.truncated ? <Alert className="mb-3" description="This bounded graph reached the server node, edge, or relation-read ceiling. The visible DAG and list are partial." title="Graph view truncated" variant="warning" /> : null}
             {graphView === 'graph' ? <ClaimDag elements={dagElements} /> : (
               <div>
-                {graphEntries.length === 0 ? (
+                {graphListEntries.length === 0 ? (
                   <Empty title={`No ${direction} relations in range`} description="Relations of this claim within three hops will be listed here; the graph shows the same set." />
                 ) : (
                   <Card className="divide-y divide-border">
-                    <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] gap-3 px-5 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      <span>Direction</span><span>Related claim</span><span>State</span>
+                    <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto] gap-3 px-5 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      <span>Source</span><span>Relation</span><span>Target</span><span>Target state</span>
                     </div>
-                    {graphEntries.map(({ id, state }) => (
-                      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-5 py-3 text-sm" key={id}>
-                        <span className="capitalize text-muted-foreground">{direction}</span>
-                        <IdChip value={id} /><Link className="text-xs text-primary hover:underline" href={`/claims/${id}`}>open</Link>
+                    {graphListEntries.map(({ sourceId, targetId, relation, state, key }) => (
+                      <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto] items-center gap-3 px-5 py-3 text-sm" key={key}>
+                        <div className="flex min-w-0 items-center gap-2"><IdChip value={sourceId} /><Link className="shrink-0 text-xs text-primary hover:underline" href={`/claims/${encodeURIComponent(sourceId)}`}>open</Link></div>
+                        <span className="font-mono text-xs text-muted-foreground">{relation}</span>
+                        <div className="flex min-w-0 items-center gap-2"><IdChip value={targetId} /><Link className="shrink-0 text-xs text-primary hover:underline" href={`/claims/${encodeURIComponent(targetId)}`}>open</Link></div>
                         {state ? <StatusBadge state={state} /> : <span className="text-xs text-muted-foreground">unknown</span>}
                       </div>
                     ))}
@@ -396,7 +425,7 @@ function ClaimDetailView({ params }) {
                       <li className="flex flex-wrap items-baseline gap-3 px-4 py-2.5 text-sm" key={row.revision}>
                         <span className="font-mono text-xs tabular-nums text-muted-foreground">r{row.revision}</span>
                         {row.revision === currentRevision.revision ? <span className="rounded-full border border-status-accent-border bg-status-accent-bg px-2 py-0.5 text-[11px] font-medium text-status-accent-fg">current</span> : null}
-                        {row.createdBy ? <Link className="text-xs text-muted-foreground hover:text-foreground" href={`/contributors/${encodeURIComponent(row.createdBy)}`}>by {row.createdBy}</Link> : null}
+                        {row.createdBy ? <Link className="text-xs text-muted-foreground hover:text-foreground" href={actorHref(row.createdBy)}>by {row.createdBy}</Link> : null}
                         {row.createdAt ? <span className="ml-auto text-xs tabular-nums text-muted-foreground">{new Date(row.createdAt).toISOString().slice(0, 10)}</span> : null}
                       </li>
                     ))}

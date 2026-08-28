@@ -6,7 +6,7 @@ import { ContextQueryError, getTaskContext } from "./context-query.mjs";
 import { RequestValidationError } from "./validation.mjs";
 import { getPlatformPublicKeys, PlatformPublicKeysError } from './platform-public-keys.mjs';
 import { getOwnProfile, patchOwnProfile } from './profile-api.mjs';
-import { ActorIdentityError, resolveActorForSupabaseClaims } from './actor-identity.mjs';
+import { ActorIdentityError, resolveActorForSupabaseClaims as resolveBoundActor } from './actor-identity.mjs';
 import { recordInteraction, removeInteraction, listMyInteractions, getMyRecommendations, provisionSelfActor } from './interaction-query.mjs';
 import { ActorProfileError } from '../../../packages/domain/src/actor-profile.mjs';
 import { ProjectAuthorizationError } from '../../../packages/domain/src/project-authorization.mjs';
@@ -21,7 +21,7 @@ import { getLatestFrontier, listFrontierHistory, diffFrontiers, FrontierQueryErr
 import { getTask, listTasks, TaskQueryError } from './task-query.mjs';
 import { getArtifact, getArtifactRevision, listArtifacts, ArtifactQueryError } from './artifact-query.mjs';
 import { getEvidence, listEvidence, EvidenceQueryError } from './evidence-query.mjs';
-import { getRun, listRuns, RunQueryError } from './run-query.mjs';
+import { canonicalRunArtifactRefs, getRun, listRuns, RunQueryError } from './run-query.mjs';
 import { getChallenge, ChallengeQueryError } from './challenge-query.mjs';
 import { getAttempt, AttemptQueryError } from './attempt-query.mjs';
 import { getContribution, listActors, ContributionQueryError } from './contribution-query.mjs';
@@ -34,7 +34,8 @@ import { getObjectProvenance, ObjectProvenanceQueryError } from './object-proven
 import { getVerificationReceipt, listClaimVerifications, VerificationQueryError } from './verification-query.mjs';
 import { prepareVerification, VerificationPrepareError } from './verification-prepare.mjs';
 import { revisionEtag } from './etag.mjs';
-import { semanticHash } from '../../../packages/protocol/src/hash.mjs';
+import { canonicalJson, semanticHash } from '../../../packages/protocol/src/hash.mjs';
+import { verifyEd25519Payload } from '../../../packages/signatures/src/server-verification.mjs';
 import { createProject, reviseProject } from '../../../packages/domain/src/project-command.mjs';
 import { ProjectCommandError } from '../../../packages/domain/src/project-command.mjs';
 import { createQuestion, transitionQuestion } from '../../../packages/domain/src/question-command.mjs';
@@ -59,6 +60,7 @@ import { createSupabaseNonceStore } from './supabase-nonce-store.mjs';
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
 const authenticatedRequestClaims = new WeakMap();
+const authenticatedClaimAccessTokens = new WeakMap();
 
 function configuredCorsOrigins(env) {
   return String(env?.CORS_ALLOWED_ORIGINS ?? "")
@@ -73,6 +75,153 @@ function requestIdFor(value) {
 
 function errorBody(code, message, requestId) {
   return { code, message, request_id: requestId };
+}
+
+function persistedClientSignatureEnvelope(envelope, signedPayload) {
+  return {
+    schema: envelope.schema,
+    event_type: envelope.event_type,
+    payload: JSON.parse(canonicalJson(signedPayload)),
+    nonce: envelope.nonce,
+    signing_bytes_hash: envelope.signing_bytes_hash,
+    signature: {
+      algorithm: envelope.signature.algorithm,
+      key_id: envelope.signature.key_id.trim(),
+      value: envelope.signature.value,
+    },
+  };
+}
+
+function canonicalClaimText(value, field, { nullable = false } = {}) {
+  if (nullable && value === null) return null;
+  if (typeof value !== 'string' || value.length === 0 || value.trim() !== value) {
+    throw new ClaimCommandError(`${field} must be a non-empty string without surrounding whitespace`, 'CLAIM_TEXT_NONCANONICAL');
+  }
+  return value;
+}
+
+const RUN_TIMESTAMP_PATTERN = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?(?:Z|[+-](\d{2}):(\d{2}))$/;
+
+function hasValidRunTimestampParts(match) {
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const hour = Number(match[4]);
+  const minute = Number(match[5]);
+  const second = Number(match[6]);
+  const offsetHour = Number(match[8] ?? 0);
+  const offsetMinute = Number(match[9] ?? 0);
+  const leapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  const daysInMonth = [31, leapYear ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  return month >= 1 && month <= 12
+    && day >= 1 && day <= daysInMonth[month - 1]
+    && hour <= 23 && minute <= 59 && second <= 59
+    && offsetHour <= 23 && offsetMinute <= 59;
+}
+
+function canonicalRunTimestamp(value) {
+  const match = typeof value === 'string' && value.trim() === value ? RUN_TIMESTAMP_PATTERN.exec(value) : null;
+  if (!match || !hasValidRunTimestampParts(match)) {
+    throw new RunCommandError('run timestamps must be RFC3339 date-time strings');
+  }
+  const timestamp = new Date(value);
+  if (Number.isNaN(timestamp.getTime())) throw new RunCommandError('run timestamps must be valid and ordered');
+  return timestamp.toISOString();
+}
+
+function canonicalRunText(value, field) {
+  if (typeof value !== 'string' || value.length === 0 || value.trim() !== value) {
+    throw new RunCommandError(`${field} must be a non-empty string without leading or trailing whitespace`);
+  }
+  return value;
+}
+
+function canonicalRunBodyArtifactRefs(refs, field) {
+  return canonicalRunArtifactRefs(refs, field);
+}
+
+function canonicalRunArgs(value) {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.some((entry) => typeof entry !== 'string')) {
+    throw new RunCommandError('run args must be an array of strings', 'RUN_ARGS_INVALID');
+  }
+  return value;
+}
+
+function requiredRunObject(value, field) {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    throw new RunCommandError(`${field} must be a JSON object`, 'RUN_OBJECT_INVALID');
+  }
+  return value;
+}
+
+function requiredRunBoolean(value, field) {
+  if (typeof value !== 'boolean') throw new RunCommandError(`${field} must be a boolean`, 'RUN_BOOLEAN_INVALID');
+  return value;
+}
+
+function requiredRunInteger(value, field) {
+  if (!Number.isInteger(value)) throw new RunCommandError(`${field} must be an integer`, 'RUN_INTEGER_INVALID');
+  return value;
+}
+
+function canonicalRunBody(body) {
+  return {
+    actorId: canonicalRunText(body.actorId, 'run actor id'),
+    runId: canonicalRunText(body.runId, 'run id'),
+    taskId: canonicalRunText(body.taskId, 'task id'),
+    contextBundleId: canonicalRunText(body.contextBundleId, 'context bundle id'),
+    sourceCode: canonicalRunText(body.sourceCode, 'source code'),
+    container: canonicalRunText(body.container, 'container'),
+    command: canonicalRunText(body.command, 'command'),
+    signingKeyId: canonicalRunText(body.signingKeyId, 'signing key id'),
+    ...(Object.hasOwn(body, 'signature') ? { signature: body.signature } : {}),
+    args: canonicalRunArgs(body.args),
+    environment: requiredRunObject(body.environment, 'environment'),
+    hardware: requiredRunObject(body.hardware, 'hardware'),
+    randomSeed: requiredRunObject(body.randomSeed, 'random seed'),
+    networkAccess: requiredRunBoolean(body.networkAccess, 'network access'),
+    exitCode: requiredRunInteger(body.exitCode, 'exit code'),
+    startedAt: canonicalRunTimestamp(body.startedAt),
+    endedAt: canonicalRunTimestamp(body.endedAt),
+    inputs: canonicalRunBodyArtifactRefs(body.inputs === undefined ? [] : body.inputs, 'inputs'),
+    outputs: canonicalRunBodyArtifactRefs(body.outputs === undefined ? [] : body.outputs, 'outputs'),
+  };
+}
+
+function unsignedRunDocument(body, actorId) {
+  const artifactRefs = (refs) => canonicalRunArtifactRefs(refs).map((ref) => `${ref.artifactId}@${ref.artifactRevision}`);
+  return {
+    schema: 'srp.run.v1',
+    run_id: body.runId,
+    task_id: body.taskId,
+    context_bundle_id: body.contextBundleId,
+    input_artifact_ids: artifactRefs(body.inputs),
+    source_code: body.sourceCode,
+    container: body.container,
+    command: body.command,
+    args: body.args,
+    environment: body.environment,
+    hardware: body.hardware,
+    random_seed: body.randomSeed,
+    started_at: body.startedAt,
+    ended_at: body.endedAt,
+    network_access: body.networkAccess,
+    output_artifact_ids: artifactRefs(body.outputs),
+    exit_code: body.exitCode,
+    actor_id: actorId,
+    signing_key_id: body.signingKeyId,
+  };
+}
+
+async function verifyRunDocumentSignature({ body, actorId, publicKey }) {
+  try {
+    if (typeof body.signature !== 'string' || body.signature.length === 0) return false;
+    const signingBytes = new TextEncoder().encode(canonicalJson(unsignedRunDocument(body, actorId)));
+    return await verifyEd25519Payload({ signingBytes, signature: body.signature, publicKey });
+  } catch {
+    return false;
+  }
 }
 
 export function createApp({ repository = null, signatureNonceStore = null, projectEventFactory = null, questionEventFactory = null, questionRoleResolver = null, questionRiskResolver = null, attemptEventFactory = null, attemptRoleResolver = null, leaseEventFactory = null, leaseRoleResolver = null, taskEventFactory = null, taskRoleResolver = null, claimEventFactory = null, claimRoleResolver = null, evidenceEventFactory = null, evidenceRoleResolver = null, runEventFactory = null, runRoleResolver = null, artifactEventFactory = null, artifactRoleResolver = null, challengeEventFactory = null, challengeRoleResolver = null, verificationEventFactory = null, verificationRoleResolver = null, uploadSigner = null, deviceCodeStore = createMemoryDeviceCodeStore(), authenticate = authenticateSupabaseRequest, rateLimiter = createRateLimiter() } = {}) {
@@ -117,8 +266,16 @@ async function authenticateRequest(request, env) {
   } else {
     claims = await authenticate(request, env);
   }
-  if (request && claims) authenticatedRequestClaims.set(request, claims);
+  if (request && claims) {
+    authenticatedRequestClaims.set(request, claims);
+    if (typeof claims === 'object') authenticatedClaimAccessTokens.set(claims, match?.[1] ?? null);
+  }
   return claims;
+}
+
+function resolveActorForSupabaseClaims(options = {}) {
+  const accessToken = options.accessToken ?? authenticatedClaimAccessTokens.get(options.claims) ?? null;
+  return resolveBoundActor({ ...options, accessToken });
 }
 
 app.use("*", async (context, next) => {
@@ -207,11 +364,18 @@ app.get('/platform/keys', (context) => {
 app.get("/auth/me", async (context) => {
   try {
     const claims = await authenticateRequest(context.req.raw, context.env);
-    return context.json({ subject: claims.sub, email: claims.email ?? null });
+    const actorId = await resolveActorForSupabaseClaims({ repository, claims, accessToken: bearerTokenOf(context.req.raw) });
+    const actor = typeof repository?.getActor === "function" ? await repository.getActor(actorId) : null;
+    const activeSigningKey = typeof repository?.findActiveSigningKey === "function" ? await repository.findActiveSigningKey(actorId) : null;
+    const signingKey = activeSigningKey ? {
+      keyId: activeSigningKey.keyId,
+      algorithm: activeSigningKey.algorithm,
+      publicKey: activeSigningKey.publicKey,
+    } : null;
+    return context.json({ subject: claims.sub, email: claims.email ?? null, actorId, actorType: actor?.actorType ?? null, signingKey });
   } catch (error) {
-    if (error instanceof JwtVerificationError || error instanceof SyntaxError) {
-      return context.json(errorBody("unauthorized", "authentication required", context.get("requestId")), 401);
-    }
+    const response = knownFailure(error, context);
+    if (response) return response;
     throw error;
   }
 });
@@ -756,6 +920,7 @@ app.get('/events', async (context) => {
       eventType: context.req.query('eventType') ?? null,
       createdAfter: context.req.query('createdAfter') ?? null,
       createdBefore: context.req.query('createdBefore') ?? null,
+      order: context.req.query('order') ?? 'asc',
       limit: pagedLimit(context),
       cursor: context.req.query('cursor') ?? null,
     }));
@@ -891,28 +1056,58 @@ app.post('/claims', async (context) => {
   try {
     if (typeof claimEventFactory !== 'function' || typeof claimRoleResolver !== 'function') return context.json(errorBody('CLAIM_CREATION_UNAVAILABLE', 'claim creation is not configured', context.get('requestId')), 503);
     const claims = await authenticateRequest(context.req.raw, context.env);
-    const actorId = await resolveActorForSupabaseClaims({ repository, claims });
     const body = await context.req.json();
+    const claimId = canonicalClaimText(body.claimId, 'claim id');
+    const questionId = body.questionId === undefined ? null : canonicalClaimText(body.questionId, 'question id', { nullable: true });
+    const statement = canonicalClaimText(body.statement, 'claim statement');
+    const suppliedDrafterActorId = body.draftedByActorId === undefined ? null : canonicalClaimText(body.draftedByActorId, 'drafting actor id');
+    const actorId = await resolveActorForSupabaseClaims({ repository, claims });
+    const draftedByActorId = suppliedDrafterActorId ?? actorId;
+    const hasSeparateDrafter = draftedByActorId !== actorId;
     const submission = {
-      claimId: body.claimId,
-      questionId: body.questionId ?? null,
-      statement: body.statement,
+      claimId,
+      draftedByActorId,
+      questionId,
+      statement,
       scope: body.scope,
-      assumptions: body.assumptions ?? [],
+      assumptions: body.assumptions === undefined ? [] : body.assumptions,
       falsification: body.falsification,
     };
+    if (typeof repository?.getActor !== 'function') {
+      throw new ClaimCommandError('publisher actor lookup is not configured', 'CLAIM_PUBLISHER_ACTOR_LOOKUP_UNAVAILABLE', 503);
+    }
+    const [publisherActor, draftingActor] = await Promise.all([
+      repository.getActor(actorId),
+      hasSeparateDrafter ? repository.getActor(draftedByActorId) : Promise.resolve(null),
+    ]);
+    if (!publisherActor) throw new ClaimCommandError('publishing actor not found', 'CLAIM_PUBLISHER_NOT_FOUND', 404);
+    if (publisherActor.actorType !== 'human') {
+      throw new ClaimCommandError('publishing actor must be human', 'CLAIM_PUBLISHER_TYPE_INVALID', 403);
+    }
+    if (hasSeparateDrafter) {
+      if (!draftingActor) throw new ClaimCommandError('drafting actor not found', 'CLAIM_DRAFTER_NOT_FOUND', 404);
+      if (!['agent', 'service'].includes(draftingActor.actorType)) {
+        throw new ClaimCommandError('drafting actor must be an agent or service', 'CLAIM_DRAFTER_TYPE_INVALID');
+      }
+    }
+    if (hasSeparateDrafter && body.signatureEnvelope === undefined) {
+      throw new ClaimCommandError('signature envelope is required when the drafting actor differs from the publisher', 'CLAIM_DRAFTER_SIGNATURE_REQUIRED');
+    }
+    let publisherSignatureEnvelope = null;
     if (body.signatureEnvelope !== undefined) {
       // Verify against the exact sent payload (minus the envelope itself);
       // defaults are applied only when constructing the domain command.
       const signedPayload = { ...body };
       delete signedPayload.signatureEnvelope;
       await verifyClientSignatureEnvelope({ repository, signatureNonceStore: nonceStoreFor(context), actorId, envelope: body.signatureEnvelope, payload: signedPayload, expectedEventType: 'claim.created' });
+      publisherSignatureEnvelope = persistedClientSignatureEnvelope(body.signatureEnvelope, signedPayload);
     }
-    const actorRole = await claimRoleResolver({ repository, actorId, questionId: body.questionId ?? null, projectId: body.projectId ?? null });
+    const actorRole = await claimRoleResolver({ repository, actorId, questionId, projectId: body.projectId ?? null });
     return context.json(await createClaim({
       repository,
       actorId,
       actorRole,
+      publisherSignatureEnvelope,
       ...submission,
       eventFactory: claimEventFactory,
     }), 201);
@@ -1082,36 +1277,75 @@ app.post('/runs', async (context) => {
   try {
     if (typeof runEventFactory !== 'function' || typeof runRoleResolver !== 'function') return context.json(errorBody('RUN_CREATION_UNAVAILABLE', 'run creation is not configured', context.get('requestId')), 503);
     const claims = await authenticateRequest(context.req.raw, context.env);
-    const actorId = await resolveActorForSupabaseClaims({ repository, claims });
+    const publisherActorId = await resolveActorForSupabaseClaims({ repository, claims });
     const body = await context.req.json();
-    const submission = {
-      runId: body.runId,
-      taskId: body.taskId,
-      contextBundleId: body.contextBundleId,
-      sourceCode: body.sourceCode,
-      container: body.container,
-      command: body.command,
-      args: body.args ?? [],
-      environment: body.environment,
-      hardware: body.hardware,
-      randomSeed: body.randomSeed,
-      startedAt: body.startedAt,
-      endedAt: body.endedAt,
-      networkAccess: body.networkAccess ?? false,
-      exitCode: body.exitCode,
-      signature: body.signature,
-      inputs: body.inputs ?? [],
-      outputs: body.outputs ?? [],
-    };
-    if (body.signatureEnvelope !== undefined) {
-      const signedPayload = { ...body };
-      delete signedPayload.signatureEnvelope;
-      await verifyClientSignatureEnvelope({ repository, signatureNonceStore: nonceStoreFor(context), actorId, envelope: body.signatureEnvelope, payload: signedPayload, expectedEventType: 'run.created' });
+    if (body.signatureEnvelope === undefined) {
+      throw new RunCommandError('publisher signature envelope is required', 'RUN_PUBLISHER_SIGNATURE_REQUIRED');
     }
-    const actorRole = await runRoleResolver({ repository, actorId, taskId: body.taskId ?? null });
+    if (typeof repository?.getActor !== 'function') {
+      throw new RunCommandError('publisher and producer actor lookup is not configured', 'RUN_ACTOR_LOOKUP_UNAVAILABLE', 503);
+    }
+    const canonicalBody = canonicalRunBody(body);
+    const signedPayload = { ...body };
+    const canonicalSignedPayload = { ...canonicalBody };
+    delete signedPayload.signatureEnvelope;
+    delete canonicalSignedPayload.signatureEnvelope;
+    for (const field of ['args', 'inputs', 'outputs']) {
+      if (!Object.hasOwn(signedPayload, field)) delete canonicalSignedPayload[field];
+    }
+    if (canonicalJson(signedPayload) !== canonicalJson(canonicalSignedPayload)) {
+      throw new RunCommandError('run body must already be canonical before publisher signing', 'RUN_BODY_NONCANONICAL');
+    }
+    const [publisherActor, producerActor] = await Promise.all([
+      repository.getActor(publisherActorId),
+      repository.getActor(canonicalBody.actorId),
+    ]);
+    if (!publisherActor) throw new RunCommandError('publishing actor not found', 'RUN_PUBLISHER_NOT_FOUND', 404);
+    if (publisherActor.actorType !== 'human') {
+      throw new RunCommandError('publishing actor must be human', 'RUN_PUBLISHER_TYPE_INVALID', 403);
+    }
+    if (!producerActor) throw new RunCommandError('run producer actor not found', 'RUN_PRODUCER_NOT_FOUND', 404);
+    if (!['agent', 'service'].includes(producerActor.actorType)) {
+      throw new RunCommandError('run producer must be an agent or service', 'RUN_PRODUCER_TYPE_INVALID', 403);
+    }
+    const activeSigningKey = typeof repository?.findActiveSigningKey === 'function'
+      ? await repository.findActiveSigningKey(canonicalBody.actorId)
+      : null;
+    if (!activeSigningKey || activeSigningKey.keyId !== canonicalBody.signingKeyId) {
+      throw new ActorIdentityError('Run signing key does not belong to the producer actor', 'SIGNING_KEY_ID_MISMATCH', 403);
+    }
+    const validRunSignature = await verifyRunDocumentSignature({ body: canonicalBody, actorId: canonicalBody.actorId, publicKey: activeSigningKey.publicKey });
+    if (!validRunSignature) {
+      throw new RunCommandError('Run signature does not verify against the producer signing key', 'RUN_SIGNATURE_MISMATCH');
+    }
+    const submission = {
+      runId: canonicalBody.runId,
+      taskId: canonicalBody.taskId,
+      contextBundleId: canonicalBody.contextBundleId,
+      sourceCode: canonicalBody.sourceCode,
+      container: canonicalBody.container,
+      command: canonicalBody.command,
+      args: canonicalBody.args,
+      environment: canonicalBody.environment,
+      hardware: canonicalBody.hardware,
+      randomSeed: canonicalBody.randomSeed,
+      startedAt: canonicalBody.startedAt,
+      endedAt: canonicalBody.endedAt,
+      networkAccess: canonicalBody.networkAccess,
+      exitCode: canonicalBody.exitCode,
+      signingKeyId: canonicalBody.signingKeyId,
+      signature: body.signature,
+      inputs: canonicalBody.inputs,
+      outputs: canonicalBody.outputs,
+    };
+    await verifyClientSignatureEnvelope({ repository, signatureNonceStore: nonceStoreFor(context), actorId: publisherActorId, envelope: body.signatureEnvelope, payload: signedPayload, expectedEventType: 'run.created' });
+    const publisherSignatureEnvelope = persistedClientSignatureEnvelope(body.signatureEnvelope, signedPayload);
+    const actorRole = await runRoleResolver({ repository, actorId: publisherActorId, taskId: canonicalBody.taskId });
     return context.json(await createRun({
       repository,
-      actorId,
+      actorId: canonicalBody.actorId,
+      publisherActorId,
+      publisherSignatureEnvelope,
       actorRole,
       ...submission,
       startedAt: submission.startedAt === undefined ? undefined : new Date(submission.startedAt),

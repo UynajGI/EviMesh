@@ -30,6 +30,68 @@ test("returns an Actor's roles and produced/used contribution edges", async () =
   assert.equal(result.used[0].objectId, "claim-1");
 });
 
+test("hydrates produced Claim edges from immutable events even when the current Actor projection is unavailable", async () => {
+  const calls = [];
+  const repository = {
+    async listContributionStatements() {
+      return [
+        { statementId: "statement-signed", eventId: "event-signed", role: "originator" },
+        { statementId: "statement-missing", eventId: "event-missing", role: "originator" },
+      ];
+    },
+    async listContributionEdges(statementIds) {
+      calls.push(["edges", statementIds]);
+      return [
+        { statementId: "statement-signed", edgeType: "produced", objectType: "claim", objectId: "claim-signed", objectRevision: 1 },
+        { statementId: "statement-missing", edgeType: "produced", objectType: "claim", objectId: "claim-missing", objectRevision: 1 },
+      ];
+    },
+    async listResearchEventsByIds(eventIds) {
+      calls.push(["events", eventIds]);
+      return [{ eventId: "event-signed", eventType: "claim.created", payload: { claim_id: "claim-signed", revision: 1, signer_actor_id: "human-1" } }];
+    },
+    async getActor() { return null; },
+  };
+  const result = await getContribution({ repository, actorId: "agent-1" });
+  assert.deepEqual(calls, [
+    ["edges", ["statement-signed", "statement-missing"]],
+    ["events", ["event-signed", "event-missing"]],
+  ]);
+  assert.equal(result.produced[0].signedBy, "human-1");
+  assert.equal(result.produced[1].signedBy, null);
+});
+
+test("requires exact Claim creation evidence and a canonical event signer", async () => {
+  const cases = [
+    { suffix: "wrong-event", eventType: "claim.revised", claimId: "claim-wrong-event", revision: 1, signer: "human-1" },
+    { suffix: "wrong-object", eventType: "claim.created", claimId: "another-claim", revision: 1, signer: "human-1" },
+    { suffix: "wrong-revision", eventType: "claim.created", claimId: "claim-wrong-revision", revision: 2, signer: "human-1" },
+    { suffix: "not-produced", edgeType: "used", eventType: "claim.created", claimId: "claim-not-produced", revision: 1, signer: "human-1" },
+    { suffix: "empty-signer", eventType: "claim.created", claimId: "claim-empty-signer", revision: 1, signer: "" },
+    { suffix: "noncanonical-signer", eventType: "claim.created", claimId: "claim-noncanonical-signer", revision: 1, signer: " human-1 " },
+  ];
+  const repository = {
+    async listContributionStatements() {
+      return cases.map(({ suffix }) => ({ statementId: `statement-${suffix}`, eventId: `event-${suffix}`, role: "originator" }));
+    },
+    async listContributionEdges() {
+      return cases.map(({ suffix, edgeType = "produced" }) => ({
+        statementId: `statement-${suffix}`, edgeType, objectType: "claim",
+        objectId: `claim-${suffix}`, objectRevision: 1,
+      }));
+    },
+    async listResearchEventsByIds() {
+      return cases.map(({ suffix, eventType, claimId, revision, signer }) => ({
+        eventId: `event-${suffix}`, eventType,
+        payload: { claim_id: claimId, revision, signer_actor_id: signer },
+      }));
+    },
+  };
+
+  const result = await getContribution({ repository, actorId: "agent-1" });
+  assert.deepEqual([...result.produced, ...result.used].map((edge) => edge.signedBy), cases.map(() => null));
+});
+
 test("returns a typed not-found error for an Actor without contribution statements", async () => {
   const repository = {
     async listContributionStatements() { return []; },
@@ -43,13 +105,18 @@ test("returns a typed not-found error for an Actor without contribution statemen
 });
 
 test("includes the identity card and profile when the repository exposes actor rows", async () => {
+  const latestEventCalls = [];
   const repository = {
     async listContributionStatements() { return [{ statementId: "statement-1", role: "verifier", description: "verified", createdAt: "2026-08-01T00:00:00Z" }]; },
     async listContributionEdges() { return []; },
     async getActor(actorId) {
-      return { actorId, actorType: "agent", identityStrength: "self_declared", modelName: "self_declared:glm-4.7", runtime: "oci:repro-env:2026.07", scope: "read · draft", publicKeyFingerprint: "ed25519:9f3a…21c8", ownerActorId: "human-1", createdAt: "2026-08-01T00:00:00Z" };
+      return { actorId, actorType: "agent", identityStrength: "self_declared", modelName: "self_declared:glm-4.7", runtime: "oci:repro-env:2026.07", scope: "read · draft", publicKeyFingerprint: "ed25519:9f3a…21c8", ownerActorId: "human-1", createdAt: "2026-08-01T00:00:00Z", updatedAt: "2026-08-03T00:00:00Z" };
     },
     async getActorProfile() { return { displayName: "atlas-07", bio: null, avatarUrl: null }; },
+    async getLatestResearchEventForActor(actorId) {
+      latestEventCalls.push(actorId);
+      return { eventId: "event-2", createdAt: "2026-08-04T00:00:00Z" };
+    },
   };
 
   const result = await getContribution({ repository, actorId: "agent-1" });
@@ -61,6 +128,10 @@ test("includes the identity card and profile when the repository exposes actor r
   assert.equal(result.actor.publicKeyFingerprint, "ed25519:9f3a…21c8");
   assert.equal(result.actor.ownerActorId, "human-1");
   assert.equal(result.actor.displayName, "atlas-07");
+  assert.equal(result.actor.updatedAt, "2026-08-03T00:00:00Z");
+  assert.equal(result.lastEventAt, "2026-08-04T00:00:00Z");
+  assert.equal(result.lastEventId, "event-2");
+  assert.deepEqual(latestEventCalls, ["agent-1"]);
 });
 
 test("an actor row without statements is readable; missing both stays 404", async () => {

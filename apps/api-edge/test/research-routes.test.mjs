@@ -4,12 +4,17 @@ import { createApp } from "../src/index.mjs";
 import { buildMerkleTree } from "../../../packages/merkle/src/merkle-tree.mjs";
 import { hashResearchEventLeaf } from "../../../packages/merkle/src/research-event-leaf.mjs";
 import { verifyMerkleInclusionProof } from "../../../packages/merkle/src/verify-inclusion-proof.mjs";
+import { canonicalJson, rawHash } from "../../../packages/protocol/src/hash.mjs";
+import { generateEd25519KeyPair } from "../../../packages/signatures/src/ed25519.mjs";
+import { signEd25519Payload } from "../../../packages/signatures/src/client-signature.mjs";
+import { verifyEd25519Payload } from "../../../packages/signatures/src/server-verification.mjs";
 
 const AUTH = { authenticate: async () => ({ sub: "supabase-subject" }) };
 
 function identityRepository(extra = {}) {
   return {
     findIdentity: async () => ({ actorId: "actor-1" }),
+    getActor: async (actorId) => ({ actorId, actorType: "human" }),
     withTransaction: async (callback) => callback(transactionRepository(extra)),
     ...extra,
   };
@@ -24,6 +29,22 @@ function transactionRepository(extra = {}) {
 }
 
 const eventFactory = async ({ eventType, payload }) => ({ eventType, payload });
+
+async function signatureEnvelope({ keyPair, keyId, eventType, payload, nonce = "nonce-0123456789abcdef" }) {
+  const signingBytes = Buffer.from(canonicalJson({ event_type: eventType, payload, nonce }), "utf8");
+  return {
+    schema: "srp.client-signature-envelope.v1",
+    event_type: eventType,
+    payload,
+    nonce,
+    signing_bytes_hash: `sha256:${rawHash(signingBytes.toString("utf8"))}`,
+    signature: {
+      algorithm: "Ed25519",
+      key_id: keyId,
+      value: await signEd25519Payload({ signingBytes: new Uint8Array(signingBytes), privateKey: keyPair.private_key }),
+    },
+  };
+}
 
 test("lists artifacts with type and creator filters", async () => {
   const app = createApp({ repository: { listArtifacts: async ({ artifactType, createdBy }) => [
@@ -109,12 +130,15 @@ test("returns an Attempt with its trace summary", async () => {
 
 test("returns an Actor contribution profile", async () => {
   const app = createApp({ repository: {
-    listContributionStatements: async () => [{ statementId: "statement-1", role: "originator" }],
-    listContributionEdges: async () => [{ statementId: "statement-1", edgeType: "produced", objectType: "claim", objectId: "claim-1" }],
+    listContributionStatements: async () => [{ statementId: "statement-1", eventId: "event-1", role: "originator" }],
+    listContributionEdges: async () => [{ statementId: "statement-1", edgeType: "produced", objectType: "claim", objectId: "claim-1", objectRevision: 1 }],
+    listResearchEventsByIds: async () => [{ eventId: "event-1", eventType: "claim.created", payload: { claim_id: "claim-1", revision: 1, signer_actor_id: "human-1" } }],
   } });
   const response = await app.fetch(new Request("https://api.example.test/actors/actor-1"), {});
   assert.equal(response.status, 200);
-  assert.equal((await response.json()).statements[0].statementId, "statement-1");
+  const body = await response.json();
+  assert.equal(body.statements[0].statementId, "statement-1");
+  assert.equal(body.produced[0].signedBy, "human-1");
 });
 
 test("lists Verification receipts for one Claim and returns one receipt", async () => {
@@ -142,6 +166,13 @@ test("lists research events and exports contiguous NDJSON ranges", async () => {
   const list = await app.fetch(new Request("https://api.example.test/events?eventType=claim.created&limit=6"), {});
   assert.equal(list.status, 200);
   assert.deepEqual((await list.json()).items.map((event) => event.eventId), ["event-1"]);
+  const invalidCursor = await app.fetch(new Request("https://api.example.test/events?cursor=not-base64"), {});
+  assert.equal(invalidCursor.status, 400);
+  assert.deepEqual(await invalidCursor.json(), {
+    code: "RESEARCH_EVENT_QUERY_INVALID",
+    message: "invalid pagination cursor",
+    request_id: invalidCursor.headers.get("x-request-id"),
+  });
   const exportResponse = await app.fetch(new Request("https://api.example.test/events/export?firstEventId=event-1&lastEventId=event-2"), {});
   assert.equal(exportResponse.status, 200);
   assert.equal(exportResponse.headers.get("content-type"), "application/x-ndjson");
@@ -564,10 +595,20 @@ test("creates Evidence and links it to a fixed ClaimRevision", async () => {
   const created = await app.fetch(new Request("https://api.example.test/evidence", {
     method: "POST",
     headers: { authorization: "Bearer test-token", "content-type": "application/json" },
-    body: JSON.stringify({ evidenceId: "evidence-1", evidenceType: "experimental_result", artifactId: "artifact-1", artifactRevision: 1 }),
+    body: JSON.stringify({ evidenceId: "evidence-1", evidenceType: "experimental_result", artifactId: "artifact-1", artifactRevision: 1, links: [{ claimId: "claim-1", claimRevision: 2, relationType: "refutes" }] }),
   }), {});
   assert.equal(created.status, 201, await created.clone().text());
-  assert.equal((await created.json()).evidence.evidenceId, "evidence-1");
+  const createdPayload = await created.json();
+  assert.equal(createdPayload.evidence.evidenceId, "evidence-1");
+  assert.equal(createdPayload.linkEvents[0].eventType, "evidence.claim_linked");
+  assert.deepEqual(createdPayload.linkEvents[0].payload, {
+    entity_type: "evidence",
+    evidence_id: "evidence-1",
+    claim_id: "claim-1",
+    claim_revision: 2,
+    relation_type: "refutes",
+    actor_id: "actor-1",
+  });
   const linked = await app.fetch(new Request("https://api.example.test/evidence/evidence-1/links", {
     method: "POST",
     headers: { authorization: "Bearer test-token", "content-type": "application/json" },
@@ -577,36 +618,349 @@ test("creates Evidence and links it to a fixed ClaimRevision", async () => {
   assert.equal((await linked.json()).link.claimRevision, 2);
 });
 
-test("records a Run receipt through the API", async () => {
+test("rejects malformed Run canonical fields before actor/key lookup, verification, nonce consumption, role resolution, or writes", async () => {
+  let actorLookups = 0;
+  let keyLookups = 0;
+  let nonceClaims = 0;
+  let writes = 0;
+  let roleResolutions = 0;
+  const repository = identityRepository({
+    findIdentity: async () => ({ actorId: "publisher-1" }),
+    getActor: async () => { actorLookups += 1; return null; },
+    findActiveSigningKey: async () => { keyLookups += 1; return null; },
+    claimSignatureNonce: async () => { nonceClaims += 1; return true; },
+    insertRun: async () => { writes += 1; },
+  });
+  const app = createApp({
+    repository,
+    runEventFactory: eventFactory,
+    runRoleResolver: async () => { roleResolutions += 1; return "contributor"; },
+    authenticate: async () => ({ sub: "publisher-subject" }),
+  });
+  const body = {
+    actorId: "agent-1", runId: "run-1", taskId: "task-1", contextBundleId: "bundle-1",
+    sourceCode: "artifact-code@1", container: `python@sha256:${"a".repeat(64)}`, command: "python",
+    args: [], environment: {}, hardware: {}, randomSeed: {}, startedAt: "2026-08-06T00:00:00.000Z",
+    endedAt: "2026-08-06T00:00:01.000Z", networkAccess: false, exitCode: 0,
+    signingKeyId: "producer-key", signature: "inner-signature", inputs: [], outputs: [],
+    signatureEnvelope: { schema: "srp.client-signature-envelope.v1" },
+  };
+  for (const [invalid, expectedCode] of [
+    [{ inputs: {} }, "RUN_ARTIFACT_REFS_INVALID"], [{ inputs: "artifact-input@1" }, "RUN_ARTIFACT_REFS_INVALID"], [{ inputs: null }, "RUN_ARTIFACT_REFS_INVALID"],
+    [{ outputs: {} }, "RUN_ARTIFACT_REFS_INVALID"], [{ outputs: "artifact-output@1" }, "RUN_ARTIFACT_REFS_INVALID"], [{ outputs: null }, "RUN_ARTIFACT_REFS_INVALID"],
+    [{ inputs: [null, { artifactId: "artifact-input", artifactRevision: 1 }] }, "RUN_ARTIFACT_REFS_INVALID"],
+    [{ outputs: [{ artifactId: "artifact-output", artifactRevision: 0 }] }, "RUN_ARTIFACT_REFS_INVALID"],
+    [{ inputs: [{ artifactId: " artifact-input", artifactRevision: 1 }] }, "RUN_ARTIFACT_REFS_INVALID"],
+    [{ args: null }, "RUN_ARGS_INVALID"], [{ args: {} }, "RUN_ARGS_INVALID"], [{ args: "python" }, "RUN_ARGS_INVALID"], [{ args: [null] }, "RUN_ARGS_INVALID"],
+    [{ environment: null }, "RUN_OBJECT_INVALID"], [{ environment: [] }, "RUN_OBJECT_INVALID"], [{ environment: undefined }, "RUN_OBJECT_INVALID"],
+    [{ hardware: null }, "RUN_OBJECT_INVALID"], [{ randomSeed: "42" }, "RUN_OBJECT_INVALID"], [{ randomSeed: undefined }, "RUN_OBJECT_INVALID"],
+    [{ networkAccess: null }, "RUN_BOOLEAN_INVALID"], [{ networkAccess: "false" }, "RUN_BOOLEAN_INVALID"], [{ networkAccess: undefined }, "RUN_BOOLEAN_INVALID"],
+    [{ exitCode: null }, "RUN_INTEGER_INVALID"], [{ exitCode: "0" }, "RUN_INTEGER_INVALID"], [{ exitCode: 0.5 }, "RUN_INTEGER_INVALID"],
+    [{ startedAt: "2026-08-06T08:00:00.000+08:00" }, "RUN_BODY_NONCANONICAL"],
+    [{ inputs: [{ artifactId: "artifact-z", artifactRevision: 1 }, { artifactId: "artifact-a", artifactRevision: 1 }] }, "RUN_BODY_NONCANONICAL"],
+    [{ annotation: "outer-signed but not persisted" }, "RUN_BODY_NONCANONICAL"],
+    [{ inputs: [{ artifactId: "artifact-a", artifactRevision: 1 }, { artifactId: "artifact-a", artifactRevision: 1 }] }, "RUN_ARTIFACT_REFS_DUPLICATE"],
+  ]) {
+    const response = await app.fetch(new Request("https://api.example.test/runs", {
+      method: "POST",
+      headers: { authorization: "Bearer test-token", "content-type": "application/json" },
+      body: JSON.stringify({ ...body, ...invalid }),
+    }), {});
+    assert.equal(response.status, 400, JSON.stringify(invalid));
+    assert.equal((await response.json()).code, expectedCode, JSON.stringify(invalid));
+  }
+  assert.equal(actorLookups, 0);
+  assert.equal(keyLookups, 0);
+  assert.equal(nonceClaims, 0);
+  assert.equal(roleResolutions, 0);
+  assert.equal(writes, 0);
+});
+
+test("defaults omitted optional Run arrays without adding them to the signed publisher payload", async () => {
+  const producerKeyPair = generateEd25519KeyPair();
+  const publisherKeyPair = generateEd25519KeyPair();
   const app = createApp({
     repository: identityRepository({
-      getArtifactRevision: async (artifactId, revision) => ({ artifactId, revision }),
-      getArtifactVerification: async () => ({ status: "verified" }),
+      findIdentity: async () => ({ actorId: "publisher-1" }),
+      getActor: async (actorId) => actorId === "publisher-1"
+        ? { actorId, actorType: "human" }
+        : actorId === "agent-1" ? { actorId, actorType: "agent" } : null,
+      findActiveSigningKey: async (actorId) => actorId === "publisher-1"
+        ? { keyId: "publisher-key", actorId, algorithm: "Ed25519", publicKey: publisherKeyPair.public_key }
+        : actorId === "agent-1" ? { keyId: "producer-key", actorId, algorithm: "Ed25519", publicKey: producerKeyPair.public_key } : null,
+      claimSignatureNonce: async () => true,
+      getArtifactRevision: async () => { throw new Error("omitted artifact lists must not resolve revisions"); },
+      getArtifactVerification: async () => { throw new Error("omitted artifact lists must not verify artifacts"); },
       insertRun: async (run) => run,
-      insertRunInput: async (input) => input,
-      insertRunOutput: async (output) => output,
+      insertRunInput: async () => { throw new Error("omitted inputs must not write rows"); },
+      insertRunOutput: async () => { throw new Error("omitted outputs must not write rows"); },
       appendResearchEvent: async (event) => event,
     }),
     runEventFactory: eventFactory,
     runRoleResolver: async () => "contributor",
-    ...AUTH,
+    authenticate: async () => ({ sub: "publisher-subject" }),
   });
+
+  for (const [index, omittedKeys] of [[1, ["inputs"]], [2, ["inputs", "outputs"]], [3, ["args"]]]) {
+    const runId = `run-omitted-${index}`;
+    const unsignedRun = {
+      schema: "srp.run.v1", run_id: runId, task_id: "task-1", context_bundle_id: "bundle-1",
+      input_artifact_ids: [], source_code: "artifact-code@1", container: `python@sha256:${"a".repeat(64)}`,
+      command: "python", args: [], environment: {}, hardware: {}, random_seed: {},
+      started_at: "2026-08-06T00:00:00.000Z", ended_at: "2026-08-06T00:00:01.000Z",
+      network_access: false, output_artifact_ids: [], exit_code: 0, actor_id: "agent-1", signing_key_id: "producer-key",
+    };
+    const signature = await signEd25519Payload({
+      signingBytes: new TextEncoder().encode(canonicalJson(unsignedRun)),
+      privateKey: producerKeyPair.private_key,
+    });
+    const body = {
+      runId, taskId: "task-1", contextBundleId: "bundle-1", sourceCode: "artifact-code@1",
+      container: `python@sha256:${"a".repeat(64)}`, command: "python", args: [], environment: {}, hardware: {},
+      randomSeed: {}, startedAt: unsignedRun.started_at, endedAt: unsignedRun.ended_at, networkAccess: false,
+      exitCode: 0, actorId: "agent-1", signingKeyId: "producer-key", signature, inputs: [], outputs: [],
+    };
+    for (const key of omittedKeys) delete body[key];
+    const envelope = await signatureEnvelope({
+      keyPair: publisherKeyPair, keyId: "publisher-key", eventType: "run.created", payload: body,
+      nonce: `nonce-omitted-run-000${index}`,
+    });
+    const response = await app.fetch(new Request("https://api.example.test/runs", {
+      method: "POST",
+      headers: { authorization: "Bearer test-token", "content-type": "application/json" },
+      body: JSON.stringify({ ...body, signatureEnvelope: envelope }),
+    }), {});
+    assert.equal(response.status, 201, await response.clone().text());
+    const created = await response.json();
+    assert.deepEqual(created.inputs, []);
+    assert.deepEqual(created.outputs, []);
+    assert.deepEqual(created.run.args, []);
+    assert.deepEqual(created.event.payload.publisher_signature_envelope.payload, body);
+    for (const key of omittedKeys) {
+      assert.equal(Object.hasOwn(created.event.payload.publisher_signature_envelope.payload, key), false, key);
+    }
+    assert.equal(created.run.signature, signature);
+  }
+});
+
+test("records a Run receipt through the API", async () => {
+  const producerKeyPair = generateEd25519KeyPair();
+  const publisherKeyPair = generateEd25519KeyPair();
+  let persistedRun = null;
+  let runInsertCount = 0;
+  const persistedInputs = [];
+  const persistedOutputs = [];
+  const app = createApp({
+    repository: identityRepository({
+      findIdentity: async () => ({ actorId: "publisher-1" }),
+      getActor: async (actorId) => actorId === "publisher-1"
+        ? { actorId, actorType: "human" }
+        : actorId === "agent-1" ? { actorId, actorType: "agent" } : null,
+      findActiveSigningKey: async (actorId) => actorId === "publisher-1"
+        ? { keyId: "publisher-key", actorId, algorithm: "Ed25519", publicKey: publisherKeyPair.public_key }
+        : actorId === "agent-1" ? { keyId: "producer-key", actorId, algorithm: "Ed25519", publicKey: producerKeyPair.public_key } : null,
+      claimSignatureNonce: async () => true,
+      getArtifactRevision: async (artifactId, revision) => ({ artifactId, revision }),
+      getArtifactVerification: async () => ({ status: "verified" }),
+      insertRun: async (run) => { runInsertCount += 1; persistedRun = run; return run; },
+      insertRunInput: async (input) => { persistedInputs.push(input); return input; },
+      insertRunOutput: async (output) => { persistedOutputs.push(output); return output; },
+      getRun: async (runId) => persistedRun?.runId === runId ? persistedRun : null,
+      listRunInputs: async () => [...persistedInputs].reverse(),
+      listRunOutputs: async () => [...persistedOutputs].reverse(),
+      appendResearchEvent: async (event) => event,
+    }),
+    runEventFactory: eventFactory,
+    runRoleResolver: async () => "contributor",
+    authenticate: async () => ({ sub: "publisher-subject" }),
+  });
+  const unsignedRun = {
+    schema: "srp.run.v1",
+    run_id: "run-1",
+    task_id: "task-1",
+    context_bundle_id: "bundle-1",
+    input_artifact_ids: ["artifact-input-a@1", "artifact-input-shared@10", "artifact-input-shared@2", "artifact-input-z@1"],
+    source_code: "artifact-code@1",
+    container: "python@sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+    command: "python",
+    args: ["reproduce.py"],
+    environment: { python: "3.12" },
+    hardware: { cpu: "x86_64" },
+    random_seed: { seed: 42 },
+    started_at: "2026-08-06T00:00:00.123Z",
+    ended_at: "2026-08-06T00:05:00.000Z",
+    network_access: false,
+    output_artifact_ids: ["artifact-output-a@1", "artifact-output-shared@10", "artifact-output-shared@2", "artifact-output-z@1"],
+    exit_code: 0,
+    actor_id: "agent-1",
+    signing_key_id: "producer-key",
+  };
+  const signature = await signEd25519Payload({
+    signingBytes: new TextEncoder().encode(canonicalJson(unsignedRun)),
+    privateKey: producerKeyPair.private_key,
+  });
+  const runBody = {
+    runId: "run-1", taskId: "task-1", contextBundleId: "bundle-1",
+    sourceCode: "artifact-code@1",
+    container: "python@sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+    command: "python", args: ["reproduce.py"], environment: { python: "3.12" }, hardware: { cpu: "x86_64" },
+    randomSeed: { seed: 42 }, startedAt: "2026-08-06T00:00:00.123Z", endedAt: "2026-08-06T00:05:00.000Z", networkAccess: false, exitCode: 0,
+    actorId: "agent-1",
+    signingKeyId: "producer-key",
+    signature,
+    inputs: [
+      { artifactId: "artifact-input-a", artifactRevision: 1 },
+      { artifactId: "artifact-input-shared", artifactRevision: 10 },
+      { artifactId: "artifact-input-shared", artifactRevision: 2 },
+      { artifactId: "artifact-input-z", artifactRevision: 1 },
+    ],
+    outputs: [
+      { artifactId: "artifact-output-a", artifactRevision: 1 },
+      { artifactId: "artifact-output-shared", artifactRevision: 10 },
+      { artifactId: "artifact-output-shared", artifactRevision: 2 },
+      { artifactId: "artifact-output-z", artifactRevision: 1 },
+    ],
+  };
+  const envelope = await signatureEnvelope({ keyPair: publisherKeyPair, keyId: "publisher-key", eventType: "run.created", payload: runBody });
+  const submittedEnvelope = { ...envelope, unsigned_extra: "discard me", signature: { ...envelope.signature, unsigned_extra: "discard me" } };
   const response = await app.fetch(new Request("https://api.example.test/runs", {
     method: "POST",
     headers: { authorization: "Bearer test-token", "content-type": "application/json" },
-    body: JSON.stringify({
-      runId: "run-1", taskId: "task-1", contextBundleId: "bundle-1",
-      sourceCode: "artifact-code@1",
-      container: "python@sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
-      command: "python", args: ["reproduce.py"], environment: { python: "3.12" }, hardware: { cpu: "x86_64" },
-      randomSeed: { seed: 42 }, startedAt: "2026-08-06T00:00:00.000Z", endedAt: "2026-08-06T00:05:00.000Z", exitCode: 0,
-      signature: "ed25519:sig",
-      inputs: [{ artifactId: "artifact-input", artifactRevision: 1 }],
-      outputs: [{ artifactId: "artifact-output", artifactRevision: 1 }],
-    }),
+    body: JSON.stringify({ ...runBody, signatureEnvelope: submittedEnvelope }),
   }), {});
   assert.equal(response.status, 201, await response.clone().text());
-  assert.equal((await response.json()).run.runId, "run-1");
+  const created = await response.json();
+  assert.equal(created.run.runId, "run-1");
+  assert.equal(created.run.signingKeyId, "producer-key");
+  assert.equal(created.run.createdBy, "agent-1");
+  assert.equal(created.event.payload.publisher_actor_id, "publisher-1");
+  assert.equal(created.event.payload.producer_actor_id, "agent-1");
+  assert.deepEqual(created.event.payload.publisher_signature_envelope, envelope);
+  assert.deepEqual(created.event.payload.publisher_signature_envelope.payload, runBody);
+  assert.equal(created.event.payload.publisher_signature_envelope.signature.key_id, "publisher-key");
+  assert.equal(created.event.payload.publisher_signature_envelope.signature.value, envelope.signature.value);
+  assert.equal(created.event.payload.publisher_signature_envelope.signing_bytes_hash, envelope.signing_bytes_hash);
+  assert.equal(created.event.payload.publisher_signature_envelope.nonce, envelope.nonce);
+  assert.equal(created.event.payload.publisher_signature_envelope.unsigned_extra, undefined);
+  assert.equal(created.event.payload.publisher_signature_envelope.signature.unsigned_extra, undefined);
+  const persistedPublisherEnvelope = created.event.payload.publisher_signature_envelope;
+  assert.equal(await verifyEd25519Payload({
+    signingBytes: new TextEncoder().encode(canonicalJson({ event_type: persistedPublisherEnvelope.event_type, payload: persistedPublisherEnvelope.payload, nonce: persistedPublisherEnvelope.nonce })),
+    signature: persistedPublisherEnvelope.signature.value,
+    publicKey: publisherKeyPair.public_key,
+  }), true);
+  assert.equal(runInsertCount, 1);
+  assert.equal(created.run.signature, signature);
+  assert.equal(created.run.startedAt, unsignedRun.started_at);
+  assert.equal(created.run.endedAt, unsignedRun.ended_at);
+  assert.deepEqual(persistedInputs.map(({ artifactId, artifactRevision }) => `${artifactId}@${artifactRevision}`), unsignedRun.input_artifact_ids);
+  assert.deepEqual(persistedOutputs.map(({ artifactId, artifactRevision }) => `${artifactId}@${artifactRevision}`), unsignedRun.output_artifact_ids);
+  const detailResponse = await app.fetch(new Request("https://api.example.test/runs/run-1"), {});
+  assert.equal(detailResponse.status, 200);
+  const detail = await detailResponse.json();
+  const reconstructedRun = {
+    ...unsignedRun,
+    input_artifact_ids: detail.inputs.map(({ artifactId, artifactRevision }) => `${artifactId}@${artifactRevision}`),
+    output_artifact_ids: detail.outputs.map(({ artifactId, artifactRevision }) => `${artifactId}@${artifactRevision}`),
+  };
+  assert.equal(await verifyEd25519Payload({
+    signingBytes: new TextEncoder().encode(canonicalJson(reconstructedRun)),
+    signature: detail.run.signature,
+    publicKey: producerKeyPair.public_key,
+  }), true);
+
+  const invalidSignature = await app.fetch(new Request("https://api.example.test/runs", {
+    method: "POST",
+    headers: { authorization: "Bearer test-token", "content-type": "application/json" },
+    body: JSON.stringify({ ...runBody, signature: "not-a-valid-signature", signatureEnvelope: envelope }),
+  }), {});
+  assert.equal(invalidSignature.status, 400);
+  assert.equal((await invalidSignature.json()).code, "RUN_SIGNATURE_MISMATCH");
+
+  const missingSignature = await app.fetch(new Request("https://api.example.test/runs", {
+    method: "POST",
+    headers: { authorization: "Bearer test-token", "content-type": "application/json" },
+    body: JSON.stringify({ ...runBody, signature: undefined, signatureEnvelope: envelope }),
+  }), {});
+  assert.equal(missingSignature.status, 400);
+  assert.equal((await missingSignature.json()).code, "RUN_SIGNATURE_MISMATCH");
+
+  for (const [invalidText, expectedCode] of [
+    [{ sourceCode: "" }, "RUN_INVALID"],
+    [{ sourceCode: " artifact-code@1" }, "RUN_INVALID"],
+    [{ command: " " }, "RUN_INVALID"],
+    [{ command: "python " }, "RUN_INVALID"],
+  ]) {
+    const invalidTextResponse = await app.fetch(new Request("https://api.example.test/runs", {
+      method: "POST",
+      headers: { authorization: "Bearer test-token", "content-type": "application/json" },
+      body: JSON.stringify({ ...runBody, ...invalidText, signatureEnvelope: envelope }),
+    }), {});
+    assert.equal(invalidTextResponse.status, 400, JSON.stringify(invalidText));
+    assert.equal((await invalidTextResponse.json()).code, expectedCode, JSON.stringify(invalidText));
+    assert.equal(runInsertCount, 1, JSON.stringify(invalidText));
+  }
+
+  for (const startedAt of [null, 0, "2026-08-06", "2026-08-06T00:00:00", " 2026-08-06T00:00:00Z ", "2026-02-31T00:00:00Z", "not-a-date-time"]) {
+    const invalidTimestamp = await app.fetch(new Request("https://api.example.test/runs", {
+      method: "POST",
+      headers: { authorization: "Bearer test-token", "content-type": "application/json" },
+      body: JSON.stringify({ ...runBody, startedAt, signatureEnvelope: envelope }),
+    }), {});
+    assert.equal(invalidTimestamp.status, 400, JSON.stringify(startedAt));
+  }
+
+  const foreignKeyBody = { ...runBody, signingKeyId: "key-owned-by-another-actor" };
+  const foreignKeyEnvelope = await signatureEnvelope({ keyPair: publisherKeyPair, keyId: "publisher-key", eventType: "run.created", payload: foreignKeyBody, nonce: "nonce-foreign-key-0001" });
+  const foreignKey = await app.fetch(new Request("https://api.example.test/runs", {
+    method: "POST",
+    headers: { authorization: "Bearer test-token", "content-type": "application/json" },
+    body: JSON.stringify({ ...foreignKeyBody, signatureEnvelope: foreignKeyEnvelope }),
+  }), {});
+  assert.equal(foreignKey.status, 403);
+  assert.equal((await foreignKey.json()).code, "SIGNING_KEY_ID_MISMATCH");
+
+  const missingEnvelope = await app.fetch(new Request("https://api.example.test/runs", {
+    method: "POST",
+    headers: { authorization: "Bearer test-token", "content-type": "application/json" },
+    body: JSON.stringify(runBody),
+  }), {});
+  assert.equal(missingEnvelope.status, 400);
+  assert.equal((await missingEnvelope.json()).code, "RUN_PUBLISHER_SIGNATURE_REQUIRED");
+
+  const tamperedOuter = await app.fetch(new Request("https://api.example.test/runs", {
+    method: "POST",
+    headers: { authorization: "Bearer test-token", "content-type": "application/json" },
+    body: JSON.stringify({ ...runBody, signatureEnvelope: { ...envelope, signature: { ...envelope.signature, value: "not-a-valid-signature" } } }),
+  }), {});
+  assert.equal(tamperedOuter.status, 400);
+  assert.equal((await tamperedOuter.json()).code, "CLIENT_SIGNATURE_MISMATCH");
+  assert.equal(runInsertCount, 1);
+
+  const agentPublisherApp = createApp({
+    repository: identityRepository({
+      findIdentity: async () => ({ actorId: "agent-publisher" }),
+      getActor: async (actorId) => actorId === "agent-publisher"
+        ? { actorId, actorType: "agent" }
+        : actorId === "agent-1" ? { actorId, actorType: "agent" } : null,
+      findActiveSigningKey: async (actorId) => actorId === "agent-publisher"
+        ? { keyId: "publisher-key", actorId, algorithm: "Ed25519", publicKey: publisherKeyPair.public_key }
+        : actorId === "agent-1" ? { keyId: "producer-key", actorId, algorithm: "Ed25519", publicKey: producerKeyPair.public_key } : null,
+      claimSignatureNonce: async () => true,
+      insertRun: async () => { throw new Error("agent publisher must not write"); },
+    }),
+    runEventFactory: eventFactory,
+    runRoleResolver: async () => "contributor",
+    authenticate: async () => ({ sub: "agent-publisher-subject" }),
+  });
+  const agentPublished = await agentPublisherApp.fetch(new Request("https://api.example.test/runs", {
+    method: "POST",
+    headers: { authorization: "Bearer test-token", "content-type": "application/json" },
+    body: JSON.stringify({ ...runBody, signatureEnvelope: envelope }),
+  }), {});
+  assert.equal(agentPublished.status, 403);
+  assert.equal((await agentPublished.json()).code, "RUN_PUBLISHER_TYPE_INVALID");
+  assert.equal(runInsertCount, 1);
 });
 
 test("plans a signed single-object artifact upload", async () => {

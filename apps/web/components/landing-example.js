@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { actorHref } from '@/components/attribution';
 import { useEffect, useState } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { Card, StatusBadge } from '@/components/ui/data';
@@ -106,12 +107,12 @@ export function LandingExample({ fallback }) {
                 </Link>
                 <IdChip value={claim.claimId} />
               </div>
-              {claim.evidenceCounts ? (
+              {claim.evidenceCounts && Object.values(claim.evidenceCounts).some((count) => count > 0) ? (
                 <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs tabular-nums text-muted-foreground">
-                  {claim.evidenceCounts.supports > 0 ? <Link className="hover:text-foreground" href={`/claims/${claim.claimId}`}>supports {claim.evidenceCounts.supports}</Link> : <span>supports 0</span>}
-                  {claim.evidenceCounts.refutes > 0 ? <Link className="hover:text-foreground" href={`/claims/${claim.claimId}`}>refutes {claim.evidenceCounts.refutes}</Link> : <span>refutes 0</span>}
-                  {claim.evidenceCounts.qualifies > 0 ? <Link className="hover:text-foreground" href={`/claims/${claim.claimId}`}>qualifies {claim.evidenceCounts.qualifies}</Link> : <span>qualifies 0</span>}
-                  {claim.evidenceCounts.reproduces > 0 ? <Link className="hover:text-foreground" href={`/claims/${claim.claimId}`}>reproduces {claim.evidenceCounts.reproduces}</Link> : <span>reproduces 0</span>}
+                  {claim.evidenceCounts.supports > 0 ? <Link className="hover:text-foreground" href={`/claims/${claim.claimId}`}>supports {claim.evidenceCounts.supports}</Link> : null}
+                  {claim.evidenceCounts.refutes > 0 ? <Link className="hover:text-foreground" href={`/claims/${claim.claimId}`}>refutes {claim.evidenceCounts.refutes}</Link> : null}
+                  {claim.evidenceCounts.qualifies > 0 ? <Link className="hover:text-foreground" href={`/claims/${claim.claimId}`}>qualifies {claim.evidenceCounts.qualifies}</Link> : null}
+                  {claim.evidenceCounts.reproduces > 0 ? <Link className="hover:text-foreground" href={`/claims/${claim.claimId}`}>reproduces {claim.evidenceCounts.reproduces}</Link> : null}
                 </p>
               ) : null}
             </li>
@@ -127,7 +128,7 @@ export function LandingExample({ fallback }) {
           {contributor ? (
             <span>
               {' '}· contributed by{' '}
-              <Link className="font-medium text-foreground hover:underline" href={`/contributors/${encodeURIComponent(contributor)}`}>{contributor}</Link>
+              <Link className="font-medium text-foreground hover:underline" href={actorHref(contributor)}>{contributor}</Link>
             </span>
           ) : null}
         </span>

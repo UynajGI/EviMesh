@@ -29,6 +29,7 @@ const TABLES = Object.freeze({
   questions: "questions",
   researchContractRevisions: "research_contract_revisions",
   researchEvents: "research_events",
+  signingKeys: "signing_keys",
   runInputs: "run_inputs",
   runOutputs: "run_outputs",
   runs: "runs",
@@ -67,6 +68,14 @@ function mapRow(row) {
 }
 
 const PAGE_SIZE = 1000;
+const CLAIM_GRAPH_FRONTIER_BATCH_SIZE = 50;
+const CLAIM_GRAPH_QUERY_CONCURRENCY = 4;
+const CLAIM_GRAPH_MAX_NODES = 256;
+const CLAIM_GRAPH_MAX_EDGES = 512;
+const CLAIM_GRAPH_RELATION_QUERY_LIMIT = CLAIM_GRAPH_MAX_EDGES + 1;
+const ATTRIBUTION_BATCH_SIZE = 50;
+const QUESTION_EVENT_CLAIM_LIMIT = 50;
+const EVENT_ACTOR_PAYLOAD_KEYS = Object.freeze(["actor_id", "signer_actor_id", "publisher_actor_id", "drafted_by_actor_id", "producer_actor_id", "run_actor_id"]);
 const TABLE_ORDERS = Object.freeze({
   actors: "created_at.desc,actor_id.desc",
   actorProfiles: "actor_id.asc",
@@ -99,6 +108,7 @@ const TABLE_ORDERS = Object.freeze({
   questions: "created_at.desc,question_id.desc",
   researchContractRevisions: "revision.desc,contract_id.desc",
   researchEvents: "created_at.asc,event_id.asc",
+  signingKeys: "created_at.desc,key_id.desc",
   runInputs: "created_at.asc,artifact_id.asc",
   runOutputs: "created_at.asc,artifact_id.asc",
   runs: "started_at.desc,run_id.desc",
@@ -114,14 +124,76 @@ const TABLE_ORDERS = Object.freeze({
 /** PostgREST filter value: `eq.x` for scalars, `in.(a,b)` for arrays, and
  *  `{ op, value }` for explicit operators (gte/lte/gt/lt/like/ilike). */
 function filterValue(value) {
-  if (Array.isArray(value)) return `in.(${value.map((entry) => String(entry).replaceAll(",", "").replaceAll(")", "")).join(",")})`;
+  if (Array.isArray(value)) return `in.(${value.map(postgrestLogicLiteral).join(",")})`;
   if (value && typeof value === "object" && typeof value.op === "string") return `${value.op}.${value.value}`;
   return `eq.${value}`;
 }
 
+function postgrestLogicLiteral(value) {
+  return `"${String(value).replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`;
+}
+
+async function mapWithConcurrency(items, concurrency, mapper) {
+  const results = new Array(items.length);
+  let nextIndex = 0;
+  async function worker() {
+    while (nextIndex < items.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await mapper(items[index], index);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, () => worker()));
+  return results;
+}
+
+function eventActorPredicate(actorId) {
+  const literal = postgrestLogicLiteral(actorId);
+  return EVENT_ACTOR_PAYLOAD_KEYS.map((key) => `payload->>${key}.eq.${literal}`).join(",");
+}
+
+function eventObjectIdKeys(objectType) {
+  if (!/^[A-Za-z][A-Za-z0-9_]*$/.test(objectType)) return [];
+  const keys = [`${objectType}_id`];
+  if (objectType === "claim") keys.push("source_claim_id", "target_claim_id");
+  if (objectType === "task") keys.push("source_task_id", "target_task_id");
+  if (objectType === "verification" || objectType === "verification_receipt") keys.push("receipt_id");
+  if (objectType === "frontier" || objectType === "frontier_snapshot") keys.push("snapshot_id", "frontier_snapshot_id");
+  if (objectType === "merge_proposal") keys.push("proposal_id");
+  return keys;
+}
+
+function eventObjectPredicate(objectType, objectId, descendantClaimIds = []) {
+  const typeLiteral = postgrestLogicLiteral(objectType);
+  const idLiteral = postgrestLogicLiteral(objectId);
+  const typedKeys = eventObjectIdKeys(objectType);
+  const predicates = [
+    `and(or(payload->>object_type.eq.${typeLiteral},payload->>entity_type.eq.${typeLiteral}),payload->>object_id.eq.${idLiteral})`,
+  ];
+  predicates.unshift(...typedKeys.map((key) => `payload->>${key}.eq.${idLiteral}`));
+  if (objectType === "question") {
+    predicates.unshift(`payload->projection->state->claim->>questionId.eq.${idLiteral}`);
+    if (descendantClaimIds.length > 0) {
+      const membership = filterValue(descendantClaimIds);
+      predicates.unshift(`payload->>claim_id.${membership}`, `payload->>source_claim_id.${membership}`, `payload->>target_claim_id.${membership}`);
+    }
+  }
+  return predicates.join(",");
+}
+
+function eventReferencesObject(payload, objectType, objectId, descendantClaimIds = new Set()) {
+  const typedReference = eventObjectIdKeys(objectType).some((key) => payload[key] === objectId);
+  const descendantReference = objectType === "question"
+    && (payload.projection?.state?.claim?.questionId === objectId
+      || [payload.claim_id, payload.source_claim_id, payload.target_claim_id].some((claimId) => descendantClaimIds.has(claimId)));
+  const genericReference = (payload.object_type === objectType || payload.entity_type === objectType)
+    && payload.object_id === objectId;
+  return typedReference || descendantReference || genericReference;
+}
+
 /* Only mutable-projection tables carry lifecycle columns; the soft-delete
  * filter must not be applied to revision, event, or junction fact tables. */
-const SOFT_DELETE_TABLES = new Set(["actors", "actorProfiles", "artifacts", "attempts", "challenges", "claims", "identities", "projects", "questions"]);
+const SOFT_DELETE_TABLES = new Set(["actors", "actorProfiles", "artifacts", "attempts", "challenges", "claimRelations", "claims", "identities", "projects", "questions", "signingKeys"]);
 
 /* Interaction target tables: id columns differ per object type. */
 const INTERACTION_TARGET_SPECS = Object.freeze({
@@ -144,15 +216,16 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
     if (Number.isInteger(limit) && limit > 0) endpoint.searchParams.set("limit", String(limit));
     for (const [column, value] of Object.entries(filters)) {
       if (value === null || value === undefined) continue;
-      if (column === "and") endpoint.searchParams.set("and", String(value));
+      if (column === "and" || column === "or") endpoint.searchParams.set(column, String(value));
       else endpoint.searchParams.set(column, filterValue(value));
     }
 
     const rows = [];
-    for (let offset = 0; ; offset += PAGE_SIZE) {
+    const requestPageSize = Number.isInteger(limit) && limit > 0 ? Math.min(limit, PAGE_SIZE) : PAGE_SIZE;
+    for (let offset = 0; ; offset += requestPageSize) {
       let response;
       try {
-        response = await fetchImpl(endpoint, { headers: { accept: "application/json", apikey: apiKey, Range: `${offset}-${offset + PAGE_SIZE - 1}`, "Range-Unit": "items" } });
+        response = await fetchImpl(endpoint, { headers: { accept: "application/json", apikey: apiKey, Range: `${offset}-${offset + requestPageSize - 1}`, "Range-Unit": "items" } });
       } catch {
         throw new SupabaseReadRepositoryError("Supabase Data API request failed");
       }
@@ -163,12 +236,21 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
       }
       if (!Array.isArray(payload)) throw new SupabaseReadRepositoryError("Supabase Data API returned an invalid response");
       rows.push(...payload.map(mapRow));
-      if (payload.length < PAGE_SIZE || (Number.isInteger(limit) && limit > 0)) return rows;
+      if (payload.length < requestPageSize || (Number.isInteger(limit) && limit > 0)) return rows;
     }
   }
 
   async function list(table, filters = {}) {
     return query(table, { filters });
+  }
+
+  async function listByIdsInBatches(table, column, values) {
+    const ids = [...new Set(Array.isArray(values) ? values : [])];
+    const batches = [];
+    for (let offset = 0; offset < ids.length; offset += ATTRIBUTION_BATCH_SIZE) {
+      batches.push(ids.slice(offset, offset + ATTRIBUTION_BATCH_SIZE));
+    }
+    return (await Promise.all(batches.map((batch) => list(table, { [column]: batch })))).flat();
   }
 
   async function getOne(table, filters) {
@@ -215,35 +297,103 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
     return new SupabaseReadRepositoryError(`Supabase Data API request failed with ${result.status}${detail}`, code, 502);
   }
 
+  /* Relations whose target is the source's prerequisite, origin, or prior
+   * context. For the remaining assertion/assessment relations, the source is
+   * the upstream context of the target. Protocol source/target is never
+   * rewritten; this map only controls reader traversal. */
+  const TARGET_IS_UPSTREAM = new Set([
+    "depends_on",
+    "reproduces",
+    "extends",
+    "supersedes",
+    "derived_from",
+    "uses_method",
+    "uses_dataset",
+    "implements",
+  ]);
+
+  function traversalEndpoints(relation, direction) {
+    const targetIsUpstream = TARGET_IS_UPSTREAM.has(relation.relationType);
+    const upstreamFrom = targetIsUpstream ? relation.sourceClaimId : relation.targetClaimId;
+    const upstreamTo = targetIsUpstream ? relation.targetClaimId : relation.sourceClaimId;
+    return direction === "upstream"
+      ? { from: upstreamFrom, to: upstreamTo }
+      : { from: upstreamTo, to: upstreamFrom };
+  }
+
+  function hasGraphPath(adjacency, from, target, seen = new Set()) {
+    if (from === target) return true;
+    if (seen.has(from)) return false;
+    seen.add(from);
+    return [...(adjacency.get(from) ?? [])].some((next) => hasGraphPath(adjacency, next, target, seen));
+  }
+
   async function claimGraph({ claimId, maxDepth, direction }) {
-    const [relations, claims] = await Promise.all([
-      list("claimRelations", { relation_type: "depends_on" }),
-      list("claims"),
-    ]);
-    const neighbours = new Map();
-    for (const relation of relations) {
-      const from = direction === "upstream" ? relation.sourceClaimId : relation.targetClaimId;
-      const to = direction === "upstream" ? relation.targetClaimId : relation.sourceClaimId;
-      const values = neighbours.get(from) ?? [];
-      values.push(to);
-      neighbours.set(from, values);
-    }
-    const claimById = new Map(claims.map((claim) => [claim.claimId, claim]));
     const visited = new Set([claimId]);
-    const queue = [{ claimId, depth: 0, path: [claimId] }];
+    let frontier = [{ claimId, depth: 0, path: [claimId] }];
     const nodes = [];
-    for (let cursor = 0; cursor < queue.length; cursor += 1) {
-      const current = queue[cursor];
-      if (current.depth >= maxDepth) continue;
-      for (const nextId of neighbours.get(current.claimId) ?? []) {
-        if (visited.has(nextId)) continue;
-        visited.add(nextId);
-        const next = { claimId: nextId, depth: current.depth + 1, path: [...current.path, nextId] };
-        queue.push(next);
-        nodes.push({ ...(claimById.get(nextId) ?? {}), ...next });
+    const edges = [];
+    const edgeAdjacency = new Map();
+    let truncated = false;
+    while (frontier.length > 0 && frontier[0].depth < maxDepth) {
+      /* Query each breadth-first frontier in bounded parallel batches. This
+       * keeps request URLs bounded without issuing one serial round trip per
+       * Claim. A relation spanning two batches is deduplicated below. */
+      const batches = [];
+      for (let offset = 0; offset < frontier.length; offset += CLAIM_GRAPH_FRONTIER_BATCH_SIZE) {
+        batches.push(frontier.slice(offset, offset + CLAIM_GRAPH_FRONTIER_BATCH_SIZE).map((node) => node.claimId));
       }
+      const relationPages = await mapWithConcurrency(batches, CLAIM_GRAPH_QUERY_CONCURRENCY, (claimIds) => {
+        const membership = filterValue(claimIds);
+        return query("claimRelations", {
+          filters: { or: `(source_claim_id.${membership},target_claim_id.${membership})` },
+          limit: CLAIM_GRAPH_RELATION_QUERY_LIMIT,
+        });
+      });
+      if (relationPages.some((page) => page.length >= CLAIM_GRAPH_RELATION_QUERY_LIMIT)) truncated = true;
+      const incidentRows = relationPages.flatMap((page) => page.slice(0, CLAIM_GRAPH_MAX_EDGES));
+      const incident = [...new Map(incidentRows.map((relation) => [
+        `${relation.sourceClaimId}\u0000${relation.targetClaimId}\u0000${relation.relationType}`,
+        relation,
+      ])).values()];
+      const nextFrontier = [];
+      let budgetExhausted = false;
+      traversal: for (const current of frontier) {
+        for (const relation of incident) {
+          const { from, to: nextId } = traversalEndpoints(relation, direction);
+          if (from !== current.claimId) continue;
+          if (hasGraphPath(edgeAdjacency, relation.targetClaimId, relation.sourceClaimId)) continue;
+          if (edges.length >= CLAIM_GRAPH_MAX_EDGES || (!visited.has(nextId) && nodes.length >= CLAIM_GRAPH_MAX_NODES)) {
+            truncated = true;
+            budgetExhausted = true;
+            break traversal;
+          }
+          edges.push({
+            sourceClaimId: relation.sourceClaimId,
+            targetClaimId: relation.targetClaimId,
+            relationType: relation.relationType,
+            depth: current.depth + 1,
+            path: [...current.path, nextId],
+          });
+          const targets = edgeAdjacency.get(relation.sourceClaimId) ?? new Set();
+          targets.add(relation.targetClaimId);
+          edgeAdjacency.set(relation.sourceClaimId, targets);
+          if (visited.has(nextId)) continue;
+          visited.add(nextId);
+          const next = { claimId: nextId, depth: current.depth + 1, path: [...current.path, nextId] };
+          nextFrontier.push(next);
+          nodes.push(next);
+        }
+      }
+      frontier = budgetExhausted ? [] : nextFrontier;
     }
-    return nodes;
+    const claimIdBatches = [];
+    for (let offset = 0; offset < nodes.length; offset += CLAIM_GRAPH_FRONTIER_BATCH_SIZE) {
+      claimIdBatches.push(nodes.slice(offset, offset + CLAIM_GRAPH_FRONTIER_BATCH_SIZE).map((node) => node.claimId));
+    }
+    const claims = (await mapWithConcurrency(claimIdBatches, CLAIM_GRAPH_QUERY_CONCURRENCY, (claimIds) => list("claims", { claim_id: claimIds }))).flat();
+    const claimById = new Map(claims.map((claim) => [claim.claimId, claim]));
+    return { nodes: nodes.map((node) => ({ ...(claimById.get(node.claimId) ?? {}), ...node })), edges, truncated };
   }
 
   /* Revision getter per object type for the provenance path. */
@@ -399,6 +549,10 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
     getClaimRevision: (claimId, revision) => getOne("claimRevisions", { claim_id: claimId, revision }),
     getClaimUpstreamGraph: ({ claimId, maxDepth }) => claimGraph({ claimId, maxDepth, direction: "upstream" }),
     getClaimDownstreamGraph: ({ claimId, maxDepth }) => claimGraph({ claimId, maxDepth, direction: "downstream" }),
+    async listDirectDependentClaimIds(claimId) {
+      const relations = await list("claimRelations", { target_claim_id: claimId, relation_type: "depends_on" });
+      return [...new Set(relations.map((relation) => relation.sourceClaimId).filter((value) => typeof value === "string" && value))];
+    },
 
     /* ---- frontier snapshots ---- */
     listFrontierSnapshots: ({ projectId = null } = {}) => list("frontierSnapshots", { project_id: projectId }),
@@ -470,22 +624,48 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
       getOne("merkleCheckpoints", { and: `(first_event_id.lte.${eventId},last_event_id.gte.${eventId})` }),
 
     /* ---- research events ---- */
-    async listResearchEvents({ objectType = null, objectId = null, actorId = null, eventType = null, createdAfter = null, createdBefore = null } = {}) {
+    async listResearchEvents({ objectType = null, objectId = null, actorId = null, eventType = null, createdAfter = null, createdBefore = null, order = "asc", page = null } = {}) {
+      let descendantClaimIds = new Set();
+      if (objectType === "question" && objectId) {
+        const claims = await query("claims", { filters: { question_id: objectId }, select: "claim_id", limit: QUESTION_EVENT_CLAIM_LIMIT + 1 });
+        if (claims.length > QUESTION_EVENT_CLAIM_LIMIT) {
+          throw new SupabaseReadRepositoryError("Question event scope exceeds the hosted Claim membership limit", "SUPABASE_READ_SCOPE_TOO_BROAD", 413);
+        }
+        descendantClaimIds = new Set(claims.map((claim) => claim.claimId));
+      }
       const filters = {};
       if (eventType) filters.event_type = eventType;
       if (createdAfter) filters.created_at = { op: "gte", value: createdAfter };
-      const rows = await list("researchEvents", filters);
+      else if (createdBefore) filters.created_at = { op: "lte", value: createdBefore };
+      const logicalPredicates = [];
+      if (actorId) logicalPredicates.push(eventActorPredicate(actorId));
+      if (objectType && objectId) logicalPredicates.push(eventObjectPredicate(objectType, objectId, [...descendantClaimIds]));
+      if (createdAfter && createdBefore) logicalPredicates.push(`created_at.lte.${createdBefore}`);
+      if (page?.after) {
+        const comparison = order === "desc" ? "lt" : "gt";
+        logicalPredicates.push(`created_at.${comparison}.${page.after.createdAt},and(created_at.eq.${page.after.createdAt},event_id.${comparison}.${page.after.id})`);
+      }
+      if (logicalPredicates.length === 1) filters.or = `(${logicalPredicates[0]})`;
+      else if (logicalPredicates.length > 1) filters.and = `(${logicalPredicates.map((predicate) => `or(${predicate})`).join(",")})`;
+      const rows = await query("researchEvents", {
+        filters,
+        order: order === "desc" ? "created_at.desc,event_id.desc" : TABLE_ORDERS.researchEvents,
+        limit: page?.limit ?? null,
+      });
       return rows.filter((row) => {
         const payload = row.payload ?? {};
         if (createdBefore && !(Date.parse(row.createdAt ?? "") <= Date.parse(createdBefore))) return false;
-        if (objectType && !(payload.object_type === objectType || payload.entity_type === objectType)) return false;
-        if (objectId) {
-          const idKeys = objectId ? ["object_id", ...(objectType ? [`${objectType}_id`] : []), "claim_id", "question_id", "task_id", "project_id", "attempt_id", "evidence_id", "receipt_id"] : [];
-          if (!idKeys.some((key) => payload[key] === objectId)) return false;
-        }
-        if (actorId && payload.actor_id !== actorId) return false;
+        if (objectType && objectId && !eventReferencesObject(payload, objectType, objectId, descendantClaimIds)) return false;
+        if (actorId && !EVENT_ACTOR_PAYLOAD_KEYS.some((key) => payload[key] === actorId)) return false;
         return true;
       });
+    },
+    async getLatestResearchEventForActor(actorId) {
+      return (await query("researchEvents", {
+        filters: { or: `(${eventActorPredicate(actorId)})` },
+        order: "created_at.desc,event_id.desc",
+        limit: 1,
+      }))[0] ?? null;
     },
     async listResearchEventRange({ firstEventId, lastEventId }) {
       const rows = await list("researchEvents");
@@ -494,7 +674,7 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
       if (first < 0 || last < 0 || last < first) return [];
       return rows.slice(first, last + 1);
     },
-    listResearchEventsByIds: (eventIds) => list("researchEvents", { event_id: eventIds }),
+    listResearchEventsByIds: (eventIds) => listByIdsInBatches("researchEvents", "event_id", eventIds),
 
     /* ---- provenance ---- */
     async getObjectRevision({ objectType, objectId, revision = null }) {
@@ -506,6 +686,8 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
     },
 
     /* ---- api tokens (secret hash never selected) ---- */
+    findActiveSigningKey: (actorId) =>
+      getOne("signingKeys", { actor_id: actorId, revoked_at: { op: "is", value: "null" } }),
     listApiTokensByActor: (actorId) =>
       query("apiTokens", {
         filters: { actor_id: actorId },

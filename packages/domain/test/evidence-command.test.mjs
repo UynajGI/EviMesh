@@ -12,7 +12,16 @@ test('creates evidence and locks links to concrete claim revisions', async () =>
   };
   const result = await createEvidence({ repository, actorId: 'actor_1', actorRole: 'contributor', evidenceId: 'evidence_1', evidenceType: 'code_test', artifactId: 'artifact_1', artifactRevision: 2, links: [{ claimId: 'claim_1', claimRevision: 3, relationType: 'supports' }], eventFactory: async (event) => event });
   assert.equal(result.links[0].claimRevision, 3);
-  assert.equal(calls.length, 3);
+  assert.equal(result.linkEvents[0].eventType, 'evidence.claim_linked');
+  assert.deepEqual(result.linkEvents[0].payload, {
+    entity_type: 'evidence',
+    evidence_id: 'evidence_1',
+    claim_id: 'claim_1',
+    claim_revision: 3,
+    relation_type: 'supports',
+    actor_id: 'actor_1',
+  });
+  assert.equal(calls.length, 4);
 });
 
 test('links existing evidence to one existing claim revision and records an audit event', async () => {
