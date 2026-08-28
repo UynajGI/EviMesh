@@ -28,8 +28,14 @@ venv/
 .cache/
 .tmp/
 .codex-dag-staging/
+.pnpm-store/
+.playwright-cli/
 *.log
 apps/api-edge/.wrangler/
 apps/web/.wrangler/
 apps/web/.next/
 apps/web/.open-next/
+
+# Locally installed agent skills (per-machine dev tooling)
+.agents/
+skills-lock.json
