@@ -17,16 +17,18 @@ never converted into scores or percentages.
 
 | Vocabulary | Values | Canonical source |
 | --- | --- | --- |
-| Claim state | hypothesis, under_verification, provisionally_accepted, accepted, contested, refuted, superseded, retracted, dependency_tainted | `claim-state.mjs` |
+| Claim state | hypothesis, candidate, under_verification, provisionally_accepted, accepted, contested, refuted, superseded, retracted, dependency_tainted | `claim-state.mjs` |
 | Challenge state | open, admissible, investigating, upheld, rejected, resolved | `challenge-state.mjs` |
 | Finding severity | critical, major, warning, note | verification schemas |
 | Receipt outcome | supports, refutes, qualifies, inconclusive | `verification-receipt.mjs` |
 | Contribution role | originator, contributor, reviewer, verifier, witness, maintainer | `contribution-role.mjs` |
 | Evidence relation | supports, refutes, qualifies, reproduces (plus graph relation types) | evidence link schema |
 
-Claim relations in the graph additionally cover structural and lineage
-families such as `depends_on` and `derived_from`; the full 14-type enum is
-defined in the protocol package.
+These summaries are for orientation. The complete, generated vocabulary
+pages - [Protocol vocabularies](/docs/reference/protocol-vocabularies.generated)
+and [API endpoints](/docs/reference/api-endpoints.generated) - are produced
+from the protocol source and the OpenAPI contract and are guarded by CI, so
+they cannot drift.
 
 ## API errors
 

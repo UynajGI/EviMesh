@@ -63,3 +63,5 @@ jobs:
       - name: Web test suite (direct node)
         working-directory: apps/web
         run: node --test
+      - name: Docs reference up to date
+        run: node scripts/generate-docs-reference.mjs --check

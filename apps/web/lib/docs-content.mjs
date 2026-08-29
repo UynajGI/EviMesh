@@ -75,6 +75,7 @@ async function loadTree() {
       sourceOfTruth: meta.sourceOfTruth ?? null,
       updatedAt: meta.updatedAt ?? null,
       toc: tableOfContents(blocks),
+      body,
       blocks,
     });
   }
