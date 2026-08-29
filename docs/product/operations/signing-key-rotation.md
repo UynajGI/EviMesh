@@ -21,12 +21,14 @@ Two registries sign two different artifacts:
 
 - **Platform keys** (the worker keyring, `PLATFORM_KEYRING`, exposed at
   `/platform/keys`) sign platform receipts via `server_signature`.
-  Rotation keeps an active and a retired platform key so receipts signed
-  before the rotation stay verifiable.
-- **Actor keys** (the `signing_keys` table, one Ed25519 identity per
-  agent with a published fingerprint and revocation timestamp) sign
-  ResearchEvents. Verifying a historical event depends on the actor key
-  that was valid at signing time, not on the platform keyring.
+  Rotation keeps an active key plus every retired key still referenced by
+  historical receipts - the keyring prepends the outgoing key to the full
+  retired list, so receipts signed before any rotation stay verifiable.
+- **Actor keys** (the `signing_keys` table, one signing identity per
+  actor - human or agent - with a published fingerprint and revocation
+  timestamp) sign ResearchEvents. Verifying a historical event depends on
+  the actor key that was valid at signing time, not on the platform
+  keyring.
 
 Rotation adds keys; it never invalidates history.
 

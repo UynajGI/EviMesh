@@ -94,7 +94,7 @@ function domInspection(url, marker) {
       await browser.close();
     })().catch((error) => { console.error(String(error)); process.exit(1); });
   `;
-  const tmp = path.join(os.tmpdir(), "evimesh-dom-check.js");
+  const tmp = path.join(os.tmpdir(), `evimesh-dom-check-${process.pid}.js`);
   writeFileSync(tmp, checkScript);
   const run = spawnSync("node", [tmp], { encoding: "utf8", timeout: 60000, env: process.env });
   try {
