@@ -18,6 +18,7 @@ const MAX_WATCHED_OBJECTS = 24;
 const EVENTS_PER_OBJECT = 100;
 const DETAIL_HYDRATION_BATCH_SIZE = 8;
 const MAX_CLASSIFICATION_DETAILS = 48;
+const EMPTY_PARTIAL = { omittedObjects: 0, failedObjects: 0, truncatedObjects: 0, invalidEvents: 0, failedDetails: 0, omittedDetails: 0 };
 
 const GROUPS = [
   { level: 'critical', title: 'Needs prompt review', meta: 'critical' },
@@ -432,7 +433,7 @@ export default function HomePage() {
   const [status, setStatus] = useState('loading');
   const [events, setEvents] = useState([]);
   const [watchCount, setWatchCount] = useState(0);
-  const [partial, setPartial] = useState({ omittedObjects: 0, failedObjects: 0, truncatedObjects: 0, invalidEvents: 0, failedDetails: 0, omittedDetails: 0 });
+  const [partial, setPartial] = useState(EMPTY_PARTIAL);
   const [error, setError] = useState(null);
   const [requestId, setRequestId] = useState(null);
   const [observationWindow, setObservationWindow] = useState(null);
@@ -447,7 +448,7 @@ export default function HomePage() {
     setStatus('loading');
     setError(null);
     setRequestId(null);
-    setPartial({ omittedObjects: 0, failedObjects: 0, truncatedObjects: 0, invalidEvents: 0, failedDetails: 0 });
+    setPartial(EMPTY_PARTIAL);
     setAgentConnection({ state: 'checking' });
 
     let interactions;

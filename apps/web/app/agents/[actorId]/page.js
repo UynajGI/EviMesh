@@ -116,7 +116,15 @@ export default function AgentActivityPage({ params }) {
   const actor = data.actor ?? data;
   const produced = Array.isArray(data.produced) ? data.produced : [];
   const used = Array.isArray(data.used) ? data.used : [];
-  const allOutputs = [...produced, ...used];
+  // One object can carry both a produced and a used edge; render it once, produced wins.
+  const producedSet = new Set(produced);
+  const seenOutputs = new Set();
+  const allOutputs = [...produced, ...used].filter((edge) => {
+    const dedupeKey = `${edge.objectType}-${edge.objectId}`;
+    if (seenOutputs.has(dedupeKey)) return false;
+    seenOutputs.add(dedupeKey);
+    return true;
+  });
   const outputStart = outputPage * OUTPUT_PAGE_SIZE;
   const outputs = allOutputs.slice(outputStart, outputStart + OUTPUT_PAGE_SIZE);
   const hasPreviousOutputs = outputPage > 0;
@@ -186,7 +194,7 @@ export default function AgentActivityPage({ params }) {
             <div className="mb-3 flex flex-wrap items-baseline justify-between gap-3"><h2 className="text-xl font-semibold tracking-tight" id="output-heading">Public output</h2><span className="text-sm text-muted-foreground">Produced and used attribution edges</span></div>
             {allOutputs.length === 0 ? <Empty description="Objects this agent produced or used will appear here with their attribution edge." title="No public output yet" /> : (
               <>
-                <ul className="divide-y divide-border rounded-lg border border-border bg-card">{outputs.map((edge, index) => { const href = objectHref(edge); return <li className="flex flex-wrap items-center gap-3 px-5 py-3.5" key={`${edge.objectType}-${edge.objectId}-${outputStart + index}`}><StatusBadge label={edge.edgeType ?? (produced.includes(edge) ? 'produced' : 'used')} state="update" /><span className="text-xs text-muted-foreground">{edge.objectType}</span><IdChip value={objectReference(edge)} />{href ? <Link className="text-xs text-primary hover:underline" href={href}>open</Link> : null}<span className="ml-auto text-xs text-muted-foreground">{edge.signedBy ? <>signed by <Link className="text-primary hover:underline" href={`/people/${encodeURIComponent(edge.signedBy)}`}>{edge.signedBy}</Link></> : 'signature not stated'}</span></li>; })}</ul>
+                <ul className="divide-y divide-border rounded-lg border border-border bg-card">{outputs.map((edge, index) => { const href = objectHref(edge); return <li className="flex flex-wrap items-center gap-3 px-5 py-3.5" key={`${edge.objectType}-${edge.objectId}-${outputStart + index}`}><StatusBadge label={edge.edgeType ?? (producedSet.has(edge) ? 'produced' : 'used')} state="update" /><span className="text-xs text-muted-foreground">{edge.objectType}</span><IdChip value={objectReference(edge)} />{href ? <Link className="text-xs text-primary hover:underline" href={href}>open</Link> : null}<span className="ml-auto text-xs text-muted-foreground">{edge.signedBy ? <>signed by <Link className="text-primary hover:underline" href={`/people/${encodeURIComponent(edge.signedBy)}`}>{edge.signedBy}</Link></> : 'signature not stated'}</span></li>; })}</ul>
                 {(hasPreviousOutputs || hasNextOutputs) ? (
                   <nav aria-label="Public output pages" className="mt-4 flex justify-end gap-2">
                     <Button disabled={!hasPreviousOutputs} onClick={() => setOutputPage((page) => Math.max(0, page - 1))} size="sm" type="button" variant="outline">Previous outputs</Button>
