@@ -59,9 +59,10 @@ async function hydrateTitle(item) {
     }
     if (item.kind === 'project') {
       const detail = await fetchJson(`/projects/${item.id}`).then((body) => body.project ?? body);
+      const revision = detail.currentRevision ?? detail;
       return {
-        title: detail.name ?? null,
-        summary: detail.summary ? `${String(detail.summary).slice(0, 120)}${detail.summary.length > 120 ? '…' : ''}` : null,
+        title: detail.name ?? revision.name ?? null,
+        summary: (detail.summary ?? revision.summary) ? `${String(detail.summary ?? revision.summary).slice(0, 120)}${detail.summary.length > 120 ? '…' : ''}` : null,
       };
     }
     return { title: null, summary: null };
@@ -426,28 +427,6 @@ function ExploreView() {
             </p>
           </RailSection>
         </Rail>
-        <aside aria-label="Ordering" className="rounded-lg border border-border bg-card p-4">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Order by</h2>
-          <div className="mt-3 grid gap-2 text-sm">
-            {[
-              ['recent', 'Recent activity'],
-              ['title', 'Title order'],
-            ].map(([value, labelText]) => (
-              <label className="flex items-center gap-2" key={value}>
-                <input
-                  checked={sort === value}
-                  className="accent-[var(--evimesh-primary)]"
-                  name="explore-sort"
-                  onChange={() => setSort(value)}
-                  type="radio"
-                  value={value}
-                />
-                {labelText}
-              </label>
-            ))}
-          </div>
-          <p className="mt-4 text-xs text-muted-foreground">No popularity ordering exists: sorting expresses recency, never research value.</p>
-        </aside>
       </div>
       {rowHandoff ? (
         <HandoffSheet

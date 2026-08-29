@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "apps/web/**"
+      - "docs/product/**"
       - ".github/workflows/web-production.yml"
 
 permissions:

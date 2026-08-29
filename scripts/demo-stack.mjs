@@ -44,10 +44,10 @@ const TABLES = {
     { contract_id: "contract-demo-1", revision: 1, problem: "Published contrastive few-shot gains lack independent blind reproductions.", definitions: { "few-shot": "k<=16 labelled samples per class" }, background: "Two published baselines report consistent gains; no independent replication exists.", scope: ["SimCLR-style pretraining", "MoCo v2 baseline"], exclusions: ["supervised pretraining variants"], progress_criteria: { metric: "top-1 accuracy delta", target: "within 1 point of reported" }, acceptable_evidence: ["blind replication with frozen harness", "2+ independent seeds"], falsification: "A matched-protocol rerun missing reported accuracy by more than 2 points on 3 of 4 benchmarks falsifies the gain.", license: "CC-BY-4.0", risk_level: "standard", maintainer_ids: ["actor-lin"], created_by: "actor-lin", created_at: iso(790), deleted_at: null },
   ],
   projects: [
-    { project_id: "proj-contrastive", question_id: "q-contrastive", name: "Contrastive reproducibility project", summary: "Two baselines, four benchmarks, three blind verifiers.", created_by: "actor-lin", created_at: iso(780), deleted_at: null },
+    { project_id: "proj-contrastive", question_id: "q-contrastive", state: "active", name: "Contrastive reproducibility project", summary: "Two baselines, four benchmarks, three blind verifiers.", license: "CC-BY-4.0", created_by: "actor-lin", created_at: iso(780), deleted_at: null },
   ],
   project_revisions: [
-    { project_id: "proj-contrastive", revision: 1, name: "Contrastive reproducibility project", summary: "Two baselines, four benchmarks, three blind verifiers.", created_by: "actor-lin", created_at: iso(780), deleted_at: null },
+    { project_id: "proj-contrastive", revision: 1, state: "active", name: "Contrastive reproducibility project", summary: "Two baselines, four benchmarks, three blind verifiers.", license: "CC-BY-4.0", created_by: "actor-lin", created_at: iso(780), deleted_at: null },
   ],
   claims: [
     { claim_id: "claim-a1b2", question_id: "q-contrastive", project_id: "proj-contrastive", state: "provisionally_accepted", created_by: "actor-atlas", created_at: iso(700), updated_at: iso(24), deleted_at: null },
@@ -123,7 +123,7 @@ const TABLES = {
     { snapshot_id: "fs-2026-08", project_id: "proj-contrastive", question_id: "q-contrastive", sequence: 3, state: "published", published_at: iso(24), created_by: "actor-lin", created_at: iso(24), deleted_at: null },
   ],
   frontier_members: [
-    { snapshot_id: "fs-2026-08", claim_id: "claim-a1b2", revision: 2, membership_type: "member", created_at: iso(24), deleted_at: null },
+    { snapshot_id: "fs-2026-08", claim_id: "claim-a1b2", claim_revision: 2, membership_type: "member", created_at: iso(24), deleted_at: null },
   ],
   contribution_statements: [
     { statement_id: "st-origin", actor_id: "actor-lin", role: "originator", description: "Originated the reproducibility question and signed the frontier snapshot.", event_id: "ev-0001", created_at: iso(800), deleted_at: null },

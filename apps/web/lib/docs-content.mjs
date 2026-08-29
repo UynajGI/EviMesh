@@ -104,15 +104,21 @@ export async function loadDocsManifest() {
   return { sections, pages };
 }
 
-/** One page by slug; 404s stay the caller's decision. */
+/** One page by slug; 404s stay the caller's decision. Prev/next follow the
+ *  declared IA order (the manifest), never filesystem sort order. */
 export async function loadDocsPage(slug) {
+  const { sections } = await loadDocsManifest();
+  const ordered = sections.flatMap((section) => section.slugs);
+  const index = ordered.indexOf(slug);
+  if (index < 0) return null;
   const pages = await loadTree();
   const page = pages.find((entry) => entry.slug === slug);
   if (!page) return null;
-  const index = pages.findIndex((entry) => entry.slug === slug);
+  const prevSlug = ordered[index - 1] ?? null;
+  const nextSlug = ordered[index + 1] ?? null;
   return {
     ...page,
-    prev: pages[index - 1] ? { slug: pages[index - 1].slug, title: pages[index - 1].title } : null,
-    next: pages[index + 1] ? { slug: pages[index + 1].slug, title: pages[index + 1].title } : null,
+    prev: prevSlug ? (() => { const p = pages.find((entry) => entry.slug === prevSlug); return p ? { slug: p.slug, title: p.title } : null; })() : null,
+    next: nextSlug ? (() => { const p = pages.find((entry) => entry.slug === nextSlug); return p ? { slug: p.slug, title: p.title } : null; })() : null,
   };
 }
