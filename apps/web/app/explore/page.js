@@ -9,7 +9,7 @@ const API = process.env.NEXT_PUBLIC_EVIMESH_API_URL;
 import { Card, StatusBadge } from '@/components/ui/data';
 import { Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
 import { IdChip } from '@/components/ui/idchip';
-import { actorHref } from '@/components/attribution';
+import { Attribution, actorHref } from '@/components/attribution';
 import { HandoffSheet } from '@/components/handoff-sheet';
 import { PageContainer, PageHeader } from '@/components/ui/page';
 import { cn } from '@/lib/utils';
@@ -53,6 +53,13 @@ async function hydrateTitle(item) {
       return {
         title: statement ? `${statement.slice(0, 90)}${statement.length > 90 ? '…' : ''}` : null,
         summary: null,
+      };
+    }
+    if (item.kind === 'project') {
+      const detail = await fetchJson(`/projects/${item.id}`);
+      return {
+        title: detail.name ?? null,
+        summary: detail.summary ? `${String(detail.summary).slice(0, 120)}${detail.summary.length > 120 ? '…' : ''}` : null,
       };
     }
     return { title: null, summary: null };
@@ -118,7 +125,14 @@ function ExploreView() {
        * source; older deployments fall back to the derived view. */
       try {
         const body = await fetchJson('/actors?limit=100');
-        setActorDirectory(body.items ?? []);
+        const directory = body.items ?? [];
+        setActorDirectory(directory);
+        /* Attribution metadata (type + owning human) for createdBy rows. */
+        const byId = new Map(directory.map((actor) => [actor.actorId, actor]));
+        setItems((current) => current.map((item) => {
+          const actor = item.createdBy ? byId.get(item.createdBy) : null;
+          return actor ? { ...item, createdByActorType: actor.actorType ?? null, createdByOwnerActorId: actor.ownerActorId ?? null } : item;
+        }));
       } catch {
         setActorDirectory(null);
       }
@@ -314,6 +328,11 @@ function ExploreView() {
                   <span className="min-w-0">
                     <Link className="block truncate font-medium hover:underline" href={actorHref(entry.actorId, entry.actorType)}>{entry.displayName ?? entry.actorId}</Link>
                     <span className="block truncate font-mono text-xs text-muted-foreground">{entry.actorId}</span>
+                    {entry.actorType === 'agent' && entry.ownerActorId ? (
+                      <span className="block truncate text-xs text-muted-foreground">
+                        owned by <Link className="hover:text-foreground" href={`/people/${encodeURIComponent(entry.ownerActorId)}`}>{entry.ownerActorId}</Link>
+                      </span>
+                    ) : null}
                   </span>
                   {entry.actorType ? <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{entry.actorType}</span> : null}
                   <span className="ml-auto text-xs tabular-nums text-muted-foreground">{entry.count} linked object{entry.count === 1 ? '' : 's'}</span>
@@ -340,7 +359,7 @@ function ExploreView() {
                   {joinable && item.kind === 'question' && openTaskQuestions?.has(item.id) ? <p className="text-xs text-muted-foreground">open tasks available to pick up</p> : null}
                   <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                     <IdChip value={item.id} />
-                    {item.createdBy ? <Link className="hover:text-foreground" href={actorHref(item.createdBy)}>by {item.createdBy}</Link> : null}
+                    {item.createdBy ? <Attribution actorId={item.createdBy} actorType={item.createdByActorType} ownerActorId={item.createdByOwnerActorId} /> : null}
                     {item.projectId ? <span className="tabular-nums">project {item.projectId}</span> : null}
                     {item.when ? (
                       <span className="flex items-center gap-1 tabular-nums">

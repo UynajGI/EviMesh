@@ -240,10 +240,17 @@ test('explore renders real topic tags with filter, rail, and alphabetical order'
 test('explore researchers prefer the actor directory with derived enrichment', async () => {
   const page = await read('../app/explore/page.js');
   assert.match(page, /fetchJson\('\/actors\?limit=100'\)/);
-  assert.match(page, /setActorDirectory\(body\.items \?\? \[\]\)/);
+  assert.match(page, /setActorDirectory\(directory\)/);
+  // Result rows pick up attribution metadata (type + owning human) from the directory.
+  assert.match(page, /createdByActorType: actor\.actorType/);
+  assert.match(page, /createdByOwnerActorId: actor\.ownerActorId/);
+  // Agent directory rows state their owning human; humans link to /people.
+  assert.match(page, /owned by <Link className="hover:text-foreground" href=\{`\/people\/\$\{encodeURIComponent\(entry\.ownerActorId\)\}`\}>/);
   assert.match(page, /if \(actorDirectory\)/);
   assert.match(page, /entry\.displayName \?\? entry\.actorId/);
   assert.match(page, /entry\.actorType/);
+  // Result-row attribution uses the shared chain component, never a bare "by <id>".
+  assert.match(page, /<Attribution actorId=\{item\.createdBy\} actorType=\{item\.createdByActorType\} ownerActorId=\{item\.createdByOwnerActorId\} \/>/);
   // Fallback stays honest when the deployment lacks the endpoint.
   assert.match(page, /the actor directory endpoint is unavailable on this deployment/);
 });

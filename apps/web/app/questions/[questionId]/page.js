@@ -223,8 +223,14 @@ export default function QuestionDetailPage({ params }) {
   /* Scope fields live on the contract revision (research_contract_revisions),
    * not the question revision; read both with the contract winning. */
   const scopeSource = { ...currentRevision, ...Object.fromEntries(
-    Object.entries(contract ?? {}).filter(([key]) => ['scope', 'exclusions', 'falsification', 'acceptance'].includes(key)),
+    Object.entries(contract ?? {}).filter(([key]) => ['problem', 'scope', 'exclusions', 'falsification', 'acceptableEvidence'].includes(key)),
   ) };
+  /* Contract fields are jsonb (strings or arrays); render arrays as joined prose. */
+  const asText = (value) => Array.isArray(value)
+    ? value.map((entry) => asText(entry)).join('; ')
+    : value && typeof value === 'object'
+      ? Object.entries(value).map(([key, entry]) => `${key}: ${asText(entry)}`).join('; ')
+      : String(value ?? '');
   const attentionClaims = claims.filter((claim) => ATTENTION_STATES.has(claim.state));
   const frontierMembers = Array.isArray(frontier?.members) ? frontier.members : [];
   /* Frontier contamination (mockup summary danger alert): member claims whose
@@ -368,13 +374,14 @@ export default function QuestionDetailPage({ params }) {
             <Card>
               <CardContent>
                 <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Research scope (Contract r{contract.revision})</h2>
-                <p className="mt-2 font-medium">{contract.title ?? contract.contractId}</p>
+                <p className="mt-2 font-medium">{currentRevision.title ?? contract.contractId}</p>
                 <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-[max-content_1fr] sm:gap-x-5">
                   {currentRevision.statement ? (<><dt className="text-muted-foreground">Answers</dt><dd>{currentRevision.statement}</dd></>) : null}
-                  {scopeSource.scope ? (<><dt className="text-muted-foreground">Scope</dt><dd>{currentRevision.scope}</dd></>) : null}
-                  {scopeSource.exclusions ? (<><dt className="text-muted-foreground">Exclusions</dt><dd>{currentRevision.exclusions}</dd></>) : null}
-                  {scopeSource.falsification ? (<><dt className="text-muted-foreground">Falsification</dt><dd>{currentRevision.falsification}</dd></>) : null}
-                  {scopeSource.acceptance ? (<><dt className="text-muted-foreground">Acceptance</dt><dd>{currentRevision.acceptance ?? scopeSource.acceptance}</dd></>) : null}
+                  {scopeSource.problem ? (<><dt className="text-muted-foreground">Problem</dt><dd>{scopeSource.problem}</dd></>) : null}
+                  {scopeSource.scope ? (<><dt className="text-muted-foreground">Scope</dt><dd>{asText(scopeSource.scope)}</dd></>) : null}
+                  {scopeSource.exclusions ? (<><dt className="text-muted-foreground">Exclusions</dt><dd>{asText(scopeSource.exclusions)}</dd></>) : null}
+                  {scopeSource.falsification ? (<><dt className="text-muted-foreground">Falsification</dt><dd>{asText(scopeSource.falsification)}</dd></>) : null}
+                  {scopeSource.acceptableEvidence ? (<><dt className="text-muted-foreground">Acceptance</dt><dd>{asText(scopeSource.acceptableEvidence)}</dd></>) : null}
                   <dt className="text-muted-foreground">Contract</dt><dd className="font-mono text-xs">{contract.contractId} · r{contract.revision}</dd>
                 </dl>
               </CardContent>
