@@ -7,6 +7,7 @@ import { RoleBar, CONTRIBUTION_ROLES } from '@/components/role-bar';
 import { Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
 import { IdChip } from '@/components/ui/idchip';
 import { PageContainer, PageHeader } from '@/components/ui/page';
+import { OrcidMark } from '@/components/brand-marks';
 
 const API = process.env.NEXT_PUBLIC_EVIMESH_API_URL;
 

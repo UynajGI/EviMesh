@@ -41,7 +41,7 @@ const ROUTES = [
   { path: "/explore", marker: "Discover research", name: "explore" },
   { path: "/claims/claim-a1b2", marker: "provisionally accepted", name: "claim-accepted" },
   { path: "/claims/claim-d4e5", marker: "contested", name: "claim-contested" },
-  { path: "/questions/q-contrastive", marker: "Research scope", name: "workspace" },
+  { path: "/questions/q-contrastive", marker: "Can contrastive learning gains be reproduced in few-shot settings?", name: "workspace" },
   { path: "/people/actor-lin", marker: "Lin Zhiyao", name: "profile" },
   { path: "/agents/actor-atlas", marker: "atlas-07", name: "agent-activity" },
   { path: "/events", marker: "Event audit", name: "events" },
@@ -69,14 +69,18 @@ function findPlaywrightModule() {
  *  npx playwright module when one is resolvable. Returns an error string or
  *  null. Skipped (with a warning) when no module resolves. */
 function domInspection(url, marker) {
-  const viewport = MOBILE ? { width: 390, height: 844 } : { width: 1440, height: 900 };
   const modulePath = findPlaywrightModule();
   if (!modulePath) return { skipped: true, warning: "no playwright module resolvable" };
+  const viewport = MOBILE ? { width: 390, height: 844 } : { width: 1440, height: 900 };
+  const colorScheme = DARK ? "dark" : "light";
   const checkScript = `
     const { chromium } = require(${JSON.stringify(modulePath)});
     (async () => {
       const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH });
-      const page = await browser.newPage({ viewport, colorScheme: DARK ? "dark" : "light" });
+      const page = await browser.newPage({
+        viewport: ${JSON.stringify(viewport)},
+        colorScheme: ${JSON.stringify(colorScheme)},
+      });
       await page.goto(${JSON.stringify(url)}, { waitUntil: "networkidle", timeout: 30000 }).catch(() => {});
       await page.waitForTimeout(3000);
       const errorState = await page.evaluate(() => {
