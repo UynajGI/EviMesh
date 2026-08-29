@@ -24,7 +24,9 @@ sq validate <document>      # validate one protocol document locally
 
 Commands are compound verbs registered in `packages/cli/src/main.mjs`;
 `sq help` prints the full table with summaries. Document drafts written by
-`claim create` and `run record` are signed through the web flow.
+`claim create` and `run record` are signed through the web flow - there is
+no CLI signing command, because a human signature is exactly what the CLI
+must not impersonate.
 
 ## Install
 
