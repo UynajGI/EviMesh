@@ -59,6 +59,10 @@ test('home restores the private watchlist change stream and design-book hierarch
   assert.match(page, /criticalFinding/);
   assert.match(page, /upheldChallengeWithImpact/);
   assert.match(page, /hydrateClassificationContexts\(merged\.events\)/);
+  // Progressive hydration: the first paint renders unhydrated events and the
+  // bounded detail fetches refine levels afterwards, never blocking render.
+  assert.match(page, /setEvents\(merged\.events\);\n *setPartial\(basePartial\);\n *setStatus\('ready'\);/);
+  assert.match(page, /const classified = await hydrateClassificationContexts\(merged\.events\);\n *if \(generation !== loadGeneration\.current\) return;\n *setEvents\(classified\.events\);/);
   assert.match(page, /\/verifications\/\$\{encodeURIComponent\(target\.id\)\}/);
   assert.match(page, /\/challenges\/\$\{encodeURIComponent\(target\.id\)\}/);
   assert.match(page, /classificationContext\.findingSeverity/);

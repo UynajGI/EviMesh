@@ -482,29 +482,42 @@ export default function HomePage() {
     const failures = settled.filter((result) => result.status === 'rejected');
     const firstFailure = failures[0]?.reason;
     const merged = mergeEventPages(successfulPages);
-    const classificationPromise = hydrateClassificationContexts(merged.events);
-    const [connection, classified] = await Promise.all([agentPromise, classificationPromise]);
     if (generation !== loadGeneration.current) return;
-    const nextPartial = {
+    const basePartial = {
       omittedObjects: Math.max(0, allScopes.length - scopes.length),
       failedObjects: failures.length,
       truncatedObjects: successfulPages.filter(({ payload }) => Boolean(payload.nextCursor)).length,
       invalidEvents: merged.invalidEvents,
-      failedDetails: classified.failedDetails,
-      omittedDetails: classified.omittedDetails,
+      failedDetails: 0,
+      omittedDetails: 0,
     };
 
     setWatchCount(allScopes.length);
-    setAgentConnection(connection);
+    setAgentConnection(await agentPromise);
+    if (generation !== loadGeneration.current) return;
     if (scopes.length > 0 && successfulPages.length === 0) {
       setStatus('error');
       setError(firstFailure?.message ?? 'Formal event queries are unavailable for the watched objects.');
       setRequestId(firstFailure?.requestId ?? null);
       return;
     }
-    setEvents(classified.events);
-    setPartial(nextPartial);
+    /* Critical/attention classification mostly reads event payloads already in
+     * hand; per-detail hydration (up to MAX_CLASSIFICATION_DETAILS bounded
+     * fetches) only refines finding severities and challenge impacts. Render
+     * immediately, then refine in the background so hydration never holds the
+     * first paint hostage. */
+    setEvents(merged.events);
+    setPartial(basePartial);
     setStatus('ready');
+    try {
+      const classified = await hydrateClassificationContexts(merged.events);
+      if (generation !== loadGeneration.current) return;
+      setEvents(classified.events);
+      setPartial({ ...basePartial, failedDetails: classified.failedDetails, omittedDetails: classified.omittedDetails });
+    } catch {
+      /* Keep the hydrated-so-far view; the change levels stay honest from
+       * event payloads alone. */
+    }
   }, []);
 
   useEffect(() => {
