@@ -7,6 +7,8 @@
   "scripts": {
     "lint": "turbo run lint",
     "infra:up": "node scripts/dev-infra.mjs",
+    "demo:api": "node scripts/demo-stack.mjs",
+    "demo:web": "node scripts/demo-web.mjs",
     "infra:doctor": "node scripts/infra-doctor.mjs",
     "infra:hosted-readiness": "node scripts/hosted-readiness.mjs",
     "auth:test:email": "node scripts/test-supabase-email-auth.mjs",

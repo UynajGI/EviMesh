@@ -58,12 +58,14 @@
 
 | 阶段 | 内容 | 状态 |
 |---|---|---|
-| PR-A | 本章 + 各章状态回写 + demo schema 修正 | current |
-| PR-B | 协议可信性数据链（计数/归属/徽标/契约字段） | planned |
-| PR-C | ObjectHeader/TabNav/Rail/ProvenanceList/PageState + token 修订 | planned |
-| PR-D | 三样板：Claim Detail / Explore / Landing | planned |
-| PR-E | 页面族铺开（workspace→profile→agent-activity→events→work→notifications→settings→home） | planned |
-| PR-F | 截图基线 + capture 工具 + 文档终同步 | planned |
+| PR-A (#84) | 本章 + 各章状态回写 + demo schema 修正 | done |
+| PR-B (#85) | 协议可信性数据链（计数/归属/徽标/契约字段） | done |
+| PR-C (#86) | ObjectHeader/TabNav/Rail/ProvenanceList/PageState + token 收敛（单 dark 块） | done |
+| PR-D (#87) | 三样板：Claim Detail / Explore / Landing（四轮 judge 定稿） | done |
+| PR-E (#88) | 页面族铺开（workspace/work TabNav、events ProvenanceList、home Rail；notifications 保留 ARIA 更完整的本地 tabs） | done |
+| PR-F | 视觉 capture 工具（scripts/visual-capture.mjs，含错误页判废）+ 基线 docs/design/baseline/ | done |
+
+**验收记录**：方向样板经四轮 judge 审查定稿。R1 抓到 globals.css 括号错误；R2 抓到残留 dev server 进程服务旧代码（流程规则：截图前必须清杀全部 `next start-server` 进程，已固化进 capture 流程）；R3 抓到 project 标题解包缺失与状态徽标只写类型；R4 抓到 rail 行溢出与 d4e5 归属链缺口。全部闭环。
 
 ## 8. 每页 Definition of Done
 
