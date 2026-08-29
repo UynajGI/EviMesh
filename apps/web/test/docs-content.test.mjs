@@ -17,7 +17,7 @@ test('every docs page has whitelisted frontmatter and a unique slug', async () =
 
 test('the manifest groups pages into fixed sections in IA order', async () => {
   const { sections } = await loadDocsManifest();
-  assert.deepEqual(sections.map((section) => section.id), ['getting-started', 'concepts', 'reference']);
+  assert.deepEqual(sections.map((section) => section.id), ['getting-started', 'concepts', 'reference', 'operations']);
   for (const section of sections) {
     for (const page of section.pages) assert.ok(section.slugs.includes(page.slug));
   }

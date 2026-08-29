@@ -12,6 +12,7 @@
  * Usage:
  *   node scripts/visual-capture.mjs                 # 1440 desktop set
  *   node scripts/visual-capture.mjs --mobile        # 390 set
+ *   node scripts/visual-capture.mjs --dark          # dark theme set
  *   node scripts/visual-capture.mjs --out <dir>     # default docs/design/baseline
  */
 import { mkdirSync, statSync } from "node:fs";
@@ -24,8 +25,12 @@ const OUT = (() => {
   return flag > -1 ? process.argv[flag + 1] : "docs/design/baseline";
 })();
 const MOBILE = process.argv.includes("--mobile");
+const DARK = process.argv.includes("--dark");
 const VIEWPORT = MOBILE ? "390,844" : "1440,900";
-const SUFFIX = MOBILE ? "-390" : "-1440";
+const SUFFIX = `${MOBILE ? "-390" : "-1440"}${DARK ? "-dark" : ""}`;
+// Theme note: the web bootstrap resolves an unset stored preference from
+// prefers-color-scheme, so --color-scheme drives the rendered theme. A
+// stored localStorage choice in the capture profile would override it.
 
 const ROUTES = [
   { path: "/", marker: "Make every research step traceable", name: "landing" },
@@ -52,7 +57,7 @@ function capture({ path, marker, name }) {
   }
   const out = `${OUT}/${name}${SUFFIX}.png`;
   // shell:true is required on Windows where npx resolves through npx.cmd.
-  const shot = spawnSync("npx", ["playwright", "screenshot", "--viewport-size=" + VIEWPORT, "--wait-for-timeout=9000", url, out], { encoding: "utf8", shell: process.platform === "win32" });
+  const shot = spawnSync("npx", ["playwright", "screenshot", "--viewport-size=" + VIEWPORT, ...(DARK ? ["--color-scheme=dark"] : []), "--wait-for-timeout=9000", url, out], { encoding: "utf8", shell: process.platform === "win32" });
   if (shot.status !== 0) return { name, ok: false, reason: `playwright failed: ${shot.stderr?.slice(0, 200)}` };
   let bytes = 0;
   try {
