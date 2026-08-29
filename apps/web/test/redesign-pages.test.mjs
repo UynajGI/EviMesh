@@ -194,9 +194,9 @@ test('manual theme toggle persists and the layout applies it before first paint'
   assert.match(toggle, /matchMedia\('\(prefers-color-scheme: dark\)'\)/);
   assert.match(toggle, /setAttribute\('data-theme', value\)/);
   assert.match(layout, /localStorage.getItem\("evimesh-theme"\)/);
-  assert.match(layout, /data-theme="auto"/);
+  assert.match(layout, /data-theme="light"/);
   assert.match(globals, /\[data-theme="dark"\] \{/);
-  assert.match(globals, /:root:not\(\[data-theme="light"\]\) \{/);
+  assert.match(globals, /\[data-theme="dark"\] \{/);
 });
 
 test('workspace offers six protocol views with DAG framing and no scores', async () => {

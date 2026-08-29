@@ -5,24 +5,34 @@ import { Moon, Sun } from 'lucide-react';
 
 const STORAGE_KEY = 'evimesh-theme';
 
-/** True when the effective theme (attribute or system) is dark. */
-function systemDark() {
-  return typeof window !== 'undefined'
-    && window.matchMedia
-    && window.matchMedia('(prefers-color-scheme: dark)').matches;
-}
-
 /*
- * M13.8: manual theme override on top of the system default. The attribute is
- * applied before first paint by the inline snippet in app/layout.js; this
- * component only flips it and persists the choice.
+ * M13.8: manual theme override on top of the system default. The layout
+ * bootstrap resolves "auto" to a concrete value before first paint and keeps
+ * it live on system changes, so this component only flips the attribute and
+ * persists the choice; the stylesheet carries a single [data-theme="dark"]
+ * block with no prefers-color-scheme duplicate.
  */
 export function ThemeToggle() {
   const [dark, setDark] = useState(false);
 
   useEffect(() => {
-    const attr = document.documentElement.getAttribute('data-theme');
-    setDark(attr === 'dark' || (attr !== 'light' && systemDark()));
+    setDark(document.documentElement.getAttribute('data-theme') === 'dark');
+    const media = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+    const sync = () => {
+      let manual = null;
+      try {
+        manual = localStorage.getItem(STORAGE_KEY);
+      } catch {
+        manual = null;
+      }
+      if (manual !== 'light' && manual !== 'dark') {
+        setDark(document.documentElement.getAttribute('data-theme') === 'dark');
+      }
+    };
+    if (media && media.addEventListener) media.addEventListener('change', sync);
+    return () => {
+      if (media && media.removeEventListener) media.removeEventListener('change', sync);
+    };
   }, []);
 
   function toggle() {
