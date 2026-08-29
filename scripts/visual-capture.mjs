@@ -67,6 +67,7 @@ function findPlaywrightModule() {
  *  npx playwright module when one is resolvable. Returns an error string or
  *  null. Skipped (with a warning) when no module resolves. */
 function domInspection(url, marker) {
+  const viewport = MOBILE ? { width: 390, height: 844 } : { width: 1440, height: 900 };
   const modulePath = findPlaywrightModule();
   if (!modulePath) return { skipped: true };
   const { pathToFileURL } = require("node:url");
@@ -74,7 +75,7 @@ function domInspection(url, marker) {
     const { chromium } = require(${JSON.stringify(modulePath)});
     (async () => {
       const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH });
-      const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+      const page = await browser.newPage({ viewport, colorScheme: DARK ? "dark" : "light" });
       await page.goto(${JSON.stringify(url)}, { waitUntil: "networkidle", timeout: 30000 }).catch(() => {});
       await page.waitForTimeout(3000);
       const errorState = await page.evaluate(() => {

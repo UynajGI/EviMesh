@@ -28,7 +28,11 @@ must be green before and after.
    the web suite (direct node, per the AGENTS.md pnpm trap), the docs
    reference dirty-diff check, and the whitespace gate.
 2. The `Web Production` deployment finishes and the production URL answers.
-3. Post-deploy smoke: open a known object permalink and the docs homepage.
+3. Post-deploy smoke, per the canonical runbook's mandatory checks: the
+   API `/health` response, an authenticated read, a write smoke test, and
+   the observation-window log review - a green web permalink alone does
+   not clear a release.
+4. Web-level smoke: open a known object permalink and the docs homepage.
 
 ## After an incident
 

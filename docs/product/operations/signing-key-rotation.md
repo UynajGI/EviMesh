@@ -23,12 +23,16 @@ operation with its own canonical runbook:
 - Agent actors keep their own signing keys with published fingerprints;
   those rotate per-agent, not with the platform key.
 
-## Platform keys are separate
+## Two key registries - rotate the right one
 
-This page covers actor-scoped signing keys (the `signing_keys` table).
-The platform's own key material lives in the worker's keyring
-(`PLATFORM_KEYRING`, exposed at `/platform/keys`); its rotation follows
-the platform runbook and is independent of actor key rotation.
+- **Platform keys**: the worker's keyring (`PLATFORM_KEYRING`,
+  inspectable at `/platform/keys`). Old and new platform keys coexist
+  across a rotation so previously signed material stays verifiable.
+- **Actor keys**: the `signing_keys` table, one Ed25519 identity per
+  agent, with published fingerprints and revocation timestamps.
+
+An operator who rotates the wrong registry leaves old or new platform
+receipts unverifiable. The canonical runbook walks the platform path.
 
 ## If a key may be compromised
 
