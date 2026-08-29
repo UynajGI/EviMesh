@@ -37,11 +37,12 @@ const TRUST_ROWS = [
 export default function LandingPage() {
   return (
     <PageContainer>
-      {/* Hero: one sentence and exactly one two-path CTA group. */}
-      <section className="pb-16 pt-12 sm:pb-20 sm:pt-16 lg:pb-24">
-        <div className="grid lg:grid-cols-12">
-          <div className="lg:col-span-9">
-            <h1 className="max-w-[20ch] text-4xl font-semibold leading-[1.02] tracking-tight sm:text-6xl lg:text-7xl">
+      {/* Hero: one sentence and exactly one two-path CTA group. Single
+       * full-width column (11 §3: the landing face is composed, not gridded);
+       * reduced bottom padding lets the example surface peek in. */}
+      <section className="pb-10 pt-12 sm:pb-12 sm:pt-16 lg:pb-14">
+        <div>
+          <h1 className="max-w-[20ch] text-4xl font-semibold leading-[1.02] tracking-tight sm:text-6xl lg:text-7xl">
               Make every research step traceable
             </h1>
             <p className="mt-6 max-w-[52ch] text-lg leading-relaxed text-muted-foreground">
@@ -64,13 +65,12 @@ export default function LandingPage() {
                 <Compass aria-hidden="true" size={16} />
                 Explore research
               </Link>
-            </div>
           </div>
         </div>
       </section>
 
       {/* One public research example, with a complete and clearly labeled fallback. */}
-      <section aria-labelledby="example-heading" className="border-t border-border py-20 sm:py-24">
+      <section aria-labelledby="example-heading" className="border-t border-border py-14 sm:py-16">
         <div className="mb-10 max-w-[64ch]">
           <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl" id="example-heading">
             What a research question looks like here
@@ -150,7 +150,7 @@ export default function LandingPage() {
       </section>
 
       {/* Exactly four trust mechanisms in a hairline grid, never a card wall. */}
-      <section aria-labelledby="trust-heading" className="border-t border-border py-20 sm:py-24">
+      <section aria-labelledby="trust-heading" className="border-t border-border py-14 sm:py-16">
         <h2 className="max-w-[18ch] text-3xl font-semibold tracking-tight sm:text-4xl" id="trust-heading">
           Where the trust comes from
         </h2>

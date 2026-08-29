@@ -17,6 +17,8 @@ import { useVisitRecord } from '@/lib/visit-history';
 import { recordView, useMyInteractions } from '@/lib/interactions';
 import { claimLayoutEndpoints } from '@/lib/claim-graph-layout.mjs';
 import { PageContainer } from '@/components/ui/page';
+import { ObjectBreadcrumb, ObjectHeader } from '@/components/ui/object-header';
+import { Rail, RailRow, RailSection } from '@/components/ui/rail';
 import { Check, Eye, Share2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -95,7 +97,6 @@ function ClaimDetailView({ params }) {
   const [graph, setGraph] = useState(null);
   /* Keep the API traversal names, but describe all typed edges neutrally. */
   const [direction, setDirection] = useState('upstream');
-  const [graphView, setGraphView] = useState('graph');
   const [handoffOpen, setHandoffOpen] = useState(false);
   const [shared, setShared] = useState(false);
   const [revisionDiff, setRevisionDiff] = useState(null);
@@ -205,11 +206,7 @@ function ClaimDetailView({ params }) {
   const pinned = Number.isInteger(pinnedRevision) && pinnedRevision >= 1 && pinnedRevisionData;
   /* Evidence links target exact revisions, so claim-wide lists are labeled
    * with a pinned notice instead of silently mixing revisions. */
-  const pinnedNotice = pinned ? (
-    <p className="mb-3 rounded-md border border-status-accent-border bg-status-accent-bg px-3 py-1.5 text-xs text-status-accent-fg">
-      Viewing r{pinnedRevision}. Evidence and receipts below are listed claim-wide; each item carries the revision it links to.
-    </p>
-  ) : null;
+
   const currentRevision = pinned ? { ...data.currentRevision, ...pinnedRevisionData, revision: pinnedRevision } : data.currentRevision;
   const draftingContribution = (Array.isArray(data.originatorContributions) ? data.originatorContributions : [])
     .find((contribution) => contribution.draftedByActorId === contribution.actorId);
@@ -230,12 +227,6 @@ function ClaimDetailView({ params }) {
     return { id: `${direction}-${id}`, source, target, ...claimLayoutEndpoints({ source, target, sourceDepth: graphDepthById.get(source) ?? depth, targetDepth: graphDepthById.get(target) ?? depth, direction }), relation: 'depends_on' };
   });
   const dagElements = [{ data: { id: claim.claimId, label: claim.claimId, state: claim.state, depth: 0 } }, ...graphEntries.map(({ id, state, depth }) => ({ data: { id, label: id, state, depth } })), ...dagEdges.map((edge) => ({ data: { ...edge, source: edge.source, target: edge.target, relationType: edge.relation } }))];
-  const graphListEntries = graphRelations.length > 0 ? graphRelations.map((edge, index) => {
-    const sourceId = edge.sourceClaimId;
-    const targetId = edge.targetClaimId;
-    const node = targetId === claim.claimId ? claim : graphNodes.find((item) => (item.claimId ?? item.id) === targetId);
-    return { sourceId, targetId, relation: edge.relationType ?? 'depends_on', state: node?.state ?? node?.status, key: `${sourceId}-${targetId}-${edge.relationType ?? index}-${index}` };
-  }) : graphEntries.map((entry) => ({ sourceId: direction === 'upstream' ? entry.id : claim.claimId, targetId: direction === 'upstream' ? claim.claimId : entry.id, relation: 'depends_on', state: entry.state, key: entry.id }));
 
   const evidenceFor = (relation) => evidence.filter((item) => evidenceRelations(item).includes(relation));
   const receiptsFor = (outcome) => receipts.filter((receipt) => receipt.outcome === outcome);
@@ -250,41 +241,24 @@ function ClaimDetailView({ params }) {
 
   return (
     <PageContainer wide>
-      <nav aria-label="Breadcrumb" className="mb-4 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-        <Link className="hover:text-foreground" href="/explore">Explore</Link>
-        <span aria-hidden="true">/</span>
-        {claim.questionId ? <Link className="tabular-nums hover:text-foreground" href={`/questions/${claim.questionId}`}>{claim.questionId}</Link> : <span>Claims</span>}
-        <span aria-hidden="true">/</span>
-        <span aria-current="page" className="tabular-nums">{claim.claimId}</span>
-      </nav>
+      <ObjectBreadcrumb
+        trail={[
+          { label: 'Explore', href: '/explore' },
+          ...(claim.questionId ? [{ label: claim.questionId, href: `/questions/${claim.questionId}` }] : [{ label: 'Claims' }]),
+          { label: claim.claimId },
+        ]}
+      />
 
-      {/* Mockup claim.html header: badge row, serif statement headline,
-          meta with attribution chain, then the action slots. */}
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div className="min-w-0">
-          {pinned ? (
-            <p className="mt-2 rounded-md border border-status-accent-border bg-status-accent-bg px-3 py-1.5 text-xs text-status-accent-fg">
-              Pinned revision r{pinnedRevision}: this permalink always renders this exact immutable revision. <Link className="underline" href={`/claims/${claim.claimId}`}>Jump to current</Link>
-            </p>
-          ) : null}
-          <div className="flex flex-wrap items-center gap-3">
-            <StatusBadge state={claim.state} label="claim" />
-            {frontierMembership ? (
-              <span className="inline-flex items-center gap-1 rounded-full border border-status-success-border bg-status-success-bg px-2.5 py-0.5 text-xs font-medium text-status-success-fg">
-                Frontier #{frontierMembership.sequence} · member
-              </span>
-            ) : null}
-            <Badge variant="default">revision r{currentRevision.revision}</Badge>
-            <IdChip label="claim" value={claim.claimId} />
-          </div>
-          <p className="claim-statement mt-4 max-w-[65ch] font-serif text-lg leading-relaxed">{currentRevision.statement}</p>
-          <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+      {/* Object header (11 §3): badge row, serif statement headline,
+          attribution chain, then the action slots. */}
+      <ObjectHeader
+        attribution={
+          <>
             {claim.questionId ? <Link className="tabular-nums hover:text-foreground" href={`/questions/${claim.questionId}`}>question {claim.questionId}</Link> : <span>Not linked to a question yet.</span>}
             {(currentRevision.createdBy ?? claim.createdBy) ? (
               <>
                 <span aria-hidden="true">·</span>
-                <span className="flex items-center gap-1">
-                  published by{' '}
+                <span>published by{' '}
                   <Link className="font-medium text-foreground hover:underline" href={actorHref(currentRevision.createdBy ?? claim.createdBy)}>{currentRevision.createdBy ?? claim.createdBy}</Link>
                 </span>
               </>
@@ -305,41 +279,62 @@ function ClaimDetailView({ params }) {
                 <span className="tabular-nums">r{currentRevision.revision} published {new Date(currentRevision.createdAt).toISOString().slice(0, 10)}</span>
               </>
             ) : null}
-          </div>
-        </div>
-        <div className="flex shrink-0 flex-wrap gap-2">
-          <button
-            aria-pressed={watched}
-            className={cn('inline-flex h-9 items-center gap-2 rounded-md border px-3 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50', watched ? 'border-primary bg-accent text-accent-foreground' : 'border-border bg-card hover:bg-muted')}
-            disabled={!claimId || !interactionsReady || interactions === null}
-            onClick={() => toggleInteraction('claim', claimId, 'watch')}
-            title={interactionsReady && interactions === null ? 'Sign in to watch' : undefined}
-            type="button"
-          >
-            <Eye aria-hidden="true" size={14} />
-            {watched ? 'Watching' : 'Watch'}
-          </button>
-          <button
-            className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-sm font-medium hover:bg-muted"
-            onClick={async () => {
-              try {
-                await navigator.clipboard.writeText(`${window.location.origin}/claims/${claim.claimId}?rev=${currentRevision.revision}`);
-                setShared(true);
-                setTimeout(() => setShared(false), 2000);
-              } catch { /* unavailable */ }
+          </>
+        }
+        badges={
+          <>
+            <StatusBadge state={claim.state} />
+            {frontierMembership ? (
+              <span className="inline-flex items-center gap-1 rounded-full border border-status-success-border bg-status-success-bg px-2.5 py-0.5 text-xs font-medium text-status-success-fg">
+                Frontier #{frontierMembership.sequence} · member
+              </span>
+            ) : null}
+            <Badge variant="default">revision r{currentRevision.revision}</Badge>
+            <IdChip label="claim" value={claim.claimId} />
+          </>
+        }
+        meta={pinned ? (
+          <p className="rounded-md border border-status-accent-border bg-status-accent-bg px-3 py-1.5 text-xs text-status-accent-fg">
+            Pinned revision r{pinnedRevision}: this permalink always renders this exact immutable revision. <Link className="underline" href={`/claims/${claim.claimId}`}>Jump to current</Link>
+          </p>
+        ) : null}
+        serif
+        statement={currentRevision.statement}
+      />
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button
+          aria-pressed={watched}
+          className={cn('inline-flex h-11 items-center gap-2 rounded-md border px-3 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50', watched ? 'border-primary bg-accent text-accent-foreground' : 'border-border bg-card hover:bg-muted')}
+          disabled={!claimId || !interactionsReady || interactions === null}
+          onClick={() => toggleInteraction('claim', claimId, 'watch')}
+          title={interactionsReady && interactions === null ? 'Sign in to watch' : undefined}
+          type="button"
+        >
+          <Eye aria-hidden="true" size={14} />
+          {watched ? 'Watching' : 'Watch'}
+        </button>
+        <button
+          className="inline-flex h-11 items-center gap-2 rounded-md border border-border bg-card px-3 text-sm font-medium hover:bg-muted"
+          onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(`${window.location.origin}/claims/${claim.claimId}?rev=${currentRevision.revision}`);
+              setShared(true);
               setTimeout(() => setShared(false), 2000);
-            }}
-            type="button"
-          >
-            {shared ? <Check aria-hidden="true" size={14} /> : <Share2 aria-hidden="true" size={14} />}
-            {shared ? 'Link copied' : `Share r${currentRevision.revision} permalink`}
-          </button>
-          <button className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-accent-foreground/90" onClick={() => setHandoffOpen(true)} type="button">Continue with an agent</button>
-        </div>
-      </header>
+            } catch { /* unavailable */ }
+            setTimeout(() => setShared(false), 2000);
+          }}
+          type="button"
+        >
+          {shared ? <Check aria-hidden="true" size={14} /> : <Share2 aria-hidden="true" size={14} />}
+          {shared ? 'Link copied' : `Share r${currentRevision.revision} permalink`}
+        </button>
+        <button className="inline-flex h-11 items-center gap-2 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-accent-foreground/90" onClick={() => setHandoffOpen(true)} type="button">Continue with an agent</button>
+      </div>
 
-      <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start">
-        <div className="grid min-w-0 gap-8">
+      <div className="mt-8 grid gap-8 lg:[grid-template-columns:minmax(0,1fr)_18rem] lg:items-start">
+        {/* flex-col, not grid: an implicit auto track would let one wide section
+ * stretch every sibling past the 18rem rail. */}
+        <div className="flex min-w-0 flex-col gap-8">
           <section aria-labelledby="fields-heading">
             <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground" id="fields-heading">Statement and structured fields</h2>
             <Card>
@@ -365,54 +360,20 @@ function ClaimDetailView({ params }) {
             </Card>
           </section>
 
-          <section aria-labelledby="graph-heading">
+          <section aria-labelledby="graph-heading" className="min-w-0 overflow-x-clip">
             <div className="mb-1 flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-lg font-semibold" id="graph-heading">Claim relation graph</h2>
-              <div className="flex flex-wrap gap-2">
-                <div className="flex gap-1" role="tablist" aria-label="Graph or list view">
-                  {[['graph', 'Graph'], ['list', 'List']].map(([id, label]) => (
-                    <button
-                      aria-selected={graphView === id}
-                      className={cn('h-8 rounded-md px-3 text-sm font-medium', graphView === id ? 'bg-accent text-accent-foreground' : 'border border-border bg-card text-muted-foreground hover:text-foreground')}
-                      key={id}
-                      onClick={() => setGraphView(id)}
-                      role="tab"
-                      type="button"
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <button className={cn('h-8 rounded-md px-3 text-sm font-medium', direction === 'upstream' ? 'bg-accent text-accent-foreground' : 'border border-border bg-card text-muted-foreground hover:text-foreground')} type="button" onClick={() => setDirection('upstream')}>Upstream</button>
-                  <button className={cn('h-8 rounded-md px-3 text-sm font-medium', direction === 'downstream' ? 'bg-accent text-accent-foreground' : 'border border-border bg-card text-muted-foreground hover:text-foreground')} type="button" onClick={() => setDirection('downstream')}>Downstream</button>
-                </div>
+              {/* Traversal direction only; the Graph/List equivalence lives
+                  inside ClaimDag (single tab surface, 11-revision-decisions §4.1). */}
+              <div className="flex gap-2">
+                <button className={cn('h-9 rounded-md px-3 text-sm font-medium', direction === 'upstream' ? 'bg-accent text-accent-foreground' : 'border border-border bg-card text-muted-foreground hover:text-foreground')} type="button" onClick={() => setDirection('upstream')}>Upstream</button>
+                <button className={cn('h-9 rounded-md px-3 text-sm font-medium', direction === 'downstream' ? 'bg-accent text-accent-foreground' : 'border border-border bg-card text-muted-foreground hover:text-foreground')} type="button" onClick={() => setDirection('downstream')}>Downstream</button>
               </div>
             </div>
             <p className="mb-3 text-sm text-muted-foreground">{direction === 'upstream' ? 'Upstream context: prerequisites, origins, and prior context.' : 'Downstream context: dependents, responses, and subsequent context.'}</p>
             {graph?.truncated ? <Alert className="mb-3" description="This bounded graph reached the server node, edge, or relation-read ceiling. The visible DAG and list are partial." title="Graph view truncated" variant="warning" /> : null}
-            {graphView === 'graph' ? <ClaimDag elements={dagElements} /> : (
-              <div>
-                {graphListEntries.length === 0 ? (
-                  <Empty title={`No ${direction} relations in range`} description="Relations of this claim within three hops will be listed here; the graph shows the same set." />
-                ) : (
-                  <Card className="divide-y divide-border">
-                    <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto] gap-3 px-5 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      <span>Source</span><span>Relation</span><span>Target</span><span>Target state</span>
-                    </div>
-                    {graphListEntries.map(({ sourceId, targetId, relation, state, key }) => (
-                      <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto] items-center gap-3 px-5 py-3 text-sm" key={key}>
-                        <div className="flex min-w-0 items-center gap-2"><IdChip value={sourceId} /><Link className="shrink-0 text-xs text-primary hover:underline" href={`/claims/${encodeURIComponent(sourceId)}`}>open</Link></div>
-                        <span className="font-mono text-xs text-muted-foreground">{relation}</span>
-                        <div className="flex min-w-0 items-center gap-2"><IdChip value={targetId} /><Link className="shrink-0 text-xs text-primary hover:underline" href={`/claims/${encodeURIComponent(targetId)}`}>open</Link></div>
-                        {state ? <StatusBadge state={state} /> : <span className="text-xs text-muted-foreground">unknown</span>}
-                      </div>
-                    ))}
-                  </Card>
-                )}
-                <p className="mt-2 text-sm text-muted-foreground">The list view is the keyboard-reachable equivalent of the graph; both show the same relations.</p>
-              </div>
-            )}
+            <ClaimDag elements={dagElements} />
+            <p className="mt-2 text-sm text-muted-foreground">The list view inside the graph is the keyboard-reachable equivalent; both show the same typed relations.</p>
           </section>
 
           <section aria-labelledby="revisions-heading">
@@ -560,63 +521,51 @@ function ClaimDetailView({ params }) {
           </section>
         </div>
 
-        {/* Status summary rail: grouped counts as navigation, never a score. */}
-        <aside aria-label="Status summary">
-          <Card>
-            <div className="border-b border-border px-5 py-3">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Status summary</h2>
+        {/* Status rail (11 §3): grouped counts as navigation, never a score. */}
+        <Rail label="Status summary">
+          <RailSection title="Evidence by relation">
+            <div className="grid gap-1.5">
+              {RELATIONS.map((relation) => (
+                <RailRow key={relation} label={<StatusBadge state={relation} />}>
+                  {evidenceFor(relation).length}
+                </RailRow>
+              ))}
             </div>
-            <CardContent className="grid gap-5">
-              {pinnedNotice}
-              <div>
-                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Evidence by relation</h3>
-                <div className="mt-2 grid gap-1.5">
-                  {RELATIONS.map((relation) => (
-                    <div className="flex items-center justify-between gap-3" key={relation}>
-                      <StatusBadge state={relation} />
-                      <span className="text-sm tabular-nums text-muted-foreground">{evidenceFor(relation).length}</span>
-                    </div>
-                  ))}
-                </div>
+          </RailSection>
+          <RailSection title="Verification outcomes">
+            <div className="grid gap-1.5">
+              {OUTCOMES.map((outcome) => (
+                <RailRow key={outcome} label={<StatusBadge state={outcome} />}>
+                  {receiptsFor(outcome).length}
+                </RailRow>
+              ))}
+            </div>
+            {topFinding ? (
+              <div className="mt-3 flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Top open finding</span>
+                <StatusBadge label={topFinding} state={topFinding === 'critical' ? 'critical' : 'attention'} />
               </div>
-              <div>
-                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Verification outcomes</h3>
-                <div className="mt-2 grid gap-1.5">
-                  {OUTCOMES.map((outcome) => (
-                    <div className="flex items-center justify-between gap-3" key={outcome}>
-                      <StatusBadge state={outcome} />
-                      <span className="text-sm tabular-nums text-muted-foreground">{receiptsFor(outcome).length}</span>
-                    </div>
-                  ))}
-                </div>
-                {topFinding ? (
-                  <div className="mt-3 flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">Top open finding</span>
-                    <StatusBadge state={topFinding === 'critical' ? 'critical' : 'attention'} label={topFinding} />
-                  </div>
-                ) : null}
-              </div>
-              {frontierMembership ? (
-                <div>
-                  <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Frontier membership</h3>
-                  <p className="mt-2 text-sm tabular-nums">Frontier #{frontierMembership.sequence} · this claim at r{frontierMembership.revision}</p>
-                  <Link className="mt-1 inline-block text-xs text-primary hover:underline" href={`/projects/${claim.projectId ?? ''}`}>Open the project frontier →</Link>
-                </div>
-              ) : null}
-              <div>
-                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Latest activity</h3>
-                <p className="mt-2 text-xs tabular-nums text-muted-foreground">
-                  Latest evidence: {evidence.length > 0 ? latestStamp(evidence.map((item) => item.createdAt)) : 'none yet'}
-                </p>
-                <p className="mt-1 text-xs tabular-nums text-muted-foreground">
-                  Latest receipt: {receipts.length > 0 ? latestStamp(receipts.map((item) => item.createdAt)) : 'none yet'}
-                </p>
-                <p className="mt-2 text-xs text-muted-foreground">Challenges track on the claim record.</p>
-              </div>
-              <p className="text-xs text-muted-foreground">Counts are entry points, never scores.</p>
-            </CardContent>
-          </Card>
-        </aside>
+            ) : null}
+          </RailSection>
+          {frontierMembership ? (
+            <RailSection title="Frontier membership">
+              <p className="text-sm tabular-nums [overflow-wrap:anywhere]">Frontier #{frontierMembership.sequence} · this claim at r{frontierMembership.revision}</p>
+              <Link className="mt-1 inline-block text-xs text-primary hover:underline" href={`/projects/${claim.projectId ?? ''}`}>Open the project frontier →</Link>
+            </RailSection>
+          ) : null}
+          <RailSection title="Latest activity">
+            <p className="text-xs tabular-nums text-muted-foreground">
+              Latest evidence: {evidence.length > 0 ? latestStamp(evidence.map((item) => item.createdAt)) : 'none yet'}
+            </p>
+            <p className="mt-1 text-xs tabular-nums text-muted-foreground">
+              Latest receipt: {receipts.length > 0 ? latestStamp(receipts.map((item) => item.createdAt)) : 'none yet'}
+            </p>
+            <p className="mt-2 text-xs text-muted-foreground">Challenges track on the claim record.</p>
+          </RailSection>
+          <RailSection>
+            <p className="text-xs text-muted-foreground">Counts are entry points, never scores.</p>
+          </RailSection>
+        </Rail>
       </div>
 
       <HandoffSheet

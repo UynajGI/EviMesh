@@ -12,6 +12,8 @@ import { IdChip } from '@/components/ui/idchip';
 import { Attribution, actorHref } from '@/components/attribution';
 import { HandoffSheet } from '@/components/handoff-sheet';
 import { PageContainer, PageHeader } from '@/components/ui/page';
+import { Rail, RailSection } from '@/components/ui/rail';
+import { TabNav } from '@/components/ui/tab-nav';
 import { cn } from '@/lib/utils';
 
 const TYPES = [
@@ -56,7 +58,7 @@ async function hydrateTitle(item) {
       };
     }
     if (item.kind === 'project') {
-      const detail = await fetchJson(`/projects/${item.id}`);
+      const detail = await fetchJson(`/projects/${item.id}`).then((body) => body.project ?? body);
       return {
         title: detail.name ?? null,
         summary: detail.summary ? `${String(detail.summary).slice(0, 120)}${detail.summary.length > 120 ? '…' : ''}` : null,
@@ -236,27 +238,16 @@ function ExploreView() {
               <span aria-hidden="true">✕</span>
             </button>
           ) : null}
-          <div className="flex gap-1 overflow-x-auto" role="tablist" aria-label="Result type">
-            {TYPES.map((entry) => {
-              const total = entry.id === 'all' ? windowed.length : entry.id === 'researcher' ? researchers.length : entry.id === 'topic' ? topics.length : windowed.filter((item) => item.kind === entry.id).length;
-              return (
-                <button
-                  aria-selected={type === entry.id}
-                  className={cn(
-                    'inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-md border px-3 text-sm font-medium transition-colors',
-                    type === entry.id ? 'border-primary bg-accent text-accent-foreground' : 'border-border bg-card text-muted-foreground hover:text-foreground',
-                  )}
-                  key={entry.id}
-                  onClick={() => setType(entry.id)}
-                  role="tab"
-                  type="button"
-                >
-                  {entry.label}
-                  <span className="rounded-full border border-border bg-muted px-1.5 text-[11px] font-medium tabular-nums text-muted-foreground">{total}</span>
-                </button>
-              );
-            })}
-          </div>
+          <TabNav
+            active={type}
+            ariaLabel="Result type"
+            items={TYPES.map((entry) => ({
+              count: entry.id === 'all' ? windowed.length : entry.id === 'researcher' ? researchers.length : entry.id === 'topic' ? topics.length : windowed.filter((item) => item.kind === entry.id).length,
+              key: entry.id,
+              label: entry.label,
+            }))}
+            onChange={setType}
+          />
           <button
             aria-pressed={last30}
             className={cn(
@@ -282,7 +273,7 @@ function ExploreView() {
         </div>
       </div>
 
-      <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,1fr)_15rem] lg:items-start">
+      <div className="mt-6 grid gap-8 lg:[grid-template-columns:minmax(0,1fr)_18rem] lg:items-start">
         <div className="min-w-0">
           {loading ? (
             <div className="grid gap-3">{[0, 1, 2].map((key) => <Skeleton className="h-16 w-full" key={key} />)}</div>
@@ -379,12 +370,12 @@ function ExploreView() {
           ) : null}
         </div>
 
-        <aside aria-label="Topics" className="rounded-lg border border-border bg-card p-4">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Topics</h2>
+        <Rail label="Scope">
+          <RailSection title="Topics">
           {topics.length === 0 ? (
-            <p className="mt-3 text-xs text-muted-foreground">No topic tags yet.</p>
+            <p className="text-xs text-muted-foreground">No topic tags yet.</p>
           ) : (
-            <ul className="mt-3 grid gap-1.5">
+            <ul className="grid gap-1.5">
               {topics.slice(0, 8).map((topic) => (
                 <li key={topic.label}>
                   <button
@@ -403,8 +394,38 @@ function ExploreView() {
             </ul>
           )}
           <p className="mt-3 text-[10px] text-muted-foreground">Alphabetical; counts are entry points, never rankings.</p>
-        </aside>
-
+          </RailSection>
+          <RailSection title="Order by">
+          <div className="grid gap-2 text-sm">
+            {[
+              ['recent', 'Recent activity'],
+              ['title', 'Title order'],
+            ].map(([value, labelText]) => (
+              <label className="flex items-center gap-2" key={value}>
+                <input
+                  checked={sort === value}
+                  className="accent-[var(--evimesh-primary)]"
+                  name="explore-sort"
+                  onChange={() => setSort(value)}
+                  type="radio"
+                  value={value}
+                />
+                {labelText}
+              </label>
+            ))}
+          </div>
+          <p className="mt-4 text-xs text-muted-foreground">No popularity ordering exists: sorting expresses recency, never research value.</p>
+          </RailSection>
+          <RailSection title="Active filters">
+            <p className="text-xs text-muted-foreground">
+              {topicFilter ? <>topic: {topicFilter}. </> : null}
+              {last30 ? <>Last 30 days. </> : null}
+              {joinable ? <>Open to participate. </> : null}
+              {!topicFilter && !last30 && !joinable ? 'None beyond the type tab.' : null}
+              {' '}All counts include questions, projects, and claims; researchers and topics are separate tabs.
+            </p>
+          </RailSection>
+        </Rail>
         <aside aria-label="Ordering" className="rounded-lg border border-border bg-card p-4">
           <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Order by</h2>
           <div className="mt-3 grid gap-2 text-sm">

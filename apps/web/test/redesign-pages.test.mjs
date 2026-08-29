@@ -135,7 +135,7 @@ test('explore is one search surface with type filters and honest ordering', asyn
   for (const label of ['Questions', 'Projects', 'Claims']) {
     assert.match(page, new RegExp(`label: '${label}'`));
   }
-  assert.match(page, /role="tablist"/);
+  assert.match(page, /<TabNav[\s\S]*?onChange=\{setType\}/);
   assert.match(page, /Clear filters/);
   assert.match(page, /Sorting never expresses research value or support/);
   assert.match(page, /ErrorState/);

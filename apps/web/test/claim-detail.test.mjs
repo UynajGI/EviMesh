@@ -22,9 +22,9 @@ test("claim detail keeps the relation graph with direction switching", () => {
   assert.match(source, /Downstream/);
   assert.match(source, /source: edge\.sourceClaimId/);
   assert.match(source, /target: edge\.targetClaimId/);
-  assert.match(source, /sourceId = edge\.sourceClaimId/);
-  assert.match(source, /targetId = edge\.targetClaimId/);
-  assert.match(source, /targetId === claim\.claimId \? claim/);
+  // The keyboard-reachable list view lives inside ClaimDag (single tab
+  // surface per 11-revision-decisions §4.1), driven by the same typed edges.
+  assert.match(source, /<ClaimDag elements=\{dagElements\} \/>/);
   assert.match(source, /graph\?\.truncated/);
   assert.match(source, /Graph view truncated/);
   assert.match(source, /originatorContributions/);
@@ -32,14 +32,15 @@ test("claim detail keeps the relation graph with direction switching", () => {
   assert.match(source, /signed by human/);
   assert.match(source, /actorHref\(draftingContribution\.actorId, 'agent'\)/);
   assert.match(source, /actorHref\(draftingContribution\.signedBy, 'human'\)/);
-  assert.match(source, /map\(\(\{ sourceId, targetId, relation, state, key \}\)/);
-  assert.match(source, /<span>Source<\/span><span>Relation<\/span><span>Target<\/span>/);
-  assert.match(source, /flex min-w-0 items-center gap-2/);
+  // Traversal direction stays a page-level control; Graph/List equivalence
+  // lives inside ClaimDag (single tab surface, 11-revision-decisions §4.1).
+  assert.match(source, /setDirection\('upstream'\)/);
+  assert.match(source, /setDirection\('downstream'\)/);
 });
 
 test("claim detail renders on the page template with recovery", () => {
   assert.match(source, /PageContainer/);
-  assert.match(source, /claim-statement/);
+  assert.match(source, /serif\n?\s*statement=\{currentRevision\.statement\}/);
   assert.match(source, /Badge/);
   assert.match(source, /Skeleton/);
   assert.match(source, /ErrorState/);
