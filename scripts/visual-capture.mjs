@@ -17,7 +17,9 @@
  */
 import { mkdirSync, statSync, writeFileSync, unlinkSync } from "node:fs";
 import path from "node:path";
+import os from "node:os";
 import { createRequire } from "node:module";
+import { pathToFileURL } from "node:url";
 import { spawnSync } from "node:child_process";
 
 const WEB = process.env.DEMO_WEB_URL ?? "http://localhost:3000";
@@ -69,8 +71,7 @@ function findPlaywrightModule() {
 function domInspection(url, marker) {
   const viewport = MOBILE ? { width: 390, height: 844 } : { width: 1440, height: 900 };
   const modulePath = findPlaywrightModule();
-  if (!modulePath) return { skipped: true };
-  const { pathToFileURL } = require("node:url");
+  if (!modulePath) return { skipped: true, warning: "no playwright module resolvable" };
   const checkScript = `
     const { chromium } = require(${JSON.stringify(modulePath)});
     (async () => {
@@ -87,7 +88,7 @@ function domInspection(url, marker) {
       await browser.close();
     })().catch((error) => { console.error(String(error)); process.exit(1); });
   `;
-  const tmp = path.join(OUT, ".dom-check.js");
+  const tmp = path.join(os.tmpdir(), "evimesh-dom-check.js");
   writeFileSync(tmp, checkScript);
   const executable = "C:/Users/UynajGI/AppData/Local/ms-playwright/chromium-1234/chrome-win64/chrome.exe";
   const run = spawnSync("node", [tmp], { encoding: "utf8", timeout: 60000, env: { ...process.env, CHROME_PATH: executable } });

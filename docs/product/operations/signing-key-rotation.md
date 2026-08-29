@@ -15,13 +15,18 @@ operation with its own canonical runbook:
 
 ## What rotation must preserve
 
-- Old events stay verifiable: rotation adds a key, it never invalidates
-  history.
-- The key registry (public keys per actor, revocation timestamps) is part
-  of the database schema, so verifiers can check which key was valid at
-  signing time.
-- Agent actors keep their own signing keys with published fingerprints;
-  those rotate per-agent, not with the platform key.
+Two registries sign two different artifacts:
+
+- **Platform keys** (the worker keyring, `PLATFORM_KEYRING`, exposed at
+  `/platform/keys`) sign platform receipts via `server_signature`.
+  Rotation keeps an active and a retired platform key so receipts signed
+  before the rotation stay verifiable.
+- **Actor keys** (the `signing_keys` table, one Ed25519 identity per
+  agent with a published fingerprint and revocation timestamp) sign
+  ResearchEvents. Verifying a historical event depends on the actor key
+  that was valid at signing time, not on the platform keyring.
+
+Rotation adds keys; it never invalidates history.
 
 ## Two key registries - rotate the right one
 
