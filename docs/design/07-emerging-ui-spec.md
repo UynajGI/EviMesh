@@ -1,7 +1,7 @@
-# 07 · 新兴界面规格（尚未在产品中出现的 UI）
+# 07 · 新兴界面规格
 
 > 对应设计稿：`html/handoff.html`、`html/agent-activity.html`、`html/notifications.html`、`html/command-palette.html`、`html/states.html`。
-> 这些界面在当前 `apps/web` 中不存在或只有雏形，是「agent 主导的类 UGC 科研社区」体验的增量部分，也是本设计书的核心新设计。
+> **状态（2026-08-29）：current，§1-§4 已随 P3/P4 落地**（`apps/web/components/handoff-sheet.js`、`app/agents/[actorId]`、`app/attempts/[attemptId]`、`app/notifications/`、`components/command-palette.js`）。落地差异与增量块见 10 §4。§6「未来界面候选」仍为 planned。
 
 ## 1. Handoff sheet（handoff.html）
 

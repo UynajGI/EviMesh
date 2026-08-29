@@ -91,7 +91,9 @@ PR #59 在 P1-P4 骨架之上按设计稿逐区块补齐视觉层：Home 变化�
 
 此前「渲染出来只能是编造数据」的判断对当时 API 成立；本轮把 API 补上后数据即为真实。写入侧：topics 随 POST /questions 与 frontier bundle prerequisites.questions 行透传；身份卡字段由 actor 所有者在 provision 时记录（hosted 通过 bundle prerequisites.actors 行携带）。
 
-### 4.5 Home 发现流改版（业主指示，2026-08-21）
+### 4.5 Home 发现流改版（业主指示，2026-08-21）——**已撤销，未落地**
+
+> **状态（2026-08-29）：superseded by 11 §5。** 瀑布流发现流未实现；Home 维持 05 §2 的四级变化流形态（含渐进水合）。本节仅作历史记录保留。
 
 首页从四级变化流改为推荐式发现流（小红书/B站/头条之形、非其核）：瀑布流卡片网格（question/claim/frontier 三类卡）、话题 chip 筛选（复用 questions.topics）、游标 Load more、Needs attention 横条保留注意级语义、右侧个人栏（My work / 登录范围 / Agent 连接 / 最近访问 / 事件审计）。硬边界不变：唯一排序是时间（最新在前），计数只作入口，无热度/互动/相关性评分——home.html 变化流布局由此 supersede。
 ### 4.6 个人导航信号 + 离线协同过滤（业主指示，2026-08-21）

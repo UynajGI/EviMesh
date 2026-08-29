@@ -35,19 +35,19 @@ const TABLES = {
     { actor_id: "actor-atlas", bio: "Drafts claims and records runs under human approval.", deleted_at: null },
   ],
   questions: [
-    { question_id: "q-contrastive", title: "Can contrastive learning gains be reproduced in few-shot settings?", created_by: "actor-lin", created_at: iso(800), deleted_at: null },
+    { question_id: "q-contrastive", project_id: "proj-contrastive", state: "active", title: "Can contrastive learning gains be reproduced in few-shot settings?", topics: ["contrastive-learning", "few-shot", "reproducibility"], created_by: "actor-lin", created_at: iso(800), deleted_at: null },
   ],
   question_revisions: [
-    { question_id: "q-contrastive", revision: 1, background: "Contrastive pretraining reports consistent few-shot gains, but independent reproductions are rare and rarely blind.", research_contract: { contract_id: "contract-demo-1", revision: 1 }, created_by: "actor-lin", created_at: iso(800), deleted_at: null },
+    { question_id: "q-contrastive", revision: 1, title: "Can contrastive learning gains be reproduced in few-shot settings?", statement: "Independent reproductions of published contrastive few-shot gains, run blind against a frozen protocol.", background: "Contrastive pretraining reports consistent few-shot gains, but independent reproductions are rare and rarely blind.", research_contract: { contract_id: "contract-demo-1", revision: 1 }, created_by: "actor-lin", created_at: iso(800), deleted_at: null },
   ],
   research_contract_revisions: [
-    { contract_id: "contract-demo-1", question_id: "q-contrastive", revision: 1, objective: "Reproduce two published contrastive few-shot baselines under matched supervision.", success_criteria: "Within 1 point of reported accuracy on 4 benchmarks.", verification_mode: "blind", freeze_policy: "Frontier freezes after 3 independent blind verifications.", created_by: "actor-lin", created_at: iso(790), deleted_at: null },
+    { contract_id: "contract-demo-1", revision: 1, problem: "Published contrastive few-shot gains lack independent blind reproductions.", definitions: { "few-shot": "k<=16 labelled samples per class" }, background: "Two published baselines report consistent gains; no independent replication exists.", scope: ["SimCLR-style pretraining", "MoCo v2 baseline"], exclusions: ["supervised pretraining variants"], progress_criteria: { metric: "top-1 accuracy delta", target: "within 1 point of reported" }, acceptable_evidence: ["blind replication with frozen harness", "2+ independent seeds"], falsification: "A matched-protocol rerun missing reported accuracy by more than 2 points on 3 of 4 benchmarks falsifies the gain.", license: "CC-BY-4.0", risk_level: "standard", maintainer_ids: ["actor-lin"], created_by: "actor-lin", created_at: iso(790), deleted_at: null },
   ],
   projects: [
-    { project_id: "proj-contrastive", question_id: "q-contrastive", title: "Contrastive reproducibility project", created_by: "actor-lin", created_at: iso(780), deleted_at: null },
+    { project_id: "proj-contrastive", question_id: "q-contrastive", name: "Contrastive reproducibility project", summary: "Two baselines, four benchmarks, three blind verifiers.", created_by: "actor-lin", created_at: iso(780), deleted_at: null },
   ],
   project_revisions: [
-    { project_id: "proj-contrastive", revision: 1, plan: "Two baselines, four benchmarks, three verifiers.", created_at: iso(780), deleted_at: null },
+    { project_id: "proj-contrastive", revision: 1, name: "Contrastive reproducibility project", summary: "Two baselines, four benchmarks, three blind verifiers.", created_by: "actor-lin", created_at: iso(780), deleted_at: null },
   ],
   claims: [
     { claim_id: "claim-a1b2", question_id: "q-contrastive", project_id: "proj-contrastive", state: "provisionally_accepted", created_by: "actor-atlas", created_at: iso(700), updated_at: iso(24), deleted_at: null },
@@ -78,9 +78,9 @@ const TABLES = {
     { evidence_id: "ev-refute", revision: 1, title: "Prompt-sensitivity probe", description: "Gain disappears under 4 of 6 prompt variants.", created_at: iso(100), deleted_at: null },
   ],
   evidence_claim_links: [
-    { evidence_id: "ev-simclr", claim_id: "claim-a1b2", relation: "supports", created_by: "actor-atlas", created_at: iso(660), deleted_at: null },
-    { evidence_id: "ev-moco", claim_id: "claim-a1b2", relation: "supports", created_by: "actor-atlas", created_at: iso(650), deleted_at: null },
-    { evidence_id: "ev-refute", claim_id: "claim-g7h8", relation: "refutes", created_by: "actor-chen", created_at: iso(100), deleted_at: null },
+    { evidence_id: "ev-simclr", claim_id: "claim-a1b2", relation_type: "supports", created_by: "actor-atlas", created_at: iso(660), deleted_at: null },
+    { evidence_id: "ev-moco", claim_id: "claim-a1b2", relation_type: "supports", created_by: "actor-atlas", created_at: iso(650), deleted_at: null },
+    { evidence_id: "ev-refute", claim_id: "claim-g7h8", relation_type: "refutes", created_by: "actor-chen", created_at: iso(100), deleted_at: null },
   ],
   runs: [
     { run_id: "run-demo-1", claim_id: "claim-a1b2", produced_by: "actor-atlas", signing_key_id: "key-atlas-1", signature: { algorithm: "Ed25519", keyId: "key-atlas-1", value: "demo-signature-bytes" }, source_code: "https://github.com/demo/contrastive@4f2c9d1", container: "ghcr.io/demo/contrastive@sha256:9f2c11af", environment: { python: "3.12", torch: "2.6" }, hardware: { gpu: "1x A100 80GB", driver: "550.54" }, created_at: iso(690), deleted_at: null },
@@ -103,7 +103,7 @@ const TABLES = {
     { artifact_id: "art-metrics", uri: "s3://demo-bucket/artifacts/rerun-metrics.json", created_at: iso(688), deleted_at: null },
   ],
   verification_receipts: [
-    { receipt_id: "rec-blind-1", claim_id: "claim-a1b2", verifier_actor_id: "actor-chen", outcome: "supported", verification_types: ["blind", "replication"], context_mode: "statement_only", created_at: iso(60), deleted_at: null },
+    { receipt_id: "rec-blind-1", claim_id: "claim-a1b2", verifier_actor_id: "actor-chen", outcome: "supports", verification_types: ["blind", "replication"], context_mode: "statement_only", created_at: iso(60), deleted_at: null },
   ],
   verification_findings: [
     { receipt_id: "rec-blind-1", severity: "critical", title: "Benchmark leakage in protocol harness", description: "The frozen harness shared a preprocessing step with the training split for one benchmark.", created_at: iso(60), deleted_at: null },
@@ -123,12 +123,12 @@ const TABLES = {
     { snapshot_id: "fs-2026-08", project_id: "proj-contrastive", question_id: "q-contrastive", sequence: 3, state: "published", published_at: iso(24), created_by: "actor-lin", created_at: iso(24), deleted_at: null },
   ],
   frontier_members: [
-    { snapshot_id: "fs-2026-08", claim_id: "claim-a1b2", revision: 2, created_at: iso(24), deleted_at: null },
+    { snapshot_id: "fs-2026-08", claim_id: "claim-a1b2", revision: 2, membership_type: "member", created_at: iso(24), deleted_at: null },
   ],
   contribution_statements: [
     { statement_id: "st-origin", actor_id: "actor-lin", role: "originator", description: "Originated the reproducibility question and signed the frontier snapshot.", event_id: "ev-0001", created_at: iso(800), deleted_at: null },
-    { statement_id: "st-draft", actor_id: "actor-atlas", role: "contributor", description: "Drafted claim-a1b2 revision 2 and recorded run-demo-1.", event_id: "ev-0003", created_at: iso(120), deleted_at: null },
-    { statement_id: "st-verify", actor_id: "actor-chen", role: "verifier", description: "Completed blind verification rec-blind-1.", event_id: "ev-0006", created_at: iso(60), deleted_at: null },
+    { statement_id: "st-draft", actor_id: "actor-atlas", role: "originator", description: "Drafted claim-a1b2 and recorded its run under human approval.", event_id: "ev-0004", created_at: iso(700), deleted_at: null },
+    { statement_id: "st-verify", actor_id: "actor-chen", role: "verifier", description: "Completed blind verification rec-blind-1.", event_id: "ev-0013", created_at: iso(60), deleted_at: null },
   ],
   contribution_edges: [
     { statement_id: "st-origin", object_type: "question", object_id: "q-contrastive", edge_type: "produced", object_revision: 1, created_at: iso(800), deleted_at: null },
@@ -170,23 +170,24 @@ function buildEvents() {
     events.push(row);
   };
   add(800, "question.created", "actor-lin", { question_id: "q-contrastive", title: "Can contrastive learning gains be reproduced in few-shot settings?" });
+  add(790, "contract.published", "actor-lin", { contract_id: "contract-demo-1", question_id: "q-contrastive" });
+  add(780, "project.created", "actor-lin", { project_id: "proj-contrastive", question_id: "q-contrastive" });
   add(700, "claim.created", "actor-atlas", { claim_id: "claim-a1b2", question_id: "q-contrastive", drafted_by_actor_id: "actor-atlas", signer_actor_id: "actor-lin", claim_state: "draft" });
-  add(690, "run.recorded", "actor-atlas", { run_id: "run-demo-1", claim_id: "claim-a1b2", producer_actor_id: "actor-atlas" });
-  add(120, "claim.revised", "actor-atlas", { claim_id: "claim-a1b2", claim_state: "provisionally_accepted", drafted_by_actor_id: "actor-atlas", signer_actor_id: "actor-lin" });
-  add(660, "evidence.linked", "actor-atlas", { evidence_id: "ev-simclr", claim_id: "claim-a1b2", relation: "supports" });
-  add(650, "evidence.linked", "actor-atlas", { evidence_id: "ev-moco", claim_id: "claim-a1b2", relation: "supports" });
-  add(60, "verification.completed", "actor-chen", { receipt_id: "rec-blind-1", claim_id: "claim-a1b2", outcome: "supported", verifier_actor_id: "actor-chen" });
-  add(60, "finding.reported", "actor-chen", { receipt_id: "rec-blind-1", claim_id: "claim-a1b2", severity: "critical", title: "Benchmark leakage in protocol harness" });
+  add(695, "run.recorded", "actor-atlas", { run_id: "run-demo-1", claim_id: "claim-a1b2", producer_actor_id: "actor-atlas" });
+  add(660, "evidence.linked", "actor-atlas", { evidence_id: "ev-simclr", claim_id: "claim-a1b2", relation_type: "supports" });
+  add(650, "evidence.linked", "actor-atlas", { evidence_id: "ev-moco", claim_id: "claim-a1b2", relation_type: "supports" });
   add(640, "claim.created", "actor-atlas", { claim_id: "claim-d4e5", question_id: "q-contrastive", claim_state: "draft", drafted_by_actor_id: "actor-atlas", signer_actor_id: "actor-lin" });
-  add(100, "evidence.linked", "actor-chen", { evidence_id: "ev-refute", claim_id: "claim-g7h8", relation: "refutes" });
   add(600, "claim.state_changed", "actor-lin", { claim_id: "claim-g7h8", claim_state: "refuted", signer_actor_id: "actor-lin" });
+  add(120, "claim.revised", "actor-atlas", { claim_id: "claim-a1b2", claim_state: "provisionally_accepted", drafted_by_actor_id: "actor-atlas", signer_actor_id: "actor-lin" });
+  add(100, "evidence.linked", "actor-chen", { evidence_id: "ev-refute", claim_id: "claim-g7h8", relation_type: "refutes" });
+  add(61, "verification.completed", "actor-chen", { receipt_id: "rec-blind-1", claim_id: "claim-a1b2", outcome: "supports", verifier_actor_id: "actor-chen" });
+  add(60, "finding.reported", "actor-chen", { receipt_id: "rec-blind-1", claim_id: "claim-a1b2", severity: "critical", title: "Benchmark leakage in protocol harness" });
   add(50, "challenge.created", "actor-chen", { challenge_id: "chal-variance", claim_id: "claim-d4e5", challenge_state: "investigating" });
+  add(24, "frontier.snapshot_published", "actor-lin", { snapshot_id: "fs-2026-08", project_id: "proj-contrastive", member_claim_id: "claim-a1b2", action: "add", has_impact: true });
   add(6, "challenge.updated", "actor-chen", { challenge_id: "chal-variance", claim_id: "claim-d4e5", challenge_state: "investigating" });
-  add(24, "frontier.snapshot_published", "actor-lin", { snapshot_id: "fs-2026-08", question_id: "q-contrastive", member_claim_id: "claim-a1b2", action: "add", has_impact: true });
   add(2, "policy.updated", "actor-lin", { policy_revision_id: "pol-1", scope: "verification" });
-  return events.reverse(); // repository orders created_at asc by default; store oldest-first
+  return events; // add() appends oldest-first; ids stay monotonic with created_at
 }
-TABLES.research_events = TABLES.research_events.slice().sort((a, b) => a.created_at.localeCompare(b.created_at));
 
 /* ------------------------------------------------- postgrest simulator --
  * Deliberately loose: eq/in filters and ordering are honored; logical or()
@@ -215,6 +216,7 @@ function applyFilter(rows, name, raw) {
 
 function postgrest(url, options = {}) {
   const target = new URL(url);
+  if (process.env.DEMO_LOG) console.log("[pg]", (options.method ?? "GET"), target.pathname + target.search.slice(0, 140));
   const parts = target.pathname.split("/").filter(Boolean);
   const table = parts[parts.length - 1];
   const rows = TABLES[table] ?? [];
