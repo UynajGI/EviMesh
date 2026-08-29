@@ -82,9 +82,11 @@ export async function getClaim({ repository, claimId } = {}) {
   }
   const claim = await repository.getClaim(claimId);
   if (!claim) throw new ClaimQueryError("claim not found", "CLAIM_NOT_FOUND", 404);
-  const currentRevision = await repository.getCurrentClaimRevision(claimId);
+  const [currentRevision, originatorContributions] = await Promise.all([
+    repository.getCurrentClaimRevision(claimId),
+    claimOriginatorContributions(repository, claimId),
+  ]);
   if (!currentRevision) throw new ClaimQueryError("current claim revision not found", "CLAIM_REVISION_NOT_FOUND", 500);
-  const originatorContributions = await claimOriginatorContributions(repository, claimId);
   let allowedTransitions;
   try {
     allowedTransitions = claimTransitionsFrom(claim.state);

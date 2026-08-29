@@ -75,6 +75,9 @@ const CLAIM_GRAPH_MAX_EDGES = 512;
 const CLAIM_GRAPH_RELATION_QUERY_LIMIT = CLAIM_GRAPH_MAX_EDGES + 1;
 const ATTRIBUTION_BATCH_SIZE = 50;
 const QUESTION_EVENT_CLAIM_LIMIT = 50;
+/* Attribution views render a bounded list; one object carrying more edges
+ * than this is a data anomaly, not a page the UI could show. */
+const CONTRIBUTION_EDGES_OBJECT_LIMIT = 64;
 const EVENT_ACTOR_PAYLOAD_KEYS = Object.freeze(["actor_id", "signer_actor_id", "publisher_actor_id", "drafted_by_actor_id", "producer_actor_id", "run_actor_id"]);
 const TABLE_ORDERS = Object.freeze({
   actors: "created_at.desc,actor_id.desc",
@@ -181,13 +184,24 @@ function eventObjectPredicate(objectType, objectId, descendantClaimIds = []) {
   return predicates.join(",");
 }
 
+/* PostgREST predicates compare payload fields as text (payload->>); the JS
+ * mirrors of those predicates must use the same text semantics, or rows the
+ * API already matched get silently dropped from a fetched page. */
+function payloadTextEquals(value, expected) {
+  if (value === null || value === undefined || typeof value === "object") return false;
+  return String(value) === expected;
+}
+
 function eventReferencesObject(payload, objectType, objectId, descendantClaimIds = new Set()) {
-  const typedReference = eventObjectIdKeys(objectType).some((key) => payload[key] === objectId);
+  const typedReference = eventObjectIdKeys(objectType).some((key) => payloadTextEquals(payload[key], objectId));
   const descendantReference = objectType === "question"
-    && (payload.projection?.state?.claim?.questionId === objectId
-      || [payload.claim_id, payload.source_claim_id, payload.target_claim_id].some((claimId) => descendantClaimIds.has(claimId)));
-  const genericReference = (payload.object_type === objectType || payload.entity_type === objectType)
-    && payload.object_id === objectId;
+    && (payloadTextEquals(payload.projection?.state?.claim?.questionId, objectId)
+      || [payload.claim_id, payload.source_claim_id, payload.target_claim_id].some((claimId) => {
+        if (claimId === null || claimId === undefined || typeof claimId === "object") return false;
+        return descendantClaimIds.has(String(claimId));
+      }));
+  const genericReference = (payloadTextEquals(payload.object_type, objectType) || payloadTextEquals(payload.entity_type, objectType))
+    && payloadTextEquals(payload.object_id, objectId);
   return typedReference || descendantReference || genericReference;
 }
 
@@ -419,7 +433,10 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
     listContributionEdges: (statementIds) => list("contributionEdges", { statement_id: statementIds }),
     listContributionStatementsByIds: (statementIds) => list("contributionStatements", { statement_id: statementIds }),
     listContributionEdgesForObject: ({ objectType, objectId, objectRevision = null }) =>
-      list("contributionEdges", { object_type: objectType, object_id: objectId, ...(objectRevision !== null && objectRevision !== undefined ? { object_revision: objectRevision } : {}) }),
+      query("contributionEdges", {
+        filters: { object_type: objectType, object_id: objectId, ...(objectRevision !== null && objectRevision !== undefined ? { object_revision: objectRevision } : {}) },
+        limit: CONTRIBUTION_EDGES_OBJECT_LIMIT,
+      }),
 
     /* ---- engagement signals + recommendations (client-token writes) ---- */
     async findIdentity(provider, subject, { accessToken = null } = {}) {
@@ -656,7 +673,7 @@ export function createSupabaseReadRepository({ url, publishableKey, fetchImpl = 
         const payload = row.payload ?? {};
         if (createdBefore && !(Date.parse(row.createdAt ?? "") <= Date.parse(createdBefore))) return false;
         if (objectType && objectId && !eventReferencesObject(payload, objectType, objectId, descendantClaimIds)) return false;
-        if (actorId && !EVENT_ACTOR_PAYLOAD_KEYS.some((key) => payload[key] === actorId)) return false;
+        if (actorId && !EVENT_ACTOR_PAYLOAD_KEYS.some((key) => payloadTextEquals(payload[key], actorId))) return false;
         return true;
       });
     },

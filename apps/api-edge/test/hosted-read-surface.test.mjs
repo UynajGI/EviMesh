@@ -236,6 +236,43 @@ test("object-scoped event pagination pushes relation-aware ids and time bounds i
   assert.equal(request.options.headers.Range, "0-2");
 });
 
+test("object-scoped event filtering keeps rows whose payload ids are JSON numbers, matching payload->> text semantics", async () => {
+  // PostgREST matched these rows via payload->> text comparison; the JS
+  // mirror must not drop them for strict-equality type mismatch, or a
+  // fetched page silently shortens and cursor pagination ends early.
+  const repository = createSupabaseReadRepository({
+    url: "https://example.supabase.co",
+    publishableKey: "anon",
+    fetchImpl: async () => Response.json([
+      { event_id: "e2", payload: { entity_type: "claim", claim_id: 123456789 }, created_at: "2026-08-02T00:00:00.000Z" },
+      { event_id: "e1", payload: { object_type: "claim", object_id: 123456789 }, created_at: "2026-08-01T00:00:00.000Z" },
+    ]),
+  });
+
+  const result = await listResearchEvents({ repository, objectType: "claim", objectId: "123456789", order: "desc", limit: 10 });
+
+  assert.deepEqual(result.items.map((event) => event.eventId), ["e2", "e1"]);
+});
+
+test("object contribution edges are fetched with a bounded limit", async () => {
+  let endpoint;
+  const repository = createSupabaseReadRepository({
+    url: "https://example.supabase.co",
+    publishableKey: "anon",
+    fetchImpl: async (url) => {
+      endpoint = new URL(url);
+      return Response.json([]);
+    },
+  });
+
+  const edges = await repository.listContributionEdgesForObject({ objectType: "claim", objectId: "claim-9" });
+
+  assert.deepEqual(edges, []);
+  assert.equal(endpoint.searchParams.get("object_type"), "eq.claim");
+  assert.equal(endpoint.searchParams.get("object_id"), "eq.claim-9");
+  assert.equal(endpoint.searchParams.get("limit"), "64");
+});
+
 test("latest actor activity uses a server-side JSON filter and one-row descending query", async () => {
   let seen;
   const repository = createSupabaseReadRepository({
