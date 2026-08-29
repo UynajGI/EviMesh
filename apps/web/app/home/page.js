@@ -9,6 +9,7 @@ import { Alert, DeniedState, Empty, ErrorState, Skeleton } from '@/components/ui
 import { IdChip } from '@/components/ui/idchip';
 import { PageContainer, PageHeader } from '@/components/ui/page';
 import { fetchMyInteractions } from '@/lib/interactions';
+import { Rail } from '@/components/ui/rail';
 import { createBrowserSupabaseClient } from '@/lib/supabase-browser';
 import { readVisitHistory } from '@/lib/visit-history';
 
@@ -623,7 +624,7 @@ export default function HomePage() {
           )}
         </div>
 
-        <aside aria-label="Home context" className="grid gap-7 lg:sticky lg:top-6">
+        <Rail className="gap-7" label="Home context">
           <section aria-labelledby="my-work-heading" className="border-t border-border pt-4">
             <div className="flex items-center gap-2">
               <ListTodo aria-hidden="true" className="text-muted-foreground" size={16} />
@@ -677,7 +678,7 @@ export default function HomePage() {
               <p className="mt-2 text-xs leading-5 text-muted-foreground">No recent local visits are stored in this browser.</p>
             )}
           </section>
-        </aside>
+        </Rail>
       </div>
     </PageContainer>
   );

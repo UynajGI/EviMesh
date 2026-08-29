@@ -10,6 +10,7 @@ import { Alert, Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
 import { IdChip } from '@/components/ui/idchip';
 import { actorHref } from '@/components/attribution';
 import { PageContainer, PageHeader } from '@/components/ui/page';
+import { TabNav } from '@/components/ui/tab-nav';
 import { RoleBar, CONTRIBUTION_ROLES } from '@/components/role-bar';
 import { HandoffSheet } from '@/components/handoff-sheet';
 import { cn } from '@/lib/utils';
@@ -205,31 +206,17 @@ export default function WorkPage() {
         </details>
       </section>
 
-      <div className="mt-8 flex gap-1 overflow-x-auto border-b border-border" role="tablist" aria-label="Work views">
-        {TABS.map((entry) => {
-          const total = entry.id === 'tasks' ? (openTasks?.length ?? 0)
-            : entry.id === 'verify' ? (verificationClaims?.length ?? 0)
-              : null;
-          return (
-            <button
-              aria-selected={tab === entry.id}
-              className={cn(
-                '-mb-px inline-flex items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium transition-colors',
-                tab === entry.id ? 'border-primary font-semibold text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground',
-              )}
-              key={entry.id}
-              onClick={() => setTab(entry.id)}
-              role="tab"
-              type="button"
-            >
-              {entry.label}
-              {total !== null ? (
-                <span className={cn('rounded-full border px-1.5 text-[11px] font-medium tabular-nums', entry.id === 'verify' ? 'border-status-accent-border bg-status-accent-bg text-status-accent-fg' : 'border-border bg-muted text-muted-foreground')}>{total}</span>
-              ) : null}
-            </button>
-          );
-        })}
-      </div>
+      <TabNav
+        active={tab}
+        ariaLabel="Work views"
+        className="mt-8"
+        items={TABS.map((entry) => ({
+          count: entry.id === 'tasks' ? (openTasks?.length ?? 0) : entry.id === 'verify' ? (verificationClaims?.length ?? 0) : null,
+          key: entry.id,
+          label: entry.label,
+        }))}
+        onChange={setTab}
+      />
 
       {tab === 'tasks' ? (
         <section className="mt-6" aria-label="Open tasks">

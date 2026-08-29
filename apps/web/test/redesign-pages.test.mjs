@@ -206,7 +206,8 @@ test('workspace offers six protocol views with DAG framing and no scores', async
   }
   assert.match(page, /Claims form a DAG of typed edges, never a tree/);
   assert.match(page, /grouped counts are navigation, not a score/i);
-  assert.match(page, /role="tablist"/);
+  // Workspace views render through the shared TabNav (11 §4.1).
+  assert.match(page, /<TabNav active=\{view\} ariaLabel="Workspace views"/);
   assert.match(page, /objectType=question&objectId=/);
 });
 

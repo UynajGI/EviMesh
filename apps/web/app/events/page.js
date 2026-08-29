@@ -7,6 +7,7 @@ import { StatusBadge } from '@/components/ui/data';
 import { Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
 import { IdChip } from '@/components/ui/idchip';
 import { PageContainer, PageHeader } from '@/components/ui/page';
+import { ProvenanceList } from '@/components/ui/provenance-list';
 import { apiFetch } from '@/lib/api-client';
 
 const EVENT_FILTERS = ['objectType', 'objectId', 'createdAfter', 'createdBefore', 'eventType', 'actorId'];
@@ -77,15 +78,14 @@ function EventsAuditView() {
               <IdChip value={event.eventId} />
               <span className="ml-auto text-xs tabular-nums text-muted-foreground">{event.createdAt ?? 'Unknown'}</span>
             </div>
-            <details className="mt-2">
-              <summary className="cursor-pointer text-xs text-muted-foreground">Technical details: hash, signature, parents</summary>
-              <dl className="mt-2 grid gap-3 text-sm md:grid-cols-2">
-                <div><dt className="text-muted-foreground">Hash</dt><dd className="mt-1 break-all font-mono text-xs tabular-nums">{event.hash ?? 'Missing'}</dd></div>
-                <div><dt className="text-muted-foreground">Signature</dt><dd className="mt-1 break-all font-mono text-xs tabular-nums">{typeof event.signature === 'object' ? JSON.stringify(event.signature) : event.signature ?? 'Missing'}</dd></div>
-                <div><dt className="text-muted-foreground">Parents</dt><dd className="mt-1 font-mono text-xs tabular-nums">{(event.parents ?? []).join(', ') || 'Genesis event'}</dd></div>
-                <div><dt className="text-muted-foreground">Created</dt><dd className="mt-1 tabular-nums">{event.createdAt ?? 'Unknown'}</dd></div>
-              </dl>
-            </details>
+            <ProvenanceList
+              fields={[
+                { label: 'Hash', value: event.hash ?? 'Missing' },
+                { label: 'Signature', value: typeof event.signature === 'object' ? JSON.stringify(event.signature) : event.signature ?? 'Missing' },
+                { label: 'Parents', value: (event.parents ?? []).join(', ') || 'Genesis event' },
+                { label: 'Created', value: event.createdAt ?? 'Unknown', mono: false },
+              ]}
+            />
           </div>
         </li>
       );
