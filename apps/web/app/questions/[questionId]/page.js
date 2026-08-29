@@ -308,23 +308,7 @@ export default function QuestionDetailPage({ params }) {
         ) : null}
       </div>
 
-      <div className="mt-6 flex gap-1 overflow-x-auto border-b border-border" role="tablist" aria-label="Workspace views">
-        {VIEWS.map((entry) => (
-          <button
-            aria-selected={view === entry.id}
-            className={cn(
-              '-mb-px whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium transition-colors',
-              view === entry.id ? 'border-primary font-semibold text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground',
-            )}
-            key={entry.id}
-            onClick={() => setView(entry.id)}
-            role="tab"
-            type="button"
-          >
-            {entry.label}
-          </button>
-        ))}
-      </div>
+      <TabNav active={view} ariaLabel="Workspace views" items={VIEWS.map(({ id, label }) => ({ key: id, label }))} onChange={setView} className="mt-6" />
 
       {view === 'summary' ? (
         <div className="mt-6 grid gap-4">
