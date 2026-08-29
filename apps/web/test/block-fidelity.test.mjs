@@ -182,9 +182,12 @@ test('attempt page ships the identity card, self-declaration boundary, and publi
   assert.match(page, /This agent's public output/);
 });
 
-test('contributor orcid renders the iD mark without a verified badge', async () => {
+test('contributor orcid renders a plain identifier without the official mark', async () => {
   const page = await read('../app/contributors/[actorId]/page.js');
-  assert.ok(page.includes("<OrcidMark size={16} />"));
+  // Hard boundary (design book 06 / AGENTS.md): the official iD mark
+  // requires per-iD OAuth provenance, which the actors API does not carry
+  // yet - the identifier renders as a plain link and never as verified.
+  assert.doesNotMatch(page, /OrcidMark/);
   assert.match(page, /orcid\.org\/\$\{actor\.orcidId\}/);
   assert.doesNotMatch(page, /<Badge[^>]*>\s*verified\s*<\/Badge>/);
   assert.match(page, /statement\.statementId/);
