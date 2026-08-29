@@ -11,7 +11,6 @@
  * a sourceOfTruth pointing at the machine source - edit the source, rerun.
  */
 import { readFile, writeFileSync } from "node:fs";
-import { spawnSync } from "node:child_process";
 import { readFile as readFileAsync } from "node:fs/promises";
 import path from "node:path";
 
@@ -95,11 +94,17 @@ async function importProtocol(relative) {
   return import(pathToFileURL(path.join(ROOT, "packages", "protocol", "src", relative)).href);
 }
 
-/** Deterministic last-commit date for a file or directory (YYYY-MM-DD). */
-function gitDate(target) {
-  const result = spawnSync("git", ["log", "-1", "--format=%cs", "--", target], { encoding: "utf8" });
-  const date = (result.stdout ?? "").trim();
-  return date || new Date().toISOString().slice(0, 10);
+
+/** Deterministic provenance value: the source contract/package version.
+ *  Git dates change between the pre-commit run and the CI run, which would
+ *  keep --check permanently dirty after every ordinary source change. */
+async function sourceVersion(kind) {
+  if (kind === "api") {
+    const openapi = JSON.parse(await readFileAsync(path.join(ROOT, "apps", "api-edge", "openapi.json"), "utf8"));
+    return `v${openapi.info.version}`;
+  }
+  const pkg = JSON.parse(await readFileAsync(path.join(ROOT, "packages", "protocol", "package.json"), "utf8"));
+  return `v${pkg.version}`;
 }
 
 async function main() {
@@ -107,7 +112,7 @@ async function main() {
   const targets = [
     {
       file: path.join(OUT_DIR, "api-endpoints.generated.md"),
-      updatedAt: gitDate(path.join(ROOT, "apps", "api-edge", "openapi.json")),
+      updatedAt: await sourceVersion("api"),
       get header() {
         return HEADER("apps/api-edge/openapi.json", {
           title: "API endpoints (generated)",
@@ -119,7 +124,7 @@ async function main() {
     },
     {
       file: path.join(OUT_DIR, "protocol-vocabularies.generated.md"),
-      updatedAt: gitDate(path.join(ROOT, "packages", "protocol", "src")),
+      updatedAt: await sourceVersion("protocol"),
       get header() {
         return HEADER("packages/protocol/src", {
           title: "Protocol vocabularies (generated)",
