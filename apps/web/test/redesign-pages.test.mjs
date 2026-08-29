@@ -348,9 +348,11 @@ test('no interactive control is nested inside a navigation link', async () => {
   assert.match(chip, /event\.stopPropagation\(\)/);
 });
 
-test('Docs forwards to the Markdown manual, not the connection wizard', async () => {
+test('Docs is a real homepage built from the product manifest', async () => {
   const docs = await read('../app/docs/page.js');
-  assert.match(docs, /redirect\('\/agent\.md'\)/);
+  assert.match(docs, /loadDocsManifest/);
+  assert.doesNotMatch(docs, /redirect\(/);
+  assert.match(docs, /\/docs\/getting-started\/researcher/);
 });
 
 test('agent center and handoffs use registered MCP tools and CLI commands', async () => {
