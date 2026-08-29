@@ -68,7 +68,7 @@ function contrastRatio(foreground, background) {
 
 function tokensFor(theme) {
   const rootOpen = css.indexOf(":root");
-  const block = theme === "dark" ? parseBlock(css, css.indexOf("prefers-color-scheme: dark")) : parseBlock(css, rootOpen);
+  const block = theme === "dark" ? parseBlock(css, css.search(/^\[data-theme="dark"\] \{/m)) : parseBlock(css, rootOpen);
   return extractTokens(block);
 }
 

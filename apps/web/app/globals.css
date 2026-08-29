@@ -14,8 +14,9 @@
  *   3. Component values (`--evimesh-c-*`) reference semantic values.
  *
  * Theme contract: light values live on the root selector. Dark applies through
- * BOTH the manual data-attribute override and the system color-scheme media
- * query (unless light is forced). Keep the two dark blocks in sync.
+ * the single manual-dark block; the layout bootstrap resolves the
+ * "auto" case to a concrete value and re-resolves on system changes, so there
+ * is deliberately no prefers-color-scheme duplicate here.
  */
 
 @theme inline {
@@ -228,6 +229,24 @@
   --evimesh-c-card-border: var(--evimesh-border);
   --evimesh-c-input-bg: var(--evimesh-card);
   --evimesh-c-input-border: var(--evimesh-border);
+  /* Layout + motion component tokens (11-revision-decisions.md §4): pages and
+   * shared components consume these; no new spacing magic numbers. */
+  --evimesh-container-px: 1.5rem;
+  --evimesh-rail-w: 18rem;
+  --evimesh-header-h: 3.5rem;
+  --evimesh-radius-control: 6px;
+  --evimesh-radius-surface: 8px;
+  --evimesh-radius-overlay: 12px;
+  --evimesh-motion-fast: 100ms;
+  --evimesh-motion-enter: 160ms;
+  --evimesh-ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* 390-first small screens: tighter page gutters (04 §8). */
+@media (max-width: 767px) {
+  :root {
+    --evimesh-container-px: 1rem;
+  }
   --evimesh-c-input-placeholder: var(--evimesh-muted-foreground);
   --evimesh-c-skeleton: var(--evimesh-muted);
   --evimesh-c-dag-edge-neutral: var(--evimesh-status-neutral-fg);
@@ -334,102 +353,6 @@
   --evimesh-dag-lineage: var(--evimesh-p-neutral-500);
 }
 
-/* System dark, unless the user forced light. Keep in sync with the block above. */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    /* Keep the system-dark path identical to the manual dark path. */
-    --evimesh-p-neutral-0: oklch(0.207 0.0227 257.29);
-    --evimesh-p-neutral-50: oklch(0.161 0.0151 253.14);
-    --evimesh-p-neutral-100: oklch(0.261 0.0261 255.75);
-    --evimesh-p-neutral-150: oklch(0.261 0.0261 255.75);
-    --evimesh-p-neutral-200: oklch(0.261 0.0261 255.75);
-    --evimesh-p-neutral-300: oklch(0.386 0.0243 253.12);
-    --evimesh-p-neutral-400: oklch(0.72 0.0135 255.53);
-    --evimesh-p-neutral-500: oklch(0.72 0.0135 255.53);
-    --evimesh-p-neutral-600: oklch(0.865 0.0099 252.82);
-    --evimesh-p-neutral-700: oklch(0.957 0.0046 258.32);
-    --evimesh-p-neutral-900: oklch(0.972 0.0034 247.86);
-    --evimesh-p-neutral-on-emphasis: oklch(0.972 0.0034 247.86);
-    --evimesh-p-brand-100: oklch(0.356 0.1099 257.78);
-    --evimesh-p-brand-200: oklch(0.435 0.1398 257.88);
-    --evimesh-p-brand-300: oklch(0.87 0.0552 257.74);
-    --evimesh-p-brand-400: oklch(0.721 0.1294 257.8);
-    --evimesh-p-brand-500: oklch(0.511 0.1591 257.75);
-    --evimesh-p-success-100: oklch(0.341 0.0751 152.13);
-    --evimesh-p-success-200: oklch(0.49 0.1204 151.92);
-    --evimesh-p-success-300: oklch(0.855 0.0801 152.31);
-    --evimesh-p-success-400: oklch(0.681 0.1105 151.85);
-    --evimesh-p-success-500: oklch(0.49 0.1204 151.92);
-    --evimesh-p-warning-100: oklch(0.371 0.0792 72.66);
-    --evimesh-p-warning-200: oklch(0.452 0.0982 69.46);
-    --evimesh-p-warning-300: oklch(0.87 0.1003 75.08);
-    --evimesh-p-warning-400: oklch(0.74 0.1198 74.7);
-    --evimesh-p-warning-500: oklch(0.452 0.0982 69.46);
-    --evimesh-p-danger-100: oklch(0.369 0.1204 26.92);
-    --evimesh-p-danger-200: oklch(0.451 0.1602 27.18);
-    --evimesh-p-danger-300: oklch(0.88 0.0603 27.21);
-    --evimesh-p-danger-400: oklch(0.661 0.1699 27.32);
-    --evimesh-p-danger-500: oklch(0.52 0.1902 27);
-    --evimesh-p-info-100: oklch(0.354 0.0802 240.18);
-    --evimesh-p-info-200: oklch(0.43 0.1002 241.04);
-    --evimesh-p-info-300: oklch(0.874 0.0649 240.88);
-    --evimesh-p-info-400: oklch(0.679 0.1004 240.41);
-    --evimesh-p-info-500: oklch(0.5 0.1098 239.95);
-    --evimesh-background: var(--evimesh-p-neutral-50);
-    --evimesh-foreground: var(--evimesh-p-neutral-900);
-    --evimesh-card: var(--evimesh-p-neutral-0);
-    --evimesh-card-foreground: var(--evimesh-p-neutral-900);
-    --evimesh-muted: var(--evimesh-p-neutral-100);
-    --evimesh-muted-foreground: var(--evimesh-p-neutral-400);
-    --evimesh-secondary: var(--evimesh-p-neutral-150);
-    --evimesh-secondary-foreground: var(--evimesh-p-neutral-700);
-    --evimesh-accent: var(--evimesh-p-brand-100);
-    --evimesh-accent-foreground: var(--evimesh-p-brand-300);
-    --evimesh-border: var(--evimesh-p-neutral-200);
-    --evimesh-primary: var(--evimesh-p-brand-500);
-    --evimesh-primary-foreground: var(--evimesh-p-neutral-on-emphasis);
-    --evimesh-destructive: var(--evimesh-p-danger-500);
-    --evimesh-destructive-foreground: var(--evimesh-p-neutral-on-emphasis);
-    --evimesh-success: var(--evimesh-p-success-500);
-    --evimesh-success-foreground: var(--evimesh-p-neutral-on-emphasis);
-    --evimesh-warning: var(--evimesh-p-warning-500);
-    --evimesh-warning-foreground: var(--evimesh-p-neutral-on-emphasis);
-    --evimesh-info: var(--evimesh-p-info-500);
-    --evimesh-info-foreground: var(--evimesh-p-neutral-on-emphasis);
-    --evimesh-focus: var(--evimesh-p-brand-400);
-    --evimesh-ring: var(--evimesh-p-brand-400);
-    --evimesh-status-neutral-bg: var(--evimesh-p-neutral-150);
-    --evimesh-status-neutral-fg: var(--evimesh-p-neutral-600);
-    --evimesh-status-neutral-border: var(--evimesh-p-neutral-300);
-    --evimesh-status-accent-bg: var(--evimesh-p-brand-100);
-    --evimesh-status-accent-fg: var(--evimesh-p-brand-300);
-    --evimesh-status-accent-border: var(--evimesh-p-brand-200);
-    --evimesh-status-success-bg: var(--evimesh-p-success-100);
-    --evimesh-status-success-fg: var(--evimesh-p-success-300);
-    --evimesh-status-success-border: var(--evimesh-p-success-200);
-    --evimesh-status-warning-bg: var(--evimesh-p-warning-100);
-    --evimesh-status-warning-fg: var(--evimesh-p-warning-300);
-    --evimesh-status-warning-border: var(--evimesh-p-warning-200);
-    --evimesh-status-danger-bg: var(--evimesh-p-danger-100);
-    --evimesh-status-danger-fg: var(--evimesh-p-danger-300);
-    --evimesh-status-danger-border: var(--evimesh-p-danger-200);
-    --evimesh-status-info-bg: var(--evimesh-p-info-100);
-    --evimesh-status-info-fg: var(--evimesh-p-info-300);
-    --evimesh-status-info-border: var(--evimesh-p-info-200);
-    --evimesh-emphasis-success: var(--evimesh-p-success-500);
-    --evimesh-emphasis-warning: var(--evimesh-p-warning-500);
-    --evimesh-emphasis-danger: var(--evimesh-p-danger-500);
-    --evimesh-emphasis-info: var(--evimesh-p-info-500);
-    --evimesh-emphasis-neutral: var(--evimesh-p-neutral-300);
-    --evimesh-emphasis-foreground: var(--evimesh-p-neutral-on-emphasis);
-    --evimesh-dag-positive: var(--evimesh-p-success-400);
-    --evimesh-dag-negative: var(--evimesh-p-danger-400);
-    --evimesh-dag-qualify: var(--evimesh-p-warning-400);
-    --evimesh-dag-structural: var(--evimesh-p-info-400);
-    --evimesh-dag-lineage: var(--evimesh-p-neutral-500);
-  }
-}
 
 body {
   margin: 0;

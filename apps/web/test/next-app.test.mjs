@@ -52,7 +52,8 @@ test('defines light and dark design tokens for the web product', async () => {
   assert.match(globals, /--color-background: var\(--evimesh-background\)/);
   assert.match(globals, /--color-primary: var\(--evimesh-primary\)/);
   assert.match(globals, /:root \{[\s\S]*--evimesh-background:/);
-  assert.match(globals, /@media \(prefers-color-scheme: dark\) \{[\s\S]*--evimesh-background:/);
+  assert.match(globals, /\[data-theme="dark"\] \{[\s\S]*--evimesh-background:/);
+  assert.equal(globals.includes('prefers-color-scheme: dark'), false, 'single dark block: no prefers-color-scheme duplicate');
 });
 
 test('provides primary navigation and the initial product routes', async () => {
@@ -60,7 +61,7 @@ test('provides primary navigation and the initial product routes', async () => {
     read('../app/layout.js'), read('../components/template-shell.js'), read('../app/projects/page.js'), read('../app/tasks/page.js'), read('../app/verification/page.js'), read('../app/contributions/page.js'), read('../app/docs/page.js'),
   ]);
   assert.match(layout, /<TemplateShell>/);
-  assert.match(layout, /data-theme="auto"/);
+  assert.match(layout, /data-theme="light"/);
   assert.match(layout, /localStorage.getItem\("evimesh-theme"\)/);
   for (const href of ['/home', '/explore', '/work', '/agent', '/docs']) assert.ok(shell.includes(`href: '${href}'`), `shell is missing ${href}`);
   assert.match(shell, /href="\/login"/);
