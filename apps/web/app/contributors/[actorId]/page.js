@@ -115,11 +115,12 @@ export default function ContributorDetailPage({ params }) {
             <IdChip label="actor" value={actor.actorId ?? actorId} />
             {typeof actor.orcidId === 'string' && actor.orcidId ? (
               <a className="inline-flex items-center gap-1.5 font-mono text-xs text-muted-foreground hover:text-foreground" href={`https://orcid.org/${actor.orcidId}`} rel="noopener">
-                {/* Official ORCID iD mark (design book 06 hard-compliance).
-                    No verified badge: verification status is not carried by
-                    the actors API, and an unverified iD must never render as
-                    verified (hard boundary). */}
-                <OrcidMark size={16} />
+                {/* Hard boundary (design book 06, AGENTS.md): the official
+                    iD mark requires per-iD OAuth provenance, which the
+                    actors API does not carry yet - account-level
+                    identityStrength does not prove this iD was verified.
+                    Until that provenance exists, the iD renders as a plain
+                    identifier link and never as verified. */}
                 orcid.org/{actor.orcidId}
               </a>
             ) : null}

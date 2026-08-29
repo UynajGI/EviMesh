@@ -12,9 +12,15 @@
  * Usage:
  *   node scripts/visual-capture.mjs                 # 1440 desktop set
  *   node scripts/visual-capture.mjs --mobile        # 390 set
+ *   node scripts/visual-capture.mjs --tablet        # 768 set
+ *   node scripts/visual-capture.mjs --dark          # dark theme set
  *   node scripts/visual-capture.mjs --out <dir>     # default docs/design/baseline
  */
-import { mkdirSync, statSync } from "node:fs";
+import { mkdirSync, statSync, writeFileSync, unlinkSync } from "node:fs";
+import path from "node:path";
+import os from "node:os";
+import { createRequire } from "node:module";
+import { pathToFileURL } from "node:url";
 import { spawnSync } from "node:child_process";
 
 const WEB = process.env.DEMO_WEB_URL ?? "http://localhost:3000";
@@ -24,20 +30,88 @@ const OUT = (() => {
   return flag > -1 ? process.argv[flag + 1] : "docs/design/baseline";
 })();
 const MOBILE = process.argv.includes("--mobile");
-const VIEWPORT = MOBILE ? "390,844" : "1440,900";
-const SUFFIX = MOBILE ? "-390" : "-1440";
+const TABLET = process.argv.includes("--tablet");
+const DARK = process.argv.includes("--dark");
+const VIEWPORT = MOBILE ? "390,844" : TABLET ? "768,1024" : "1440,900";
+const SUFFIX = `${MOBILE ? "-390" : TABLET ? "-768" : "-1440"}${DARK ? "-dark" : ""}`;
+// Theme note: the web bootstrap resolves an unset stored preference from
+// prefers-color-scheme, so --color-scheme drives the rendered theme. A
+// stored localStorage choice in the capture profile would override it.
 
 const ROUTES = [
   { path: "/", marker: "Make every research step traceable", name: "landing" },
   { path: "/explore", marker: "Discover research", name: "explore" },
   { path: "/claims/claim-a1b2", marker: "provisionally accepted", name: "claim-accepted" },
   { path: "/claims/claim-d4e5", marker: "contested", name: "claim-contested" },
-  { path: "/questions/q-contrastive", marker: "Research scope", name: "workspace" },
+  { path: "/questions/q-contrastive", marker: "Can contrastive learning gains be reproduced in few-shot settings?", name: "workspace" },
   { path: "/people/actor-lin", marker: "Lin Zhiyao", name: "profile" },
   { path: "/agents/actor-atlas", marker: "atlas-07", name: "agent-activity" },
   { path: "/events", marker: "Event audit", name: "events" },
   { path: "/work", marker: "Hand new work to your agent", name: "work" },
 ];
+
+function findPlaywrightModule() {
+  const nodeRequire = createRequire(path.join(process.cwd(), "package.json"));
+  const candidates = [
+    process.env.PLAYWRIGHT_MODULE,
+    "playwright",
+  ].filter(Boolean);
+  for (const candidate of candidates) {
+    try {
+      // Absolute path: the generated child script runs from os.tmpdir(),
+      // where a bare specifier would not resolve back to this workspace.
+      return nodeRequire.resolve(candidate);
+    } catch { /* try next */ }
+  }
+  return null;
+}
+
+/** Client-rendered failure detector: BlankShell error states and route
+ *  markers only exist after hydration, so this runs a real browser via the
+ *  npx playwright module when one is resolvable. Returns an error string or
+ *  null. Skipped (with a warning) when no module resolves. */
+function domInspection(url, marker) {
+  const modulePath = findPlaywrightModule();
+  if (!modulePath) return { skipped: true, warning: "no playwright module resolvable" };
+  const viewport = MOBILE ? { width: 390, height: 844 } : TABLET ? { width: 768, height: 1024 } : { width: 1440, height: 900 };
+  const colorScheme = DARK ? "dark" : "light";
+  const checkScript = `
+    const { chromium } = require(${JSON.stringify(modulePath)});
+    (async () => {
+      const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH });
+      const page = await browser.newPage({
+        viewport: ${JSON.stringify(viewport)},
+        colorScheme: ${JSON.stringify(colorScheme)},
+      });
+      await page.goto(${JSON.stringify(url)}, { waitUntil: "networkidle", timeout: 30000 }).catch(() => {});
+      await page.waitForTimeout(3000);
+      const errorState = await page.evaluate(() => {
+        const text = document.body.innerText || "";
+        return {
+          // blank--error is the ErrorState-only class: a route that renders
+          // one is a failed capture even when other markers are present.
+          hasError: Boolean(document.querySelector(".blank--error")),
+          markerPresent: text.includes(${JSON.stringify(marker)}),
+        };
+      });
+      console.log(JSON.stringify(errorState));
+      await browser.close();
+    })().catch((error) => { console.error(String(error)); process.exit(1); });
+  `;
+  const tmp = path.join(os.tmpdir(), `evimesh-dom-check-${process.pid}.js`);
+  writeFileSync(tmp, checkScript);
+  const run = spawnSync("node", [tmp], { encoding: "utf8", timeout: 60000, env: process.env });
+  try {
+    const parsed = JSON.parse(run.stdout.trim().split("\n").pop() ?? "{}");
+    if (parsed.hasError) return { error: "page rendered an error state" };
+    if (!parsed.markerPresent) return { error: `expected marker "${marker}" not present after hydration` };
+    return {};
+  } catch {
+    // A child failure means the DOM gate did not run - fail the capture
+    // instead of silently accepting an unverifiable screenshot.
+    return { error: `dom inspection failed (status ${run.status}): ${(run.stderr ?? "").slice(0, 200)}` };
+  }
+}
 
 function capture({ path, marker, name }) {
   const url = `${WEB}${path}`;
@@ -50,9 +124,13 @@ function capture({ path, marker, name }) {
   if (html.stdout.includes("Build Error") || html.stdout.includes("__next_error__")) {
     return { name, ok: false, reason: "page rendered a build error" };
   }
+  const dom = domInspection(url, marker);
+  if (dom.error) return { name, ok: false, reason: dom.error };
+  const domSkipped = Boolean(dom.skipped);
+
   const out = `${OUT}/${name}${SUFFIX}.png`;
   // shell:true is required on Windows where npx resolves through npx.cmd.
-  const shot = spawnSync("npx", ["playwright", "screenshot", "--viewport-size=" + VIEWPORT, "--wait-for-timeout=9000", url, out], { encoding: "utf8", shell: process.platform === "win32" });
+  const shot = spawnSync("npx", ["playwright", "screenshot", "--viewport-size=" + VIEWPORT, ...(DARK ? ["--color-scheme=dark"] : []), "--wait-for-timeout=9000", url, out], { encoding: "utf8", shell: process.platform === "win32" });
   if (shot.status !== 0) return { name, ok: false, reason: `playwright failed: ${shot.stderr?.slice(0, 200)}` };
   let bytes = 0;
   try {
@@ -61,19 +139,32 @@ function capture({ path, marker, name }) {
     return { name, ok: false, reason: "screenshot file missing" };
   }
   if (bytes < 20_000) return { name, ok: false, reason: `screenshot suspiciously small (${bytes}B)` };
-  return { name, ok: true, bytes, out };
+  return { name, ok: true, bytes, out, domSkipped };
 }
 
 mkdirSync(OUT, { recursive: true });
-const apiProbe = spawnSync("curl", ["-s", `${API}/claims?limit=1`], { encoding: "utf8" });
-if (!apiProbe.stdout.includes("items")) {
-  console.error(`demo api at ${API} is not answering; run \`pnpm demo:api\` first.`);
+const apiProbe = spawnSync("curl", ["-s", `${API}/claims/claim-a1b2`], { encoding: "utf8" });
+if (!apiProbe.stdout.includes("currentRevision")) {
+  console.error(`demo api at ${API} is not serving seeded claim data; run \`pnpm demo:api\` first.`);
   process.exit(1);
 }
 
 const results = ROUTES.map(capture);
+let skippedInspection = false;
 for (const result of results) {
-  console.log(result.ok ? `ok   ${result.name} (${Math.round(result.bytes / 1024)}KB -> ${result.out})` : `FAIL ${result.name}: ${result.reason}`);
+  if (result.ok) {
+    console.log(`ok   ${result.name} (${Math.round(result.bytes / 1024)}KB -> ${result.out})`);
+  } else {
+    console.log(`FAIL ${result.name}: ${result.reason}`);
+  }
+  if (result.domSkipped) {
+    skippedInspection = true;
+    console.log(`WARN ${result.name}: DOM inspection skipped - install playwright (pnpm add -D playwright) or set PLAYWRIGHT_MODULE`);
+  }
+}
+if (skippedInspection) {
+  console.log("\nWARNING: some or all captures ran WITHOUT DOM inspection;");
+  console.log("client-rendered error states were not gated.");
 }
 const failed = results.filter((result) => !result.ok).length;
 console.log(`\n${results.length - failed}/${results.length} captured into ${OUT}`);
