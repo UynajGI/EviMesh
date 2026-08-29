@@ -41,7 +41,7 @@ export default function LandingPage() {
       <section className="pb-16 pt-12 sm:pb-20 sm:pt-16 lg:pb-24">
         <div className="grid lg:grid-cols-12">
           <div className="lg:col-span-9">
-            <h1 className="max-w-[20ch] font-serif text-4xl font-normal leading-[1.02] tracking-tight sm:text-6xl lg:text-7xl">
+            <h1 className="max-w-[20ch] text-4xl font-semibold leading-[1.02] tracking-tight sm:text-6xl lg:text-7xl">
               Make every research step traceable
             </h1>
             <p className="mt-6 max-w-[52ch] text-lg leading-relaxed text-muted-foreground">
