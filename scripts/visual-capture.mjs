@@ -12,6 +12,7 @@
  * Usage:
  *   node scripts/visual-capture.mjs                 # 1440 desktop set
  *   node scripts/visual-capture.mjs --mobile        # 390 set
+ *   node scripts/visual-capture.mjs --tablet        # 768 set
  *   node scripts/visual-capture.mjs --dark          # dark theme set
  *   node scripts/visual-capture.mjs --out <dir>     # default docs/design/baseline
  */
@@ -29,9 +30,10 @@ const OUT = (() => {
   return flag > -1 ? process.argv[flag + 1] : "docs/design/baseline";
 })();
 const MOBILE = process.argv.includes("--mobile");
+const TABLET = process.argv.includes("--tablet");
 const DARK = process.argv.includes("--dark");
-const VIEWPORT = MOBILE ? "390,844" : "1440,900";
-const SUFFIX = `${MOBILE ? "-390" : "-1440"}${DARK ? "-dark" : ""}`;
+const VIEWPORT = MOBILE ? "390,844" : TABLET ? "768,1024" : "1440,900";
+const SUFFIX = `${MOBILE ? "-390" : TABLET ? "-768" : "-1440"}${DARK ? "-dark" : ""}`;
 // Theme note: the web bootstrap resolves an unset stored preference from
 // prefers-color-scheme, so --color-scheme drives the rendered theme. A
 // stored localStorage choice in the capture profile would override it.
@@ -49,16 +51,15 @@ const ROUTES = [
 ];
 
 function findPlaywrightModule() {
+  const nodeRequire = createRequire(path.join(process.cwd(), "package.json"));
   const candidates = [
     process.env.PLAYWRIGHT_MODULE,
-    "C:/Users/UynajGI/AppData/Local/npm-cache/_npx/31e32ef8478fbf80/node_modules/playwright",
+    "playwright",
   ].filter(Boolean);
   for (const candidate of candidates) {
     try {
-      // ESM has no require; createRequire bridges to node resolution.
-      const nodeRequire = createRequire(path.join(process.cwd(), "package.json"));
       nodeRequire(candidate);
-      return candidate;
+      return candidate; // resolvable from the normal install
     } catch { /* try next */ }
   }
   return null;
@@ -118,6 +119,7 @@ function capture({ path, marker, name }) {
   }
   const dom = domInspection(url, marker);
   if (dom.error) return { name, ok: false, reason: dom.error };
+  const domSkipped = Boolean(dom.skipped);
 
   const out = `${OUT}/${name}${SUFFIX}.png`;
   // shell:true is required on Windows where npx resolves through npx.cmd.
@@ -130,7 +132,7 @@ function capture({ path, marker, name }) {
     return { name, ok: false, reason: "screenshot file missing" };
   }
   if (bytes < 20_000) return { name, ok: false, reason: `screenshot suspiciously small (${bytes}B)` };
-  return { name, ok: true, bytes, out };
+  return { name, ok: true, bytes, out, domSkipped };
 }
 
 mkdirSync(OUT, { recursive: true });
@@ -141,8 +143,21 @@ if (!apiProbe.stdout.includes("currentRevision")) {
 }
 
 const results = ROUTES.map(capture);
+let skippedInspection = false;
 for (const result of results) {
-  console.log(result.ok ? `ok   ${result.name} (${Math.round(result.bytes / 1024)}KB -> ${result.out})` : `FAIL ${result.name}: ${result.reason}`);
+  if (result.ok) {
+    console.log(`ok   ${result.name} (${Math.round(result.bytes / 1024)}KB -> ${result.out})`);
+  } else {
+    console.log(`FAIL ${result.name}: ${result.reason}`);
+  }
+  if (result.domSkipped) {
+    skippedInspection = true;
+    console.log(`WARN ${result.name}: DOM inspection skipped - install playwright (pnpm add -D playwright) or set PLAYWRIGHT_MODULE`);
+  }
+}
+if (skippedInspection) {
+  console.log("\nWARNING: some or all captures ran WITHOUT DOM inspection;");
+  console.log("client-rendered error states were not gated.");
 }
 const failed = results.filter((result) => !result.ok).length;
 console.log(`\n${results.length - failed}/${results.length} captured into ${OUT}`);
