@@ -27,7 +27,7 @@ This page orients you; the runbook gates you.
 - Migrations are applied to the hosted database (direct delta, not the
   local migrate script).
 - RLS policies are verified with the signing-role simulation in
-  `scripts/verify-rls.mjs`.
+  `packages/database/scripts/verify-rls.mjs`.
 - Every repository method the query modules require exists on the hosted
   read surface - the `hosted-read-surface` test is the gate that once
   caught every detail endpoint erroring in production.

@@ -17,6 +17,7 @@
  */
 import { mkdirSync, statSync, writeFileSync, unlinkSync } from "node:fs";
 import path from "node:path";
+import { createRequire } from "node:module";
 import { spawnSync } from "node:child_process";
 
 const WEB = process.env.DEMO_WEB_URL ?? "http://localhost:3000";
@@ -52,9 +53,9 @@ function findPlaywrightModule() {
   ].filter(Boolean);
   for (const candidate of candidates) {
     try {
-      // Resolving via createRequire keeps the CLI-only surface intact.
-      const { createRequire } = require("node:module");
-      createRequire(path.join(process.cwd(), "package.json")).require(candidate);
+      // ESM has no require; createRequire bridges to node resolution.
+      const nodeRequire = createRequire(path.join(process.cwd(), "package.json"));
+      nodeRequire(candidate);
       return candidate;
     } catch { /* try next */ }
   }
