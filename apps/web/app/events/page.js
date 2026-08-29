@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { FileCheck2, FlaskConical, GitPullRequestArrow, History } from 'lucide-react';
 import { StatusBadge } from '@/components/ui/data';
 import { Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
@@ -20,7 +21,8 @@ function eventQuery(search = '') {
   return `/events?${query.toString()}`;
 }
 
-export default function EventsAuditPage() {
+function EventsAuditView() {
+  const searchParams = useSearchParams();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -31,7 +33,7 @@ export default function EventsAuditPage() {
     setError(null);
     setRequestId(null);
     try {
-      const body = await apiFetch(eventQuery(typeof window === 'undefined' ? '' : window.location.search));
+      const body = await apiFetch(eventQuery(searchParams.toString()));
       setEvents(body.items ?? []);
     } catch (reason) {
       setError(reason.message);
@@ -41,7 +43,7 @@ export default function EventsAuditPage() {
     }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [searchParams]);
 
   useEffect(() => {
     if (loading || typeof window === 'undefined' || !window.location.hash) return;
@@ -89,4 +91,14 @@ export default function EventsAuditPage() {
       );
     })}</ol></div></section>}
   </PageContainer>;
+}
+
+export default function EventsAuditPage() {
+  // useSearchParams opts this route into dynamic rendering; the Suspense
+  // boundary keeps the static shell renderable (same pattern as /explore).
+  return (
+    <Suspense fallback={<PageContainer><Skeleton className="h-32 w-full" /><Skeleton className="mt-6 h-96 w-full" /></PageContainer>}>
+      <EventsAuditView />
+    </Suspense>
+  );
 }

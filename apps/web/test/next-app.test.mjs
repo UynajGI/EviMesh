@@ -470,7 +470,10 @@ test('renders contributor detail with roles, produced, used, and Frontier usage'
 test('renders Event audit with signatures and parent hash chain', async () => {
   const page = await read('../app/events/page.js');
   assert.match(page, /const EVENT_FILTERS = \['objectType', 'objectId', 'createdAfter', 'createdBefore', 'eventType', 'actorId'\]/);
-  assert.match(page, /eventQuery\(typeof window === 'undefined' \? '' : window\.location\.search\)/);
+  assert.match(page, /const searchParams = useSearchParams\(\)/);
+  assert.match(page, /eventQuery\(searchParams\.toString\(\)\)/);
+  assert.match(page, /useEffect\(\(\) => \{ load\(\); \}, \[searchParams\]\)/);
+  assert.match(page, /<Suspense fallback=/);
   assert.match(page, /new URLSearchParams\(\{ limit: '100', order:/);
   assert.match(page, /id=\{`event-\$\{event\.eventId\}`\}/);
   assert.match(page, /tabIndex=\{-1\}/);
