@@ -7,7 +7,6 @@ import { RoleBar, CONTRIBUTION_ROLES } from '@/components/role-bar';
 import { Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
 import { IdChip } from '@/components/ui/idchip';
 import { PageContainer, PageHeader } from '@/components/ui/page';
-import { OrcidMark } from '@/components/brand-marks';
 
 const API = process.env.NEXT_PUBLIC_EVIMESH_API_URL;
 
@@ -116,13 +115,12 @@ export default function ContributorDetailPage({ params }) {
             <IdChip label="actor" value={actor.actorId ?? actorId} />
             {typeof actor.orcidId === 'string' && actor.orcidId ? (
               <a className="inline-flex items-center gap-1.5 font-mono text-xs text-muted-foreground hover:text-foreground" href={`https://orcid.org/${actor.orcidId}`} rel="noopener">
-                {/* Official ORCID iD mark (design book 06 hard-compliance):
-                    only for OAuth-verified identities. The actors API does
-                    not carry per-iD verification provenance yet, so the iD
-                    renders as a plain identifier without the official mark
-                    until that provenance exists - an unverified iD must
-                    never render as verified (hard boundary). */}
-                {actor.identityStrength === 'oauth_verified' ? <OrcidMark size={16} /> : null}
+                {/* Hard boundary (design book 06, AGENTS.md): the official
+                    iD mark requires per-iD OAuth provenance, which the
+                    actors API does not carry yet - account-level
+                    identityStrength does not prove this iD was verified.
+                    Until that provenance exists, the iD renders as a plain
+                    identifier link and never as verified. */}
                 orcid.org/{actor.orcidId}
               </a>
             ) : null}

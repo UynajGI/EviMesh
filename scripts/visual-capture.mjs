@@ -86,9 +86,13 @@ function domInspection(url, marker) {
       await page.goto(${JSON.stringify(url)}, { waitUntil: "networkidle", timeout: 30000 }).catch(() => {});
       await page.waitForTimeout(3000);
       const errorState = await page.evaluate(() => {
-        const alert = document.querySelector('[role="alert"]');
         const text = document.body.innerText || "";
-        return { hasError: Boolean(alert && /could not|interrupted|went wrong/i.test(text)), markerPresent: text.includes(${JSON.stringify(marker)}) };
+        return {
+          // blank--error is the ErrorState-only class: a route that renders
+          // one is a failed capture even when other markers are present.
+          hasError: Boolean(document.querySelector(".blank--error")),
+          markerPresent: text.includes(${JSON.stringify(marker)}),
+        };
       });
       console.log(JSON.stringify(errorState));
       await browser.close();
