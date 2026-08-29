@@ -55,6 +55,21 @@ test('mobile navigation uses an accessible drawer and backdrop', () => {
   assert.match(shell, /> Account/);
 });
 
+test('mobile drawer delegates focus management to Radix Dialog', () => {
+  // Design book B08: the dialog primitive owns trap, Escape, aria, and the
+  // background scroll lock; the shell must not hand-roll them.
+  assert.match(shell, /<DialogPrimitive\.Root onOpenChange=\{setMobileOpen\} open=\{mobileOpen\}>/);
+  assert.match(shell, /<DialogPrimitive\.Trigger asChild>/);
+  assert.match(shell, /<DialogPrimitive\.Portal>/);
+  assert.match(shell, /<DialogPrimitive\.Overlay className="fixed inset-0 z-40 bg-foreground\/40 md:hidden" \/>/);
+  assert.match(shell, /<DialogPrimitive\.Content className="fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-border bg-card p-4 focus:outline-none md:hidden">/);
+  assert.match(shell, /<DialogPrimitive\.Title className="text-sm font-semibold">Navigation<\/DialogPrimitive\.Title>/);
+  assert.match(shell, /<DialogPrimitive\.Close/);
+  // Scroll lock follows dialog state while the surface is md:hidden, so an
+  // open drawer must close itself when the viewport reaches the breakpoint.
+  assert.match(shell, /matchMedia\('\(min-width: 768px\)'\)/);
+});
+
 test('skip link is the first focusable element of the page', () => {
   assert.match(shell, /href="#main-content"/);
   assert.match(shell, /Skip to main content/);

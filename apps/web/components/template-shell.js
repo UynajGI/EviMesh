@@ -10,6 +10,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
+import * as DialogPrimitive from '@radix-ui/react-dialog';
 import {
   Bell, BookOpen, Bot, Briefcase, Compass, House, LogIn, Menu, Search, UserRound, X,
 } from 'lucide-react';
@@ -114,27 +115,23 @@ function ShellFooter() {
   );
 }
 
+/* Mobile navigation sheet (M13.8 B08): Radix Dialog owns the focus trap,
+ * Escape dismissal, aria wiring, and background scroll lock; the hand-built
+ * variant only supplies the left-drawer surface. `md:hidden` keeps it a
+ * mobile-only surface even while the dialog is open. */
 function MobileDrawer({ isLanding, items, onClose, pathname }) {
   return (
-    <div className="fixed inset-0 z-40 md:hidden">
-      <button
-        aria-hidden="true"
-        className="absolute inset-0 bg-foreground/40"
-        onClick={onClose}
-        tabIndex={-1}
-        type="button"
-      />
-      <div className="absolute inset-y-0 left-0 flex w-72 flex-col border-r border-border bg-card p-4">
+    <DialogPrimitive.Portal>
+      <DialogPrimitive.Overlay className="fixed inset-0 z-40 bg-foreground/40 md:hidden" />
+      <DialogPrimitive.Content className="fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-border bg-card p-4 focus:outline-none md:hidden">
         <div className="mb-6 flex items-center justify-between">
-          <span className="text-sm font-semibold">Navigation</span>
-          <button
+          <DialogPrimitive.Title className="text-sm font-semibold">Navigation</DialogPrimitive.Title>
+          <DialogPrimitive.Close
             aria-label="Close navigation"
             className={cn('inline-flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground', FOCUS_RING)}
-            onClick={onClose}
-            type="button"
           >
             <X aria-hidden="true" size={18} />
-          </button>
+          </DialogPrimitive.Close>
         </div>
 
         <nav aria-label="Primary mobile" className="flex flex-col gap-1">
@@ -178,8 +175,8 @@ function MobileDrawer({ isLanding, items, onClose, pathname }) {
           <LogIn aria-hidden="true" size={16} />
           Sign in
         </Link>
-      </div>
-    </div>
+      </DialogPrimitive.Content>
+    </DialogPrimitive.Portal>
   );
 }
 
@@ -188,6 +185,17 @@ export function TemplateShell({ children }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   useGChords();
 
+  /* The drawer surface is md:hidden, but Radix's scroll lock follows the
+   * dialog state, so a drawer left open across a resize would lock desktop
+   * scrolling; close it when the viewport reaches the md breakpoint. */
+  useEffect(() => {
+    if (!mobileOpen) return undefined;
+    const desktop = window.matchMedia('(min-width: 768px)');
+    const onDesktop = (event) => { if (event.matches) setMobileOpen(false); };
+    desktop.addEventListener('change', onDesktop);
+    return () => desktop.removeEventListener('change', onDesktop);
+  }, [mobileOpen]);
+
   if (pathname === '/login' || pathname === '/sign-in') return children;
 
   const close = () => setMobileOpen(false);
@@ -195,26 +203,28 @@ export function TemplateShell({ children }) {
   const visibleNavItems = isLanding ? LANDING_NAV_ITEMS : NAV_ITEMS;
 
   return (
-    <div className="flex min-h-dvh flex-col bg-background text-foreground">
-      <a
-        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:border focus:border-border focus:bg-card focus:px-4 focus:py-2 focus:text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-        href="#main-content"
-      >
-        Skip to main content
-      </a>
+    <DialogPrimitive.Root onOpenChange={setMobileOpen} open={mobileOpen}>
+      <div className="flex min-h-dvh flex-col bg-background text-foreground">
+        <a
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:border focus:border-border focus:bg-card focus:px-4 focus:py-2 focus:text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          href="#main-content"
+        >
+          Skip to main content
+        </a>
 
-      <OfflineBanner />
+        <OfflineBanner />
 
-      <header className="sticky top-0 z-30 h-14 border-b border-border bg-background px-4 sm:px-6">
-        <div className="mx-auto flex h-full max-w-7xl items-center gap-3">
-          <button
-            aria-label="Open navigation"
-            className={cn('inline-flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:hidden', FOCUS_RING)}
-            onClick={() => setMobileOpen(true)}
-            type="button"
-          >
-            <Menu aria-hidden="true" size={18} />
-          </button>
+        <header className="sticky top-0 z-30 h-14 border-b border-border bg-background px-4 sm:px-6">
+          <div className="mx-auto flex h-full max-w-7xl items-center gap-3">
+            <DialogPrimitive.Trigger asChild>
+              <button
+                aria-label="Open navigation"
+                className={cn('inline-flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:hidden', FOCUS_RING)}
+                type="button"
+              >
+                <Menu aria-hidden="true" size={18} />
+              </button>
+            </DialogPrimitive.Trigger>
 
           <BrandLink onNavigate={close} />
           <GlobalNav items={visibleNavItems} pathname={pathname} />
@@ -269,14 +279,13 @@ export function TemplateShell({ children }) {
         </div>
       </header>
 
-      {mobileOpen ? (
-        <MobileDrawer isLanding={isLanding} items={visibleNavItems} onClose={close} pathname={pathname} />
-      ) : null}
+      <MobileDrawer isLanding={isLanding} items={visibleNavItems} onClose={close} pathname={pathname} />
 
       <main id="main-content" className="flex-1">{children}</main>
 
       <CommandPalette />
       <ShellFooter />
-    </div>
+      </div>
+    </DialogPrimitive.Root>
   );
 }
