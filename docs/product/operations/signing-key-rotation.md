@@ -9,7 +9,9 @@ updatedAt: 2026-08-29
 
 # Signing keys and rotation
 
-Platform signing keys sign protocol events; their rotation is a governed
+Two separate key registries sign two different artifacts: platform keys
+sign platform receipts (`server_signature`), while ResearchEvents are
+signed by actor keys from the `signing_keys` table. Rotation is a governed
 operation with its own canonical runbook:
 [`docs/runbooks/platform-signing-key-rotation.md`](https://github.com/UynajGI/EviMesh/blob/main/docs/runbooks/platform-signing-key-rotation.md).
 

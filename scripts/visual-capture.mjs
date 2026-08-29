@@ -94,8 +94,7 @@ function domInspection(url, marker) {
   `;
   const tmp = path.join(os.tmpdir(), "evimesh-dom-check.js");
   writeFileSync(tmp, checkScript);
-  const executable = "C:/Users/UynajGI/AppData/Local/ms-playwright/chromium-1234/chrome-win64/chrome.exe";
-  const run = spawnSync("node", [tmp], { encoding: "utf8", timeout: 60000, env: { ...process.env, CHROME_PATH: executable } });
+  const run = spawnSync("node", [tmp], { encoding: "utf8", timeout: 60000, env: process.env });
   try {
     const parsed = JSON.parse(run.stdout.trim().split("\n").pop() ?? "{}");
     if (parsed.hasError) return { error: "page rendered an error state" };

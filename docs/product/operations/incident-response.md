@@ -18,9 +18,13 @@ Two canonical runbooks cover the operator paths:
 
 ## Reporting a production failure
 
-Always include the `request_id` from the error response - it ties the
-failure to the server-side trace. Error bodies carry it as
+Standard API errors carry a body-level `request_id`; always include it -
+it ties the failure to the server-side trace. The body shape is
 `{ code, message, request_id }`.
+
+Device-flow endpoints (`/auth/device/*`) are the exception: their error
+body only has `error` / `error_description` and no `request_id`, so quote
+the `X-Request-ID` response header instead.
 
 ## What responders will ask
 
