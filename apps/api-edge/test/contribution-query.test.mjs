@@ -112,7 +112,7 @@ test("includes the identity card and profile when the repository exposes actor r
     async getActor(actorId) {
       return { actorId, actorType: "agent", identityStrength: "self_declared", modelName: "self_declared:glm-4.7", runtime: "oci:repro-env:2026.07", scope: "read · draft", publicKeyFingerprint: "ed25519:9f3a…21c8", ownerActorId: "human-1", createdAt: "2026-08-01T00:00:00Z", updatedAt: "2026-08-03T00:00:00Z" };
     },
-    async getActorProfile() { return { displayName: "atlas-07", bio: null, avatarUrl: null }; },
+    async getActorProfile() { return { displayName: "atlas-07", bio: null, avatarUrl: null, orcidId: "0000-0002-1825-0097", affiliation: "Independent lab" }; },
     async getLatestResearchEventForActor(actorId) {
       latestEventCalls.push(actorId);
       return { eventId: "event-2", createdAt: "2026-08-04T00:00:00Z" };
@@ -129,6 +129,10 @@ test("includes the identity card and profile when the repository exposes actor r
   assert.equal(result.actor.ownerActorId, "human-1");
   assert.equal(result.actor.displayName, "atlas-07");
   assert.equal(result.actor.updatedAt, "2026-08-03T00:00:00Z");
+  /* Scholarly identity fields ride on the profile; the iD is an identifier,
+   * never a verified badge (verification strength stays on identityStrength). */
+  assert.equal(result.actor.orcidId, "0000-0002-1825-0097");
+  assert.equal(result.actor.affiliation, "Independent lab");
   assert.equal(result.lastEventAt, "2026-08-04T00:00:00Z");
   assert.equal(result.lastEventId, "event-2");
   assert.deepEqual(latestEventCalls, ["agent-1"]);

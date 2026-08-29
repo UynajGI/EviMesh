@@ -29,6 +29,10 @@ function actorIdentityCard(actor, profile) {
     displayName: profile?.displayName ?? actor.displayName ?? null,
     bio: profile?.bio ?? null,
     avatarUrl: profile?.avatarUrl ?? null,
+    /* Scholarly identity fields live on the profile; the ORCID iD renders
+     * as an identifier only — a verified badge requires OAuth (AGENTS.md). */
+    orcidId: profile?.orcidId ?? null,
+    affiliation: profile?.affiliation ?? null,
     /* Self-declared agent attributes (nullable by design): the platform
      * never attests them, null means "not stated", never a guess. */
     modelName: actor.modelName ?? null,

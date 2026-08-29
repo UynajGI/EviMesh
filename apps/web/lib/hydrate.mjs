@@ -77,5 +77,5 @@ export async function hydrateReceiptFindings(api, receiptItems) {
 /** Relation of an evidence row toward a claim: claimLinks first, then legacy links. */
 export function evidenceRelations(item) {
   const links = Array.isArray(item.claimLinks) ? item.claimLinks : Array.isArray(item.links) ? item.links : [];
-  return links.map((link) => link.relationType).filter(Boolean);
+  return links.map((link) => link.relationType ?? link.relation).filter(Boolean);
 }

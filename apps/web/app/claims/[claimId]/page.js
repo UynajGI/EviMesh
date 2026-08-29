@@ -130,8 +130,10 @@ function ClaimDetailView({ params }) {
       /* Frontier membership: check the question's latest frontier members. */
       if (payload.claim?.questionId) {
         try {
-          const qDetail = await request(`/questions/${payload.claim.questionId}`);
-          const projectId = qDetail.question?.projectId;
+          /* The claim row carries its own projectId; only fall back to the
+           * question detail when the row predates that column. */
+          const projectId = payload.claim.projectId
+            ?? await request(`/questions/${payload.claim.questionId}`).then((body) => body.question?.projectId).catch(() => null);
           if (projectId) {
             const frontier = await request(`/projects/${projectId}/frontier/latest`).then((body) => body.frontier).catch(() => null);
             if (frontier?.snapshotId) {
