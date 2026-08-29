@@ -229,6 +229,14 @@
   --evimesh-c-card-border: var(--evimesh-border);
   --evimesh-c-input-bg: var(--evimesh-card);
   --evimesh-c-input-border: var(--evimesh-border);
+  --evimesh-c-input-placeholder: var(--evimesh-muted-foreground);
+  --evimesh-c-skeleton: var(--evimesh-muted);
+  --evimesh-c-dag-edge-neutral: var(--evimesh-status-neutral-fg);
+  --evimesh-c-dag-edge-positive: var(--evimesh-dag-positive);
+  --evimesh-c-dag-edge-negative: var(--evimesh-dag-negative);
+  --evimesh-c-dag-edge-qualify: var(--evimesh-dag-qualify);
+  --evimesh-c-dag-edge-structural: var(--evimesh-dag-structural);
+  --evimesh-c-dag-edge-lineage: var(--evimesh-dag-lineage);
   /* Layout + motion component tokens (11-revision-decisions.md §4): pages and
    * shared components consume these; no new spacing magic numbers. */
   --evimesh-container-px: 1.5rem;
@@ -247,14 +255,6 @@
   :root {
     --evimesh-container-px: 1rem;
   }
-  --evimesh-c-input-placeholder: var(--evimesh-muted-foreground);
-  --evimesh-c-skeleton: var(--evimesh-muted);
-  --evimesh-c-dag-edge-neutral: var(--evimesh-status-neutral-fg);
-  --evimesh-c-dag-edge-positive: var(--evimesh-dag-positive);
-  --evimesh-c-dag-edge-negative: var(--evimesh-dag-negative);
-  --evimesh-c-dag-edge-qualify: var(--evimesh-dag-qualify);
-  --evimesh-c-dag-edge-structural: var(--evimesh-dag-structural);
-  --evimesh-c-dag-edge-lineage: var(--evimesh-dag-lineage);
 }
 
 /* Manual dark: set by the no-flash snippet in app/layout.js. */

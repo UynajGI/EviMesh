@@ -231,7 +231,7 @@ test('explore renders real topic tags with filter, rail, and alphabetical order'
   assert.match(page, /left\.label\.localeCompare\(right\.label\)/);
   assert.doesNotMatch(page, /sort\([^)]*count[^)]*\)/);
   // Rail and filter chip exist; filtering applies to question rows only.
-  assert.match(page, /aria-label="Topics"/);
+  assert.match(page, /<Rail label="Scope">/);
   assert.match(page, /topic: \{topicFilter\}/);
   assert.match(page, /\(item\.kind === 'question' && \(item\.topics \?\? \[\]\)\.includes\(topicFilter\)\)/);
   assert.match(page, /never a taxonomy, and counts are entry points, not rankings/);

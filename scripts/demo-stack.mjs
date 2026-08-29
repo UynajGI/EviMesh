@@ -128,13 +128,16 @@ const TABLES = {
   contribution_statements: [
     { statement_id: "st-origin", actor_id: "actor-lin", role: "originator", description: "Originated the reproducibility question and signed the frontier snapshot.", event_id: "ev-0001", created_at: iso(800), deleted_at: null },
     { statement_id: "st-draft", actor_id: "actor-atlas", role: "originator", description: "Drafted claim-a1b2 and recorded its run under human approval.", event_id: "ev-0004", created_at: iso(700), deleted_at: null },
+    { statement_id: "st-draft-d4e5", actor_id: "actor-atlas", role: "originator", description: "Drafted claim-d4e5 on the augmentation-variance question.", event_id: "ev-0008", created_at: iso(640), deleted_at: null },
     { statement_id: "st-verify", actor_id: "actor-chen", role: "verifier", description: "Completed blind verification rec-blind-1.", event_id: "ev-0013", created_at: iso(60), deleted_at: null },
   ],
   contribution_edges: [
     { statement_id: "st-origin", object_type: "question", object_id: "q-contrastive", edge_type: "produced", object_revision: 1, created_at: iso(800), deleted_at: null },
     { statement_id: "st-draft", object_type: "claim", object_id: "claim-a1b2", edge_type: "produced", object_revision: 2, created_at: iso(120), deleted_at: null },
     { statement_id: "st-draft", object_type: "run", object_id: "run-demo-1", edge_type: "used", object_revision: null, created_at: iso(120), deleted_at: null },
+    { statement_id: "st-draft-d4e5", actor_id: "actor-atlas", role: "originator", description: "Drafted claim-d4e5 on the augmentation-variance question.", event_id: "ev-0008", created_at: iso(640), deleted_at: null },
     { statement_id: "st-verify", object_type: "claim", object_id: "claim-a1b2", edge_type: "verified", object_revision: 2, created_at: iso(60), deleted_at: null },
+    { statement_id: "st-draft-d4e5", object_type: "claim", object_id: "claim-d4e5", edge_type: "produced", object_revision: 1, created_at: iso(640), deleted_at: null },
   ],
   tasks: [
     { task_id: "task-verify-g7h8", question_id: "q-contrastive", task_type: "verification", state: "open", created_by: "actor-lin", created_at: iso(30), updated_at: iso(2), deleted_at: null },
