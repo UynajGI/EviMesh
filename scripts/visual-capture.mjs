@@ -58,8 +58,9 @@ function findPlaywrightModule() {
   ].filter(Boolean);
   for (const candidate of candidates) {
     try {
-      nodeRequire(candidate);
-      return candidate; // resolvable from the normal install
+      // Absolute path: the generated child script runs from os.tmpdir(),
+      // where a bare specifier would not resolve back to this workspace.
+      return nodeRequire.resolve(candidate);
     } catch { /* try next */ }
   }
   return null;
@@ -72,7 +73,7 @@ function findPlaywrightModule() {
 function domInspection(url, marker) {
   const modulePath = findPlaywrightModule();
   if (!modulePath) return { skipped: true, warning: "no playwright module resolvable" };
-  const viewport = MOBILE ? { width: 390, height: 844 } : { width: 1440, height: 900 };
+  const viewport = MOBILE ? { width: 390, height: 844 } : TABLET ? { width: 768, height: 1024 } : { width: 1440, height: 900 };
   const colorScheme = DARK ? "dark" : "light";
   const checkScript = `
     const { chromium } = require(${JSON.stringify(modulePath)});
@@ -102,7 +103,9 @@ function domInspection(url, marker) {
     if (!parsed.markerPresent) return { error: `expected marker "${marker}" not present after hydration` };
     return {};
   } catch {
-    return { warning: `dom inspection skipped (unparseable output)` };
+    // A child failure means the DOM gate did not run - fail the capture
+    // instead of silently accepting an unverifiable screenshot.
+    return { error: `dom inspection failed (status ${run.status}): ${(run.stderr ?? "").slice(0, 200)}` };
   }
 }
 
