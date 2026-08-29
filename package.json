@@ -9,6 +9,8 @@
     "infra:up": "node scripts/dev-infra.mjs",
     "demo:api": "node scripts/demo-stack.mjs",
     "demo:web": "node scripts/demo-web.mjs",
+    "docs:reference": "node scripts/generate-docs-reference.mjs",
+    "docs:reference:check": "node scripts/generate-docs-reference.mjs --check",
     "infra:doctor": "node scripts/infra-doctor.mjs",
     "infra:hosted-readiness": "node scripts/hosted-readiness.mjs",
     "auth:test:email": "node scripts/test-supabase-email-auth.mjs",
