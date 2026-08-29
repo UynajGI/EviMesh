@@ -9,6 +9,18 @@ import { DocsCopyButton } from '@/components/docs/docs-code-block';
  * anchors, and code blocks render through the client copy button.
  */
 
+// Docs content is untrusted: only relative, https?, mailto, and anchor
+// targets render as links. Built from parts so no escaping ambiguity ships.
+const SAFE_PROTOCOL = /^(https?:|mailto:)$/i;
+const SAFE_HREF = (href) => {
+  if (typeof href !== 'string') return false;
+  const trimmed = href.trim();
+  if (trimmed.startsWith('/') || trimmed.startsWith('#') || trimmed.startsWith('./') || trimmed.startsWith('../')) return true;
+  const colon = trimmed.indexOf(':');
+  if (colon < 0) return true; // bare relative path
+  return SAFE_PROTOCOL.test(trimmed.slice(0, colon + 1));
+};
+
 function Inline({ segments }) {
   return segments.map((segment, index) => {
     if (segment.type === 'code') {
@@ -21,6 +33,9 @@ function Inline({ segments }) {
       return <em key={index}>{segment.value}</em>;
     }
     if (segment.type === 'link') {
+      // Docs content is untrusted input: only relative, https?, mailto, and
+      // anchor targets render as links; executable schemes render as text.
+      if (!SAFE_HREF(segment.href)) return <span key={index}>{segment.text}</span>;
       const external = segment.href.startsWith('http');
       return (
         <a
@@ -84,13 +99,13 @@ export function DocsBlocks({ blocks }) {
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/40 text-left">
-                  {block.header.map((cell) => <th className="px-4 py-2 font-semibold text-foreground" key={cell}>{cell}</th>)}
+                  {block.header.map((cell) => <th className="px-4 py-2 font-semibold text-foreground" key={cell}><Inline segments={parseInline(cell)} /></th>)}
                 </tr>
               </thead>
               <tbody>
                 {block.rows.map((row, rowIndex) => (
                   <tr className="border-b border-border last:border-b-0" key={rowIndex}>
-                    {row.map((cell, cellIndex) => <td className="px-4 py-2 align-top text-muted-foreground" key={cellIndex}>{cell}</td>)}
+                    {row.map((cell, cellIndex) => <td className="px-4 py-2 align-top text-muted-foreground" key={cellIndex}><Inline segments={parseInline(cell)} /></td>)}
                   </tr>
                 ))}
               </tbody>

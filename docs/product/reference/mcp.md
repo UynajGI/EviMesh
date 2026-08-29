@@ -21,8 +21,9 @@ explicit scopes.
   environment, hardware, actor id, and signature.
 - `attach_evidence`: links evidence to a claim under a confirm scope.
 
-Draft tools validate offline and never make network calls; publication
-happens through the signed API with a human signature.
+Draft validation enforces the protocol schema (actor attribution, full
+run metadata) before anything is returned; publication happens through
+the signed API with a human signature.
 
 ## Resources
 

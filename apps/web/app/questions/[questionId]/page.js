@@ -11,6 +11,7 @@ import { IdChip } from '@/components/ui/idchip';
 import { actorHref } from '@/components/attribution';
 import { hydrateEvidenceLinks, hydrateReceiptFindings, evidenceRelations } from '@/lib/hydrate';
 import { PageContainer, PageHeader } from '@/components/ui/page';
+import { TabNav } from '@/components/ui/tab-nav';
 import { useVisitRecord } from '@/lib/visit-history';
 import { recordView, useMyInteractions } from '@/lib/interactions';
 import { cn } from '@/lib/utils';

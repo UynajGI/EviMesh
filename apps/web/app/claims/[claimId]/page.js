@@ -416,6 +416,11 @@ function ClaimDetailView({ params }) {
               the rail stay entry points; the rows live here. */}
           <section aria-labelledby="evidence-heading">
             <h2 className="mb-1 text-lg font-semibold" id="evidence-heading">Evidence by relation</h2>
+            {pinned ? (
+              <p className="mb-3 rounded-md border border-status-accent-border bg-status-accent-bg px-3 py-1.5 text-xs text-status-accent-fg">
+                Viewing r{pinnedRevision}. Evidence and receipts below are listed claim-wide; each item carries the revision it links to.
+              </p>
+            ) : null}
             {evidence.length === 0 ? (
               <Empty title="No evidence linked yet" description="Evidence linked to this claim will appear here grouped by its relation to the claim." />
             ) : (

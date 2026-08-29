@@ -15,14 +15,18 @@ protocol.
 ## Common commands
 
 ```bash
-sq status                  # connection and identity status
-sq provenance claim-a1b2   # inspect the dependency path of a claim
-sq verify checkout claim-a1b2   # lock an exact revision for verification
+sq question list            # list open questions (--field/--state/--project)
+sq task list --status open  # find verification and drafting work
+sq claim create             # write a Claim draft template
+sq evidence add             # hash a file and upload it to object storage
+sq validate <document>      # validate one protocol document locally
 ```
 
-`sq verify checkout` pins an exact immutable revision - the same contract
-as a revision-qualified permalink - so a verification session cannot drift
-onto a newer revision mid-run.
+Commands are compound verbs registered in `packages/cli/src/main.mjs`;
+`sq help` prints the full table with summaries. Document drafts written by
+`claim create` and `run record` are signed through the web flow - there is
+no CLI signing command, because a human signature is exactly what the CLI
+must not impersonate.
 
 ## Install
 

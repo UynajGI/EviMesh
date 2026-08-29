@@ -89,7 +89,11 @@ export function CommandPalette() {
 
   function applyTheme(value) {
     if (value === 'system') {
-      document.documentElement.removeAttribute('data-theme');
+      // The stylesheet has a single [data-theme="dark"] block and no media
+      // fallback, so "system" resolves to a concrete value here; storage is
+      // cleared so the layout bootstrap keeps following OS changes.
+      const dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
       try { localStorage.removeItem(THEME_STORAGE_KEY); } catch { /* unavailable */ }
     } else {
       document.documentElement.setAttribute('data-theme', value);
