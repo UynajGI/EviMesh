@@ -1,6 +1,8 @@
 # 05 · 核心界面规格（社区主径）
 
-> 对应设计稿：`html/landing.html`、`html/home.html`、`html/explore.html`、`html/work.html`、`html/workspace.html`、`html/claim.html`。
+> **状态（2026-08-29）：current。** §2 Home 的内容契约有效（实现见 10 §4.6-4.7）；10 §4.5 的"瀑布流发现流"已被 `11-revision-decisions.md` §5 撤销，不再构成本章的替代规格。后续增量契约（topics、研究者目录等）见各节标注与 11 章。
+
+> 对应设计稿：`html/landing.html`、`html/home.html`、`html/explore.html`、`html/work.html`、`html/workspace.html`、`html/claim.html`。设计稿是视觉参考，不再是当前实现的事实源。
 > 本章冻结每个页面的内容契约：回答什么问题、必须出现什么、禁止出现什么。视觉规则见 02 至 04 章，组件见 09 章。
 
 ## 全局壳契约（所有产品页共享）

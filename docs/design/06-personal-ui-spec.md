@@ -1,6 +1,7 @@
 # 06 · 个人界面规格
 
 > 对应设计稿：`html/profile.html`（公开研究者主页）、`html/settings.html`（Account Settings）、`html/agent-center.html`（Agent 接入中心）。
+> **状态（2026-08-29）：current**，三页均已落地；增量契约（研究者目录、身份卡自报字段、tokens 实时授权行）见 10 §4.4。
 > 个人界面分为公开身份与私有账户两层，永远不混在同一页面；OAuth 身份、公开链接与权限凭据分表建模（M13.7 5.3）。
 
 ## 1. 公开研究者主页（profile.html）
