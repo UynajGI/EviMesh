@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { loadDocsManifest, loadDocsPage } from '../lib/docs-content.mjs';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 test('every docs page has whitelisted frontmatter and a unique slug', async () => {
   const { pages } = await loadDocsManifest();
@@ -38,4 +39,31 @@ test('concepts pages carry a sourceOfTruth pointing outside the docs tree', asyn
     assert.ok(page.sourceOfTruth, `${page.slug} must declare a source of truth`);
     assert.doesNotMatch(page.sourceOfTruth, /^docs\/product\//, 'source of truth cannot be another docs page');
   }
+});
+
+test('the generated content module stays in sync with docs/product', async () => {
+  const { readFile, readdir } = await import('node:fs/promises');
+  const path = await import('node:path');
+  const productDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'docs', 'product');
+  const generated = await readFile(new URL('../lib/docs-content.generated.mjs', import.meta.url), 'utf8');
+  const rawOnDisk = JSON.parse(generated.match(/export const DOCS_RAW = (\[.*\]);/s)?.[1] ?? '[]');
+  const bySlug = new Map(rawOnDisk.map((entry) => [entry.slug, entry.body]));
+
+  async function walk(dir) {
+    const entries = await readdir(dir, { withFileTypes: true });
+    const files = [];
+    for (const entry of entries) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) files.push(...await walk(full));
+      else if (entry.name.endsWith('.md')) files.push(path.relative(productDir, full).split(path.sep).join('/').replace(/[.]md$/, ''));
+    }
+    return files.sort();
+  }
+
+  const slugs = await walk(productDir);
+  for (const slug of slugs) {
+    const onDisk = await readFile(path.join(productDir, `${slug}.md`), 'utf8');
+    assert.equal(bySlug.get(slug), onDisk, `docs-content.generated.mjs is stale for ${slug} - run pnpm docs:content and commit`);
+  }
+  assert.equal(rawOnDisk.length, slugs.length, 'generated module has pages docs/product does not have');
 });
