@@ -1,24 +1,15 @@
 /*
- * Docs content loader (docs-plan.md §3.2, §7 Docs-A). Reads the whitelisted
- * Markdown under docs/product at build time - routes using this module render
- * statically, so no filesystem access reaches the deployed worker.
- *
- * Frontmatter is a fixed whitelist: title, description, audience, status,
- * sourceOfTruth, updatedAt. Unknown keys fail loudly in tests, not silently.
+ * Docs content loader (docs-plan.md §3.2). Content comes from
+ * docs-content.generated.mjs - a build-time compilation of docs/product
+ * (scripts/build-docs-content.mjs, run by the web prebuild hook). The
+ * deployed worker has no filesystem, so this module never touches fs.
  */
-import { readdir, readFile } from 'node:fs/promises';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { DOCS_RAW } from './docs-content.generated.mjs';
 import { parseMarkdown, tableOfContents } from './docs-markdown.mjs';
 
 const FRONTMATTER_KEYS = ['title', 'description', 'audience', 'status', 'sourceOfTruth', 'updatedAt'];
 const AUDIENCES = ['researcher', 'agent-developer', 'verifier', 'operator'];
 const STATUSES = ['current', 'draft'];
-
-/** Repo-root docs/product directory, resolved from this module location. */
-export function productRoot() {
-  return path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'docs', 'product');
-}
 
 function parseFrontmatter(source, file) {
   if (!source.startsWith('---')) return { meta: {}, body: source };
@@ -41,51 +32,28 @@ function parseFrontmatter(source, file) {
   return { meta, body: source.slice(close + 4).replace(/^\n/, '') };
 }
 
-async function walk(dir, base = dir) {
-  const entries = await readdir(dir, { withFileTypes: true });
-  const files = [];
-  for (const entry of entries) {
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) files.push(...await walk(full, base));
-    else if (entry.name.endsWith('.md')) files.push(path.relative(base, full));
-  }
-  return files.sort();
-}
-
-function slugFor(relative) {
-  return relative.replace(/\.md$/, '').replaceAll('\\', '/');
-}
-
-async function loadTree() {
-  const root = productRoot();
-  const files = await walk(root);
-  const pages = [];
-  for (const relative of files) {
-    const source = await readFile(path.join(root, relative), 'utf8');
-    const { meta, body } = parseFrontmatter(source, relative);
-    const blocks = parseMarkdown(body);
-    pages.push({
-      slug: slugFor(relative),
-      file: relative,
-      meta,
-      title: meta.title,
-      description: meta.description ?? null,
-      audience: meta.audience,
-      status: meta.status,
-      sourceOfTruth: meta.sourceOfTruth ?? null,
-      updatedAt: meta.updatedAt ?? null,
-      toc: tableOfContents(blocks),
-      body,
-      blocks,
-    });
-  }
-  return pages;
+function parsePage(entry) {
+  const { meta, body } = parseFrontmatter(entry.body, entry.slug);
+  const blocks = parseMarkdown(body);
+  return {
+    slug: entry.slug,
+    meta,
+    title: meta.title,
+    description: meta.description ?? null,
+    audience: meta.audience,
+    status: meta.status,
+    sourceOfTruth: meta.sourceOfTruth ?? null,
+    updatedAt: meta.updatedAt ?? null,
+    toc: tableOfContents(blocks),
+    body,
+    blocks,
+  };
 }
 
 /** Every docs page, grouped into navigation sections. Section order is fixed
  *  here (not derived from the fs) so the IA is a decision, not an accident. */
-export async function loadDocsManifest() {
-  const pages = await loadTree();
+export function loadDocsManifest() {
+  const pages = DOCS_RAW.map(parsePage);
   const bySlug = new Map(pages.map((page) => [page.slug, page]));
   const sections = [
     { id: 'getting-started', title: 'Getting started', slugs: pages.filter((p) => p.slug.startsWith('getting-started/')).map((p) => p.slug) },
@@ -106,12 +74,12 @@ export async function loadDocsManifest() {
 
 /** One page by slug; 404s stay the caller's decision. Prev/next follow the
  *  declared IA order (the manifest), never filesystem sort order. */
-export async function loadDocsPage(slug) {
-  const { sections } = await loadDocsManifest();
+export function loadDocsPage(slug) {
+  const { sections } = loadDocsManifest();
   const ordered = sections.flatMap((section) => section.slugs);
   const index = ordered.indexOf(slug);
   if (index < 0) return null;
-  const pages = await loadTree();
+  const pages = DOCS_RAW.map(parsePage);
   const page = pages.find((entry) => entry.slug === slug);
   if (!page) return null;
   const prevSlug = ordered[index - 1] ?? null;

@@ -6,7 +6,7 @@
     "lint": "node ../../scripts/check-package.mjs",
     "test": "node --test",
     "dev": "next dev",
-    "build": "next build",
+    "build": "node ../../scripts/build-docs-content.mjs && next build",
     "preview": "opennextjs-cloudflare build && node ../../scripts/patch-open-next-manifest.mjs && opennextjs-cloudflare preview",
     "start": "next start",
     "deploy:preview": "opennextjs-cloudflare build && node ../../scripts/patch-open-next-manifest.mjs && opennextjs-cloudflare deploy --env preview",

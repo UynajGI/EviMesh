@@ -10,7 +10,8 @@ test('initializes the Next App Router shell', async () => {
   ]);
   const packageJson = JSON.parse(manifest);
   assert.equal(packageJson.scripts.dev, 'next dev');
-  assert.equal(packageJson.scripts.build, 'next build');
+  // prebuild regenerates the docs content module before every pnpm build.
+  assert.equal(packageJson.scripts.build, 'node ../../scripts/build-docs-content.mjs && next build');
   assert.match(layout, /<html lang="en"/);
   assert.match(layout, /import '\.\/globals\.css';/);
   assert.match(page, /Open distributed scientific network/);
