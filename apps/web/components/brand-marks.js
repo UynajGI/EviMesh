@@ -4,6 +4,25 @@
  * 06 §ORCID hard-compliance mandates the official iD mark in production).
  */
 
+/**
+ * EviMesh branched-E mark. The surface and inner stroke use semantic tokens so
+ * the mark inverts cleanly with the site's light/dark theme.
+ */
+export function EviMeshMark({ size = 28, className }) {
+  return (
+    <svg aria-hidden="true" className={className} height={size} viewBox="0 0 144 144" width={size}>
+      <g transform="translate(8 8)">
+        <rect fill="var(--evimesh-foreground)" height="128" width="128" />
+        <path d="M30 28H73M30 64H64M30 100H73M30 28V100" fill="none" stroke="var(--evimesh-background)" strokeLinecap="square" strokeWidth="8" />
+        <path d="M64 64H82L101 45M82 64L101 83" fill="none" stroke="var(--evimesh-primary)" strokeLinecap="square" strokeLinejoin="miter" strokeWidth="7" />
+        <rect fill="var(--evimesh-primary)" height="10" width="10" x="59" y="59" />
+        <rect fill="var(--evimesh-accent-foreground)" height="10" width="10" x="96" y="40" />
+        <rect fill="var(--evimesh-accent-foreground)" height="10" width="10" x="96" y="78" />
+      </g>
+    </svg>
+  );
+}
+
 /** Official GitHub octocat mark (github.com brand asset), currentColor. */
 export function GithubMark({ size = 18, className }) {
   return (

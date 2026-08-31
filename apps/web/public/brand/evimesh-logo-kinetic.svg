@@ -1,11 +1,23 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="640" height="144" viewBox="0 0 640 144" fill="none" role="img" aria-labelledby="evimesh-logo-title evimesh-logo-desc">
   <title id="evimesh-logo-title">EviMesh</title>
   <desc id="evimesh-logo-desc">An angular E monogram whose central path branches into two evidence nodes.</desc>
+  <style>
+    .surface { fill: #111822; }
+    .inner { stroke: #F9FAFB; }
+    .wordmark-base { fill: #111822; }
+    .wordmark-accent { fill: #2063BF; }
+    @media (prefers-color-scheme: dark) {
+      .surface { fill: #F9FAFB; }
+      .inner { stroke: #111822; }
+      .wordmark-base { fill: #F9FAFB; }
+      .wordmark-accent { fill: #70A6F5; }
+    }
+  </style>
 
   <!-- Kinetic Journal mark: a strict E becomes a branching research path. -->
   <g id="evimesh-mark" transform="translate(8 8)">
-    <rect width="128" height="128" fill="#111822"/>
-    <path d="M30 28H73M30 64H64M30 100H73M30 28V100" stroke="#F9FAFB" stroke-width="8" stroke-linecap="square"/>
+    <rect class="surface" width="128" height="128"/>
+    <path class="inner" d="M30 28H73M30 64H64M30 100H73M30 28V100" stroke-width="8" stroke-linecap="square"/>
     <path d="M64 64H82L101 45M82 64L101 83" stroke="#2063BF" stroke-width="7" stroke-linecap="square" stroke-linejoin="miter"/>
     <rect x="59" y="59" width="10" height="10" fill="#2063BF"/>
     <rect x="96" y="40" width="10" height="10" fill="#70A6F5"/>
@@ -14,6 +26,6 @@
 
   <!-- Wordmark uses the product's Inter Tight family; the accent is electric cobalt. -->
   <text x="172" y="89" font-family="Inter Tight, Arial, sans-serif" font-size="58" font-weight="700" letter-spacing="-2.4">
-    <tspan fill="#111822">Evi</tspan><tspan fill="#2063BF">Mesh</tspan>
+    <tspan class="wordmark-base">Evi</tspan><tspan class="wordmark-accent">Mesh</tspan>
   </text>
 </svg>

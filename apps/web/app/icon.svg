@@ -1,9 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 144 144" role="img" aria-labelledby="title desc">
   <title id="title">EviMesh</title>
   <desc id="desc">The EviMesh branched evidence mark.</desc>
+  <style>
+    .surface { fill: #111822; }
+    .inner { stroke: #F9FAFB; }
+    @media (prefers-color-scheme: dark) {
+      .surface { fill: #F9FAFB; }
+      .inner { stroke: #111822; }
+    }
+  </style>
   <g transform="translate(8 8)">
-    <rect width="128" height="128" fill="#111822"/>
-    <path d="M30 28H73M30 64H64M30 100H73M30 28V100" fill="none" stroke="#F9FAFB" stroke-width="8" stroke-linecap="square"/>
+    <rect class="surface" width="128" height="128"/>
+    <path class="inner" d="M30 28H73M30 64H64M30 100H73M30 28V100" fill="none" stroke-width="8" stroke-linecap="square"/>
     <path d="M64 64H82L101 45M82 64L101 83" fill="none" stroke="#2063BF" stroke-width="7" stroke-linecap="square" stroke-linejoin="miter"/>
     <rect x="59" y="59" width="10" height="10" fill="#2063BF"/>
     <rect x="96" y="40" width="10" height="10" fill="#70A6F5"/>
