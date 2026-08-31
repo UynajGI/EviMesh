@@ -409,7 +409,7 @@ Primer 是 GitHub 的设计系统，分为"设计 token 层（`@primer/primitive
 ## 附录：来源索引
 
 **仓库内（实读）**
-- `EviMesh_Roadmap_v0.3.md`（设计原则 P1-P10、参与者/权限、对象模型、Claim 状态机、Claim DAG、Frontier）
+- `../archive/roadmap/EviMesh_Roadmap_v0.3.md`（历史设计原则 P1-P10、参与者/权限、对象模型、Claim 状态机、Claim DAG、Frontier）
 - `docs/m13.5-design-system.md`（视觉方向与 token）
 - `docs/m13.6-a/00-agent-first-charter.md`、`01-protocol-ux-map.md`、`02-protocol-lexicon.md`
 - `docs/m13.7-mature-product-identity-agent-onboarding.md`、`docs/m13.7-a/02-official-pattern-benchmark.md`、`03-researcher-jtbd-map.md`、`04-global-product-ia.md`

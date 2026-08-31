@@ -3,7 +3,7 @@
 > **元信息**
 > - 日期：2026-08-19
 > - 层级：《EviMesh UI 设计书》设计语言层，第 03 章
-> - 对应资产：`tokens.css`（font / text / lh / tracking token）、`app.css`（`.u-tabular` `.u-mono` `.kbd` `.prose-research` `.icon`）、`icons-sprite.html`
+> - 生产对应资产：`apps/web/app/globals.css`（font / text / lh / tracking token）、`apps/web/components`；历史 HTML 资产在 `docs/archive/design/m13.8-html/`
 
 ## 1. 字体栈
 

@@ -35,6 +35,7 @@ apps/api-edge/.wrangler/
 apps/web/.wrangler/
 apps/web/.next/
 apps/web/.open-next/
+output/verification/
 
 # Locally installed agent skills (per-machine dev tooling)
 .agents/

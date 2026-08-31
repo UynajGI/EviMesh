@@ -41,7 +41,7 @@
 }
 
 /*
- * EviMesh design tokens (M13.8, ported from docs/design/html/assets/tokens.css).
+ * EviMesh design tokens (M13.8 production source; historical HTML assets are archived).
  *
  * Source of truth: the UI design book at docs/design/ (M13.8). Values below are
  * the design book's contrast-verified hex tokens converted to oklch literals so

@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EviMesh logo candidate · Kinetic Journal</title>
+  <style>
+    @font-face {
+      font-family: "Inter Tight";
+      src: url("../../apps/web/public/fonts/inter-tight-latin-variable.woff2") format("woff2");
+      font-style: normal;
+      font-weight: 100 900;
+    }
+    :root { color-scheme: light; font-family: "Inter Tight", Arial, sans-serif; background: #f9fafb; color: #111822; }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 48px; }
+    main { max-width: 960px; margin: 0 auto; }
+    header { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid #dce0e5; padding-bottom: 16px; }
+    h1 { margin: 0; font-size: 18px; letter-spacing: -.02em; }
+    p { margin: 0; color: #737b85; font: 12px/1.5 "IBM Plex Mono", monospace; text-transform: uppercase; letter-spacing: .08em; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 32px; }
+    .sample { display: grid; place-items: center; min-height: 220px; padding: 32px; border: 1px solid #dce0e5; }
+    .sample--dark { background: #111822; border-color: #111822; }
+    .sample--dark img { filter: invert(1) hue-rotate(180deg); }
+    .sample--mark { min-height: 160px; grid-column: 1 / -1; background: #fff; }
+    .sample--mark img { width: 96px; height: 96px; object-fit: cover; object-position: left; }
+    img { width: min(100%, 540px); height: auto; display: block; }
+    footer { margin-top: 28px; border-top: 1px solid #dce0e5; padding-top: 16px; color: #737b85; font-size: 13px; line-height: 1.6; }
+    @media (max-width: 680px) { body { padding: 24px; } .grid { grid-template-columns: 1fr; } .sample--mark { grid-column: auto; } }
+  </style>
+</head>
+<body>
+  <main>
+    <header><h1>EviMesh / Kinetic Journal logo candidate</h1><p>V1 · branched E</p></header>
+    <section class="grid" aria-label="Logo previews">
+      <div class="sample"><img src="../../../../apps/web/public/brand/evimesh-logo-kinetic.svg" alt="EviMesh logo on paper" /></div>
+      <div class="sample sample--dark"><img src="../../../../apps/web/public/brand/evimesh-logo-kinetic.svg" alt="EviMesh logo on ink" /></div>
+      <div class="sample sample--mark"><img src="../../../../apps/web/public/brand/evimesh-logo-kinetic.svg" alt="EviMesh mark" /></div>
+    </section>
+    <footer>
+      The mark preserves the existing square E while turning the middle bar into a two-way research path. Ink and paper carry the journal tone; cobalt is reserved for the active branch and node endpoints. No gradient, shadow, or decorative tagline is used.
+    </footer>
+  </main>
+</body>
+</html>

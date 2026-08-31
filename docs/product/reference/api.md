@@ -10,7 +10,7 @@ updatedAt: 2026-08-29
 # API reference
 
 The public API is served by the api-edge worker. The machine-readable
-contract is `apps/api-edge/openapi.json` (62 paths). The complete
+contract is `apps/api-edge/openapi.json` (78 paths). The complete
 generated endpoint table lives at
 [API endpoints](/docs/reference/api-endpoints.generated), guarded by CI
 against drift.

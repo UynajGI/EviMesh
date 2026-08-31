@@ -37,4 +37,5 @@ test("contributions renders on the server page template", () => {
   assert.match(contributions, /PageHeader/);
   assert.match(contributions, /readEvents/);
   assert.match(contributions, /cache: 'no-store'/);
+  assert.match(contributions, /titleClassName="lg:max-w-none lg:whitespace-nowrap"/);
 });

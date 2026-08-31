@@ -7,7 +7,7 @@ import path from 'node:path';
 const read = (p) => readFile(new URL(p, import.meta.url), 'utf8');
 
 /*
- * Block-level fidelity pass (docs/design/html audit, round three). Freezes
+ * Block-level fidelity pass (production component audit, round three). Freezes
  * the section-level and a11y contracts the subagent audit verified as gaps.
  */
 

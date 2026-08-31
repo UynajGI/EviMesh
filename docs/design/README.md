@@ -5,13 +5,14 @@
 
 > **v2.1 覆盖说明（2026-08-30）**：全站 Kinetic Journal 裁决以 [12-kinetic-journal-v2.1.md](12-kinetic-journal-v2.1.md) 为最新事实源；它覆盖本书较早的 dashboard/card、Claim-only graph、Graph/List tab、Phosphor 与可写研究网页描述。保留下列章节作为协议语义与历史设计依据。
 
-## 如何查看 HTML 设计稿
+## 设计资产与实现
 
-全部设计稿在 [`html/`](html/) 目录，**零构建、零网络依赖**，直接用浏览器打开即可（file:// 或任意静态服务器）。每页支持浅色/深色双主题（右上角切换，跟随系统默认）。
+生产实现位于 [`apps/web`](../../apps/web)，设计 token 的单一事实源是
+[`apps/web/app/globals.css`](../../apps/web/app/globals.css)，组件实现位于
+[`apps/web/components`](../../apps/web/components)。
 
-入口：[`html/index.html`](html/index.html)（设计书封面与全部页面导航）。
-
-v2.1 可直接打开的全站原型位于 [`../../output/evimesh-v2.1-kinetic-journal/index.html`](../../output/evimesh-v2.1-kinetic-journal/index.html)，包含 Home / Explore / Question-Answer detail / Work / Tools / Contribution Atlas / Agent demo views。
+早期零构建 HTML、截图基线与 v2.1 独立原型已移入
+[`docs/archive`](../archive/README.md)，仅用于历史审阅，不参与生产构建。
 
 ## 文档结构
 
@@ -31,29 +32,29 @@ v2.1 可直接打开的全站原型位于 [`../../output/evimesh-v2.1-kinetic-jo
 | [11-revision-decisions.md](11-revision-decisions.md) | 已锁定裁决及 v2.1 Kinetic Journal 覆盖关系 |
 | [12-kinetic-journal-v2.1.md](12-kinetic-journal-v2.1.md) | v2.1 全站视觉、异构邻域、只读网页与验收契约 |
 
-## HTML 设计稿清单（16 页 + 资产）
+## 历史 HTML 设计稿清单（17 页，已归档）
 
 | 页面 | 文件 | 一句话 |
 |---|---|---|
-| 设计书封面 | `html/index.html` | 原则、页面目录、文档地图 |
-| 颜色语言 | `html/tokens.html` | 全 token 色板、双主题、对比度标注 |
-| 组件指南 | `html/styleguide.html` | 按钮/徽标/卡片/表单/反馈/DAG/排版全变体 |
-| 匿名 Landing | `html/landing.html` | 一句话定位 + 真实示例 + 信任机制 |
-| 登录后 Home | `html/home.html` | watchlist 四级变化流 |
-| Explore | `html/explore.html` | 统一搜索与筛选 |
-| Work | `html/work.html` | 任务/验证/质疑/草稿/贡献 |
-| 研究工作区 | `html/workspace.html` | 六视角（Summary→Activity） |
-| 主张详情 | `html/claim.html` | serif 陈述 + DAG 图/列表 + revision diff |
-| 研究者主页 | `html/profile.html` | ORCID 已验证 + 角色贡献 + 她的 Agent |
-| 账户设置 | `html/settings.html` | 身份/Token/安全/通知五分区 |
-| Agent 接入中心 | `html/agent-center.html` | 六步连接向导 + 工具目录 |
-| Agent 活动轨迹 | `html/agent-activity.html` | attempt 时间线 + human-in-the-loop |
-| Handoff sheet | `html/handoff.html` | 写交接对话框（零凭据） |
-| 通知中心 | `html/notifications.html` | 订阅驱动收件箱 |
-| 命令面板 | `html/command-palette.html` | 键盘统一入口 |
-| 全状态规格 | `html/states.html` | loading/empty/error/denied/offline/partial |
+| 设计书封面 | `docs/archive/design/m13.8-html/html/index.html` | 原则、页面目录、文档地图 |
+| 颜色语言 | `../archive/design/m13.8-html/tokens.html` | 全 token 色板、双主题、对比度标注 |
+| 组件指南 | `../archive/design/m13.8-html/styleguide.html` | 按钮/徽标/卡片/表单/反馈/DAG/排版全变体 |
+| 匿名 Landing | `../archive/design/m13.8-html/landing.html` | 一句话定位 + 真实示例 + 信任机制 |
+| 登录后 Home | `../archive/design/m13.8-html/home.html` | watchlist 四级变化流 |
+| Explore | `../archive/design/m13.8-html/explore.html` | 统一搜索与筛选 |
+| Work | `../archive/design/m13.8-html/work.html` | 任务/验证/质疑/草稿/贡献 |
+| 研究工作区 | `../archive/design/m13.8-html/workspace.html` | 六视角（Summary→Activity） |
+| 主张详情 | `../archive/design/m13.8-html/claim.html` | serif 陈述 + DAG 图/列表 + revision diff |
+| 研究者主页 | `../archive/design/m13.8-html/profile.html` | ORCID 已验证 + 角色贡献 + 她的 Agent |
+| 账户设置 | `../archive/design/m13.8-html/settings.html` | 身份/Token/安全/通知五分区 |
+| Agent 接入中心 | `../archive/design/m13.8-html/agent-center.html` | 六步连接向导 + 工具目录 |
+| Agent 活动轨迹 | `../archive/design/m13.8-html/agent-activity.html` | attempt 时间线 + human-in-the-loop |
+| Handoff sheet | `../archive/design/m13.8-html/handoff.html` | 写交接对话框（零凭据） |
+| 通知中心 | `../archive/design/m13.8-html/notifications.html` | 订阅驱动收件箱 |
+| 命令面板 | `../archive/design/m13.8-html/command-palette.html` | 键盘统一入口 |
+| 全状态规格 | `../archive/design/m13.8-html/states.html` | loading/empty/error/denied/offline/partial |
 
-共享资产（`html/assets/`）：`tokens.css`（三层 token）、`app.css`（组件库）、`theme.js`（主题切换）、`app.js`（复制/tabs/对话框行为）、`icons-sprite.html`（Phosphor 106 symbol 母版，构建时内联到各页）。
+历史共享资产位于 `docs/archive/design/m13.8-html/assets/`；生产代码不依赖它们。
 
 ## 硬约束速查（违反即返工）
 
