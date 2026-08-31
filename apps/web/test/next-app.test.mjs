@@ -5,8 +5,8 @@ import test from 'node:test';
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8');
 
 test('initializes the Next App Router and Cloudflare deployment', async () => {
-  const [manifest, layout, config, workerConfig, openNextConfig] = await Promise.all([
-    read('../package.json'), read('../app/layout.js'), read('../next.config.mjs'), read('../wrangler.jsonc'), read('../open-next.config.ts'),
+  const [manifest, layout, config, workerConfig, openNextConfig, icon] = await Promise.all([
+    read('../package.json'), read('../app/layout.js'), read('../next.config.mjs'), read('../wrangler.jsonc'), read('../open-next.config.ts'), read('../app/icon.svg'),
   ]);
   const packageJson = JSON.parse(manifest);
   assert.equal(packageJson.scripts.dev, 'next dev');
@@ -15,6 +15,8 @@ test('initializes the Next App Router and Cloudflare deployment', async () => {
   assert.match(config, /turbopack: \{ root: workspaceRoot \}/);
   assert.match(workerConfig, /"main": "\.open-next\/worker\.js"/);
   assert.match(openNextConfig, /defineCloudflareConfig/);
+  assert.match(icon, /The EviMesh branched evidence mark/);
+  assert.match(icon, /#2063BF/);
 });
 
 test('Kinetic Journal shell exposes the locked publication navigation', async () => {
