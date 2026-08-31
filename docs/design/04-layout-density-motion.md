@@ -3,7 +3,7 @@
 > **元信息**
 > - 日期：2026-08-19
 > - 层级：《EviMesh UI 设计书》设计语言层，第 04 章
-> - 对应资产：`tokens.css`（space / radius / control / motion / z / layout token）、`app.css`（shell / page / layout / 组件间距）
+> - 生产对应资产：`apps/web/app/globals.css`（space / radius / control / motion / z / layout token）与 `apps/web/components/`；历史 HTML 资产在 `docs/archive/design/m13.8-html/`
 
 ## 1. 栅格与容器
 
@@ -108,7 +108,7 @@ PageHeader 下方是 1px 弱发丝线，与正文分隔。每屏主动作至多�
 
 ## 6. 动效清单
 
-总量级 MOTION_INTENSITY 2-3：动效只服务反馈、层级、上下文切换。仅动画 `transform` 与 `opacity`；禁止动画 top/left/width/height/box-shadow。全部动效在 `prefers-reduced-motion: reduce` 下降级为即时状态切换（app.css 已全局兜底）。
+总量级 MOTION_INTENSITY 2-3：动效只服务反馈、层级、上下文切换。仅动画 `transform` 与 `opacity`；禁止动画 top/left/width/height/box-shadow。全部动效在 `prefers-reduced-motion: reduce` 下降级为即时状态切换（生产样式全局兜底）。
 
 | # | 场景 | 属性 | 时长 | 缓动 | reduced-motion 行为 |
 |---|---|---|---|---|---|

@@ -18,4 +18,4 @@ Upstream binary URLs:
 - IBM Plex Mono 600: `https://fonts.gstatic.com/s/ibmplexmono/v20/-F6qfjptAgt5VM-kVkqdyU8n3vAOwlBFgg.woff2`
 - IBM Plex Mono 700: `https://fonts.gstatic.com/s/ibmplexmono/v20/-F6qfjptAgt5VM-kVkqdyU8n3pQPwlBFgg.woff2`
 
-The v2.1 prototype copies the same files and license texts under `output/evimesh-v2.1-kinetic-journal/assets/fonts/` so the standalone HTML remains offline-viewable.
+Historical prototypes carried their own font copies; production serves the files in this directory.

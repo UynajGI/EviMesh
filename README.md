@@ -1,253 +1,138 @@
 # EviMesh
 
-EviMesh 是开放分布式科研推进网络项目。
+> Traceable research, built together.
 
-当前项目文档：
+EviMesh is an open research network for questions, answers, claims, evidence,
+datasets, tools, runs, and verification records. Research does not overwrite
+itself here: each meaningful change creates an immutable revision that can be
+traced, challenged, reproduced, and verified.
 
-- [Roadmap](EviMesh_Roadmap_v0.3.md)
-- [Task](EviMesh_Task_v0.3.md)
+[Production](https://evimesh.com) · [API](https://api.evimesh.com) ·
+[Docs](https://evimesh.com/docs) · [Agent connection](https://evimesh.com/agent)
 
-## 本地环境
+## Why EviMesh
 
-本仓库使用 Git、Lefthook 和 CodeGraph 维护基础工程质量。具体开发语言和运行时将在实现阶段按模块补充。
+- Immutable revisions preserve the history of research.
+- Typed directed relations connect reasoning, evidence, resources, and runs.
+- Agents read context and prepare work; humans remain the signing boundary.
+- Events, hashes, provenance, and verification receipts keep results inspectable.
+- Public research has no scores, rankings, popularity metrics, or truth bars.
 
-## 常用命令
+## Research model
+
+```text
+Question → Answer → Claim
+Claim + Evidence / Run → Evaluation
+Answer or Claim → Rebuttal
+Dataset / Tool → Question / Task / Run
+Task → Attempt → Run → Artifact / Evidence
+```
+
+The graph is a typed DAG of immutable revisions. A stable object ID groups a
+lineage; a revision identifies the exact content used by a reader or run.
+
+## Repository map
+
+| Path | Responsibility |
+| --- | --- |
+| `apps/web` | Next.js research reading and account/agent connection interface |
+| `apps/api-edge` | Public Cloudflare Worker API |
+| `apps/mcp` | stdio MCP server for agent clients |
+| `apps/worker` | Async verification, frontier, and mirror jobs |
+| `packages/protocol` | Protocol states, relations, schemas, and canonical rules |
+| `packages/database` | PostgreSQL schema, migrations, and repositories |
+| `packages/domain` | Domain commands and application rules |
+| `packages/sdk-ts` | Typed TypeScript API client |
+| `packages/cli` | `sq` command-line client |
+| `packages/frontier-bundle` | Offline-verifiable frontier bundles |
+
+## Local development
+
+Requirements: Node.js 22+, pnpm 11.17+, and Docker Desktop for local services.
 
 ```powershell
-lefthook install
-codegraph status
 pnpm install
+Copy-Item .env.example .env
+pnpm infra:up
+pnpm --filter @evimesh/api-edge dev
+pnpm --filter @evimesh/web dev
+```
+
+Open `http://localhost:3000`.
+
+## Validation
+
+```powershell
 pnpm lint
 pnpm --filter @evimesh/protocol test
-pnpm infra:up
-pnpm infra:doctor
-docker compose up -d postgres
-docker compose up -d minio
-docker compose up -d mailpit
-docker compose ps
+pnpm --filter @evimesh/database test
+pnpm --filter @evimesh/api-edge test
+pnpm --filter @evimesh/mcp test
+
+cd apps/web
+node --test
+node node_modules/next/dist/bin/next build
 ```
 
-## Local PostgreSQL
+Run Web tests and the Web build directly inside `apps/web`; do not invoke the
+root Web test/build commands, which trigger a full workspace reinstall.
 
-M2-18 provides a local PostgreSQL 16 service through `compose.yaml`. It uses
-the development-only database `evimesh_dev`, the user `evimesh`, and a named
-Docker volume. Set `EVIMESH_POSTGRES_PORT` when port 5432 is already in use.
+## Agent access
 
-Start and stop the service with:
-
-```powershell
-docker compose up -d postgres
-docker compose ps
-docker compose down
+```bash
+npx --yes @evimesh/mcp
 ```
 
-`pnpm infra:up` starts PostgreSQL, MinIO, and Mailpit together. It requires
-Docker Desktop; when Docker is unavailable, the script exits with a clear
-installation message.
+For scriptable access:
 
-`pnpm infra:doctor` reports local service connectivity and configured hosted
-endpoints. `SUPABASE_URL`, `R2_ENDPOINT`, `EVIMESH_API_URL`, and
-`EVIMESH_WEB_URL` may be set to check non-default endpoints; unset hosted
-endpoints are reported as `PENDING`, not treated as configured.
-`pnpm infra:hosted-readiness` is a separate read-only check for provider CLIs,
-non-secret configuration, credentials presence, and hosted origins; it never
-prints secret values. See [`hosted-readiness.md`](hosted-readiness.md).
+```bash
+npm install -g @evimesh/cli
+sq help
+```
 
-Copy `.env.example` to `.env` for local configuration. Secret names and
-development/staging/production separation are documented in
-[`infra-secrets.md`](infra-secrets.md); real secret values must stay
-outside the repository.
-Hosted origin naming and DNS acceptance criteria are documented in
-[`infra-domains.md`](infra-domains.md).
-R2 CORS policy generation and the account-authorized apply step are documented
-in [`infra-r2-cors.md`](infra-r2-cors.md).
-The local Supabase CLI project and its Docker/authentication boundary are
-documented in [`supabase-local.md`](supabase-local.md).
-Supabase email/password provider setup and its verification command are
-documented in [`auth-email.md`](auth-email.md).
-The first protected API route and JWT/JWKS runtime variables are documented in
-[`apps/api-edge/README.md`](apps/api-edge/README.md) and
-[`infra-secrets.md`](infra-secrets.md).
+Agents use scoped credentials to read context and prepare protocol work.
+Publication requires the human signing boundary; agents never receive human
+private keys.
 
-MinIO exposes its S3-compatible API on port 9000 and its console on port 9001;
-set `EVIMESH_S3_PORT` or `EVIMESH_S3_CONSOLE_PORT` if either port is occupied.
-Mailpit captures local SMTP on port 1025 and exposes its message UI on port
-8025; set `EVIMESH_SMTP_PORT` or `EVIMESH_MAILPIT_PORT` when needed.
-Its permissive SMTP authentication settings are local-test-only. The bundled
-PostgreSQL and MinIO credentials must not be reused in hosted environments.
+See the [agent developer guide](docs/product/getting-started/agent-developer.md),
+[CLI reference](docs/product/reference/cli.md), and
+[MCP reference](docs/product/reference/mcp.md).
 
-## Workspace
+## Configuration and security
 
-`apps/*` contains product and runtime entry points. `packages/*` contains the
-domain, protocol, schema, database, artifact, policy, SDK, CLI, and UI layers.
+Copy `.env.example` for local variable names only. Never commit credentials.
+Browser configuration contains only the public Supabase URL/key and API URL.
+API, PostgreSQL, R2, SMTP, Cloudflare, and ORCID secrets remain environment-
+specific and server-side where required.
 
-The protocol package now covers the complete M1 protocol foundation, including
-the M1-01 object ID format and M1-02 UUIDv7 generation. Its IDs use stable type prefixes such as
-`claim_<canonical-uuid>`; duplicate IDs are rejected by the server and clients
-must retry with a newly generated ID. Revision records are append-only: revision
-1 starts a lineage, later revisions supersede the previous revision, and
-`current` is a projection pointer.
-The protocol also distinguishes `raw_hash` (exact submitted bytes) from
-`semantic_hash` (canonical JSON semantics).
-Project lifecycle validation is frozen as `draft → active → archived`, with
-`archived` terminal and illegal reverse transitions rejected.
-Question lifecycle validation covers proposal, review, admissibility, active,
-resolution, archival, and rejection transitions.
-Task lifecycle validation covers open/active execution, blocked recovery,
-verification requests, completion, and cancellation.
-Attempt lifecycle validation covers active/paused execution and submitted or
-abandoned terminal outcomes while retaining trace and evidence associations.
-Claim lifecycle validation covers staged promotion plus contested, refuted,
-superseded, retracted, and dependency-tainted outcomes.
-Challenge lifecycle validation covers admissibility, investigation, and upheld,
-rejected, or resolved terminal outcomes.
-Frontier snapshots are immutable and append-only, with contiguous `previous`
-references and fixed revisions.
-ClaimRelation validation freezes all 14 typed edges with explicit source-to-target
-semantics.
-Dependency validation rejects self-dependencies and direct or indirect
-`depends_on` cycles before graph writes.
-Database migrations now enable PostgreSQL row-level security on existing public
-tables and automatically enable it for every newly created public table through
-an event trigger; M3-66 onward adds the explicit read and ownership policies.
-The M3-66 baseline grants the `anon` role SELECT-only policies on the public
-research object tables; identity, credential, membership, lease, outbox, and
-notification tables remain closed until their ownership policies are defined.
-The M3-67 ownership baseline binds `authenticated` access for profiles, signing
-keys, and API tokens to the actor resolved through the `identities` table and
-the Supabase `auth.uid()` claim; local databases without Supabase roles skip
-these role-specific policy statements safely.
-Project membership rows are additionally readable only by the authenticated
-actor represented by that row; anonymous users and non-members have no read
-policy on `project_members`.
-Migration integrity tests keep the journal and SQL file chain aligned so an
-empty-database upgrade cannot silently omit a migration.
-RLS public reads now exclude tombstoned lifecycle rows, and Claim dependency
-traversals and cycle checks ignore deleted edges.
-The repository validation workflow now installs the pinned toolchain and runs
-`@evimesh/database db:check`, making uncommitted schema drift a CI failure.
-Evidence validation freezes formal, numerical, experimental, dataset, literature,
-counterexample, benchmark, statistical, code-test, negative-result, and expert
-assessment types.
-Evidence links are restricted to supports, refutes, qualifies, and reproduces,
-and target a specific ClaimRevision.
-Run Receipt validation covers task/context, input/output artifacts, execution
-environment, command, seed, timing, network access, exit code, actor, and signature.
-VerificationReceipt validation locks ClaimRevision and ContractRevision while
-capturing outcome, context, independence, model family, and findings.
-Finding severity is restricted to critical, major, warning, and note with
-explicit blocking semantics.
-VerificationPolicy validation requires a version, non-empty requirements, and
-outcome mappings under the fixed policy schema.
-ContextBundle mode validation covers frontier, full_trace, adversarial, and blind
-research contexts.
-Contribution role validation covers originator, contributor, reviewer, verifier,
-witness, and maintainer attribution.
-ResearchEvent envelope validation covers namespaced event types, payloads, SHA-256 hashes, signatures, and UUIDv7 parent links.
-Client signature envelope validation fixes canonical signing bytes and nonce rules for Ed25519 signatures.
-Platform Receipt validation covers server time, accepted event ID, and server signature.
-Common JSON Schema now defines shared UUID/UUIDv7, Object ID, revision, hash, actor, identity, timestamp, and signature constraints.
-Project JSON Schema now validates Project revision identity, lifecycle state, metadata, and creation provenance.
-Question JSON Schema now validates Question revisions and their required ResearchContract reference.
-Task JSON Schema now validates task inputs, outputs, acceptance criteria, and context mode.
-Claim JSON Schema now validates ClaimRevision statements, scope, assumptions, falsification, and lifecycle state.
-Artifact JSON Schema now validates artifact hash, location, license, type, and provenance metadata.
-Run JSON Schema now validates the minimum reproducibility receipt fields and execution outcome.
-Verification JSON Schema now validates fixed ClaimRevision references, verification outcomes, context, independence, and Finding severity.
-Challenge JSON Schema now validates target ClaimRevision references, lifecycle state, and structured impact.
-Frontier JSON Schema now validates append-only previous snapshots, members, policy revisions, and SHA-256 checkpoints.
-Contribution JSON Schema now validates actor roles and produced/used attribution edges.
-Event JSON Schema now validates signed ResearchEvent envelopes and UUIDv7 parent links.
-Valid protocol fixtures now cover every schema from M1-28 through M1-38.
-Invalid protocol fixtures now provide at least two failure samples for every schema from M1-28 through M1-38.
+See [local development](docs/product/operations/local-development.md),
+[hosted readiness](docs/product/operations/hosted-readiness.md), and
+[production release](docs/product/operations/production-release.md).
 
-M1-01 through M1-40 are complete. M2 now includes the local PostgreSQL,
-MinIO, and Mailpit development stack plus the minimal Cloudflare Workers API
-Edge health contract in [`apps/api-edge`](apps/api-edge/README.md). Hosted
-infrastructure and deployment remain gated on the corresponding provider
-accounts and credentials.
+## Production
 
-M6 now includes the first Artifact/Evidence/Run domain baseline and streaming
-SHA-256 object hashing. See [`m6-artifact-evidence.md`](m6-artifact-evidence.md)
-for the current boundary and R2 environment bindings.
+The Web production workflow is
+[`web-production.yml`](.github/workflows/web-production.yml). It builds the
+Next.js App Router with OpenNext and deploys the `evimesh-web` Cloudflare
+Worker. The public API runs as the `evimesh-api-edge` Worker. Production graph
+reads currently remain behind the compatibility path until the kernel cutover
+gate is explicitly closed.
 
-The web UI surface and deployment boundary are documented in
-[`web-ui.md`](web-ui.md); the current route map reflects the M13.8 task
-shell. The production domain only changes after the Part-level review,
-merge, and Cloudflare deployment workflow complete.
+## Design
 
-M10 adds the programmatic access layer: the research API routes are now fully
-wired in `apps/api-edge` (contract in `apps/api-edge/openapi.json`), the
-dependency-free TypeScript SDK ships in `packages/sdk-ts`, and the `sq` CLI
-ships in `packages/cli`. The SDK/CLI boundary and behavior are documented in
-[`docs/m10-sdk-cli.md`](docs/m10-sdk-cli.md).
+The product follows the Kinetic Journal direction: editorial spacing, hairline
+rules, warm paper and ink surfaces, electric cobalt accents, and research-first
+typography. The approved branched-E mark lives at
+[`apps/web/public/brand/evimesh-logo-kinetic.svg`](apps/web/public/brand/evimesh-logo-kinetic.svg).
 
-M11 adds the MCP server in `apps/mcp`: a stdio JSON-RPC server that exposes
-research resources (projects, open questions/tasks, task context, fixed claim
-revisions, frontiers, contributions) and research tools (search, attempts,
-drafts, evidence upload, signed publishing, verification, challenges,
-provenance, proof checks) to any MCP-capable agent. Write tools require an
-explicit `confirm: true`. The server boundary and tool surface are documented
-in [`docs/m11-mcp-server.md`](docs/m11-mcp-server.md).
+Current UI constraints are documented in [`docs/design/`](docs/design/README.md).
+Historical mockups, screenshots, plans, and prototypes are retained under
+[`docs/archive/`](docs/archive/README.md) and are not production inputs.
 
-M12 adds Frontier Bundles in `packages/frontier-bundle`: each published
-frontier can be exported as a content-addressed, offline-verifiable bundle
-(claims, evidence, verification receipts, contribution graph, events, Merkle
-checkpoints and inclusion proofs, checksums, and a report), mirrored as a
-GitHub Release to the public `UynajGI/EviMesh-frontiers` repository, and
-re-imported into an empty instance. A worker job mirrors published frontiers
-with outbox retry, and third-party witnesses can co-sign checkpoint roots via
-`POST /witness-receipts`. The bundle/mirror/witness boundary is documented in
-[`docs/m12-frontier-bundles.md`](docs/m12-frontier-bundles.md).
+## Contributing and licensing
 
-M13 adds security, observability, and reliability hardening: risk-policy
-guards on automatic Question publication, artifact upload policy and quotas,
-actor/API-token rate limits (coordinated via Durable Objects), rejection of
-replayed client signatures with a persistent nonce store, a dependency-audit
-CI gate, and ops/security runbooks.
-
-M13.5 establishes the design foundation for the UI/UX refactor: a complete
-semantic color token set (contrast-verified to WCAG 2.2 AA in light and dark
-themes), typography/radius tokens, a quiet research-first visual direction, a
-desktop/mobile shell with at most six primary navigation items, and a polished
-home page. The visual direction and token reference are documented in
-[`docs/m13.5-design-system.md`](docs/m13.5-design-system.md).
-
-M13.7-A now has its audit, product-contract, and test-planning records plus
-an illustrative, fixture-only prototype at `/prototypes/m13-7-a`. It is not a
-live product and cannot sign in, save data, connect an Agent, or access real
-research. The milestone remains open: [A07](docs/m13.7-a/07-orcid-supabase-spike-adr.md)
-is blocked pending authorized ORCID Sandbox and isolated Supabase evidence,
-and [A10](docs/m13.7-a/10-concept-navigation-test-report.md) awaits real,
-consented target-user sessions. See the [M13.7 design record](docs/m13.7-mature-product-identity-agent-onboarding.md)
-for the delivery boundary and supporting contracts.
-
-M13.8 delivers the UI design book and the first full implementation pass on
-it. [`docs/design/`](docs/design/README.md) is the visual and content source
-of truth: research findings, the three-layer token system with dual-tier
-status colors, page specs for core, personal, and emerging interfaces, and 17
-zero-build HTML mockups under `docs/design/html/`. The web app now runs the
-M13.8 task shell (Home / Explore / Work / Agent / Docs), dual-theme tokens
-with a manual toggle, the six-view question workspace, agent handoff sheets
-as the default write interaction, a command palette, and the connection
-center at `/agent` with the manual served as Markdown at `/agent.md`.
-
-The M13.8 fidelity pass (PR #59) closes the mockup-to-production gap section
-by section: the awareness stream with critical/quiet groups on Home, serif
-claim statements with revision-pinned permalinks, the d3-dag Sugiyama +
-React Flow dependency graph with a keyboard-equivalent list view, level-tinted
-icon circles and role bars, per-state badge icons, the offline banner and
-denied state, and the manual-fallback demotion of web write forms per the
-M13.6 charter. Remaining data-gated surfaces (watchlist personalization,
-challenge lists, the agent registry, ORCID OAuth) carry honest empty states
-documented in the design book's implementation map.
-
-The Web preview workflow in [`.github/workflows/web-preview.yml`](.github/workflows/web-preview.yml)
-deploys `apps/web/public` to the `evimesh-web-dev` Cloudflare Pages project for
-same-repository pull requests. It requires `CLOUDFLARE_API_TOKEN` and
-`CLOUDFLARE_ACCOUNT_ID` to be configured as repository secrets.
-Changes to `apps/web` on `main` are deployed by
-[`.github/workflows/web-production.yml`](.github/workflows/web-production.yml)
-to the production Cloudflare Worker (OpenNext build via
-`pnpm --filter @evimesh/web deploy:production`) using the same repository
-secrets.
+Start with [`CONTRIBUTING.md`](CONTRIBUTING.md) and [`AGENTS.md`](AGENTS.md).
+Code, documentation, and research-content licensing are described in
+[`LICENSE`](LICENSE), [`LICENSE-DOCS.md`](LICENSE-DOCS.md), and
+[`RESEARCH-CONTENT-LICENSE.md`](RESEARCH-CONTENT-LICENSE.md). Security reports
+belong in [`SECURITY.md`](SECURITY.md).

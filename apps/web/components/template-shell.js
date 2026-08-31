@@ -96,7 +96,12 @@ function BrandLink({ onNavigate }) {
       href="/"
       onClick={onNavigate}
     >
-      <span aria-hidden="true" className="grid size-7 place-items-center rounded-[1px] bg-foreground font-mono text-xs font-bold text-background">E</span>
+      <img
+        src="/brand/evimesh-mark-kinetic.svg"
+        alt=""
+        aria-hidden="true"
+        className="size-7 shrink-0"
+      />
       EviMesh
     </Link>
   );

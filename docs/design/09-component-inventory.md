@@ -3,8 +3,8 @@
 > **元信息**
 > - 日期：2026-08-19
 > - 层级：《EviMesh UI 设计书》设计语言层，第 09 章
-> - 单一事实源：`docs/design/html/assets/app.css`（样式）+ `assets/icons-sprite.html`（图标）
-> - 可视化基线：`docs/design/html/styleguide.html`
+> - 单一事实源：`apps/web/components/`（组件）+ `apps/web/app/globals.css`（样式与 token）
+> - 历史可视化基线：`docs/archive/design/m13.8-html/styleguide.html`
 > - 实现基线：Primer React 模式（NavList / PageHeader / DataTable / Timeline / Banner / Blankslate / Label / Breadcrumbs / KeybindingHint），Radix 承载交互行为，视觉全部走 EviMesh token
 
 ## 1. class 命名约定（总则）
@@ -13,10 +13,10 @@
 2. **语义命名，不用表象命名**：允许 `.badge--danger`，禁止 `.badge--red`；允许 `.blank--error`，禁止 `.blank--big-icon`。
 3. **变体自包含**：每个 `--variant` 独立可用，不依赖与其他变体的叠加顺序。
 4. **状态优先用 ARIA 属性选择器**：`aria-current="page"`（导航）、`aria-pressed`（切换）、`aria-invalid`（表单错误）、`aria-busy`（loading）、`aria-checked`（switch）、`:disabled`。仅为无法用 ARIA 表达的视觉状态加 class。
-5. **颜色只从 token 来**：app.css 内禁止裸 hex（唯一例外是 select 箭头的 data-URI，已提供双主题变体并注明）。
+5. **颜色只从 token 来**：生产组件只引用 `apps/web/app/globals.css` 的语义 token；品牌 SVG 可使用自身固定色值。
 6. **工具类以 `u-` 前缀**：`u-tabular` `u-mono` `u-truncate` `u-muted` `u-subtle` `u-sr-only`。
 7. **图标统一**：`<svg class="icon [icon--sm|icon--lg|icon--xl]">` + `<use href="#icon-..."/>`；装饰图标 `aria-hidden="true"`。
-8. **新组件流程**：先在 app.css 加 block，再在本章登记（用途 / 变体 / 状态 / 基线来源），页面子代理才可引用；禁止页面内私有样式承载可复用组件。
+8. **新组件流程**：先在 `apps/web/components` 实现，再在本章登记（用途 / 变体 / 状态 / 基线来源）；禁止页面内私有样式承载可复用组件。
 
 ## 2. 组件清单
 
@@ -117,6 +117,6 @@
 
 ## 3. 后续页面子代理必须遵守的三条最重要约定
 
-1. **只用既有 class 与 token**：新页面只允许组合本章登记的组件与 `--evimesh-*` token；确需新组件时先在 app.css 与本章登记，禁止页面内私有样式、禁止裸 hex、禁止直连 primitive。
+1. **只用既有组件与 token**：新页面只允许组合本章登记的组件与 `--evimesh-*` token；确需新组件时先在 `apps/web/components` 与本章登记，禁止页面内私有样式、禁止裸 hex、禁止直连 primitive。
 2. **状态全覆盖且文本先行**：每个数据区必须同时实现 loading（skeleton）/ empty（blank + 下一步动作）/ error（blank--error + request id + 重试）；每个徽标与状态都有文本标签，颜色永不单独承载含义；数字一律 `u-tabular`（数据加 `u-mono`）。
 3. **壳与层级纪律**：沿用 gheader 五项导航与 PageHeader 四槽模板；每屏至多一个 primary 与一个 emphasis 实底徽标；间距只用 space 刻度；动效只按第 04 章清单取用；可见文案零 em-dash、零 emoji，图标只从 sprite 的 67 个 symbol 中取。

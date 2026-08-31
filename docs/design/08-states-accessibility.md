@@ -3,7 +3,7 @@
 > **元信息**
 > - 日期：2026-08-19
 > - 层级：《EviMesh UI 设计书》设计语言层，第 08 章
-> - 对应资产：`app.css`（`.blank` `.blank--error` `.skeleton` `.alert`）、`icons-sprite.html`
+> - 生产对应资产：`apps/web/components` 与 `apps/web/app/globals.css`；历史 HTML 资产在 `docs/archive/design/m13.8-html/`
 > - 依据：M13.5-B06/D10、M13.6-2.3/3.2、M13.7-10、WCAG 2.2 TR、调研结论 D13
 
 ## 1. 全状态矩阵
@@ -85,7 +85,7 @@
 
 动效：
 
-- [ ] 全部动效尊重 `prefers-reduced-motion`（app.css 全局降级 + 第 04 章清单逐条降级行为）。
+- [ ] 全部动效尊重 `prefers-reduced-motion`（生产样式全局降级 + 第 04 章清单逐条降级行为）。
 - [ ] 无 3 次/秒以上的闪烁内容。
 
 ## 5. 响应式断点（390 / 768 / 1440）

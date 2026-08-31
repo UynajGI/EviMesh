@@ -35,7 +35,7 @@
 
 ## 4. 组件规范裁决
 
-1. **Tabs 全站唯一形态**：下划线式（`html/assets/app.css` 的 `.tabs`），URL 可寻址可选，overflow-x-auto，触控 44px。替换 explore 胶囊、claim bg-accent、work 下划线、claim-dag 内部分段共四套实现。
+1. **Tabs 全站唯一形态**：生产组件中的下划线式 TabNav，URL 可寻址可选，overflow-x-auto，触控 44px。替换 explore 胶囊、claim bg-accent、work 下划线、claim-dag 内部分段共四套实现。
 2. **radius 规则**：控件 6px、数据面 8px、Dialog 12px、pill 仅用于 status badge。
 3. **rail 宽度唯一**：18rem。
 4. **触控目标**：全部 ≥44px（现状多个 h-8/h-9 按钮违规）。
@@ -63,7 +63,7 @@
 | PR-C (#86) | ObjectHeader/TabNav/Rail/ProvenanceList/PageState + token 收敛（单 dark 块） | done |
 | PR-D (#87) | 三样板：Claim Detail / Explore / Landing（四轮 judge 定稿） | done |
 | PR-E (#88) | 页面族铺开（workspace/work TabNav、events ProvenanceList、home Rail；notifications 保留 ARIA 更完整的本地 tabs） | done |
-| PR-F | 视觉 capture 工具（scripts/visual-capture.mjs，含错误页判废与 --dark）+ 基线 docs/design/baseline/：9 路由 × {1440,768,390} × {light,dark} = 54 张 data 态基线入库并全部经 DOM 巡检门禁（marker 在场、无错误横幅、巡检失败即判废）；loading/error/404 态截图仍待补 | done-with-gaps |
+| PR-F | 视觉 capture 工具（scripts/visual-capture.mjs，含错误页判废与 --dark）+ M13.8 基线（已归档至 `../archive/visual-baselines/m13.8/`）：9 路由 × {1440,768,390} × {light,dark} = 54 张 data 态基线；后续捕获默认写入被忽略的 `output/verification/` | done-with-gaps |
 
 **验收记录**：方向样板经四轮 judge 审查定稿。R1 抓到 globals.css 括号错误；R2 抓到残留 dev server 进程服务旧代码（流程规则：截图前必须清杀全部 `next start-server` 进程，已固化进 capture 流程）；R3 抓到 project 标题解包缺失与状态徽标只写类型；R4 抓到 rail 行溢出与 d4e5 归属链缺口。全部闭环。
 

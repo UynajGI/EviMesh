@@ -5,7 +5,7 @@
 
 ## 1. Token 层迁移
 
-| 设计书（docs/design/html/assets/tokens.css） | 现状（apps/web/app/globals.css） | 迁移动作 |
+| 历史设计 token（`../archive/design/m13.8-html/assets/tokens.css`） | 现状（`../../apps/web/app/globals.css`） | 生产 token 以 globals.css 为准 |
 |---|---|---|
 | `--evimesh-p-*` 三层 primitive | 无（直接语义层） | 新增 primitive 层，语义层改为引用 |
 | 状态双档（`-bg/-fg/-border` + emphasis） | 单档 `--evimesh-{status}` | 扩展为双档 + emphasis；`test/token-contrast` 增加双档对 |
@@ -17,7 +17,7 @@
 
 ## 2. 组件层映射
 
-| 设计书 class（app.css） | 对应现有组件 | 动作 |
+| 历史设计 class（归档 app.css） | 对应现有组件 | 动作 |
 |---|---|---|
 | `.gheader/.gnav` | M13.5 shell | 对齐任务型导航（Home/Explore/Work/Agent/Docs），迁移现有对象路由为 Explore 筛选维度 |
 | `.badge--*` 双层 | Badge 六态 | 扩展协议状态全集（Claim 10 态、Finding 4 级、outcome、change 4 级、role 6 类），文本先行 |
@@ -62,11 +62,11 @@
 
 PR #59 在 P1-P4 骨架之上按设计稿逐区块补齐视觉层：Home 变化流（critical/quiet 组 + 级别着色计数徽标 + 上下文栏）、Landing 真实示例卡（证据分组计数 + 归属链）、Explore 排序侧栏 + tab 计数 + 标题 hydrate、Work 五 tab + 角色分布 + 行级 handoff、workspace serif 阅读态 + revision 钉住链接 + frontier 导出、claim 页头重构（serif 陈述 + Frontier 徽标 + 事件 hash）+ 内联 revision diff + 可导航证据计数、profile 头像 hero + RoleBar + 可读列表、events 图标时间线 + 技术详情折叠、/design 目录新原语展示、DAG 栈切换为 d3-dag Sugiyama + React Flow（移除 cytoscape）、M13.6 宪章测试冻结 handoff 主动作 / 表单降为回退。
 
-数据门控面（后端就位即可填充，UI 侧已有诚实占位）：watchlist 个性化、挑战列表 API、agent registry、ORCID OAuth、通知 reason 行。图 API 的 14 种边类型已由 `/claims/{claimId}/graph` 返回并在 DAG 与列表视图中保留。
+数据门控面（后端就位即可填充，UI 侧已有诚实占位）：watchlist 个性化、挑战列表 API、agent registry、通知 reason 行。ORCID Custom OIDC 已配置到生产登录入口；端到端回调、账号关联与缺失邮箱恢复仍以独立验证证据为准。图 API 的 14 种边类型已由 `/claims/{claimId}/graph` 返回并在 DAG 与列表视图中保留。
 
 ### 4.2 全量 mockup 对照轮（PR #59，2026-08-20）
 
-对 `docs/design/html/` 17 个设计稿逐文件结构对照后的补齐：Home 右栏「最近访问」卡（`lib/visit-history.mjs`，localStorage 本地历史，上限 8 条，question/claim/project 详情页在可读标题就绪后记录）、Explore「研究者」tab（由已加载对象的 `createdBy` 归属派生，按最近活动排序、计数仅为入口）与「近 30 天」筛选 chip、`/agent` 新增「Read with an agent」节（四视角阅读说明 + 工具目录升级为 Tool/Category/Write level 表，名称仍严格对齐 MCP 注册表）与「Security and revocation」节（最小权限/撤销/令牌卫生三卡）、研究者主页「公开贡献」签名 statements 时间线（role + description + 日期，上限 12）与「参与的项目」（produced/used 边中 objectType=project 的去重水合，上限 6）、workspace Summary 视角「Disputes and verification blocks」卡（attention 状态 claim 行 + 仅 attention claim 的回执 findings 水合，critical/major 双级，双侧有界）。
+对历史归档中的 17 个设计稿逐文件结构对照后的补齐：Home 右栏「最近访问」卡（`lib/visit-history.mjs`，localStorage 本地历史，上限 8 条，question/claim/project 详情页在可读标题就绪后记录）、Explore「研究者」tab（由已加载对象的 `createdBy` 归属派生，按最近活动排序、计数仅为入口）与「近 30 天」筛选 chip、`/agent` 新增「Read with an agent」节（四视角阅读说明 + 工具目录升级为 Tool/Category/Write level 表，名称仍严格对齐 MCP 注册表）与「Security and revocation」节（最小权限/撤销/令牌卫生三卡）、研究者主页「公开贡献」签名 statements 时间线（role + description + 日期，上限 12）与「参与的项目」（produced/used 边中 objectType=project 的去重水合，上限 6）、workspace Summary 视角「Disputes and verification blocks」卡（attention 状态 claim 行 + 仅 attention claim 的回执 findings 水合，critical/major 双级，双侧有界）。
 
 本轮确认的剩余数据门控（协议或 API 尚无对应字段，不做虚构渲染）：Explore 主题 rail（协议对象不携带学科标签）、研究者目录 beyond 派生视图（无 actor 列表端点）、agent 身份卡的 model/scope/密钥指纹字段（actors 端点仅返回贡献数据）、`/agent` 实时授权列表（web 登录态未接入）、Home「Agent 连接」卡的实时 agent 状态与待签名计数、挑战列表行（挑战仅有按 id 详情）。
 

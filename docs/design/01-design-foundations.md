@@ -4,7 +4,7 @@
 > - 日期：2026-08-19
 > - 层级：《EviMesh UI 设计书》设计语言层，第 01 章
 > - 输入：`docs/design/00-research-findings.md`、`docs/m13.5-design-system.md`、`apps/web/app/globals.css`、`docs/m13.6-agent-first-web.md`、`docs/m13.6-a/02-protocol-lexicon.md`、`docs/m13.7-mature-product-identity-agent-onboarding.md`、用户设计协议两份（`design-taste-frontend`、`minimalist-ui`）
-> - 输出对应资产：`docs/design/html/assets/tokens.css`、`assets/app.css`、`assets/theme.js`、`assets/icons-sprite.html`、`html/tokens.html`、`html/styleguide.html`
+> - 生产对应资产：`apps/web/app/globals.css`、`apps/web/components/`；早期 HTML 参考已归档至 `docs/archive/design/m13.8-html/`
 
 ## 1. 产品一句话
 
@@ -136,7 +136,7 @@ agent 是平台的主要写入者，必须在视觉上可辨识、可追溯、�
 
 1. **serif 阅读模式**：UI 部件一律 sans（系统栈），Claim statement、Question 摘要等长文阅读区用 scoped 的 `.prose-research` serif 样式。依据：科研阅读传统（论文正文 serif）与数据密集产品界面（sans）的折中；调研结论 3.6 支持「正文 sans，长篇 statement 可选 serif 阅读模式」。实现为 class 作用域而非全局字体切换，保证 UI 扫描效率不受影响。
 2. **贡献可视化**：角色徽标（originator / contributor / reviewer / verifier / witness / maintainer）+ 时间线列表 + 可选角色分布紧凑条（只计数、不评分），不用热力图。依据：调研结论 R5，色块密度热图易被误读为「贡献质量分」，违反无 gamification 约束；角色条使用序列色（纯分类色，不承载语义），并固定 aria-label 说明「仅表示角色分布，不表示质量」。
-3. **主题**：跟随 `prefers-color-scheme` 默认 + 手动切换，持久化 localStorage（key `evimesh-theme`），属性落在 `html[data-theme]`。依据：调研结论 9.2「暗色不是反色，而是对同一组语义 token 重新取值」；实现见 `theme.js` 与 `tokens.css` 的双暗色块（media query 自动档 + 属性强制档）。
+3. **主题**：跟随 `prefers-color-scheme` 默认 + 手动切换，持久化 localStorage（key `evimesh-theme`），属性落在 `html[data-theme]`。依据：调研结论 9.2「暗色不是反色，而是对同一组语义 token 重新取值」；生产实现见 `apps/web/app/globals.css` 与主题组件。
 4. **DAG 默认方向**：upstream（依赖来源）优先，可切 downstream。依据：科研阅读的主要问题是「这个结论依据什么」，上游优先直接回答依据链；downstream 用于影响面分析（「如果它被反驳，谁会受污染」）。
 
 ## 6. 硬约束清单（违反即返工）

@@ -14,7 +14,7 @@
  *   node scripts/visual-capture.mjs --mobile        # 390 set
  *   node scripts/visual-capture.mjs --tablet        # 768 set
  *   node scripts/visual-capture.mjs --dark          # dark theme set
- *   node scripts/visual-capture.mjs --out <dir>     # default docs/design/baseline
+ *   node scripts/visual-capture.mjs --out <dir>     # default output/verification
  */
 import { mkdirSync, statSync, writeFileSync, unlinkSync } from "node:fs";
 import path from "node:path";
@@ -27,7 +27,7 @@ const WEB = process.env.DEMO_WEB_URL ?? "http://localhost:3000";
 const API = process.env.DEMO_API_URL ?? "http://127.0.0.1:8787";
 const OUT = (() => {
   const flag = process.argv.indexOf("--out");
-  return flag > -1 ? process.argv[flag + 1] : "docs/design/baseline";
+  return flag > -1 ? process.argv[flag + 1] : "output/verification";
 })();
 const MOBILE = process.argv.includes("--mobile");
 const TABLET = process.argv.includes("--tablet");

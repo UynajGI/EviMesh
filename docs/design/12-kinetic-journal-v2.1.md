@@ -34,4 +34,4 @@ All fonts are locally hosted OFL assets. Exact upstream URLs, pinned Google Font
 - Graph controls and Relationship Index buttons have a 44px minimum touch target under coarse pointer input.
 - The graph remains pannable, zoomable, keyboard reachable, draggable locally and full-screen capable.
 - No research route contains a browser POST, create/edit form, signature simulation or state-transition control. Account settings, tokens, keys and Agent connection management remain interactive.
-- The standalone prototype in `output/evimesh-v2.1-kinetic-journal/` labels demo data and remains usable without a build step or external font request.
+- The accepted implementation is the production Web app in `../../apps/web`. The standalone prototype is retained for historical review at `../archive/prototypes/v2.1-kinetic-journal/` and is not a runtime dependency.

@@ -3,8 +3,8 @@
 > **元信息**
 > - 日期：2026-08-19
 > - 层级：《EviMesh UI 设计书》设计语言层，第 02 章
-> - 单一事实源：`docs/design/html/assets/tokens.css`（本章所有 hex 值与其一一对应）
-> - 可视化展示：`docs/design/html/tokens.html`
+> - 单一事实源：`apps/web/app/globals.css`（本章的语义 token 以生产实现为准）
+> - 历史可视化：`docs/archive/design/m13.8-html/tokens.html`
 > - 校验方式：OKLCH 定义，换算 sRGB 后按 WCAG 相对亮度公式计算对比度；84 个文本对 + 焦点环在亮/暗双主题下全部通过（全表见第 8 节）
 
 ## 1. 架构
@@ -365,5 +365,5 @@ component（--evimesh-c-*）   组件决策层，把 semantic 映射到具体部
 
 1. 组件只允许引用 semantic 与 component 两层 token；发现组件直连 primitive 或裸 hex 即视为缺陷。
 2. 新增状态角色：先在 primitive 层补 8 阶色族，再按「bg/fg/border + emphasis」双档接入 semantic，并在本章补映射表，最后跑对比度校验。
-3. `tokens.css` 中两处 dark 块（`[data-theme="dark"]` 与 media query 内）必须同步修改；建议用「BEGIN-DARK / END-DARK」注释块做复制边界。
+3. 主题 token 的修改必须同步更新 `apps/web/app/globals.css` 中的显式 dark 覆盖与系统主题回退，并通过对比度测试。
 4. 任何 hex 变更必须重跑对比度校验脚本并更新本章表格；禁止只改 CSS 不改文档。
