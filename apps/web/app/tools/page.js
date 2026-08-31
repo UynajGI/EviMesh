@@ -42,6 +42,7 @@ export default async function ToolsPage({ searchParams }) {
         description="This index contains versioned Tool nodes. Datasets remain discoverable through Explore and research neighborhoods."
         eyebrow="Research instrument index"
         title="Methods you can inspect."
+        titleClassName="sm:max-w-none sm:whitespace-nowrap"
       />
       <nav aria-label="Tool type" className="mt-6 flex flex-wrap gap-1 border-b border-foreground pb-4">
         {FACETS.map((facet) => <Link aria-current={active === facet ? 'page' : undefined} className={`min-h-11 border px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.06em] transition-colors ${active === facet ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-muted-foreground hover:border-foreground hover:text-foreground'}`} href={facet === 'all' ? '/tools' : `/tools?type=${facet}`} key={facet}>{facet === 'all' ? 'All tools' : facet}</Link>)}
