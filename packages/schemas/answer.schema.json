@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://evimesh.org/schema/answer.schema.json",
+  "title": "EviMesh Answer revision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "answer_id", "project_id", "revision", "supersedes_revision", "state", "title", "synthesis", "limitations", "question_ref", "additional_inputs", "created_at", "created_by"],
+  "properties": {
+    "schema": { "const": "srp.answer.v1" },
+    "answer_id": { "type": "string", "pattern": "^answer_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" },
+    "project_id": { "type": "string", "pattern": "^project_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" },
+    "revision": { "type": "integer", "minimum": 1 },
+    "supersedes_revision": { "type": ["integer", "null"], "minimum": 1 },
+    "state": { "$ref": "#/$defs/state" },
+    "title": { "type": "string", "minLength": 1, "maxLength": 500 },
+    "synthesis": { "type": "string", "minLength": 1, "maxLength": 50000 },
+    "limitations": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1, "maxLength": 2000 } },
+    "question_ref": { "$ref": "#/$defs/questionRef" },
+    "additional_inputs": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/nodeRef" } },
+    "created_at": { "type": "string", "format": "date-time" },
+    "created_by": { "type": "string", "minLength": 1 }
+  },
+  "allOf": [{
+    "if": { "properties": { "revision": { "const": 1 } }, "required": ["revision"] },
+    "then": { "properties": { "supersedes_revision": { "const": null } } },
+    "else": { "properties": { "supersedes_revision": { "type": "integer", "minimum": 1 } } }
+  }],
+  "$defs": {
+    "state": { "type": "string", "enum": ["draft", "published", "superseded", "retracted"] },
+    "questionRef": { "type": "object", "additionalProperties": false, "required": ["kind", "id", "revision"], "properties": { "kind": { "const": "question" }, "id": { "type": "string", "minLength": 1 }, "revision": { "type": "integer", "minimum": 1 } } },
+    "nodeRef": { "type": "object", "additionalProperties": false, "required": ["kind", "id", "revision"], "properties": { "kind": { "type": "string", "minLength": 1 }, "id": { "type": "string", "minLength": 1 }, "revision": { "type": "integer", "minimum": 1 } } }
+  }
+}

@@ -53,9 +53,10 @@ test('layout tokens exist and 390px gutters collapse to 1rem', async () => {
   const css = await read('../app/globals.css');
   assert.match(css, /--evimesh-container-px: 1\.5rem/);
   assert.match(css, /--evimesh-rail-w: 18rem/);
-  assert.match(css, /--evimesh-radius-control: 6px/);
-  assert.match(css, /--evimesh-radius-surface: 8px/);
-  assert.match(css, /--evimesh-radius-overlay: 12px/);
-  assert.match(css, /--evimesh-motion-enter: 160ms/);
+  assert.match(css, /--evimesh-radius-control: 1px/);
+  assert.match(css, /--evimesh-radius-surface: 2px/);
+  assert.match(css, /--evimesh-radius-overlay: 3px/);
+  assert.match(css, /--evimesh-motion-enter: 220ms/);
   assert.match(css, /@media \(max-width: 767px\)/);
+  assert.match(css, /--evimesh-container-px: 1rem/);
 });

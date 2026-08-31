@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
  * app - underline style per the design book tabs. Two modes:
  *  - controlled: items + active + onChange (client state)
  *  - link: items with href + active (URL-addressable views)
- * Counts are navigation entry points (tab-sized badge), never a score.
+ * Counts are navigation entry points in a tab-sized badge.
  * Touch targets are 44px (h-11); the strip scrolls horizontally when tabs
  * overflow on 390px.
  */

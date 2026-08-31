@@ -10,6 +10,7 @@ import {
   getMyRecommendations,
 } from "../src/interaction-query.mjs";
 
+const ACTOR_PUBLIC_SELECT = "actor_id,actor_type,identity_strength,model_name,runtime,scope,public_key_fingerprint,owner_actor_id,created_at,updated_at";
 const CLAIMS = { sub: "auth-user-1", aud: "authenticated" };
 
 function appOver(repository, { claims = CLAIMS } = {}) {
@@ -34,7 +35,7 @@ function trackingRepository(overrides = {}) {
     removeInteraction: async (input) => { calls.push({ method: "removeInteraction", input }); return { removed: true }; },
     listInteractionsForActor: async (input) => { calls.push({ method: "listInteractionsForActor", input }); return []; },
     listRecommendationsForActor: async (input) => { calls.push({ method: "listRecommendationsForActor", input }); return []; },
-    provisionSelfActor: async (input) => { calls.push({ method: "provisionSelfActor", input }); return { actor: { actorId: "actor-1" }, created: true }; },
+    provisionSelfActor: async (input) => { calls.push({ method: "provisionSelfActor", input }); return { actor: { actorId: "actor-1", authSubject: "must-not-leak" }, created: true }; },
     ...overrides,
   };
   return { repository: base, calls };
@@ -148,6 +149,9 @@ test("POST /actors/self provisions the identity binding idempotently", async () 
     method: "POST", headers: { authorization: "Bearer session-token" },
   }), {});
   assert.equal(first.status, 201);
+  const firstBody = await first.json();
+  assert.equal(firstBody.actor.actorId, "actor-1");
+  assert.equal(Object.hasOwn(firstBody.actor, "authSubject"), false);
   const provision = calls.find((entry) => entry.method === "provisionSelfActor");
   assert.equal(provision.input.subject, "auth-user-1");
   assert.equal(provision.input.accessToken, "session-token");
@@ -215,20 +219,38 @@ test("hosted listRecommendationsForActor reads the cache ranked and bounded", as
   assert.equal(params.get("limit"), "24");
 });
 
+test("hosted actor reads use the public directory view with an explicit safe projection", async () => {
+  const { repository, requests } = hostedRepository({
+    "GET /rest/v1/actor_directory": [{ actor_id: "actor-1", actor_type: "human", identity_strength: "self_declared" }],
+  });
+  await repository.listActors();
+  await repository.getActor("actor-1");
+  assert.equal(requests.length, 2);
+  for (const request of requests) {
+    assert.equal(request.url.pathname, "/rest/v1/actor_directory");
+    assert.equal(request.url.searchParams.get("select"), ACTOR_PUBLIC_SELECT);
+    assert.notEqual(request.url.searchParams.get("select"), "*");
+    assert.equal(request.url.searchParams.get("select").includes("auth_subject"), false);
+  }
+  assert.equal(requests[1].url.searchParams.get("actor_id"), "eq.actor-1");
+});
+
 test("hosted provisionSelfActor creates actor + identity and survives races", async () => {
   let identitiesQueried = 0;
-  const { repository } = hostedRepository({
+  const { repository, requests } = hostedRepository({
     "GET /rest/v1/identities": ({ url }) => {
       identitiesQueried += 1;
       return identitiesQueried === 1
         ? Response.json([])
         : Response.json([{ actor_id: "actor-existing", provider: "supabase", subject: url.searchParams.get("subject").slice(3) }]);
     },
-    "GET /rest/v1/actors": [{ actor_id: "actor-existing", actor_type: "human", identity_strength: "self_declared" }],
-    "POST /rest/v1/actors": ({ requests: inner }) => {
-      const body = JSON.parse(inner.at(-1).options.body);
-      return Response.json([{ ...body[0], created_at: "2026-08-21T00:00:00Z" }], { status: 201 });
-    },
+    "GET /rest/v1/actor_directory": ({ url }) => Response.json([{
+      actor_id: url.searchParams.get("actor_id").slice(3),
+      actor_type: "human",
+      identity_strength: "self_declared",
+      created_at: "2026-08-21T00:00:00Z",
+    }]),
+    "POST /rest/v1/actors": new Response(null, { status: 201 }),
     "POST /rest/v1/identities": ({ requests: inner }) => {
       const body = JSON.parse(inner.at(-1).options.body);
       return Response.json(body, { status: 201 });
@@ -237,6 +259,12 @@ test("hosted provisionSelfActor creates actor + identity and survives races", as
   const created = await repository.provisionSelfActor({ accessToken: "t", subject: "auth-user-1", email: "u@example.test" });
   assert.equal(created.created, true);
   assert.match(created.actor.actorId, /^actor_/);
+  assert.equal(Object.hasOwn(created.actor, "authSubject"), false);
+  const actorInsert = requests.find((request) => request.url.pathname === "/rest/v1/actors" && request.options.method === "POST");
+  assert.equal(actorInsert.options.headers.prefer, "return=minimal");
+  assert.equal(JSON.parse(actorInsert.options.body)[0].auth_subject, "auth-user-1");
+  const createdActorRead = requests.find((request) => request.url.pathname === "/rest/v1/actor_directory");
+  assert.equal(createdActorRead.url.searchParams.get("select"), ACTOR_PUBLIC_SELECT);
 
   // Race path: the identity insert conflicts, the existing binding wins.
   let actorsInserted = 0;
@@ -247,11 +275,10 @@ test("hosted provisionSelfActor creates actor + identity and survives races", as
         ? Response.json([{ actor_id: "actor-existing", provider: "supabase", subject: "auth-user-1" }], { status: 200 })
         : Response.json([], { status: 200 });
     },
-    "GET /rest/v1/actors": [{ actor_id: "actor-existing", actor_type: "human" }],
+    "GET /rest/v1/actor_directory": [{ actor_id: "actor-existing", actor_type: "human" }],
     "POST /rest/v1/actors": ({ requests: inner }) => {
       actorsInserted += 1;
-      const body = JSON.parse(inner.at(-1).options.body);
-      return Response.json([{ ...body[0], created_at: "2026-08-21T00:00:00Z" }], { status: 201 });
+      return new Response(null, { status: 201 });
     },
     "POST /rest/v1/identities": Response.json({ code: "23505" }, { status: 409 }),
   });

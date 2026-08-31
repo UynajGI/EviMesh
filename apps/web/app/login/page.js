@@ -177,7 +177,6 @@ export default function LoginPage() {
       </section>
 
       <aside className="relative hidden overflow-hidden bg-muted lg:flex lg:items-center lg:justify-center">
-        <div className="absolute inset-0 opacity-40 [background-image:linear-gradient(var(--evimesh-border)_1px,transparent_1px),linear-gradient(90deg,var(--evimesh-border)_1px,transparent_1px)] [background-size:32px_32px]" />
         <div className="relative max-w-lg px-14 text-center">
           <span className="mx-auto flex size-16 items-center justify-center rounded-2xl bg-primary text-primary-foreground"><Network aria-hidden="true" size={32} /></span>
           <h2 className="mt-8 text-3xl font-bold tracking-tight">Research records you can inspect, trace, and challenge.</h2>

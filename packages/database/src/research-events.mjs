@@ -14,7 +14,7 @@ export const researchEvents = pgTable(
   },
   (table) => [
     check('research_events_event_id_uuidv7', sql`${table.eventId} ~* '^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'`),
-    check('research_events_event_type_namespaced', sql`${table.eventType} ~ '^[a-z][a-z0-9]*(\\.[a-z][a-z0-9]*)+$'`),
+    check('research_events_event_type_namespaced', sql`${table.eventType} ~ '^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$'`),
     check('research_events_hash_sha256', sql`${table.hash} ~* '^sha256:[0-9a-f]{64}$'`),
   ],
 );

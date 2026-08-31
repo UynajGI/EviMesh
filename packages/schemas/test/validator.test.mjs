@@ -15,7 +15,7 @@ async function loadFixture(kind, name) {
 }
 
 test("validates every valid fixture against its schema", async () => {
-  for (const name of ["claim.json", "task.json", "question.json", "project.json", "run.json", "artifact.json", "event.json", "challenge.json", "verification.json", "contribution.json", "frontier.json"]) {
+  for (const name of ["claim.json", "task.json", "question.json", "project.json", "run.json", "artifact.json", "event.json", "challenge.json", "verification.json", "contribution.json", "frontier.json", "answer.json", "rebuttal.json", "evaluation.json", "dataset.json", "tool.json"]) {
     const fixture = await loadFixture("valid", name);
     const file = schemaFileForDocument(fixture);
     assert.ok(file, `${name} should map to a schema file`);

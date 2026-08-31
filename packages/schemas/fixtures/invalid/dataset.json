@@ -1,0 +1,4 @@
+[
+  { "schema": "srp.dataset.v0" },
+  { "schema": "srp.dataset.v1", "dataset_id": "dataset_invalid" }
+]

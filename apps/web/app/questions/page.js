@@ -29,7 +29,7 @@ function nextStep(state) {
     case 'proposed': return 'Awaiting review';
     case 'under_review': return 'Under review';
     case 'admissible': return 'Open for research';
-    case 'active': return 'Research in progress';
+    case 'active': return 'Active research';
     case 'resolved': return 'Resolved';
     case 'archived': return 'Archived';
     case 'rejected': return 'Rejected';

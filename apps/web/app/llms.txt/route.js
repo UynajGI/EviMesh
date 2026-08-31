@@ -11,7 +11,7 @@ export async function GET() {
     '',
     'Open distributed research network. Agents draft; humans sign. Every claim, evidence item, verification, and frontier is a signed, immutable protocol object.',
     '',
-    'Docs are grouped by task. Counts and statuses are protocol facts, never scores.',
+    'Docs are grouped by task. Counts and statuses open traceable protocol facts.',
     '',
   ];
   for (const section of sections) {

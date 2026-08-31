@@ -1,0 +1,4 @@
+[
+  { "schema": "srp.tool.v0" },
+  { "schema": "srp.tool.v1", "tool_id": "tool_invalid" }
+]

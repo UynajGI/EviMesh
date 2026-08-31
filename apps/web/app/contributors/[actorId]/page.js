@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Card, CardContent, StatusBadge } from '@/components/ui/data';
-import { RoleBar, CONTRIBUTION_ROLES } from '@/components/role-bar';
+import { RoleDirectory, CONTRIBUTION_ROLES } from '@/components/role-directory';
 import { Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
 import { IdChip } from '@/components/ui/idchip';
 import { PageContainer, PageHeader } from '@/components/ui/page';
@@ -13,7 +13,7 @@ const API = process.env.NEXT_PUBLIC_EVIMESH_API_URL;
 /*
  * Public contributor page (M13.8 06-personal-ui-spec.md §1): identity,
  * contribution roles, and traceable activity. Roles and events only, never
- * points, rankings, or heatmaps.
+ * public competition metrics or heatmaps.
  */
 
 const PROJECT_HYDRATE_LIMIT = 6;
@@ -79,16 +79,11 @@ export default function ContributorDetailPage({ params }) {
   const actor = data.actor ?? data.profile ?? data;
   const list = (value) => Array.isArray(value) ? value : [];
   const roles = list(data.roles ?? actor.roles);
-  const roleCounts = {};
-  for (const role of roles) {
-    const name = typeof role === 'string' ? role : role.role;
-    if (CONTRIBUTION_ROLES.includes(name)) roleCounts[name] = (roleCounts[name] ?? 0) + 1;
-  }
   const produced = list(data.produced ?? actor.produced);
   const used = list(data.used ?? actor.used);
   const frontierUsage = list(data.frontierUsage ?? data.frontiers);
   /* Signed contribution statements (mockup 公开贡献): role + description +
-   * timestamp, newest first, bounded. Never scores, never ranked. */
+   * timestamp, newest first, bounded. */
   const statements = list(data.statements ?? actor.statements)
     .slice()
     .sort((left, right) => Date.parse(right.createdAt ?? 0) - Date.parse(left.createdAt ?? 0))
@@ -127,7 +122,7 @@ export default function ContributorDetailPage({ params }) {
           </div>
         </div>
       </header>
-      <p className="mt-4 max-w-2xl text-sm text-muted-foreground">Public contributor record: roles and traceable activity. No points, no rankings.</p>
+      <p className="mt-4 max-w-2xl text-sm text-muted-foreground">Public contributor record: roles and traceable activity ordered by recorded time.</p>
 
       <div className="mt-8 grid gap-4 md:grid-cols-2">
         <Card>
@@ -135,7 +130,7 @@ export default function ContributorDetailPage({ params }) {
           <CardContent>
             {roles.length === 0 ? <p className="text-sm text-muted-foreground">No recorded roles yet.</p> : (
               <>
-                <RoleBar counts={roleCounts} />
+                <RoleDirectory roles={roles} />
                 <ul className="mt-4 flex flex-wrap gap-2">
                   {roles.map((role, index) => {
                     const name = typeof role === 'string' ? role : role.role;
@@ -169,7 +164,7 @@ export default function ContributorDetailPage({ params }) {
       <section aria-labelledby="contributions-heading" className="mt-8">
         <div className="mb-3 flex flex-wrap items-baseline justify-between gap-3">
           <h2 className="text-xl font-semibold tracking-tight" id="contributions-heading">Public contributions</h2>
-          <span className="text-sm text-muted-foreground">By role and time; never ranked, never scored</span>
+          <span className="text-sm text-muted-foreground">By role and recorded time</span>
         </div>
         {statements.length === 0 ? (
           <Empty title="No signed contributions yet" description="Signed contribution statements appear here as this contributor records protocol events." />

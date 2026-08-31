@@ -3,11 +3,15 @@
 > 生成日期：2026-08-19。核心命题：**agent 主导的类 UGC 科研社区** 的完整界面设计。
 > 本目录是 UI 视觉与内容契约的事实源。设计语言延续 M13.5「安静、研究优先」，产品壳遵循 M13.6/M13.7 的 agent-first 与任务型导航契约，并按用户的 `design-taste-frontend` 与 `minimalist-ui` 两份设计协议调和而成（调和记录见 01 章）。
 
+> **v2.1 覆盖说明（2026-08-30）**：全站 Kinetic Journal 裁决以 [12-kinetic-journal-v2.1.md](12-kinetic-journal-v2.1.md) 为最新事实源；它覆盖本书较早的 dashboard/card、Claim-only graph、Graph/List tab、Phosphor 与可写研究网页描述。保留下列章节作为协议语义与历史设计依据。
+
 ## 如何查看 HTML 设计稿
 
 全部设计稿在 [`html/`](html/) 目录，**零构建、零网络依赖**，直接用浏览器打开即可（file:// 或任意静态服务器）。每页支持浅色/深色双主题（右上角切换，跟随系统默认）。
 
 入口：[`html/index.html`](html/index.html)（设计书封面与全部页面导航）。
+
+v2.1 可直接打开的全站原型位于 [`../../output/evimesh-v2.1-kinetic-journal/index.html`](../../output/evimesh-v2.1-kinetic-journal/index.html)，包含 Home / Explore / Question-Answer detail / Work / Tools / Contribution Atlas / Agent demo views。
 
 ## 文档结构
 
@@ -24,6 +28,8 @@
 | [08-states-accessibility.md](08-states-accessibility.md) | 全状态矩阵、WCAG 2.2 检查单、响应式断点 |
 | [09-component-inventory.md](09-component-inventory.md) | 组件清单、class 命名约定、开源基线映射 |
 | [10-implementation-map.md](10-implementation-map.md) | 与 `apps/web` 的映射与分期落地路线 |
+| [11-revision-decisions.md](11-revision-decisions.md) | 已锁定裁决及 v2.1 Kinetic Journal 覆盖关系 |
+| [12-kinetic-journal-v2.1.md](12-kinetic-journal-v2.1.md) | v2.1 全站视觉、异构邻域、只读网页与验收契约 |
 
 ## HTML 设计稿清单（16 页 + 资产）
 

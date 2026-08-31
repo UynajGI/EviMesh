@@ -53,7 +53,7 @@ test('shell wires notifications, account, and the g-key chords', async () => {
   assert.match(shell, /aria-label="Notifications"/);
   assert.match(shell, /href="\/notifications"/);
   assert.match(shell, />\n?\s*Account\n?\s*<\/Link>/);
-  assert.match(shell, /const G_CHORDS = \{ h: '\/home', e: '\/explore', w: '\/work', a: '\/agent', d: '\/agent\.md' \}/);
+  assert.match(shell, /const G_CHORDS = \{ h: '\/home', e: '\/explore', w: '\/work', t: '\/tools', c: '\/contributions', a: '\/agent', d: '\/docs' \}/);
   assert.match(shell, /function useGChords/);
   assert.match(shell, /pendingG/);
 });
@@ -72,13 +72,13 @@ test('form groups wire aria-invalid and aria-describedby', async () => {
   assert.match(form, /cloneElement/);
 });
 
-test('claim dag carries the five edge-family legend', async () => {
+test('research neighborhood carries the protocol edge-family legend', async () => {
   const dag = await read('../components/claim-dag.js');
-  assert.match(dag, /DAG edge family legend/);
-  for (const family of ['positive', 'negative', 'qualify', 'structural', 'lineage']) {
+  assert.match(dag, /EDGE_FAMILY_STYLES/);
+  for (const family of ['lineage', 'reasoning', 'challenge', 'evaluation', 'resource', 'execution', 'result', 'dependency']) {
     assert.ok(dag.includes(`'${family}'`), `edge family legend missing ${family}`);
   }
-  assert.match(dag, /--evimesh-dag-\$\{family\}/);
+  assert.match(dag, /Object\.entries\(EDGE_FAMILY_STYLES\)/);
 });
 
 test('hydration carries provenance and fielded receipt data', async () => {
@@ -91,20 +91,15 @@ test('hydration carries provenance and fielded receipt data', async () => {
   }
 });
 
-test('claim page defaults upstream, lists revisions, expands evidence, fields receipts', async () => {
+test('claim page defaults to a bidirectional heterogeneous neighborhood and keeps record sections', async () => {
   const page = await read('../app/claims/[claimId]/page.js');
-  assert.match(page, /useState\('upstream'\)/);
-  assert.match(page, /Upstream context: prerequisites, origins, and prior context\./);
-  assert.match(page, /Downstream context: dependents, responses, and subsequent context\./);
+  assert.match(page, /useState\('both'\)/);
   assert.match(page, /depth: node\.depth/);
   assert.match(page, /claimLayoutEndpoints/);
-  assert.doesNotMatch(page, /Upstream: what this claim depends on\.|Downstream: what depends on this claim\./);
-  assert.match(page, /published by\{' '\}/);
-  assert.doesNotMatch(page, /drafted by\{' '\}/);
   assert.match(page, /setRevisionList/);
-  assert.match(page, /Math\.min\(total, 8\)/);
   assert.match(page, /Compare any two revisions field by field/);
   assert.match(page, /href=\{\`\/claims\/\$\{claim\.claimId\}\/diff\`\}/);
+  assert.match(page, /<ClaimDag direction=\{direction\} focusId=\{claim\.claimId\} graph=\{dagGraph\}/);
   assert.match(page, /Evidence by relation/);
   assert.match(page, /artifact \{item\.artifactId\}/);
   assert.match(page, /Verification receipts/);
@@ -128,25 +123,23 @@ test('workspace hydrates argument statements, task titles, richer evidence, fiel
   assert.match(page, /receipt\.findings/);
 });
 
-test('work ships the policy alert, blocked section, verify meta, and draft CTAs', async () => {
+test('work ships an editorial read-only record and Agent handoff', async () => {
   const work = await read('../app/work/page.js');
-  assert.match(work, /How verification works here/);
-  assert.match(work, /never a total score/);
-  assert.match(work, /Blind verifications run without expected outputs/);
-  assert.match(work, /status=blocked&limit=6/);
-  assert.match(work, /Blocked · waiting upstream/);
-  assert.match(work, /Blocked · waiting upstream/);
-  assert.match(work, /Review and sign/);
-  assert.match(work, /Review and sign/);
+  assert.match(work, /The working record/);
+  assert.match(work, /OPEN ASSIGNMENTS/);
+  assert.match(work, /VERIFICATION/);
+  assert.match(work, /EVENT RECORD/);
+  assert.match(work, /Open Agent handoff/);
+  assert.doesNotMatch(work, /Review and sign|\/claims\/new|method:\s*['"]POST/);
 });
 
-test('explore carries the joinable filter, summaries, and the honest count line', async () => {
+test('explore carries unified object facets, summaries, and bounded ordering', async () => {
   const page = await read('../app/explore/page.js');
-  assert.match(page, /Open to participate/);
-  assert.match(page, /\/tasks\?status=open&limit=100/);
-  assert.match(page, /openTaskQuestions/);
+  for (const type of ['answer', 'rebuttal', 'evaluation', 'dataset', 'tool']) assert.ok(page.includes(`type: '${type}'`));
+  assert.match(page, /Research object facets/);
+  assert.match(page, /Filter by research object type/);
   assert.match(page, /item\.summary/);
-  assert.match(page, /of \{windowed\.length\} loaded object/);
+  assert.match(page, /bounded responses returned by each object endpoint/);
 });
 
 test('home keeps signed-out, empty, partial, error, and honest rail states', async () => {
@@ -225,37 +218,23 @@ test('agent center anchors its sections and marks the recommended path', async (
  * and live grants moved from data gates to real data.
  */
 
-test('explore renders real topic tags with filter, rail, and alphabetical order', async () => {
+test('explore is a unified research-object index with protocol type facets', async () => {
   const page = await read('../app/explore/page.js');
-  assert.match(page, /\{ id: 'topic', label: 'Topics' \}/);
-  assert.match(page, /topics: Array\.isArray\(question\.topics\) \? question\.topics : \[\]/);
-  // Aggregation counts per question row; ordering is alphabetical, never by count.
-  assert.match(page, /counts\.set\(topic, \(counts\.get\(topic\) \?\? 0\) \+ 1\)/);
-  assert.match(page, /left\.label\.localeCompare\(right\.label\)/);
-  assert.doesNotMatch(page, /sort\([^)]*count[^)]*\)/);
-  // Rail and filter chip exist; filtering applies to question rows only.
-  assert.match(page, /<Rail label="Scope">/);
-  assert.match(page, /topic: \{topicFilter\}/);
-  assert.match(page, /\(item\.kind === 'question' && \(item\.topics \?\? \[\]\)\.includes\(topicFilter\)\)/);
-  assert.match(page, /never a taxonomy, and counts are entry points, not rankings/);
+  for (const type of ['question', 'answer', 'claim', 'rebuttal', 'evaluation', 'evidence', 'dataset', 'tool', 'run']) {
+    assert.ok(page.includes(`type: '${type}'`), `missing ${type} source`);
+  }
+  assert.match(page, /Filter by research object type/);
+  assert.match(page, /Browse the attributable record across reasoning, resources and execution/);
+  assert.match(page, /Ordered by recorded time/);
+  assert.doesNotMatch(page, /Topics|Researchers|\/actors\?limit=/);
 });
 
-test('explore researchers prefer the actor directory with derived enrichment', async () => {
+test('explore keeps datasets discoverable and links the Tool facet to its dedicated directory', async () => {
   const page = await read('../app/explore/page.js');
-  assert.match(page, /fetchJson\('\/actors\?limit=100'\)/);
-  assert.match(page, /setActorDirectory\(directory\)/);
-  // Result rows pick up attribution metadata (type + owning human) from the directory.
-  assert.match(page, /createdByActorType: actor\.actorType/);
-  assert.match(page, /createdByOwnerActorId: actor\.ownerActorId/);
-  // Agent directory rows state their owning human; humans link to /people.
-  assert.match(page, /owned by <Link className="hover:text-foreground" href=\{`\/people\/\$\{encodeURIComponent\(entry\.ownerActorId\)\}`\}>/);
-  assert.match(page, /if \(actorDirectory\)/);
-  assert.match(page, /entry\.displayName \?\? entry\.actorId/);
-  assert.match(page, /entry\.actorType/);
-  // Result-row attribution uses the shared chain component, never a bare "by <id>".
-  assert.match(page, /<Attribution actorId=\{item\.createdBy\} actorType=\{item\.createdByActorType\} ownerActorId=\{item\.createdByOwnerActorId\} \/>/);
-  // Fallback stays honest when the deployment lacks the endpoint.
-  assert.match(page, /the actor directory endpoint is unavailable on this deployment/);
+  assert.match(page, /path: '\/datasets\?limit=40'/);
+  assert.match(page, /path: '\/tools\?limit=40'/);
+  assert.match(page, /selectedType === 'tool'/);
+  assert.match(page, /href="\/tools">Open Tool directory/);
 });
 
 test('agent page lists live grants from the signed-in session', async () => {
@@ -279,7 +258,9 @@ test('identity-card fields flow from the actors endpoint through the api layer',
     assert.ok(query.includes(field), `contribution query missing ${field}`);
   }
   assert.match(query, /export async function listActors/);
-  assert.match(repo, /listActors: async \(\) => list\("actors"\)/);
+  // Actor directory reads go through the security-invoker projection so the
+  // browser never receives auth_subject or other private actor columns.
+  assert.match(repo, /listActors: async \(\) => query\("actorDirectory"/);
   assert.match(repo, /getActorProfile/);
   assert.match(repo, /listContributionStatements: \(actorId\) => list\("contributionStatements"/);
   // Append-only fact tables must not get the soft-delete filter.

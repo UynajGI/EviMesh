@@ -9,12 +9,14 @@ const THEME_STORAGE_KEY = 'evimesh-theme';
 
 const COMMANDS = [
   { group: 'Go to', label: 'Home', hint: 'G H', href: '/home' },
-  { group: 'Go to', label: 'Explore research', hint: 'G E', href: '/explore' },
-  { group: 'Go to', label: 'Work queue', hint: 'G W', href: '/work' },
-  { group: 'Go to', label: 'Agent connection center', hint: 'G A', href: '/agent' },
+  { group: 'Go to', label: 'Explore', hint: 'G E', href: '/explore' },
+  { group: 'Go to', label: 'Work', hint: 'G W', href: '/work' },
+  { group: 'Go to', label: 'Tools', hint: 'G T', href: '/tools' },
+  { group: 'Go to', label: 'Contributions', hint: 'G C', href: '/contributions' },
+  { group: 'Go to', label: 'Agent', hint: 'G A', href: '/agent' },
+  { group: 'Go to', label: 'Docs', hint: 'G D', href: '/docs' },
   { group: 'Go to', label: 'Agent manual (Markdown)', href: '/agent.md' },
   { group: 'Go to', label: 'Event audit', href: '/events' },
-  { group: 'Go to', label: 'Contributions', href: '/contributions' },
   { group: 'Go to', label: 'Settings', href: '/settings' },
   { group: 'Go to', label: 'API tokens', href: '/settings/tokens' },
   { group: 'Go to', label: 'Signing keys', href: '/settings/keys' },

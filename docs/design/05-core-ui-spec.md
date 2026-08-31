@@ -96,7 +96,7 @@
 - 主体两栏：
   - 左栏：
     1. 陈述与结构化字段卡（Scope / Assumptions / Falsification / Policy deflist）。
-    2. 论证图：图 / 列表 tab 切换（键盘可达、等价信息）；**默认 upstream**（依赖来源），可切 downstream；节点状态用描边编码（contested=warning 描边、refuted=danger 描边、selected=brand 描边 2px）；边编码 = 颜色族 + 线型 + 可读标签（见 02 章映射表）；图底部 legend 列出五族关系；列表视图为表格（方向 / 关系徽标 / 对象 + ID / 对象状态）。
+    2. 异构研究邻域：Graph 与键盘可达的 Relationship Index **同屏呈现**，桌面为 7:5、移动端上下堆叠，不使用 Graph/List tab；默认 both，可切 upstream/downstream、depth 1..3、type 与 state。d3-dag 只负责初始 Sugiyama 排布，React Flow 画布支持平移、缩放、节点本地拖拽、框选、fit/focus 与全屏，拖拽不写回协议图；节点以 family 形状 + Lucide 图标 + 明文类型共同编码，边保留方向、线型与可读标签。Relationship Index 按 `Upstream/Downstream → Node type → Relation → rows` 分组，每行明示 type、title、relation、distance、state 与 `ID@revision`，并与画布共享 selection/filter 模型。
     3. 修订历史卡：r(n) vs r(n-1) 字段级 diff（`diff__line--add/--del`），作者归属链 + evt id；「任何修订不覆盖旧版本」提示。
     4. 技术详情 `<details>` 折叠：稳定 ID、semantic_hash、raw_hash、最近事件签名、PolicyEvaluation。
   - 右栏状态摘要卡：证据四分组计数（含最近变化时间）、验证 outcome 分布 + 独立性 + 最高未解决 Finding 徽标、活跃质疑、Frontier 成员身份；底部固定文案「计数是导航入口，不是支持度分数」+ 生成 handoff 按钮。

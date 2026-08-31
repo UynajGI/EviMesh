@@ -1,0 +1,4 @@
+[
+  { "schema": "srp.answer.v0" },
+  { "schema": "srp.answer.v1", "answer_id": "answer_invalid" }
+]

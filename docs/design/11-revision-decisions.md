@@ -75,3 +75,15 @@
 - Agent attribution 链完整（含列表态）
 - 计数只作导航入口、无评分暗示；无伪造 ORCID verified
 - `node --test`、lint、`next build` 全绿
+
+## 9. v2.1 Kinetic Journal 全站裁决（2026-08-30）
+
+**范围**：v2.1 是全站视觉壳、发现页、工作记录、Tool 目录、贡献记录和研究对象详情的统一替换，不是 Claim DAG 的局部皮肤。研究网页只读；CLI/MCP 负责准备与提交，人类在本地设备控制签名。账户、Token、密钥与 Agent 连接管理继续可交互。
+
+**视觉方向**：国际研究期刊 / Swiss Modernism 2.0。唯一系统使用冷纸、ink 与 electric cobalt，十二栏非对称栅格、近直角和发丝线；不使用仪表盘 tile、KPI、渐变、重阴影、装饰性循环动画或竞赛化指标。Inter Tight、Source Serif 4、IBM Plex Mono 均为本地 OFL 字体；现有 Lucide 是唯一图标族。
+
+**研究邻域契约**：`ClaimDag` 只保留为兼容导出，正式模型是 heterogeneous `ResearchNeighborhood`。23 种 NodeRevision 以 `kind:id@revision` 标识；Graph 和 Relationship Index 同屏 7:5 并共享节点、边、selection 与 filter。d3-dag Sugiyama 负责初始排布，React Flow 提供 pan/zoom、键盘、depth 1..3、direction/type/state、fit/focus、全屏与本地 drag。节点以 family 形状、Lucide 图标和明文类型共同编码；选中连通路径在 160ms 内更新。Root/Leaf 只在服务端 complete 且无隐藏连接时显示，否则为 Unknown。
+
+**动效与响应式**：页面以 8px 水平位移 + opacity 在 200ms 内进入；导航 underline 160ms；图 relayout 220–300ms；hover 只允许 2px 水平位移或 leading rule，不 lift/scale。`prefers-reduced-motion` 全部降为即时切换。所有触控按钮与选择控件 ≥44px；390px 时 graph viewport 负责内部平移且不撑宽文档，Relationship Index 在下方全宽显示。
+
+完整 token、页面和验收契约见 [12-kinetic-journal-v2.1.md](12-kinetic-journal-v2.1.md)。

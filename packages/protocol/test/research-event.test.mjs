@@ -36,6 +36,10 @@ test('generates a UUIDv7 event ID and permits a genesis event', () => {
   assert.deepEqual(event.parents, []);
 });
 
+test('accepts namespaced lifecycle event segments with underscores', () => {
+  assert.equal(createResearchEvent({ ...validEvent, eventType: 'claim.state_changed' }).event_type, 'claim.state_changed');
+});
+
 test('rejects incomplete or malformed envelope fields', () => {
   assert.throws(() => createResearchEvent({ ...validEvent, eventType: 'claim' }), /namespaced/);
   assert.throws(() => createResearchEvent({ ...validEvent, payload: undefined }), /payload/);

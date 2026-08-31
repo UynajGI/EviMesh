@@ -15,7 +15,21 @@
     },
     "objectId": {
       "type": "string",
-      "pattern": "^(project|question|task|claim|evidence|run|verification|frontier)_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+      "pattern": "^(project|question|task|answer|claim|rebuttal|evaluation|dataset|tool|artifact|evidence|run|verification|frontier)_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "nodeKind": {
+      "type": "string",
+      "enum": ["project", "research_contract", "question", "answer", "claim", "rebuttal", "evaluation", "dataset", "tool", "artifact", "evidence", "task", "attempt", "context_bundle", "run", "verification_contract", "verification_policy", "policy_evaluation", "verification_receipt", "verification_finding", "challenge", "merge_proposal", "frontier_snapshot"]
+    },
+    "nodeRevisionRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "id", "revision"],
+      "properties": {
+        "kind": { "$ref": "#/$defs/nodeKind" },
+        "id": { "type": "string", "minLength": 1 },
+        "revision": { "$ref": "#/$defs/revision" }
+      }
     },
     "revision": {
       "type": "integer",

@@ -5,12 +5,14 @@ import { readFile } from 'node:fs/promises';
 const shell = await readFile(new URL('../components/template-shell.js', import.meta.url), 'utf8');
 const work = await readFile(new URL('../app/work/page.js', import.meta.url), 'utf8');
 
-test('M13.8 shell uses task-based primary navigation with at most five destinations', () => {
+test('Kinetic Journal shell uses the locked seven-destination navigation', () => {
   assert.match(shell, /const NAV_ITEMS = \[/);
   for (const item of [
     "href: '/home', label: 'Home'",
     "href: '/explore', label: 'Explore'",
     "href: '/work', label: 'Work'",
+    "href: '/tools', label: 'Tools'",
+    "href: '/contributions', label: 'Contributions'",
     "href: '/agent', label: 'Agent'",
     "href: '/docs', label: 'Docs'",
   ]) {
@@ -19,10 +21,10 @@ test('M13.8 shell uses task-based primary navigation with at most five destinati
   assert.match(shell, /aria-current=\{isActive\(pathname, href\) \? 'page' : undefined\}/);
 });
 
-test('shell keeps every write workflow reachable through Work, not top-level navigation', () => {
-  for (const href of ['/questions/new', '/claims/new', '/runs/new', '/evidence/new', '/verification/receipt/new', '/challenges/new']) {
-    assert.ok(work.includes(`href: '${href}'`), `Work page is missing ${href}`);
-  }
+test('Work is a read-only record with an explicit Agent handoff', () => {
+  assert.match(work, /Open Agent handoff/);
+  assert.match(work, /Research authoring continues through CLI or MCP/);
+  assert.doesNotMatch(work, /\/claims\/new|\/runs\/new|Review and sign|method:\s*['"]POST/);
 });
 
 test('shell exposes global search, theme toggle, and sign-in without hiding them', () => {
@@ -33,10 +35,9 @@ test('shell exposes global search, theme toggle, and sign-in without hiding them
   assert.match(shell, /Sign in/);
 });
 
-test('shell keeps anonymous and signed navigation inventories distinct on every viewport', () => {
-  assert.match(shell, /const LANDING_NAV_ITEMS = NAV_ITEMS\.filter/);
+test('shell keeps the same publication inventory on every viewport', () => {
   assert.match(shell, /const isLanding = pathname === '\/'/);
-  assert.match(shell, /const visibleNavItems = isLanding \? LANDING_NAV_ITEMS : NAV_ITEMS/);
+  assert.match(shell, /const visibleNavItems = NAV_ITEMS/);
   assert.match(shell, /<GlobalNav items=\{visibleNavItems\}/);
   assert.match(shell, /<MobileDrawer isLanding=\{isLanding\} items=\{visibleNavItems\}/);
   for (const route of ['/explore', '/agent', '/docs', '/notifications', '/settings', '/login', '/events', '/contributions']) {
@@ -62,7 +63,7 @@ test('mobile drawer delegates focus management to Radix Dialog', () => {
   assert.match(shell, /<DialogPrimitive\.Trigger asChild>/);
   assert.match(shell, /<DialogPrimitive\.Portal>/);
   assert.match(shell, /<DialogPrimitive\.Overlay className="fixed inset-0 z-40 bg-foreground\/40 md:hidden" \/>/);
-  assert.match(shell, /<DialogPrimitive\.Content className="fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-border bg-card p-4 focus:outline-none md:hidden">/);
+  assert.match(shell, /<DialogPrimitive\.Content className="fixed inset-y-0 left-0 z-40 flex w-\[min\(22rem,88vw\)\]/);
   assert.match(shell, /<DialogPrimitive\.Title className="text-sm font-semibold">Navigation<\/DialogPrimitive\.Title>/);
   assert.match(shell, /<DialogPrimitive\.Close/);
   // Scroll lock follows dialog state while the surface is md:hidden, so an

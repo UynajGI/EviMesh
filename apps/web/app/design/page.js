@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge, Card, CardContent, CardHeader, Metadata, StatusBadge } from '@/components/ui/data';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
-import { Alert, DeniedState, Empty, Progress, Skeleton } from '@/components/ui/feedback';
+import { Alert, DeniedState, Empty, Skeleton } from '@/components/ui/feedback';
 import { OfflineBanner } from '@/components/offline-banner';
 import { Input, Label, Textarea } from '@/components/ui/form';
 import { IdChip } from '@/components/ui/idchip';
@@ -12,7 +12,7 @@ import { PageContainer, PageHeader, SectionHeader } from '@/components/ui/page';
 import { Checkbox, Radio, Select, Switch } from '@/components/ui/selection';
 import { Tooltip } from '@/components/ui/tooltip';
 import { ChangeItem, ChangeGroup } from '@/components/change-item';
-import { RoleBar } from '@/components/role-bar';
+import { RoleDirectory } from '@/components/role-directory';
 
 function Showcase({ title, description, children }) {
   return <section aria-labelledby={title.replaceAll(' ', '-').toLowerCase()}>
@@ -75,8 +75,8 @@ export default function DesignCatalogPage() {
           <ChangeItem id="frontier_0193b4d1" idLabel="snapshot" level="frontier" time="1d ago" what="Frontier snapshot published" why="Snapshots are immutable once published." />
         </div>
       </Showcase>
-      <Showcase title="Role distribution" description="Count-only bars for contribution roles; never points or rankings.">
-        <RoleBar className="w-full max-w-md" counts={{ originator: 12, contributor: 31, reviewer: 9, verifier: 14, witness: 3, maintainer: 2 }} />
+      <Showcase title="Role directory" description="Categorical role labels without a comparative scale.">
+        <RoleDirectory className="w-full max-w-md" roles={['originator', 'contributor', 'reviewer', 'verifier', 'witness', 'maintainer']} />
       </Showcase>
       <Showcase title="Form fields" description="Text entry with explicit focus and invalid states.">
         <div className="grid gap-3"><div className="grid gap-1"><Label htmlFor="catalog-text">Text input</Label><Input id="catalog-text" placeholder="Placeholder" /></div><div className="grid gap-1"><Label htmlFor="catalog-area">Textarea</Label><Textarea id="catalog-area" className="min-h-20" placeholder="Long-form input" /></div></div>
@@ -87,12 +87,11 @@ export default function DesignCatalogPage() {
         <Select defaultValue="one"><option value="one">One</option><option value="two">Two</option></Select>
         <label className="flex items-center gap-2 text-sm"><Switch defaultChecked /> Switch</label>
       </Showcase>
-      <Showcase title="Feedback" description="Recovery, progress, and status surfaces.">
+      <Showcase title="Feedback" description="Recovery and status surfaces.">
         <Alert variant="info" title="Info" description="Informational notice." />
         <Alert variant="success" title="Success" description="Operation completed." />
         <Alert variant="warning" title="Warning" description="Proceed with care." />
         <Alert variant="destructive" title="Destructive" description="Irreversible action." />
-        <div className="w-48"><Progress value={60} /></div>
         <Skeleton className="h-4 w-32" />
       </Showcase>
       <Showcase title="Data" description="Quiet card surfaces and tabular metadata.">

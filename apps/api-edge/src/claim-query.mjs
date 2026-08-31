@@ -22,11 +22,12 @@ function graphDepth(value) {
 }
 
 function normalizeGraph(value) {
-  if (Array.isArray(value)) return { nodes: value, edges: [], truncated: false };
+  if (Array.isArray(value)) return { nodes: value, edges: [], truncated: false, permissionPartial: false };
   return {
     nodes: Array.isArray(value?.nodes) ? value.nodes : [],
     edges: Array.isArray(value?.edges) ? value.edges : [],
     truncated: Boolean(value?.truncated),
+    permissionPartial: Boolean(value?.permissionPartial),
   };
 }
 
@@ -138,5 +139,6 @@ export async function getClaimDownstreamGraph({ repository, claimId, maxDepth = 
     })),
     edges: graph.edges,
     truncated: graph.truncated,
+    permissionPartial: graph.permissionPartial,
   };
 }

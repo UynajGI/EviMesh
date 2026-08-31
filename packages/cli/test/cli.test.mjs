@@ -8,6 +8,7 @@ import { runCli } from "../src/main.mjs";
 import { submit as submitCommand } from "../src/commands-write.mjs";
 import { canonicalRunDocument } from "../src/documents.mjs";
 import { hashContextBundle } from "../../protocol/src/context-bundle-hash.mjs";
+import { canonicalJson, rawHash } from "../../protocol/src/hash.mjs";
 
 const validRunFixturePath = fileURLToPath(new URL("../../schemas/fixtures/valid/run.json", import.meta.url));
 
@@ -86,7 +87,7 @@ test("rejects Run receipts without a signing key while templates remain key-qual
   assert.equal(template.signing_key_id, "TODO: signing key id");
 });
 
-test("submit --dry-run signs the canonical payload without network calls", async (t) => {
+test("legacy submit --dry-run fails closed instead of loading the human signer", async (t) => {
   const { dir, env, cleanup } = setup();
   t.after(cleanup);
   assert.equal(await runCli(["config", "init"], { env }), 0);
@@ -98,7 +99,7 @@ test("submit --dry-run signs the canonical payload without network calls", async
   writeFileSync(out, JSON.stringify(draft, null, 2));
   let called = false;
   const code = await runCli(["submit", out, "--dry-run", "--json"], { env, fetchImpl: async () => { called = true; return jsonResponse(200, {}); } });
-  assert.equal(code, 0);
+  assert.equal(code, 1);
   assert.equal(called, false, "dry-run must not hit the network");
 });
 
@@ -132,7 +133,7 @@ test("submit rejects schema-valid noncanonical Runs before signing or network ac
   assert.equal(fetchCalls, 0);
 });
 
-test("submit publishes an already-canonical Run document", async (t) => {
+test("legacy submit rejects an already-canonical Run until an external-envelope flow is used", async (t) => {
   const { dir, env, cleanup } = setup();
   t.after(cleanup);
   assert.equal(await runCli(["config", "init", "--api-url", "https://api.test"], { env }), 0);
@@ -143,13 +144,11 @@ test("submit publishes an already-canonical Run document", async (t) => {
   const requests = [];
   const fetchImpl = async (url, options) => { requests.push({ url, options }); return jsonResponse(201, { run: { runId: document.run_id } }); };
 
-  assert.equal(await submitCommand({ flags: {}, output: { emit() {} }, positionals: [path], env, fetchImpl }), 0);
-  assert.equal(requests.length, 1);
-  assert.match(requests[0].url, /\/runs$/);
-  const sent = JSON.parse(requests[0].options.body);
-  assert.equal(sent.signature, document.signature);
-  assert.deepEqual(sent.inputs, [{ artifactId: "evidence_01", artifactRevision: 1 }]);
-  assert.equal(sent.signatureEnvelope.payload.runId, document.run_id);
+  await assert.rejects(
+    () => submitCommand({ flags: {}, output: { emit() {} }, positionals: [path], env, fetchImpl }),
+    (error) => error?.code === "CLI_EXTERNAL_SIGNATURE_FLOW_REQUIRED",
+  );
+  assert.equal(requests.length, 0);
 });
 
 test("task list renders API results as JSON", async (t) => {
@@ -162,6 +161,64 @@ test("task list renders API results as JSON", async (t) => {
   };
   const code = await runCli(["task", "list", "--status", "open", "--json"], { env, fetchImpl });
   assert.equal(code, 0);
+});
+
+test("graph inspect requests the same typed neighborhood used by the web UI", async (t) => {
+  const { env, cleanup } = setup();
+  t.after(cleanup);
+  assert.equal(await runCli(["config", "init", "--api-url", "https://api.test"], { env }), 0);
+  const calls = [];
+  const fetchImpl = async (url) => {
+    calls.push(url);
+    return jsonResponse(200, {
+      schemaVersion: "research-neighborhood.v1",
+      requestedRoot: { kind: "question", id: "question-1", revision: 2 },
+      resolvedRoot: { kind: "question", id: "question-1", revision: 2 },
+      nodes: [{ ref: { kind: "question", id: "question-1", revision: 2 }, label: "Question", state: "published" }],
+      edges: [], truncated: false, nextCursor: null,
+    });
+  };
+  const code = await runCli(["graph", "inspect", "question", "question-1", "--revision", "2", "--direction", "both", "--depth", "3", "--kinds", "question,answer", "--edge-types", "answers", "--json"], { env, fetchImpl });
+  assert.equal(code, 0);
+  assert.equal(calls[0], "https://api.test/research-graph/question/question-1/neighborhood?revision=2&direction=both&depth=3&kinds=question%2Canswer&edgeTypes=answers");
+});
+
+test("typed research prepare, human-local sign, and submit remain separate steps", async (t) => {
+  const { dir, env, cleanup } = setup();
+  t.after(cleanup);
+  assert.equal(await runCli(["config", "init", "--api-url", "https://api.test"], { env }), 0);
+  assert.equal(await runCli(["identity", "generate", "--json"], { env }), 0);
+  const draftPath = join(dir, "answer.json");
+  assert.equal(await runCli(["research", "draft", "answer", "--project", "project_018f0f4a-5c00-4000-8000-000000000001", "--created-by", "agent_01", "--out", draftPath], { env }), 0);
+  const document = JSON.parse(readFileSync(draftPath, "utf8"));
+  document.title = "A bounded synthesis";
+  document.synthesis = "The evidence supports the stated conclusion.";
+  document.question_ref = { kind: "question", id: "question_018f0f4a-5c00-4000-8000-000000000002", revision: 1 };
+  writeFileSync(draftPath, JSON.stringify(document));
+  const requests = [];
+  const fetchImpl = async (url, options) => {
+    requests.push({ url, options });
+    const body = JSON.parse(options.body);
+    if (url.endsWith("/answers/prepare")) {
+      const { nonce, ...payloadBody } = body;
+      const payload = { entityType: "answer", graphVersion: "research-graph.v1", ...payloadBody };
+      const signingBytes = canonicalJson({ event_type: "answer.created", payload, nonce });
+      return jsonResponse(200, { eventType: "answer.created", payload, nonce, signingBytes, signingBytesHash: `sha256:${rawHash(signingBytes)}` });
+    }
+    return jsonResponse(201, { node: { nodeId: document.answer_id, nodeKind: "answer" } });
+  };
+  const preparedPath = join(dir, "answer.prepared.json");
+  const signedPath = join(dir, "answer.signed.json");
+  assert.equal(await runCli(["research", "prepare", draftPath, "--nonce", "0123456789abcdef", "--out", preparedPath, "--json"], { env, fetchImpl }), 0);
+  assert.equal(requests.length, 1);
+  assert.equal(await runCli(["research", "sign", preparedPath, "--out", signedPath, "--json"], { env }), 0);
+  assert.equal(requests.length, 1, "local signing must not call the network");
+  const signed = JSON.parse(readFileSync(signedPath, "utf8"));
+  assert.equal(signed.signatureEnvelope.signature.algorithm, "Ed25519");
+  assert.equal(await runCli(["research", "submit", signedPath, "--json"], { env, fetchImpl }), 0);
+  assert.equal(requests.length, 2);
+  assert.equal(requests[1].url, "https://api.test/answers");
+  assert.equal(JSON.parse(requests[1].options.body).signatureEnvelope.signature.value, signed.signatureEnvelope.signature.value);
 });
 
 test("context pull verifies the bundle content hash", async (t) => {
@@ -232,7 +289,7 @@ test("auth login device flow obtains a limited token from the API", async (t) =>
   assert.deepEqual(tokens[0].scopes, ["profile:read", "project:read"]);
 });
 
-test("submit sends a verifiable signature envelope with the request", async (t) => {
+test("legacy submit never synthesizes or sends a signature envelope", async (t) => {
   const { dir, env, cleanup } = setup();
   t.after(cleanup);
   assert.equal(await runCli(["config", "init", "--api-url", "https://api.test"], { env }), 0);
@@ -249,30 +306,10 @@ test("submit sends a verifiable signature envelope with the request", async (t) 
   draft.created_by = "actor_01";
   writeFileSync(out, JSON.stringify(draft, null, 2));
   const code = await runCli(["submit", out, "--json"], { env, fetchImpl });
-  assert.equal(code, 0);
+  assert.equal(code, 1);
   assert.ok(requests.some((request) => request.url.endsWith("/signing-keys")), "identity generate must register the signing key");
   const claimRequest = requests.find((request) => request.url.endsWith("/claims"));
-  assert.ok(claimRequest, "submission must reach the claims endpoint");
-  const sent = JSON.parse(claimRequest.options.body);
-  assert.ok(sent.signatureEnvelope, "submission must carry the signature envelope");
-  assert.equal(sent.signatureEnvelope.schema, "srp.client-signature-envelope.v1");
-  assert.equal(sent.signatureEnvelope.event_type, "claim.created");
-  assert.equal(sent.signatureEnvelope.payload.claimId, draft.claim_id);
-  assert.equal(sent.signatureEnvelope.payload.draftedByActorId, draft.created_by);
-  const config = JSON.parse(readFileSync(join(dir, "config.json"), "utf8"));
-  const { canonicalJson } = await import("../../protocol/src/hash.mjs");
-  const { verifyEd25519Payload } = await import("../../signatures/src/server-verification.mjs");
-  const signingBytes = Buffer.from(canonicalJson({
-    event_type: sent.signatureEnvelope.event_type,
-    payload: sent.signatureEnvelope.payload,
-    nonce: sent.signatureEnvelope.nonce,
-  }), "utf8");
-  const verified = await verifyEd25519Payload({
-    signingBytes: new Uint8Array(signingBytes),
-    signature: sent.signatureEnvelope.signature.value,
-    publicKey: config.identity.publicKey,
-  });
-  assert.equal(verified, true);
+  assert.equal(claimRequest, undefined);
 });
 
 test("bundle verify binds proofs to the signed checkpoint root", async (t) => {
@@ -324,7 +361,7 @@ test("auth login --token stores only limited scopes", async (t) => {
   assert.equal(broad, 1);
 });
 
-test("verify submit --dry-run signs a verification receipt locally", async (t) => {
+test("legacy verify submit --dry-run fails closed without signing", async (t) => {
   const { dir, env, cleanup } = setup();
   t.after(cleanup);
   assert.equal(await runCli(["config", "init"], { env }), 0);
@@ -346,7 +383,28 @@ test("verify submit --dry-run signs a verification receipt locally", async (t) =
   writeFileSync(out, JSON.stringify(receipt));
   let called = false;
   const code = await runCli(["verify", "submit", out, "--run-id", "run_1", "--dry-run", "--json"], { env, fetchImpl: async () => { called = true; return jsonResponse(201, {}); } });
-  assert.equal(code, 0);
+  assert.equal(code, 1);
+  assert.equal(called, false);
+});
+
+test("legacy challenge create fails closed without a network mutation", async (t) => {
+  const { dir, env, cleanup } = setup();
+  t.after(cleanup);
+  const path = join(dir, "challenge.json");
+  writeFileSync(path, JSON.stringify({
+    schema: "srp.challenge.v1",
+    challenge_id: "challenge_018f0f4a-5c00-4000-8000-000000000001",
+    revision: 1,
+    state: "open",
+    target_claim_revision_id: "claim_1@2",
+    reason: "A required control is missing.",
+    impact: { type: "method", severity: "major", summary: "Missing control" },
+    created_at: "2026-08-06T00:00:00.000Z",
+    created_by: "agent_01",
+  }));
+  let called = false;
+  const code = await runCli(["challenge", "create", path, "--json"], { env, fetchImpl: async () => { called = true; return jsonResponse(201, {}); } });
+  assert.equal(code, 1);
   assert.equal(called, false);
 });
 
@@ -385,4 +443,16 @@ test("evidence add --dry-run hashes the file without uploading", async (t) => {
   const code = await runCli(["evidence", "add", file, "--dry-run", "--json"], { env, fetchImpl: async () => { called = true; return jsonResponse(201, {}); } });
   assert.equal(code, 0);
   assert.equal(called, false, "dry-run must not request an upload plan");
+});
+
+test("Attempt and Evidence network mutations fail closed without an external-envelope flow", async (t) => {
+  const { dir, env, cleanup } = setup();
+  t.after(cleanup);
+  const file = join(dir, "payload.txt");
+  writeFileSync(file, "evidence payload");
+  let called = false;
+  const fetchImpl = async () => { called = true; return jsonResponse(201, {}); };
+  assert.equal(await runCli(["attempt", "start", "task-1", "--json"], { env, fetchImpl }), 1);
+  assert.equal(await runCli(["evidence", "add", file, "--json"], { env, fetchImpl }), 1);
+  assert.equal(called, false);
 });

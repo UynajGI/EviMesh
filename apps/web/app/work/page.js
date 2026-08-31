@@ -1,416 +1,67 @@
-'use client';
-
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
-import {
-  Activity, Bot, FileCheck2, FlaskConical, GitPullRequestArrow, History, Scale, ShieldCheck,
-} from 'lucide-react';
-import { Card, CardContent, StatusBadge } from '@/components/ui/data';
-import { Alert, Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
-import { IdChip } from '@/components/ui/idchip';
-import { actorHref } from '@/components/attribution';
+import { ArrowUpRight, Bot, History, Network } from 'lucide-react';
 import { PageContainer, PageHeader } from '@/components/ui/page';
-import { TabNav } from '@/components/ui/tab-nav';
-import { RoleBar, CONTRIBUTION_ROLES } from '@/components/role-bar';
-import { HandoffSheet } from '@/components/handoff-sheet';
-import { cn } from '@/lib/utils';
 
 const API = process.env.NEXT_PUBLIC_EVIMESH_API_URL;
 
-const TABS = [
-  { id: 'tasks', label: 'Tasks' },
-  { id: 'verify', label: 'Verification queue' },
-  { id: 'challenges', label: 'Challenges' },
-  { id: 'drafts', label: 'Drafts' },
-  { id: 'record', label: 'Contribution record' },
-];
-
-const CREATE_LINKS = [
-  { href: '/questions/new', label: 'New question', icon: GitPullRequestArrow },
-  { href: '/claims/new', label: 'New claim', icon: GitPullRequestArrow },
-  { href: '/evidence/new', label: 'Add evidence', icon: FlaskConical },
-  { href: '/challenges/new', label: 'Raise a challenge', icon: Scale },
-  { href: '/runs/new', label: 'Start a run', icon: Activity },
-  { href: '/verification/receipt/new', label: 'Record verification', icon: ShieldCheck },
-];
-
-/* Task titles live on /tasks/:id (revision table), so hydrate the first
- * WORK_HYDRATE queue rows; the rest keep the id line. */
-const WORK_HYDRATE = 8;
-
-async function hydrateTaskTitle(task) {
+async function readList(path) {
+  if (!API) return [];
   try {
-    const detail = await fetchJson(`/tasks/${task.taskId}`);
-    return detail.currentRevision?.title ?? null;
+    const response = await fetch(`${API}${path}`, { cache: 'no-store' });
+    if (!response.ok) return [];
+    const body = await response.json();
+    return Array.isArray(body) ? body : body.items ?? [];
   } catch {
-    return null;
+    return [];
   }
 }
 
-async function fetchJson(path) {
-  const response = await fetch(`${API}${path}`);
-  const payload = await response.json();
-  if (!response.ok) throw new Error(payload.message ?? `${path} is unavailable.`);
-  return payload;
+function readable(value, fallback = 'not stated') {
+  return String(value ?? fallback).replaceAll('_', ' ');
 }
 
-async function fetchList(path) {
-  const response = await fetch(`${API}${path}`);
-  const payload = await response.json();
-  if (!response.ok) throw new Error(payload.message ?? `${path} is unavailable.`);
-  return payload.items ?? [];
+function dateLabel(value) {
+  if (!value || Number.isNaN(Date.parse(value))) return 'date not stated';
+  return new Intl.DateTimeFormat('en', { dateStyle: 'medium' }).format(new Date(value));
 }
 
-function toRelativeTime(value) {
-  return <span title={value ?? undefined}>{relativeTime(value)}</span>;
+function TaskRow({ task, index }) {
+  return <li className="grid min-w-0 grid-cols-12 gap-y-3 border-b border-border py-5"><span className="col-span-2 font-mono text-[10px] text-primary sm:col-span-1">{String(index + 1).padStart(2, '0')}</span><div className="col-span-10 min-w-0 sm:col-span-7"><p className="font-mono text-[10px] uppercase text-muted-foreground">{readable(task.state, 'open')} / {task.projectId ?? 'project not stated'}</p><Link className="mt-1 block font-serif text-xl leading-tight [overflow-wrap:anywhere] hover:text-primary" href={`/tasks/${task.taskId}`}>{task.title ?? task.taskId}</Link></div><div className="col-span-10 col-start-3 min-w-0 font-mono text-[10px] text-muted-foreground sm:col-span-4 sm:col-start-auto sm:text-right"><code className="[overflow-wrap:anywhere]">{task.taskId}</code><p className="mt-1">{dateLabel(task.createdAt)}</p></div></li>;
 }
 
-function relativeTime(value) {
-  const timestamp = Date.parse(value ?? '');
-  if (Number.isNaN(timestamp)) return '';
-  const minutes = Math.max(0, Math.floor((Date.now() - timestamp) / 60_000));
-  if (minutes < 60) return `${minutes || 1}m ago`;
-  if (minutes < 1440) return `${Math.floor(minutes / 60)}h ago`;
-  return `${Math.floor(minutes / 1440)}d ago`;
-}
-
-/* Contribution-role hint from an event type: deterministic, count-only. */
-function roleForEventType(type) {
-  const t = type ?? '';
-  if (t.startsWith('claim') && (t.includes('created') || t.includes('proposed'))) return 'originator';
-  if (t.startsWith('verification') || t.startsWith('receipt')) return 'verifier';
-  if (t.startsWith('challenge')) return 'reviewer';
-  if (t.startsWith('witness') || t.startsWith('checkpoint')) return 'witness';
-  return 'contributor';
-}
-
-/*
- * Work (design book 05 §4): the action queue as five tabs — tasks, the
- * verification queue, challenges, drafts, and the contribution record with a
- * count-only role bar. Every write workflow stays one click away.
- */
-export default function WorkPage() {
-  const [tab, setTab] = useState('tasks');
-  const [handoffOpen, setHandoffOpen] = useState(false);
-  const [rowHandoff, setRowHandoff] = useState(null);
-  const [openTasks, setTasks] = useState(null);
-  const [blockedTasks, setBlockedTasks] = useState(null);
-  const [verificationClaims, setVerificationClaims] = useState(null);
-  const [events, setEvents] = useState(null);
-  const [scopedActor, setScopedActor] = useState(null);
-  const [error, setError] = useState(null);
-
-  /* Queues load independently: an events outage must not blank the task
-   * and verification tabs. The contribution record is scoped to the signed-in
-   * actor when a session exists; otherwise it shows the network-wide record
-   * with an explicit label. Events paginate ascending, so the newest page is
-   * the last one (bounded traversal). */
-  async function loadNewestEvents(actorId) {
-    const pages = [];
-    let cursor = null;
-    for (let page = 0; page < 10; page += 1) {
-      const query = `/events?limit=100${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}${actorId ? `&actorId=${encodeURIComponent(actorId)}`: ''}`;
-      const body = await fetchJson(query);
-      pages.push(...(body.items ?? []));
-      if (!body.nextCursor) break;
-      cursor = body.nextCursor;
-    }
-    return pages.slice(-60);
-  }
-
-  async function load() {
-    setError(null);
-    fetchList('/tasks?status=open&limit=12')
-      .then(async (tasks) => {
-        const enriched = await Promise.all(tasks.slice(0, WORK_HYDRATE).map(async (task) => ({ ...task, title: await hydrateTaskTitle(task) })));
-        setTasks([...enriched, ...tasks.slice(WORK_HYDRATE)]);
-      })
-      .catch((reason) => setError(reason.message));
-    fetchList('/claims?status=under_verification&limit=10')
-      .then(setVerificationClaims)
-      .catch((reason) => setError(reason.message));
-    /* Blocked tasks (mockup blocked · 等待上游): quiet section with the
-     * unlock explanation; bounded to six rows. */
-    fetchList('/tasks?status=blocked&limit=6')
-      .then(setBlockedTasks)
-      .catch(() => setBlockedTasks([]));
-    (async () => {
-      try {
-        let actorId = null;
-        try {
-          const { createBrowserSupabaseClient } = await import('@/lib/supabase-browser');
-          const { data } = await createBrowserSupabaseClient().auth.getSession();
-          actorId = data.session?.user?.user_metadata?.evimesh_actor_id ?? data.session?.user?.id ?? null;
-        } catch { /* anonymous: network-wide record */ }
-        setScopedActor(actorId);
-        setEvents(await loadNewestEvents(actorId));
-      } catch (reason) {
-        setError(reason.message);
-      }
-    })();
-  }
-
-  useEffect(() => { load(); }, []);
-  useEffect(() => { document.title = 'Work · EviMesh'; }, []);
-
-  const roleCounts = useMemo(() => {
-    const counts = Object.fromEntries(CONTRIBUTION_ROLES.map((role) => [role, 0]));
-    for (const event of events ?? []) counts[roleForEventType(event.eventType)] += 1;
-    return counts;
-  }, [events]);
-
+export default async function WorkPage() {
+  const [tasks, claims, events] = await Promise.all([
+    readList('/tasks?status=open&limit=12'),
+    readList('/claims?status=under_verification&limit=8'),
+    readList('/events?limit=12&order=desc'),
+  ]);
   return (
     <PageContainer wide>
       <PageHeader
-        action={(
-          <button
-            className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-accent-foreground/90"
-            onClick={() => setHandoffOpen(true)}
-            type="button"
-          >
-            <Bot aria-hidden="true" size={15} />
-            Hand new work to your agent
-          </button>
-        )}
-        description="The action queue: tasks open to pick up, claims moving through verification, and every write workflow within one click."
+        action={<Link className="inline-flex min-h-11 items-center gap-2 border border-foreground px-4 font-mono text-[10px] font-bold uppercase text-primary hover:bg-foreground hover:text-background" href="/agent"><Bot aria-hidden="true" size={14} />Open Agent handoff</Link>}
+        description="Read the current assignment, verification and event record. Research authoring continues through CLI or MCP."
         eyebrow="Work"
-        title="What you can do now"
+        title="The working record"
       />
-      {error ? <ErrorState className="mt-10" message={error} onRetry={load} /> : null}
+      <section className="grid min-w-0 grid-cols-12 border-y border-foreground py-5"><p className="col-span-12 font-mono text-[10px] font-bold uppercase text-primary sm:col-span-2">DISPATCH</p><p className="col-span-12 mt-3 max-w-[64ch] font-serif text-lg leading-7 text-muted-foreground sm:col-span-7 sm:mt-0">Trace active work by stable object, date and state. The website remains a reading surface; local tools hold drafts and signatures.</p><Link className="col-span-12 mt-5 inline-flex min-h-11 items-center justify-between border-l border-foreground pl-4 font-mono text-[10px] font-bold uppercase text-primary sm:col-span-3 sm:mt-0" href="/docs"><span>Read operating docs</span><ArrowUpRight aria-hidden="true" size={14} /></Link></section>
 
-      <section aria-label="Manual submission fallback" className="mt-6">
-        <p className="max-w-2xl text-sm text-muted-foreground">
-          Research writing on EviMesh is agent-led: describe the intent and hand it to your agent with full context.
-          The web reads and explains; agents draft, humans sign.
-        </p>
-        <details className="mt-3 rounded-lg border border-border bg-card px-5 py-4">
-          <summary className="cursor-pointer text-sm text-muted-foreground">
-            Manual submission (fallback for no-agent and accessibility paths)
-          </summary>
-          <p className="mt-2 max-w-2xl text-xs text-muted-foreground">
-            These web forms are the retained fallback, not the primary path. The agent handoff above is the main
-            interaction for structured research writing.
-          </p>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {CREATE_LINKS.map(({ href, label, icon: Icon }) => (
-              <Link
-                className="flex items-center gap-3 rounded-md border border-border bg-background px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-                href={href}
-                key={href}
-              >
-                <Icon aria-hidden="true" size={14} />
-                {label}
-              </Link>
-            ))}
-          </div>
-        </details>
+      <div className="grid min-w-0 grid-cols-12 gap-y-12 py-12 lg:gap-x-8">
+        <section className="col-span-12 min-w-0 lg:col-span-8" aria-labelledby="open-work-heading">
+          <header className="flex items-end justify-between border-b border-foreground pb-3"><div><p className="font-mono text-[10px] font-bold uppercase text-primary">OPEN ASSIGNMENTS</p><h2 className="mt-2 font-serif text-4xl font-medium tracking-[-0.04em]" id="open-work-heading">Research ready to continue</h2></div><Link className="hidden font-mono text-[10px] font-bold uppercase text-primary sm:block" href="/tasks">All tasks →</Link></header>
+          {tasks.length > 0 ? <ol className="m-0 list-none p-0">{tasks.map((task, index) => <TaskRow index={index} key={task.taskId} task={task} />)}</ol> : <p className="border-b border-border py-8 font-serif text-xl text-muted-foreground">No open assignments are visible in this view.</p>}
+        </section>
+
+        <aside className="col-span-12 min-w-0 border-t border-foreground pt-5 lg:col-span-4 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0" aria-labelledby="verification-heading">
+          <p className="font-mono text-[10px] font-bold uppercase text-primary">VERIFICATION</p><h2 className="mt-2 font-serif text-3xl font-medium tracking-[-0.035em]" id="verification-heading">Claims in review</h2>
+          {claims.length > 0 ? <ol className="mt-5 m-0 list-none border-t border-border p-0">{claims.map((claim) => <li className="border-b border-border py-4" key={claim.claimId}><p className="font-mono text-[10px] uppercase text-muted-foreground">{readable(claim.state)}</p><Link className="mt-1 block font-serif text-lg leading-tight hover:text-primary" href={`/claims/${claim.claimId}`}>{claim.title ?? claim.statement ?? claim.claimId}</Link><code className="mt-2 block font-mono text-[9px] text-muted-foreground [overflow-wrap:anywhere]">{claim.claimId}</code></li>)}</ol> : <p className="mt-5 border-y border-border py-6 text-sm text-muted-foreground">No claims are visible in this review state.</p>}
+          <Link className="mt-5 inline-flex min-h-11 w-full items-center justify-between border border-foreground px-4 font-mono text-[10px] font-bold uppercase text-primary" href="/verification"><span>Open verification record</span><Network aria-hidden="true" size={14} /></Link>
+        </aside>
+      </div>
+
+      <section className="border-t border-foreground py-10" aria-labelledby="event-record-heading">
+        <header className="grid min-w-0 grid-cols-12"><p className="col-span-12 font-mono text-[10px] font-bold uppercase text-primary sm:col-span-2">EVENT RECORD</p><h2 className="col-span-12 mt-2 font-serif text-4xl font-medium tracking-[-0.04em] sm:col-span-7 sm:mt-0" id="event-record-heading">Recent attributable changes</h2><Link className="col-span-12 mt-4 inline-flex items-center gap-2 font-mono text-[10px] font-bold uppercase text-primary sm:col-span-3 sm:mt-0 sm:justify-end" href="/events"><History aria-hidden="true" size={14} />Full event audit</Link></header>
+        {events.length > 0 ? <ol className="mt-6 m-0 list-none border-t border-foreground p-0">{events.map((event) => <li className="grid min-w-0 grid-cols-12 gap-y-2 border-b border-border py-4" key={event.eventId}><p className="col-span-12 font-mono text-[10px] font-bold uppercase text-primary sm:col-span-3">{readable(event.eventType, 'event')}</p><code className="col-span-12 min-w-0 font-mono text-[10px] [overflow-wrap:anywhere] sm:col-span-6">{event.eventId}</code><time className="col-span-12 font-mono text-[10px] text-muted-foreground sm:col-span-3 sm:text-right" dateTime={event.createdAt}>{dateLabel(event.createdAt)}</time></li>)}</ol> : <p className="mt-6 border-y border-border py-8 font-serif text-xl text-muted-foreground">No recent events are visible.</p>}
       </section>
-
-      <TabNav
-        active={tab}
-        ariaLabel="Work views"
-        className="mt-8"
-        items={TABS.map((entry) => ({
-          count: entry.id === 'tasks' ? (openTasks?.length ?? 0) : entry.id === 'verify' ? (verificationClaims?.length ?? 0) : null,
-          key: entry.id,
-          label: entry.label,
-        }))}
-        onChange={setTab}
-      />
-
-      {tab === 'tasks' ? (
-        <section className="mt-6" aria-label="Open tasks">
-          {openTasks === null ? <Skeleton className="h-24 w-full" /> : openTasks.length === 0 ? (
-            <Empty description="Tasks open for pickup will appear here." title="No open tasks" />
-          ) : (
-            <Card className="divide-y divide-border">
-              {openTasks.map((task) => (
-                <article className="grid gap-1.5 px-5 py-4" key={task.taskId}>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <StatusBadge state="open" />
-                    {task.title ? (
-                      <Link className="min-w-0 flex-1 truncate font-medium hover:underline" href={`/tasks/${task.taskId}`}>{task.title}</Link>
-                    ) : (
-                      <IdChip className="min-w-0 flex-1" value={task.taskId} />
-                    )}
-                    <button className="rounded-md border border-border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground" onClick={() => setRowHandoff({ objectType: 'task', objectId: task.taskId, intent: 'Run this task with your agent' })} type="button">Hand to agent</button>
-                    <Link className="text-xs text-muted-foreground hover:text-foreground" href="/runs/new">manual receipt</Link>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                    <IdChip value={task.taskId} />
-                    <span className="tabular-nums">project {task.projectId ?? 'unassigned'}</span>
-                  </div>
-                </article>
-              ))}
-            </Card>
-          )}
-          <Link className="mt-3 inline-block text-sm text-muted-foreground hover:text-foreground" href="/tasks">Full task board →</Link>
-          {blockedTasks !== null && blockedTasks.length > 0 ? (
-            <div className="mt-6">
-              <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Blocked · waiting upstream</h3>
-              <Card className="divide-y divide-border">
-                {blockedTasks.map((task) => (
-                  <div className="flex flex-wrap items-center gap-3 px-5 py-3" key={task.taskId}>
-                    <StatusBadge state="blocked" label="blocked" />
-                    <IdChip value={task.taskId} /><Link className="text-xs text-primary hover:underline" href={`/tasks/${task.taskId}`}>open</Link>
-                  </div>
-                ))}
-              </Card>
-            </div>
-          ) : null}
-        </section>
-      ) : null}
-
-      {tab === 'verify' ? (
-        <section className="mt-6" aria-label="Verification queue">
-          {/* Mockup verification-queue policy note: no aggregate score, and
-              blind verifications never see expected outputs. */}
-          <Alert
-            className="mb-4"
-            description="Receipts record outcomes and findings — never a total score. Blind verifications run without expected outputs."
-            title="How verification works here"
-            variant="info"
-          />
-          {verificationClaims === null ? <Skeleton className="h-24 w-full" /> : verificationClaims.length === 0 ? (
-            <Empty description="Claims under verification will appear here with their contracts." title="Nothing in verification" />
-          ) : (
-            <Card className="divide-y divide-border">
-              {verificationClaims.map((claim) => (
-                <article className="grid gap-1.5 px-5 py-4" key={claim.claimId}>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <StatusBadge state={claim.state} />
-                    <IdChip value={claim.claimId} />
-                    <Link className="text-xs font-medium text-primary hover:underline" href={`/claims/${claim.claimId}`}>open</Link>
-                    <button className="rounded-md border border-border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground" onClick={() => setRowHandoff({ objectType: 'claim', objectId: claim.claimId, intent: 'Verify this claim with your agent', kind: 'claim' })} type="button">Hand to agent</button>
-                    <Link className="text-xs text-muted-foreground hover:text-foreground" href="/verification/receipt/new">manual receipt</Link>
-                    <span className="ml-auto text-xs text-muted-foreground">receipts record outcomes and findings, never a score</span>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                    {claim.questionId ? <Link className="hover:text-foreground" href={`/questions/${claim.questionId}`}>question {claim.questionId}</Link> : null}
-                    {claim.createdBy ? <Link className="hover:text-foreground" href={actorHref(claim.createdBy)}>by {claim.createdBy}</Link> : null}
-                  </div>
-                </article>
-              ))}
-            </Card>
-          )}
-          <Link className="mt-3 inline-block text-sm text-muted-foreground hover:text-foreground" href="/verification">Verification workspace →</Link>
-        </section>
-      ) : null}
-
-      {tab === 'challenges' ? (
-        <section className="mt-6" aria-label="Challenges">
-          <Empty
-            action={<Link className="rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground" href="/challenges/new">Raise a challenge</Link>}
-            description="Challenges are tracked per claim revision. Open the target claim to read an active challenge and its impact; a challenge list endpoint ships with the protocol surface."
-            title="Challenge tracking lives on each claim"
-          />
-        </section>
-      ) : null}
-
-      {tab === 'drafts' ? (
-        <section className="mt-6 grid gap-4 md:grid-cols-2" aria-label="Drafts">
-          <Card>
-            <div className="border-b border-border px-5 py-3">
-              <h3 className="text-sm font-semibold">Claim draft</h3>
-            </div>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">The claim editor keeps browser-local IndexedDB drafts with JSON/ZIP bundle import and export.</p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Link className="rounded-md border border-border bg-card px-3 py-2 text-sm font-medium hover:bg-muted" href="/claims/new">Continue editing</Link>
-                <Link className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-accent-foreground/90" href="/claims/new">Review and sign</Link>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <div className="border-b border-border px-5 py-3">
-              <h3 className="text-sm font-semibold">Run receipt draft</h3>
-            </div>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">Run receipts save locally as you fill environment, command, seed, and outputs.</p>
-              <div className="mt-3 flex gap-2">
-                <Link className="rounded-md border border-border bg-card px-3 py-2 text-sm font-medium hover:bg-muted" href="/runs/new">Continue filling</Link>
-              </div>
-            </CardContent>
-          </Card>
-        </section>
-      ) : null}
-
-      {tab === 'record' ? (
-        <section className="mt-6" aria-label="Contribution record">
-          {events === null ? <Skeleton className="h-32 w-full" /> : (
-            <div className="grid gap-6">
-              <Card>
-                <div className="border-b border-border px-5 py-3">
-                  <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Role distribution</h3>
-                <p className="mt-1 text-xs text-muted-foreground">{scopedActor ? 'Scoped to the signed-in actor.' : 'Network-wide record: no signed-in actor detected.'}</p>
-                </div>
-                <CardContent>
-                  <RoleBar counts={roleCounts} />
-                  <p className="mt-3 text-xs text-muted-foreground">Roles inferred from signed event types; counts only, never points or rankings.</p>
-                </CardContent>
-              </Card>
-              <Card className="px-5 py-2">
-                <ol className="list-none">
-                  {(events ?? []).slice(-10).reverse().map((event) => {
-                    const type = event.eventType ?? 'event';
-                    const EventIcon = type.startsWith('frontier') ? FileCheck2 : type.startsWith('claim') ? GitPullRequestArrow : type.startsWith('evidence') ? FlaskConical : History;
-                    return (
-                      <li className="grid grid-cols-[2rem_minmax(0,1fr)] gap-3 border-b border-border py-4 last:border-b-0" key={event.eventId}>
-                        <span aria-hidden="true" className="mt-0.5 grid size-8 place-items-center rounded-full bg-muted text-muted-foreground"><EventIcon size={15} /></span>
-                        <div className="min-w-0">
-                          <p className="font-mono text-xs uppercase tracking-wide text-muted-foreground">{type}</p>
-                          <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                            <IdChip value={event.eventId} />
-                            <span className="ml-auto text-xs tabular-nums text-muted-foreground">{toRelativeTime(event.createdAt)}</span>
-                          </div>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ol>
-              </Card>
-              <div className="flex gap-3">
-                <Link className="rounded-md border border-border bg-card px-3 py-2 text-sm font-medium hover:bg-muted" href="/contributions">My contributions</Link>
-                <Link className="rounded-md border border-border bg-card px-3 py-2 text-sm font-medium hover:bg-muted" href="/events"><History aria-hidden="true" className="mr-2 inline" size={14} />Event audit</Link>
-              </div>
-            </div>
-          )}
-        </section>
-      ) : null}
-      <HandoffSheet
-        cliCommand={`sq question list   # find where to contribute
-sq task list       # open tasks to pick up`}
-        intent="Hand new research work to your agent"
-        mcpCall={`tool:     search_open_tasks (read-only)
-resource: evimesh://questions/open`}
-        objectId="work-queue"
-        objectType="work"
-        onOpenChange={setHandoffOpen}
-        open={handoffOpen}
-        scopes={['read', 'drafts']}
-        view="work"
-      />
-      {rowHandoff ? (
-        <HandoffSheet
-          cliCommand={rowHandoff.kind === 'claim'
-            ? `sq provenance ${rowHandoff.objectId}   # inspect the dependency path
-sq verify checkout ${rowHandoff.objectId}   # lock the revision for verification`
-            : `sq task inspect ${rowHandoff.objectId}   # read inputs, outputs, acceptance
-sq attempt start ${rowHandoff.objectId}     # begin an attributed attempt`}
-          intent={rowHandoff.intent}
-          mcpCall={rowHandoff.kind === 'claim'
-            ? `tool:     submit_verification (confirm: true)
-resource: read the claim revision via the web permalink above`
-            : `tool:     get_task_context (read-only)
-tool:     start_attempt (confirm: true)`}
-          objectId={rowHandoff.objectId}
-          objectType={rowHandoff.objectType}
-          onOpenChange={(open) => { if (!open) setRowHandoff(null); }}
-          open={Boolean(rowHandoff)}
-          scopes={rowHandoff.kind === 'claim' ? ['read', 'verification:submit'] : ['read', 'attempts', 'drafts']}
-          view="work"
-        />
-      ) : null}
     </PageContainer>
   );
 }

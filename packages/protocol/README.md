@@ -135,3 +135,27 @@ Platform Receipt 固定 schema `srp.platform-receipt.v1`，记录服务端 `serv
 Project roles are `owner`, `maintainer`, `contributor`, and `viewer`.
 Project visibility is `public`, `unlisted`, or `member-only`; consumers must
 reject values outside these enumerations.
+
+## v2.1 research-graph backfill contract
+
+`research-graph.mjs` publishes the revision-ref node registry and a fixed edge
+endpoint matrix. Every edge requires an exact source revision, a newly committed
+target revision, and an owner/maintainer/contributor author. In addition to the
+typed Answer/Rebuttal/Evaluation/Dataset/Tool motifs, resource and verification
+lineage is explicit: Artifact → Evidence, Claim/Run/VerificationContract →
+VerificationReceipt, and VerificationReceipt → VerificationFinding. Generic
+callers cannot weaken these endpoint or role rules.
+
+`research-graph-backfill.mjs` freezes the eight raw source names, the
+`scanning → applying → blocked|complete` checkpoint phases, and versioned
+checkpoint/plan schema identifiers. The graph protocol also provides exact
+revision mappers for all 14 legacy Claim relations and four Evidence links, plus
+explicit forward motifs for Challenge target/impact references, Task
+prerequisite-to-dependent edges, and Run input-to-Run-to-output paths. Claim
+mapping has no implicit revision-1 fallback; callers must supply both exact
+legacy revision anchors.
+
+`research-graph-rollout.mjs` freezes legacy/shadow/kernel read modes,
+legacy/dual-write/kernel write modes, and the service RPC's eight allowlisted
+legacy mutation kinds and four PostgREST parameter names. Kernel cutover is
+never inferred from configuration alone.

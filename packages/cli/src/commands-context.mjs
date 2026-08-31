@@ -1,6 +1,5 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { randomUUID } from "node:crypto";
 import { buildClient } from "./client.mjs";
 import { flagString, flagBool, requirePositional } from "./args.mjs";
 import { verifyContextBundleHash } from "../../protocol/src/context-bundle-hash.mjs";
@@ -25,23 +24,10 @@ export async function contextPull({ flags, output, positionals, env = process.en
   return 0;
 }
 
-/** Start an Attempt: create a local workspace and register the remote Attempt. */
-export async function attemptStart({ flags, output, positionals, env = process.env, fetchImpl } = {}) {
-  const client = buildClient(flags, { env, fetchImpl });
-  const taskId = requirePositional(positionals, 0, "taskId");
-  const mode = flagString(flags, "mode", "frontier");
-  const bundle = await client.tasks.context(taskId, mode);
-  const attemptId = flagString(flags, "attempt-id", `attempt_${randomUUID()}`);
-  const started = await client.attempts.start(taskId, {
-    attemptId,
-    contextBundleId: bundle.contextBundleId,
-    contextMode: mode,
-  });
-  const workspace = resolve(flagString(flags, "workspace", join(".evimesh", "attempts", attemptId)));
-  mkdirSync(workspace, { recursive: true });
-  writeFileSync(join(workspace, "attempt.json"), `${JSON.stringify({ attempt: started.attempt ?? started, contextBundle: bundle, workspace }, null, 2)}\n`, "utf8");
-  const result = { attemptId, taskId, contextBundleId: bundle.contextBundleId, contextMode: mode, workspace };
-  output.emit({ json: flagBool(flags, "json") }, result, (data) =>
-    `started attempt ${data.attemptId} for ${data.taskId}\ncontext: ${data.contextBundleId} (${data.contextMode})\nworkspace: ${data.workspace}`);
-  return 0;
+/** Attempt creation is a formal graph mutation and remains fail-closed. */
+export async function attemptStart({ positionals } = {}) {
+  requirePositional(positionals, 0, "taskId");
+  const error = new Error("sq attempt start is disabled until Attempt exposes prepare -> human-local sign -> external-envelope submit");
+  error.code = "CLI_EXTERNAL_SIGNATURE_FLOW_REQUIRED";
+  throw error;
 }

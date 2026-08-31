@@ -1,0 +1,15 @@
+{
+  "schema": "srp.evaluation.v1",
+  "evaluation_id": "evaluation_018f0f4a-5c00-4000-8000-000000000001",
+  "project_id": "project_018f0f4a-5c00-4000-8000-000000000001",
+  "revision": 1,
+  "supersedes_revision": null,
+  "state": "published",
+  "subject_ref": { "kind": "claim", "id": "claim_018f0f4a-5c00-4000-8000-000000000001", "revision": 2 },
+  "basis_refs": [{ "kind": "evidence", "id": "evidence_018f0f4a-5c00-4000-8000-000000000001", "revision": 1 }],
+  "stance": "qualifies",
+  "rationale": "The result holds only within the declared interval.",
+  "method": "Independent interval analysis",
+  "created_at": "2026-08-30T06:00:00.000Z",
+  "created_by": "actor_01"
+}

@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
+import { RESEARCH_EDGE_TYPES, RESEARCH_NODE_KINDS } from "../../../packages/protocol/src/research-graph.mjs";
 
 const openapiPath = fileURLToPath(new URL("../openapi.json", import.meta.url));
 const document = JSON.parse(await readFile(openapiPath, "utf8"));
@@ -14,6 +15,9 @@ test("publishes the current API route contract", () => {
     "/actors",
     "/actors/self",
     "/actors/{actorId}",
+    "/answers",
+    "/answers/prepare",
+    "/answers/{id}",
     "/api-tokens",
     "/api-tokens/{tokenId}",
     "/artifacts",
@@ -38,6 +42,12 @@ test("publishes the current API route contract", () => {
     "/claims/{claimId}/revisions/{revision}",
     "/claims/{claimId}/transitions",
     "/claims/{claimId}/verifications",
+    "/datasets",
+    "/datasets/prepare",
+    "/datasets/{id}",
+    "/evaluations",
+    "/evaluations/prepare",
+    "/evaluations/{id}",
     "/events",
     "/events/export",
     "/events/{eventId}/proof",
@@ -60,7 +70,11 @@ test("publishes the current API route contract", () => {
     "/questions",
     "/questions/{questionId}",
     "/questions/{questionId}/transitions",
+    "/rebuttals",
+    "/rebuttals/prepare",
+    "/rebuttals/{id}",
     "/recommendations",
+    "/research-graph/{kind}/{id}/neighborhood",
     "/runs",
     "/runs/{runId}",
     "/signing-keys",
@@ -69,6 +83,9 @@ test("publishes the current API route contract", () => {
     "/tasks/{taskId}/attempts",
     "/tasks/{taskId}/context",
     "/tasks/{taskId}/lease",
+    "/tools",
+    "/tools/prepare",
+    "/tools/{id}",
     "/verifications",
     "/verifications/prepare",
     "/verifications/{receiptId}",
@@ -111,6 +128,11 @@ test("keeps the stable response shapes in the contract", () => {
   assert.match(document.components.schemas.CreateClaimRequest.properties.draftedByActorId.description, /created_by/);
   assert.match(document.components.schemas.CreateClaimRequest.properties.draftedByActorId.description, /signatureEnvelope/);
   assert.match(document.components.schemas.CreateClaimRequest.properties.draftedByActorId.description, /agent or service/);
+});
+
+test("keeps the public graph enums synchronized with the protocol registry", () => {
+  assert.deepEqual(document.components.schemas.ResearchNodeKind.enum, RESEARCH_NODE_KINDS);
+  assert.deepEqual(document.components.schemas.ResearchEdgeType.enum, RESEARCH_EDGE_TYPES);
 });
 
 test("gives every operation a stable id and guards all write operations with bearer auth", () => {

@@ -20,7 +20,7 @@ function canonicalEventActorId(value) {
   return typeof value === "string" && value.length > 0 && value.trim() === value ? value : null;
 }
 
-function actorIdentityCard(actor, profile) {
+export function actorIdentityCard(actor, profile) {
   if (!actor) return null;
   return {
     actorId: actor.actorId,

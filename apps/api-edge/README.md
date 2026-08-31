@@ -33,6 +33,9 @@ operation ID. The grouped summary:
 - Challenges — create/detail/transition.
 - Events — listing, NDJSON export, inclusion proofs, and Merkle checkpoints.
 - Contributions and provenance — `/actors/{actorId}`, `/provenance/{objectType}/{objectId}`, merge proposals.
+- Research graph — permission-aware `/research-graph/{kind}/{id}/neighborhood`
+  plus strongly typed Answer, Rebuttal, Evaluation, Dataset, and Tool reads and
+  externally signed prepare/submit boundaries.
 
 The current public route contract is versioned in `openapi.json`; the contract
 snapshot test fails when these route or response-shape guarantees drift.
@@ -76,6 +79,43 @@ Contribution queries return an Actor's role semantics plus separate produced and
 used attribution edges.
 Attempt detail queries return the Attempt row plus a trace summary containing
 count, event types, and first/last timestamps without exposing trace payloads.
+
+## Research graph rollout
+
+Rollout is explicit and fail-closed through three Worker variables. Read mode is
+`legacy`, `shadow`, or `kernel`; write mode is `legacy`, `dual_write`, or
+`kernel`; `RESEARCH_GRAPH_CUTOVER_READY=true` is required before kernel reads or
+typed kernel writes. The checked-in environments stay at `legacy/legacy/false`.
+
+In `shadow` mode, the old response remains authoritative while the Worker emits
+internal semantic parity telemetry. In `dual_write`, old research mutations and
+their kernel mirror share one repository transaction and a failed parity check
+rolls back both. The Supabase adapter performs that transaction through the
+service-role-only `execute_research_graph_legacy_dual_write` RPC. It accepts one
+of eight allowlisted mutation kinds plus already verified immutable events; it
+is not a generic node upsert and never creates or verifies a human signature.
+Answer, Rebuttal, Evaluation, Dataset, and Tool have no legacy
+projection: their submit routes accept only `kernel` mode after the cutover
+gate. Old Claim graph, Evidence, Challenge, and VerificationReceipt read shapes
+can switch to kernel-backed compatibility readers only after the gate; exact
+legacy relation names come from the immutable server-only crosswalk, never from
+inferred graph motifs.
+
+Kernel compatibility reads require a Cloudflare secret named
+`SUPABASE_SECRET_KEY` (or legacy `SUPABASE_SERVICE_ROLE_KEY`) so the Worker can
+read the service-only crosswalk. The caller's own JWT or anonymous RLS scope is
+still used for graph nodes, edges, and content; the service secret is never
+forwarded to the browser or used to broaden the returned research objects.
+The public hosted Worker remains a read-only browser surface because it does
+not construct research event factories. It does compose the production
+ResearchEvent verifier by default: signed routes atomically consume the client
+nonce, then the pre-RPC boundary recomputes the envelope signing bytes and
+hash, resolves the actor's active public key, verifies Ed25519, and binds the
+same publisher envelope to the immutable event. Dependency injection is only
+an explicit test or deployment replacement for that default. The event hash
+remains the event factory's full-record hash; it is not confused with the
+client envelope hash. The RPC receives completed verified events and cannot
+substitute `confirm: true` for a signature.
 
 Configure `SUPABASE_JWKS_URL`, `SUPABASE_JWT_ISSUER`, and optionally
 `SUPABASE_JWT_AUDIENCE` as Worker variables. Do not commit a JWKS, API token,

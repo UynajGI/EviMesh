@@ -1,6 +1,6 @@
 import { createUuidV7, isUuidV7 } from './uuidv7.mjs';
 
-const EVENT_TYPE_PATTERN = /^[a-z][a-z0-9]*(?:\.[a-z][a-z0-9]*)+$/;
+const EVENT_TYPE_PATTERN = /^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$/;
 const HASH_PATTERN = /^sha256:[0-9a-f]{64}$/i;
 
 function requireEventType(value) {

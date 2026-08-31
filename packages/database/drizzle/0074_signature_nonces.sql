@@ -16,4 +16,6 @@ REVOKE ALL ON TABLE "public"."signature_nonces" FROM PUBLIC;
 --> statement-breakpoint
 REVOKE ALL ON TABLE "public"."signature_nonces" FROM "anon", "authenticated";
 --> statement-breakpoint
+REVOKE ALL ON TABLE "public"."signature_nonces" FROM "service_role";
+--> statement-breakpoint
 GRANT INSERT, SELECT ON TABLE "public"."signature_nonces" TO "service_role";

@@ -15,6 +15,8 @@ import { SigningKeyError } from '../../../packages/domain/src/signing-key.mjs';
 import { listOwnTokens, createOwnToken, revokeOwnToken } from './api-token-api.mjs';
 import { ApiTokenError } from '../../../packages/domain/src/api-token.mjs';
 import { getQuestion, listQuestions, QuestionQueryError } from './question-query.mjs';
+import { getResearchNeighborhood, parseResearchGraphFilters, ResearchGraphQueryError } from './research-graph-query.mjs';
+import { getTypedResearchNode, listTypedResearchNodes, TypedResearchQueryError } from './typed-research-query.mjs';
 import { getClaim, getClaimDownstreamGraph, getClaimRevision, getClaimUpstreamGraph, listClaims, ClaimQueryError } from './claim-query.mjs';
 import { getProject, listProjects, ProjectQueryError } from './project-query.mjs';
 import { getLatestFrontier, listFrontierHistory, diffFrontiers, FrontierQueryError } from './frontier-query.mjs';
@@ -46,6 +48,7 @@ import { createEvidence, linkEvidenceClaim, EvidenceCommandError } from '../../.
 import { createRun, RunCommandError } from '../../../packages/domain/src/run-command.mjs';
 import { createArtifact, ArtifactCommandError } from '../../../packages/domain/src/artifact-command.mjs';
 import { createChallenge, transitionChallenge, ChallengeCommandError } from '../../../packages/domain/src/challenge-command.mjs';
+import { createAnswer, createDataset, createEvaluation, createRebuttal, createTool, TypedResearchNodeCommandError } from '../../../packages/domain/src/typed-research-node-command.mjs';
 import { submitVerification, VerificationSubmitError } from '../../../packages/domain/src/verification-submit-command.mjs';
 import { createSingleUploadPlan, UploadSessionError } from '../../../packages/artifact/src/upload-session.mjs';
 import { createActorApiToken, ApiTokenError as DeviceTokenError } from '../../../packages/domain/src/api-token.mjs';
@@ -56,6 +59,9 @@ import { importWitnessReceipt, WitnessError } from '../../../packages/frontier-b
 import { createRateLimiter, rateLimitSettings } from './rate-limit.mjs';
 import { createDurableObjectRateLimiter } from './rate-limit-binding.mjs';
 import { createSupabaseNonceStore } from './supabase-nonce-store.mjs';
+import { canonicalTypedResearchSubmission, prepareTypedResearchSubmission, TypedResearchPrepareError } from './typed-research-prepare.mjs';
+import { createApiResearchGraphRollout, createResearchGraphRolloutFromEnv, isResearchGraphRolloutError } from './research-graph-rollout-api.mjs';
+import { createResearchGraphEventVerifier } from './research-graph-event-verifier.mjs';
 
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
@@ -90,6 +96,14 @@ function persistedClientSignatureEnvelope(envelope, signedPayload) {
       value: envelope.signature.value,
     },
   };
+}
+
+function withPublisherSignatureEnvelope(eventFactory, publisherSignatureEnvelope) {
+  if (!publisherSignatureEnvelope) return eventFactory;
+  return ({ eventType, payload }) => eventFactory({
+    eventType,
+    payload: { ...payload, publisher_signature_envelope: publisherSignatureEnvelope },
+  });
 }
 
 function canonicalClaimText(value, field, { nullable = false } = {}) {
@@ -224,8 +238,15 @@ async function verifyRunDocumentSignature({ body, actorId, publicKey }) {
   }
 }
 
-export function createApp({ repository = null, signatureNonceStore = null, projectEventFactory = null, questionEventFactory = null, questionRoleResolver = null, questionRiskResolver = null, attemptEventFactory = null, attemptRoleResolver = null, leaseEventFactory = null, leaseRoleResolver = null, taskEventFactory = null, taskRoleResolver = null, claimEventFactory = null, claimRoleResolver = null, evidenceEventFactory = null, evidenceRoleResolver = null, runEventFactory = null, runRoleResolver = null, artifactEventFactory = null, artifactRoleResolver = null, challengeEventFactory = null, challengeRoleResolver = null, verificationEventFactory = null, verificationRoleResolver = null, uploadSigner = null, deviceCodeStore = createMemoryDeviceCodeStore(), authenticate = authenticateSupabaseRequest, rateLimiter = createRateLimiter() } = {}) {
+export function createApp({ repository = null, signatureNonceStore = null, projectEventFactory = null, questionEventFactory = null, questionRoleResolver = null, questionRiskResolver = null, attemptEventFactory = null, attemptRoleResolver = null, leaseEventFactory = null, leaseRoleResolver = null, taskEventFactory = null, taskRoleResolver = null, claimEventFactory = null, claimRoleResolver = null, evidenceEventFactory = null, evidenceRoleResolver = null, runEventFactory = null, runRoleResolver = null, artifactEventFactory = null, artifactRoleResolver = null, challengeEventFactory = null, challengeRoleResolver = null, verificationEventFactory = null, verificationRoleResolver = null, typedResearchEventFactory = null, typedResearchRoleResolver = null, researchGraphRollout = null, uploadSigner = null, deviceCodeStore = createMemoryDeviceCodeStore(), authenticate = authenticateSupabaseRequest, rateLimiter = createRateLimiter() } = {}) {
 const app = new Hono();
+const graphRollout = researchGraphRollout?.readCompatibility
+  ? researchGraphRollout
+  : createApiResearchGraphRollout({
+    ...(researchGraphRollout ?? {}),
+    verifyResearchEvent: researchGraphRollout?.verifyResearchEvent
+      ?? createResearchGraphEventVerifier({ repository }),
+  });
 
 function rateLimiterFor(context) {
   return context.env?.RATE_LIMITER
@@ -472,6 +493,154 @@ app.get('/questions/:questionId', async (context) => {
   }
 });
 
+app.get('/research-graph/:kind/:id/neighborhood', async (context) => {
+  try {
+    const accessToken = bearerTokenOf(context.req.raw);
+    let actorId = null;
+    if (accessToken) {
+      const claims = await authenticateRequest(context.req.raw, context.env);
+      if (claims.kind === 'api_token' && !claims.scopes?.includes('project:read')) {
+        throw new ResearchGraphQueryError('API token requires project:read scope', 'RESEARCH_GRAPH_SCOPE_REQUIRED', 403);
+      }
+      actorId = await resolveActorForSupabaseClaims({ repository, claims, accessToken });
+    }
+    const filters = parseResearchGraphFilters({
+      kinds: context.req.query('kinds') ?? null,
+      edgeTypes: context.req.query('edgeTypes') ?? null,
+    });
+    return context.json(await getResearchNeighborhood({
+      repository,
+      kind: context.req.param('kind'),
+      id: context.req.param('id'),
+      revision: context.req.query('revision') ?? null,
+      direction: context.req.query('direction') ?? 'both',
+      depth: context.req.query('depth') ?? 1,
+      cursor: context.req.query('cursor') ?? null,
+      accessToken,
+      actorId,
+      ...filters,
+    }));
+  } catch (error) {
+    const response = knownFailure(error, context);
+    if (response) return response;
+    if (error instanceof ResearchGraphQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status);
+    throw error;
+  }
+});
+
+for (const { kind, plural, idParam, command } of [
+  { kind: 'answer', plural: 'answers', idParam: 'answerId', command: createAnswer },
+  { kind: 'rebuttal', plural: 'rebuttals', idParam: 'rebuttalId', command: createRebuttal },
+  { kind: 'evaluation', plural: 'evaluations', idParam: 'evaluationId', command: createEvaluation },
+  { kind: 'dataset', plural: 'datasets', idParam: 'datasetId', command: createDataset },
+  { kind: 'tool', plural: 'tools', idParam: 'toolId', command: createTool },
+]) {
+  app.get(`/${plural}`, async (context) => {
+    try {
+      const accessToken = bearerTokenOf(context.req.raw);
+      let actorId = null;
+      if (accessToken) {
+        const claims = await authenticateRequest(context.req.raw, context.env);
+        if (claims.kind === 'api_token' && !claims.scopes?.includes('project:read')) throw new TypedResearchQueryError('API token requires project:read scope', 'TYPED_RESEARCH_SCOPE_REQUIRED', 403);
+        actorId = await resolveActorForSupabaseClaims({ repository, claims, accessToken });
+      }
+      return context.json(await listTypedResearchNodes({
+        repository,
+        kind,
+        projectId: context.req.query('projectId') ?? null,
+        state: context.req.query('state') ?? null,
+        stance: context.req.query('stance') ?? null,
+        toolKind: context.req.query('toolKind') ?? null,
+        limit: pagedLimit(context),
+        cursor: context.req.query('cursor') ?? null,
+        accessToken,
+        actorId,
+      }));
+    } catch (error) {
+      const response = knownFailure(error, context);
+      if (response) return response;
+      if (error instanceof TypedResearchQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status);
+      throw error;
+    }
+  });
+  app.get(`/${plural}/:${idParam}`, async (context) => {
+    try {
+      const accessToken = bearerTokenOf(context.req.raw);
+      let actorId = null;
+      if (accessToken) {
+        const claims = await authenticateRequest(context.req.raw, context.env);
+        if (claims.kind === 'api_token' && !claims.scopes?.includes('project:read')) throw new TypedResearchQueryError('API token requires project:read scope', 'TYPED_RESEARCH_SCOPE_REQUIRED', 403);
+        actorId = await resolveActorForSupabaseClaims({ repository, claims, accessToken });
+      }
+      return context.json(await getTypedResearchNode({ repository, kind, id: context.req.param(idParam), accessToken, actorId }));
+    } catch (error) {
+      const response = knownFailure(error, context);
+      if (response) return response;
+      if (error instanceof TypedResearchQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status);
+      throw error;
+    }
+  });
+  app.post(`/${plural}/prepare`, async (context) => {
+    try {
+      const claims = await authenticateRequest(context.req.raw, context.env);
+      const preparingActorId = await resolveActorForSupabaseClaims({ repository, claims });
+      const preparingActor = await repository?.getActor?.(preparingActorId);
+      if (!preparingActor) throw new TypedResearchPrepareError('preparing actor not found', 'RESEARCH_DRAFTER_NOT_FOUND', 404);
+      const body = await context.req.json();
+      const publisherActorId = body.publisherActorId ?? (preparingActor.actorType === 'human' ? preparingActorId : null);
+      if (!publisherActorId) throw new TypedResearchPrepareError('agent prepare requires publisherActorId for the human signer', 'RESEARCH_PUBLISHER_REQUIRED');
+      const publisher = await repository?.getActor?.(publisherActorId);
+      if (!publisher) throw new TypedResearchPrepareError('publishing actor not found', 'RESEARCH_PUBLISHER_NOT_FOUND', 404);
+      if (publisher.actorType !== 'human') throw new TypedResearchPrepareError('publishing actor must be human', 'RESEARCH_PUBLISHER_TYPE_INVALID', 403);
+      const input = preparingActor.actorType === 'human' ? body : { ...body, draftedByActorId: preparingActorId };
+      return context.json(prepareTypedResearchSubmission({ kind, input, publisherActorId, nonce: body.nonce }));
+    } catch (error) {
+      const response = knownFailure(error, context);
+      if (response || error instanceof TypedResearchPrepareError) return response ?? context.json(errorBody(error.code, error.message, context.get('requestId')), error.status);
+      throw error;
+    }
+  });
+  app.post(`/${plural}`, async (context) => {
+    try {
+      graphRollout.assertTypedKernelWrite();
+      if (typeof typedResearchEventFactory !== 'function' || typeof typedResearchRoleResolver !== 'function') return context.json(errorBody('TYPED_RESEARCH_SUBMIT_UNAVAILABLE', 'typed research submission is not configured', context.get('requestId')), 503);
+      const claims = await authenticateRequest(context.req.raw, context.env);
+      await resolveActorForSupabaseClaims({ repository, claims });
+      const body = await context.req.json();
+      if (!body.signatureEnvelope) throw new TypedResearchPrepareError('an external human signature envelope is required', 'RESEARCH_PUBLISHER_SIGNATURE_REQUIRED');
+      const publisherActorId = body.signatureEnvelope?.payload?.publisherActorId;
+      if (typeof publisherActorId !== 'string' || !publisherActorId) throw new TypedResearchPrepareError('signature envelope must bind publisherActorId', 'RESEARCH_PUBLISHER_SIGNATURE_INVALID');
+      const publisher = await repository?.getActor?.(publisherActorId);
+      if (!publisher) throw new TypedResearchPrepareError('publishing actor not found', 'RESEARCH_PUBLISHER_NOT_FOUND', 404);
+      if (publisher.actorType !== 'human') throw new TypedResearchPrepareError('publishing actor must be human', 'RESEARCH_PUBLISHER_TYPE_INVALID', 403);
+      const canonical = canonicalTypedResearchSubmission({ kind, input: { ...body, draftedByActorId: body.draftedByActorId ?? body.signatureEnvelope?.payload?.draftedByActorId }, publisherActorId });
+      await verifyClientSignatureEnvelope({
+        repository,
+        signatureNonceStore: nonceStoreFor(context),
+        actorId: publisherActorId,
+        envelope: body.signatureEnvelope,
+        payload: canonical.payload,
+        expectedEventType: canonical.definition.eventType,
+      });
+      const publisherSignatureEnvelope = persistedClientSignatureEnvelope(body.signatureEnvelope, canonical.payload);
+      const actorRole = await typedResearchRoleResolver({ repository, actorId: publisherActorId, projectId: canonical.command.projectId, kind });
+      return context.json(await command({
+        repository,
+        eventFactory: typedResearchEventFactory,
+        actorId: publisherActorId,
+        actorRole,
+        draftedByActorId: canonical.payload.draftedByActorId,
+        publisherSignatureEnvelope,
+        ...canonical.command,
+      }), 201);
+    } catch (error) {
+      const response = knownFailure(error, context);
+      if (response || error instanceof TypedResearchPrepareError || error instanceof TypedResearchNodeCommandError) return response ?? context.json(errorBody(error.code, error.message, context.get('requestId')), error.status ?? 400);
+      throw error;
+    }
+  });
+}
+
 app.get('/claims', async (context) => {
   try {
     const requestedLimit = context.req.query('limit');
@@ -504,11 +673,27 @@ app.get('/claims/:claimId', async (context) => {
 app.get('/claims/:claimId/graph', async (context) => {
   try {
     const maxDepth = context.req.query('maxDepth') === undefined ? 3 : Number(context.req.query('maxDepth'));
-    const query = { repository, claimId: context.req.param('claimId'), maxDepth };
-    if (context.req.query('direction') === 'upstream') return context.json(await getClaimUpstreamGraph(query));
-    if (context.req.query('direction') === 'downstream' || context.req.query('direction') === undefined) return context.json(await getClaimDownstreamGraph(query));
-    throw new ClaimQueryError('graph direction must be upstream or downstream');
+    const claimId = context.req.param('claimId');
+    const direction = context.req.query('direction') ?? 'downstream';
+    if (!['upstream', 'downstream'].includes(direction)) throw new ClaimQueryError('graph direction must be upstream or downstream');
+    const accessToken = bearerTokenOf(context.req.raw);
+    let actorId = null;
+    if (accessToken) {
+      const claims = await authenticateRequest(context.req.raw, context.env);
+      if (claims.kind === 'api_token' && !claims.scopes?.includes('project:read')) throw new ClaimQueryError('API token requires project:read scope', 'CLAIM_GRAPH_SCOPE_REQUIRED', 403);
+      actorId = await resolveActorForSupabaseClaims({ repository, claims, accessToken });
+    }
+    const readLegacy = () => direction === 'upstream'
+      ? getClaimUpstreamGraph({ repository, claimId, maxDepth })
+      : getClaimDownstreamGraph({ repository, claimId, maxDepth });
+    const readKernel = async () => {
+      if (typeof repository?.getLegacyClaimGraphFromResearchGraph !== 'function') throw new ClaimQueryError('kernel Claim compatibility reader is not configured', 'CLAIM_GRAPH_KERNEL_COMPAT_UNAVAILABLE', 503);
+      return repository.getLegacyClaimGraphFromResearchGraph({ claimId, maxDepth, direction, accessToken, actorId });
+    };
+    return context.json(await graphRollout.readCompatibility({ surface: 'claim_graph', identity: `${claimId}:${direction}:${maxDepth}`, readLegacy, readKernel }));
   } catch (error) {
+    const response = knownFailure(error, context);
+    if (response) return response;
     if (error instanceof ClaimQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status);
     throw error;
   }
@@ -850,8 +1035,32 @@ app.get('/evidence', async (context) => {
 });
 
 app.get('/evidence/:evidenceId', async (context) => {
-  try { return context.json(await getEvidence({ repository, evidenceId: context.req.param('evidenceId') })); }
-  catch (error) { if (error instanceof EvidenceQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status); throw error; }
+  try {
+    const evidenceId = context.req.param('evidenceId');
+    const accessToken = bearerTokenOf(context.req.raw);
+    let actorId = null;
+    if (accessToken) {
+      const claims = await authenticateRequest(context.req.raw, context.env);
+      if (claims.kind === 'api_token' && !claims.scopes?.includes('project:read')) throw new EvidenceQueryError('API token requires project:read scope', 'EVIDENCE_SCOPE_REQUIRED', 403);
+      actorId = await resolveActorForSupabaseClaims({ repository, claims, accessToken });
+    }
+    const readKernel = async () => {
+      if (typeof repository?.getLegacyEvidenceFromResearchGraph !== 'function') throw new EvidenceQueryError('kernel Evidence compatibility reader is not configured', 'EVIDENCE_KERNEL_COMPAT_UNAVAILABLE', 503);
+      const detail = await repository.getLegacyEvidenceFromResearchGraph({ evidenceId, accessToken, actorId });
+      if (!detail) throw new EvidenceQueryError('evidence not found', 'EVIDENCE_NOT_FOUND', 404);
+      return detail;
+    };
+    return context.json(await graphRollout.readCompatibility({
+      surface: 'evidence_detail', identity: evidenceId,
+      readLegacy: () => getEvidence({ repository, evidenceId }),
+      readKernel,
+    }));
+  } catch (error) {
+    const response = knownFailure(error, context);
+    if (response) return response;
+    if (error instanceof EvidenceQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status);
+    throw error;
+  }
 });
 
 app.get('/runs', async (context) => {
@@ -871,9 +1080,31 @@ app.get('/runs/:runId', async (context) => {
 app.get('/challenges/:challengeId', async (context) => {
   try {
     const challengeId = context.req.param('challengeId');
-    const detail = await getChallenge({ repository, challengeId });
+    const accessToken = bearerTokenOf(context.req.raw);
+    let actorId = null;
+    if (accessToken) {
+      const claims = await authenticateRequest(context.req.raw, context.env);
+      if (claims.kind === 'api_token' && !claims.scopes?.includes('project:read')) throw new ChallengeQueryError('API token requires project:read scope', 'CHALLENGE_SCOPE_REQUIRED', 403);
+      actorId = await resolveActorForSupabaseClaims({ repository, claims, accessToken });
+    }
+    const readKernel = async () => {
+      if (typeof repository?.getLegacyChallengeFromResearchGraph !== 'function') throw new ChallengeQueryError('kernel Challenge compatibility reader is not configured', 'CHALLENGE_KERNEL_COMPAT_UNAVAILABLE', 503);
+      const detail = await repository.getLegacyChallengeFromResearchGraph({ challengeId, accessToken, actorId });
+      if (!detail) throw new ChallengeQueryError('challenge not found', 'CHALLENGE_NOT_FOUND', 404);
+      return detail;
+    };
+    const detail = await graphRollout.readCompatibility({
+      surface: 'challenge_detail', identity: challengeId,
+      readLegacy: () => getChallenge({ repository, challengeId }),
+      readKernel,
+    });
     return context.json({ ...detail, etag: revisionEtagFor(challengeId, detail.currentRevision) });
-  } catch (error) { if (error instanceof ChallengeQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status); throw error; }
+  } catch (error) {
+    const response = knownFailure(error, context);
+    if (response) return response;
+    if (error instanceof ChallengeQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status);
+    throw error;
+  }
 });
 
 app.get('/attempts/:attemptId', async (context) => {
@@ -897,17 +1128,62 @@ app.get('/actors/:actorId', async (context) => {
 
 app.get('/claims/:claimId/verifications', async (context) => {
   try {
-    const items = await listClaimVerifications({ repository, claimId: context.req.param('claimId'), outcome: context.req.query('outcome') ?? null, contextMode: context.req.query('contextMode') ?? null, actorId: context.req.query('actorId') ?? null });
+    const claimId = context.req.param('claimId');
+    const outcome = context.req.query('outcome') ?? null;
+    const contextMode = context.req.query('contextMode') ?? null;
+    const filterActorId = context.req.query('actorId') ?? null;
+    const accessToken = bearerTokenOf(context.req.raw);
+    let actorId = null;
+    if (accessToken) {
+      const claims = await authenticateRequest(context.req.raw, context.env);
+      if (claims.kind === 'api_token' && !claims.scopes?.includes('project:read')) throw new VerificationQueryError('API token requires project:read scope', 'VERIFICATION_SCOPE_REQUIRED', 403);
+      actorId = await resolveActorForSupabaseClaims({ repository, claims, accessToken });
+    }
+    const readKernel = async () => {
+      if (typeof repository?.listLegacyClaimVerificationsFromResearchGraph !== 'function') throw new VerificationQueryError('kernel VerificationReceipt compatibility reader is not configured', 'VERIFICATION_KERNEL_COMPAT_UNAVAILABLE', 503);
+      return repository.listLegacyClaimVerificationsFromResearchGraph({ claimId, outcome, contextMode, filterActorId, accessToken, actorId });
+    };
+    const items = await graphRollout.readCompatibility({
+      surface: 'verification_receipt_list', identity: claimId,
+      readLegacy: () => listClaimVerifications({ repository, claimId, outcome, contextMode, actorId: filterActorId }),
+      readKernel,
+    });
     return context.json({ items });
   } catch (error) {
+    const response = knownFailure(error, context);
+    if (response) return response;
     if (error instanceof VerificationQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status);
     throw error;
   }
 });
 
 app.get('/verifications/:receiptId', async (context) => {
-  try { return context.json(await getVerificationReceipt({ repository, receiptId: context.req.param('receiptId') })); }
-  catch (error) { if (error instanceof VerificationQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status); throw error; }
+  try {
+    const receiptId = context.req.param('receiptId');
+    const accessToken = bearerTokenOf(context.req.raw);
+    let actorId = null;
+    if (accessToken) {
+      const claims = await authenticateRequest(context.req.raw, context.env);
+      if (claims.kind === 'api_token' && !claims.scopes?.includes('project:read')) throw new VerificationQueryError('API token requires project:read scope', 'VERIFICATION_SCOPE_REQUIRED', 403);
+      actorId = await resolveActorForSupabaseClaims({ repository, claims, accessToken });
+    }
+    const readKernel = async () => {
+      if (typeof repository?.getLegacyVerificationReceiptFromResearchGraph !== 'function') throw new VerificationQueryError('kernel VerificationReceipt compatibility reader is not configured', 'VERIFICATION_KERNEL_COMPAT_UNAVAILABLE', 503);
+      const detail = await repository.getLegacyVerificationReceiptFromResearchGraph({ receiptId, accessToken, actorId });
+      if (!detail) throw new VerificationQueryError('verification receipt not found', 'VERIFICATION_RECEIPT_NOT_FOUND', 404);
+      return detail;
+    };
+    return context.json(await graphRollout.readCompatibility({
+      surface: 'verification_receipt_detail', identity: receiptId,
+      readLegacy: () => getVerificationReceipt({ repository, receiptId }),
+      readKernel,
+    }));
+  } catch (error) {
+    const response = knownFailure(error, context);
+    if (response) return response;
+    if (error instanceof VerificationQueryError) return context.json(errorBody(error.code, error.message, context.get('requestId')), error.status);
+    throw error;
+  }
 });
 
 app.get('/events', async (context) => {
@@ -1103,13 +1379,18 @@ app.post('/claims', async (context) => {
       publisherSignatureEnvelope = persistedClientSignatureEnvelope(body.signatureEnvelope, signedPayload);
     }
     const actorRole = await claimRoleResolver({ repository, actorId, questionId, projectId: body.projectId ?? null });
-    return context.json(await createClaim({
-      repository,
+    const mutation = {
       actorId,
       actorRole,
       publisherSignatureEnvelope,
+      clientSignatureVerified: publisherSignatureEnvelope !== null,
       ...submission,
-      eventFactory: claimEventFactory,
+    };
+    return context.json(await graphRollout.executeLegacyMutation({
+      repository,
+      surface: 'claim.create',
+      input: mutation,
+      writeLegacy: (writeRepository) => createClaim({ repository: writeRepository, ...mutation, eventFactory: claimEventFactory }),
     }), 201);
   } catch (error) {
     const response = knownFailure(error, context);
@@ -1128,8 +1409,7 @@ app.post('/claims/:claimId/revisions', async (context) => {
     if (!current) return context.json(errorBody('CLAIM_REVISION_NOT_FOUND', 'current claim revision not found', context.get('requestId')), 404);
     const actorRole = await claimRoleResolver({ repository, actorId, claimId });
     const body = await context.req.json();
-    return context.json(await reviseClaim({
-      repository,
+    const mutation = {
       actorId,
       actorRole,
       claimId,
@@ -1141,7 +1421,12 @@ app.post('/claims/:claimId/revisions', async (context) => {
       scope: body.scope,
       assumptions: body.assumptions,
       falsification: body.falsification,
-      eventFactory: claimEventFactory,
+    };
+    return context.json(await graphRollout.executeLegacyMutation({
+      repository,
+      surface: 'claim.revise',
+      input: mutation,
+      writeLegacy: (writeRepository) => reviseClaim({ repository: writeRepository, ...mutation, eventFactory: claimEventFactory }),
     }), 201);
   } catch (error) {
     const response = knownFailure(error, context);
@@ -1160,8 +1445,7 @@ app.post('/claims/:claimId/transitions', async (context) => {
     if (!current) return context.json(errorBody('CLAIM_REVISION_NOT_FOUND', 'current claim revision not found', context.get('requestId')), 404);
     const actorRole = await claimRoleResolver({ repository, actorId, claimId });
     const { toState } = await context.req.json();
-    return context.json(await transitionClaim({
-      repository,
+    const mutation = {
       actorId,
       actorRole,
       claimId,
@@ -1169,7 +1453,12 @@ app.post('/claims/:claimId/transitions', async (context) => {
       ifMatch: context.req.header('if-match') ?? null,
       currentEtag: revisionEtagFor(claimId, current),
       etagForRevision: (revision) => revisionEtagFor(claimId, revision),
-      eventFactory: claimEventFactory,
+    };
+    return context.json(await graphRollout.executeLegacyMutation({
+      repository,
+      surface: 'claim.transition',
+      input: { ...mutation, etagForRevision: undefined },
+      writeLegacy: (writeRepository) => transitionClaim({ repository: writeRepository, ...mutation, eventFactory: claimEventFactory }),
     }), 201);
   } catch (error) {
     const response = knownFailure(error, context);
@@ -1229,8 +1518,7 @@ app.post('/evidence', async (context) => {
     const actorId = await resolveActorForSupabaseClaims({ repository, claims });
     const body = await context.req.json();
     const actorRole = await evidenceRoleResolver({ repository, actorId, artifactId: body.artifactId ?? null });
-    return context.json(await createEvidence({
-      repository,
+    const mutation = {
       actorId,
       actorRole,
       evidenceId: body.evidenceId,
@@ -1239,7 +1527,12 @@ app.post('/evidence', async (context) => {
       artifactRevision: body.artifactRevision,
       runId: body.runId ?? null,
       links: body.links ?? [],
-      eventFactory: evidenceEventFactory,
+    };
+    return context.json(await graphRollout.executeLegacyMutation({
+      repository,
+      surface: 'evidence.create',
+      input: mutation,
+      writeLegacy: (writeRepository) => createEvidence({ repository: writeRepository, ...mutation, eventFactory: evidenceEventFactory }),
     }), 201);
   } catch (error) {
     const response = knownFailure(error, context);
@@ -1256,15 +1549,19 @@ app.post('/evidence/:evidenceId/links', async (context) => {
     const evidenceId = context.req.param('evidenceId');
     const actorRole = await evidenceRoleResolver({ repository, actorId, evidenceId });
     const body = await context.req.json();
-    return context.json(await linkEvidenceClaim({
-      repository,
+    const mutation = {
       actorId,
       actorRole,
       evidenceId,
       claimId: body.claimId,
       claimRevision: body.claimRevision,
       relationType: body.relationType,
-      eventFactory: evidenceEventFactory,
+    };
+    return context.json(await graphRollout.executeLegacyMutation({
+      repository,
+      surface: 'evidence.link',
+      input: mutation,
+      writeLegacy: (writeRepository) => linkEvidenceClaim({ repository: writeRepository, ...mutation, eventFactory: evidenceEventFactory }),
     }), 201);
   } catch (error) {
     const response = knownFailure(error, context);
@@ -1454,18 +1751,30 @@ app.post('/verifications', async (context) => {
       findings: (body.findings ?? []).map((finding, index) => ({ findingId: finding.findingId ?? `${body.receiptId}_finding_${index + 1}`, ...finding })),
       contributionStatementId: body.contributionStatementId,
     };
+    let publisherSignatureEnvelope = null;
     if (body.signatureEnvelope !== undefined) {
       const signedPayload = { ...body };
       delete signedPayload.signatureEnvelope;
       await verifyClientSignatureEnvelope({ repository, signatureNonceStore: nonceStoreFor(context), actorId, envelope: body.signatureEnvelope, payload: signedPayload, expectedEventType: 'verification.submitted' });
+      publisherSignatureEnvelope = persistedClientSignatureEnvelope(body.signatureEnvelope, signedPayload);
     }
     const actorRole = await verificationRoleResolver({ repository, actorId, claimId: body.claimId ?? null });
-    return context.json(await submitVerification({
-      repository,
+    const mutation = {
       actorId,
       actorRole,
+      publisherSignatureEnvelope,
+      clientSignatureVerified: publisherSignatureEnvelope !== null,
       ...submission,
-      eventFactory: verificationEventFactory,
+    };
+    return context.json(await graphRollout.executeLegacyMutation({
+      repository,
+      surface: 'verification_receipt.submit',
+      input: mutation,
+      writeLegacy: (writeRepository) => submitVerification({
+        repository: writeRepository,
+        ...mutation,
+        eventFactory: withPublisherSignatureEnvelope(verificationEventFactory, publisherSignatureEnvelope),
+      }),
     }), 201);
   } catch (error) {
     const response = knownFailure(error, context);
@@ -1488,18 +1797,30 @@ app.post('/challenges', async (context) => {
       impact: body.impact,
       proposedResolution: body.proposedResolution ?? null,
     };
+    let publisherSignatureEnvelope = null;
     if (body.signatureEnvelope !== undefined) {
       const signedPayload = { ...body };
       delete signedPayload.signatureEnvelope;
       await verifyClientSignatureEnvelope({ repository, signatureNonceStore: nonceStoreFor(context), actorId, envelope: body.signatureEnvelope, payload: signedPayload, expectedEventType: 'challenge.created' });
+      publisherSignatureEnvelope = persistedClientSignatureEnvelope(body.signatureEnvelope, signedPayload);
     }
     const actorRole = await challengeRoleResolver({ repository, actorId, targetClaimId: body.targetClaimId ?? null });
-    return context.json(await createChallenge({
-      repository,
+    const mutation = {
       actorId,
       actorRole,
+      publisherSignatureEnvelope,
+      clientSignatureVerified: publisherSignatureEnvelope !== null,
       ...submission,
-      eventFactory: challengeEventFactory,
+    };
+    return context.json(await graphRollout.executeLegacyMutation({
+      repository,
+      surface: 'challenge.create',
+      input: mutation,
+      writeLegacy: (writeRepository) => createChallenge({
+        repository: writeRepository,
+        ...mutation,
+        eventFactory: withPublisherSignatureEnvelope(challengeEventFactory, publisherSignatureEnvelope),
+      }),
     }), 201);
   } catch (error) {
     const response = knownFailure(error, context);
@@ -1518,8 +1839,7 @@ app.post('/challenges/:challengeId/transitions', async (context) => {
     if (!current) return context.json(errorBody('CHALLENGE_REVISION_NOT_FOUND', 'current challenge revision not found', context.get('requestId')), 404);
     const actorRole = await challengeRoleResolver({ repository, actorId, challengeId });
     const { toState } = await context.req.json();
-    return context.json(await transitionChallenge({
-      repository,
+    const mutation = {
       actorId,
       actorRole,
       challengeId,
@@ -1527,7 +1847,12 @@ app.post('/challenges/:challengeId/transitions', async (context) => {
       ifMatch: context.req.header('if-match') ?? null,
       currentEtag: revisionEtagFor(challengeId, current),
       etagForRevision: (revision) => revisionEtagFor(challengeId, revision),
-      eventFactory: challengeEventFactory,
+    };
+    return context.json(await graphRollout.executeLegacyMutation({
+      repository,
+      surface: 'challenge.transition',
+      input: { ...mutation, etagForRevision: undefined },
+      writeLegacy: (writeRepository) => transitionChallenge({ repository: writeRepository, ...mutation, eventFactory: challengeEventFactory }),
     }), 201);
   } catch (error) {
     const response = knownFailure(error, context);
@@ -1560,15 +1885,50 @@ return app;
 export function createWorker({ fetchImpl = fetch } = {}) {
   const unconfiguredApp = createApp();
   const hostedApps = new Map();
+  const observeResearchGraphParity = async (report) => {
+    console.warn(JSON.stringify({
+      event: report.event,
+      surface: report.surface,
+      identity: report.identity,
+      read_mode: report.readMode,
+      matches: report.matches,
+      missing_kernel_nodes: report.missingKernelNodes?.length ?? 0,
+      unexpected_kernel_nodes: report.unexpectedKernelNodes?.length ?? 0,
+      missing_kernel_edges: report.missingKernelEdges?.length ?? 0,
+      unexpected_kernel_edges: report.unexpectedKernelEdges?.length ?? 0,
+      visibility_comparable: report.visibilityComparable ?? false,
+      truncation_comparable: report.truncationComparable ?? false,
+      shadow_error: report.shadowError ?? null,
+    }));
+  };
   return Object.freeze({
     fetch(request, env = {}, executionContext) {
       const publishableKey = env.SUPABASE_PUBLISHABLE_KEY ?? env.SUPABASE_ANON_KEY;
+      const serviceRoleKey = env.SUPABASE_SECRET_KEY ?? env.SUPABASE_SERVICE_ROLE_KEY ?? null;
       if (!env.SUPABASE_URL || !publishableKey) {
         return unconfiguredApp.fetch(request, env, executionContext);
       }
-      const key = `${env.SUPABASE_URL}\u0000${publishableKey}`;
+      let rollout;
+      const repository = createSupabaseReadRepository({ url: env.SUPABASE_URL, publishableKey, serviceRoleKey, fetchImpl });
+      try {
+        rollout = createResearchGraphRolloutFromEnv(env, {
+          onParity: observeResearchGraphParity,
+          verifyResearchEvent: createResearchGraphEventVerifier({ repository }),
+        });
+      } catch (error) {
+        if (isResearchGraphRolloutError(error)) {
+          const requestId = requestIdFor(request.headers.get('x-request-id'));
+          return Response.json(
+            { code: error.code, message: error.message, request_id: requestId },
+            { status: 503, headers: { 'x-request-id': requestId } },
+          );
+        }
+        throw error;
+      }
+      const key = `${env.SUPABASE_URL}\u0000${publishableKey}\u0000${serviceRoleKey ?? ''}\u0000${rollout.readMode}\u0000${rollout.writeMode}\u0000${rollout.cutoverReady}`;
       if (!hostedApps.has(key)) hostedApps.set(key, createApp({
-        repository: createSupabaseReadRepository({ url: env.SUPABASE_URL, publishableKey, fetchImpl }),
+        repository,
+        researchGraphRollout: rollout,
       }));
       return hostedApps.get(key).fetch(request, env, executionContext);
     },

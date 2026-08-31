@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://evimesh.org/schema/rebuttal.schema.json",
+  "title": "EviMesh Rebuttal revision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "rebuttal_id", "project_id", "revision", "supersedes_revision", "state", "title", "argument", "scope", "target_ref", "basis_refs", "created_at", "created_by"],
+  "properties": {
+    "schema": { "const": "srp.rebuttal.v1" },
+    "rebuttal_id": { "type": "string", "pattern": "^rebuttal_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" },
+    "project_id": { "type": "string", "pattern": "^project_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" },
+    "revision": { "type": "integer", "minimum": 1 },
+    "supersedes_revision": { "type": ["integer", "null"], "minimum": 1 },
+    "state": { "$ref": "#/$defs/state" },
+    "title": { "type": "string", "minLength": 1, "maxLength": 500 },
+    "argument": { "type": "string", "minLength": 1, "maxLength": 50000 },
+    "scope": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1, "maxLength": 2000 } },
+    "target_ref": { "$ref": "#/$defs/targetRef" },
+    "basis_refs": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/nodeRef" } },
+    "created_at": { "type": "string", "format": "date-time" },
+    "created_by": { "type": "string", "minLength": 1 }
+  },
+  "allOf": [{
+    "if": { "properties": { "revision": { "const": 1 } }, "required": ["revision"] },
+    "then": { "properties": { "supersedes_revision": { "const": null } } },
+    "else": { "properties": { "supersedes_revision": { "type": "integer", "minimum": 1 } } }
+  }],
+  "$defs": {
+    "state": { "type": "string", "enum": ["draft", "published", "superseded", "retracted"] },
+    "targetRef": { "type": "object", "additionalProperties": false, "required": ["kind", "id", "revision"], "properties": { "kind": { "type": "string", "enum": ["answer", "claim"] }, "id": { "type": "string", "minLength": 1 }, "revision": { "type": "integer", "minimum": 1 } } },
+    "nodeRef": { "type": "object", "additionalProperties": false, "required": ["kind", "id", "revision"], "properties": { "kind": { "type": "string", "enum": ["claim", "evidence", "run", "dataset", "artifact"] }, "id": { "type": "string", "minLength": 1 }, "revision": { "type": "integer", "minimum": 1 } } }
+  }
+}

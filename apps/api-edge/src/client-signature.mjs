@@ -25,7 +25,7 @@ function canonicalOrThrow(value, field) {
  * Fail-closed: any structural, key, payload, or cryptographic mismatch rejects
  * the submission.
  */
-export async function verifyClientSignatureEnvelope({ repository, signatureNonceStore = null, actorId, envelope, payload, expectedEventType } = {}) {
+export async function verifyClientSignatureEnvelopeCryptography({ repository, actorId, envelope, payload, expectedEventType } = {}) {
   if (!envelope || typeof envelope !== 'object' || Array.isArray(envelope)) {
     throw new ClientSignatureError('signature envelope is required');
   }
@@ -67,6 +67,13 @@ export async function verifyClientSignatureEnvelope({ repository, signatureNonce
   if (!signingKey || signingKey.keyId !== signature.key_id.trim()) {
     throw new ClientSignatureError('no matching active signing key for this actor', 'CLIENT_SIGNATURE_KEY_NOT_FOUND');
   }
+  if ((typeof signingKey.actorId === 'string' && signingKey.actorId.trim() !== actorId.trim())
+    || signingKey.revokedAt !== null && signingKey.revokedAt !== undefined
+    || signingKey.deletedAt !== null && signingKey.deletedAt !== undefined
+    || signingKey.active === false
+    || signingKey.state === 'revoked') {
+    throw new ClientSignatureError('signing key is not active for this actor', 'CLIENT_SIGNATURE_ACTOR_MISMATCH');
+  }
   if (signingKey.algorithm && signingKey.algorithm !== 'Ed25519') {
     throw new ClientSignatureError('signing key algorithm is not supported');
   }
@@ -74,6 +81,12 @@ export async function verifyClientSignatureEnvelope({ repository, signatureNonce
   if (verified !== true) {
     throw new ClientSignatureError('signature verification failed', 'CLIENT_SIGNATURE_MISMATCH');
   }
+  return Object.freeze({ verified: true, keyId: signingKey.keyId });
+}
+
+/** Verify the exact signature bytes and atomically consume the human nonce. */
+export async function verifyClientSignatureEnvelope({ repository, signatureNonceStore = null, actorId, envelope, payload, expectedEventType } = {}) {
+  const verified = await verifyClientSignatureEnvelopeCryptography({ repository, actorId, envelope, payload, expectedEventType });
   const nonceStore = typeof signatureNonceStore?.claimSignatureNonce === 'function'
     ? signatureNonceStore
     : typeof repository?.claimSignatureNonce === 'function'
@@ -86,7 +99,7 @@ export async function verifyClientSignatureEnvelope({ repository, signatureNonce
   try {
     claimed = await nonceStore.claimSignatureNonce({
       actorId: actorId.trim(),
-      keyId: signingKey.keyId,
+      keyId: verified.keyId,
       nonce: envelope.nonce,
     });
   } catch {
@@ -95,5 +108,5 @@ export async function verifyClientSignatureEnvelope({ repository, signatureNonce
   if (claimed !== true) {
     throw new ClientSignatureError('signature nonce has already been used', 'CLIENT_SIGNATURE_REPLAYED', 409);
   }
-  return Object.freeze({ verified: true, keyId: signingKey.keyId });
+  return verified;
 }

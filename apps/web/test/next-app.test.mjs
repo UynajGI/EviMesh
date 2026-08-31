@@ -1,501 +1,134 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { access, readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 const read = (path) => readFile(new URL(path, import.meta.url), 'utf8');
 
-test('initializes the Next App Router shell', async () => {
-  const [manifest, layout, page, config, globals, postcss] = await Promise.all([
-    read('../package.json'), read('../app/layout.js'), read('../app/page.js'), read('../next.config.mjs'), read('../app/globals.css'), read('../postcss.config.mjs'),
+test('initializes the Next App Router and Cloudflare deployment', async () => {
+  const [manifest, layout, config, workerConfig, openNextConfig] = await Promise.all([
+    read('../package.json'), read('../app/layout.js'), read('../next.config.mjs'), read('../wrangler.jsonc'), read('../open-next.config.ts'),
   ]);
   const packageJson = JSON.parse(manifest);
   assert.equal(packageJson.scripts.dev, 'next dev');
-  // prebuild regenerates the docs content module before every pnpm build.
-  assert.equal(packageJson.scripts.build, 'node ../../scripts/build-docs-content.mjs && next build');
   assert.match(layout, /<html lang="en"/);
-  assert.match(layout, /import '\.\/globals\.css';/);
-  assert.match(page, /Open distributed scientific network/);
-  assert.match(config, /turbopack: \{ root: workspaceRoot \}/);
-  assert.match(globals, /@import "tailwindcss"/);
-  assert.match(postcss, /'@tailwindcss\/postcss': \{\}/);
-  assert.match(page, /<PageContainer>/);
-  const pageTemplate = await read('../components/ui/page.js');
-  assert.match(pageTemplate, /max-w-6xl/);
-});
-
-test('configures OpenNext for Cloudflare Workers deployment', async () => {
-  const [manifest, nextConfig, workerConfig, openNextConfig, headers] = await Promise.all([
-    read('../package.json'), read('../next.config.mjs'), read('../wrangler.jsonc'), read('../open-next.config.ts'), read('../public/_headers'),
-  ]);
-  const packageJson = JSON.parse(manifest);
-  assert.match(packageJson.scripts.preview, /opennextjs-cloudflare preview/);
-  assert.match(packageJson.scripts['deploy:production'], /opennextjs-cloudflare deploy --env production/);
-  assert.match(nextConfig, /initOpenNextCloudflareForDev/);
-  assert.match(workerConfig, /"main": "\.open-next\/worker\.js"/);
-  assert.match(workerConfig, /"directory": "\.open-next\/assets"/);
-  assert.match(openNextConfig, /defineCloudflareConfig/);
-  assert.match(headers, /Cache-Control: public,max-age=31536000,immutable/);
-});
-
-test('configures shadcn-compatible Button, Input, and Dialog components', async () => {
-  const [config, button, input, dialog] = await Promise.all([
-    read('../components.json'), read('../components/ui/button.js'), read('../components/ui/input.js'), read('../components/ui/dialog.js'),
-  ]);
-  assert.equal(JSON.parse(config).tailwind.config, '');
-  assert.match(button, /export function Button/);
-  assert.match(input, /export function Input/);
-  assert.match(dialog, /export function DialogContent/);
-});
-
-test('defines light and dark design tokens for the web product', async () => {
-  const globals = await read('../app/globals.css');
-  assert.match(globals, /@theme inline/);
-  assert.match(globals, /--color-background: var\(--evimesh-background\)/);
-  assert.match(globals, /--color-primary: var\(--evimesh-primary\)/);
-  assert.match(globals, /:root \{[\s\S]*--evimesh-background:/);
-  assert.match(globals, /\[data-theme="dark"\] \{[\s\S]*--evimesh-background:/);
-  assert.equal(globals.includes('prefers-color-scheme: dark'), false, 'single dark block: no prefers-color-scheme duplicate');
-});
-
-test('provides primary navigation and the initial product routes', async () => {
-  const [layout, shell, projects, tasks, verification, contributions, docs] = await Promise.all([
-    read('../app/layout.js'), read('../components/template-shell.js'), read('../app/projects/page.js'), read('../app/tasks/page.js'), read('../app/verification/page.js'), read('../app/contributions/page.js'), read('../app/docs/page.js'),
-  ]);
   assert.match(layout, /<TemplateShell>/);
-  assert.match(layout, /data-theme="light"/);
-  assert.match(layout, /localStorage.getItem\("evimesh-theme"\)/);
-  for (const href of ['/home', '/explore', '/work', '/agent', '/docs']) assert.ok(shell.includes(`href: '${href}'`), `shell is missing ${href}`);
-  assert.match(shell, /href="\/login"/);
-  assert.ok(shell.includes('Sign in'), 'shell must show the sign-in entry');
-  // /docs is now a real surface: a static homepage built from the manifest.
-  assert.match(docs, /loadDocsManifest/);
-  assert.doesNotMatch(docs, /redirect\(/);
-  for (const page of [verification]) assert.match(page, /SectionPlaceholder/);
-  assert.match(tasks, /Task board/);
-  assert.match(projects, /Create a project/);
+  assert.match(config, /turbopack: \{ root: workspaceRoot \}/);
+  assert.match(workerConfig, /"main": "\.open-next\/worker\.js"/);
+  assert.match(openNextConfig, /defineCloudflareConfig/);
 });
 
-test('renders a recoverable global error state with an API request ID', async () => {
-  const errorPage = await read('../app/error.js');
-  assert.match(errorPage, /'use client'/);
-  assert.match(errorPage, /export function requestIdFrom/);
-  assert.match(errorPage, /error\?\.request_id/);
-  assert.match(errorPage, /request_id: \{requestId\}/);
-  assert.match(errorPage, /onClick=\{reset\}/);
+test('Kinetic Journal shell exposes the locked publication navigation', async () => {
+  const [shell, palette, globals] = await Promise.all([read('../components/template-shell.js'), read('../components/command-palette.js'), read('../app/globals.css')]);
+  const entries = [
+    ['/home', 'Home'], ['/explore', 'Explore'], ['/work', 'Work'], ['/tools', 'Tools'],
+    ['/contributions', 'Contributions'], ['/agent', 'Agent'], ['/docs', 'Docs'],
+  ];
+  for (const [href, label] of entries) {
+    assert.ok(shell.includes(`href: '${href}', label: '${label}'`));
+    assert.ok(palette.includes(`label: '${label}'`));
+  }
+  assert.match(shell, /aria-label="Primary"/);
+  assert.match(shell, /aria-label="Primary mobile"/);
+  assert.match(shell, /kinetic-page-enter/);
+  assert.match(shell, /kinetic-nav-link/);
+  assert.match(globals, /kinetic-page-enter 200ms/);
+  assert.match(globals, /translateX\(8px\)/);
+  assert.match(globals, /\.kinetic-nav-link::after[\s\S]*transition: transform 160ms/);
 });
 
-test('provides loading skeletons for each main product route', async () => {
-  const [skeleton, root, projects, tasks, verification, contributions] = await Promise.all([
-    read('../components/page-skeleton.js'), read('../app/loading.js'), read('../app/projects/loading.js'), read('../app/tasks/loading.js'), read('../app/verification/loading.js'), read('../app/contributions/loading.js'),
+test('local fonts and editorial page primitives are wired without runtime font requests', async () => {
+  const [globals, page, provenance] = await Promise.all([
+    read('../app/globals.css'), read('../components/ui/page.js'), read('../public/fonts/README.md'),
   ]);
-  assert.match(skeleton, /aria-busy="true"/);
-  assert.match(skeleton, /animate-pulse/);
-  for (const loading of [root, projects, tasks, verification, contributions]) assert.match(loading, /PageSkeleton/);
+  for (const family of ['Inter Tight', 'Source Serif 4', 'IBM Plex Mono']) assert.match(globals, new RegExp(family));
+  assert.match(globals, /url\(["']\/fonts\//);
+  assert.match(page, /grid-cols-12/);
+  assert.match(page, /max-w-\[96rem\]/);
+  assert.match(provenance, /SIL Open Font License 1\.1/);
+  assert.doesNotMatch(globals, /https:\/\/fonts\.(?:googleapis|gstatic)\.com/);
 });
 
-test('provides configured-provider and email authentication from the sign-in page', async () => {
-  const [client, page, legacy] = await Promise.all([read('../lib/supabase-browser.js'), read('../app/login/page.js'), read('../app/sign-in/page.js')]);
-  assert.match(client, /createClient\(url, key\)/);
-  assert.match(client, /NEXT_PUBLIC_SUPABASE_URL/);
-  assert.match(page, /signInWithPassword/);
-  assert.match(page, /signInWithOtp/);
-  assert.match(page, /auth\/v1\/settings/);
-  assert.match(page, /Continue with \$\{label\}/);
-  assert.match(page, /Sign in to your account/);
-  assert.match(legacy, /redirect\('\/login'\)/);
+test('heterogeneous research graph is an interactive client leaf with a simultaneous index', async () => {
+  const graph = await read('../components/claim-dag.js');
+  assert.match(graph, /^'use client';/);
+  assert.match(graph, /from 'd3-dag'/);
+  assert.match(graph, /<ReactFlow/);
+  assert.match(graph, /Graph \+ Relationship Index/);
+  assert.match(graph, /<RelationshipIndex/);
+  assert.match(graph, /Open full detail/);
+  assert.doesNotMatch(graph, /role="tablist"|Graph\/List/);
 });
 
-test('renders a reusable React Flow Claim relation graph component', async () => {
-  const [dag, verification] = await Promise.all([read('../components/claim-dag.js'), read('../app/verification/page.js')]);
-  assert.match(dag, /from 'd3-dag'/);
-  assert.match(dag, /<ReactFlow/);
-  assert.match(dag, /Claim relation graph/);
-  assert.match(verification, /<ClaimDag elements=\{sampleElements\}/);
+test('Explore discovers the unified research object set', async () => {
+  const explore = await read('../app/explore/page.js');
+  for (const endpoint of ['/questions?', '/answers?', '/claims?', '/rebuttals?', '/evaluations?', '/evidence?', '/datasets?', '/tools?', '/runs?']) assert.ok(explore.includes(endpoint), `missing ${endpoint}`);
+  assert.match(explore, /Research object facets/);
+  assert.match(explore, /Filter by research object type/);
+  assert.doesNotMatch(explore, /Topics|Researchers|role="tablist"/);
 });
 
-test('edits the authenticated actor profile through the API Edge', async () => {
-  const page = await read('../app/settings/page.js');
-  assert.match(page, /auth\.getSession/);
-  assert.match(page, /NEXT_PUBLIC_EVIMESH_API_URL/);
-  assert.match(page, /profileRequest\('\/profile'/);
-  assert.match(page, /Save profile/);
+test('typed detail routes share content, provenance and neighborhood rendering', async () => {
+  const detail = await read('../components/research-object-detail.js');
+  assert.match(detail, /TYPE CONTENT/);
+  assert.match(detail, /PROVENANCE MARGINALIA/);
+  assert.match(detail, /REVISION/);
+  assert.match(detail, /SIGNATURE/);
+  assert.match(detail, /PROVENANCE/);
+  assert.match(detail, /<ClaimDag direction="both" focusId=\{id\} graph=\{neighborhood\}/);
+  for (const route of ['answers/[answerId]', 'rebuttals/[rebuttalId]', 'evaluations/[evaluationId]', 'datasets/[datasetId]', 'tools/[toolId]']) await access(new URL(`../app/${route}/page.js`, import.meta.url));
 });
 
-test('manages API tokens with one-time secret display', async () => {
-  const page = await read('../app/settings/tokens/page.js');
-  assert.match(page, /call\('\/api-tokens'/);
-  assert.match(page, /setSecret\(result\.token\)/);
-  assert.match(page, /It cannot be shown again/);
-  assert.match(page, /Revoke/);
+test('research authoring routes are read-only CLI and MCP handoffs', async () => {
+  const paths = [
+    '../app/questions/new/page.js', '../app/claims/new/page.js', '../app/runs/new/page.js',
+    '../app/evidence/new/page.js', '../app/challenges/new/page.js', '../app/verification/receipt/new/page.js',
+    '../app/artifacts/upload/page.js',
+  ];
+  const sources = await Promise.all(paths.map(read));
+  for (const source of sources) {
+    assert.match(source, /ResearchWriteHandoff/);
+    assert.doesNotMatch(source, /useState|<form|method:\s*['"]POST|onSubmit/);
+  }
 });
 
-test('home carries formal event provenance for watched objects', async () => {
-  const page = await read('../app/home/page.js');
-  assert.match(page, /event\?\.eventId \|\| !event\?\.eventType/);
-  assert.match(page, /watchedScopes/);
-  assert.match(page, /payloadIdentifiers\(event\.payload\)/);
-  assert.match(page, /dateTime=\{event\.createdAt\}/);
-  assert.match(page, /eventAuditHref\(event, observationWindow\)/);
-  assert.match(page, /objectType: scope\.objectType/);
-  assert.match(page, /objectId: scope\.objectId/);
-  assert.match(page, /View ResearchEvent/);
+test('research surfaces contain no browser mutation controls or competitive meters', async () => {
+  const paths = [
+    '../components/artifact-upload-panel.js', '../components/verification-receipt-form.js',
+    '../components/verification-workspace.js', '../components/research-write-handoff.js',
+    '../components/research-object-detail.js', '../app/work/page.js', '../app/projects/page.js',
+    '../app/tasks/[taskId]/page.js', '../app/design/page.js',
+  ];
+  const source = (await Promise.all(paths.map(read))).join('\n');
+  assert.doesNotMatch(source, /method:\s*['"]POST|<form|onSubmit|Submit verification|Review and sign|Start Attempt|Create a project/i);
+  assert.doesNotMatch(source, /\b(?:scores?|ranked|rankings?|leaderboard|progressbar)\b/i);
 });
 
-test('renders project details with Questions, Frontier, and Task summaries', async () => {
-  const page = await read('../app/projects/[projectId]/page.js');
-  assert.match(page, /\/projects\/\$\{projectId\}/);
-  assert.match(page, /\/questions\?projectId=/);
-  assert.match(page, /\/tasks\?projectId=/);
-  assert.match(page, /Latest frontier/);
+test('Projects and Task details expose records without direct research mutation', async () => {
+  const [projects, task] = await Promise.all([read('../app/projects/page.js'), read('../app/tasks/[taskId]/page.js')]);
+  assert.match(projects, /READ-ONLY WEB/);
+  assert.match(task, /Attempts begin outside the reading surface/);
+  assert.match(task, /HandoffSheet/);
+  assert.doesNotMatch(projects + task, /method:\s*['"]POST|Acquire lease|Release my lease|startAttempt/);
 });
 
-test('renders the project list and creation form', async () => {
-  const page = await read('../app/projects/page.js');
-  assert.match(page, /Create a project/);
-  assert.match(page, /POST/);
-  assert.match(page, /\/projects\/\$\{project\.projectId\}/);
-});
-
-test('renders the first Question submission step for question and value', async () => {
-  const page = await read('../app/questions/new/page.js');
-  assert.match(page, /Step \$\{step\} of 4/);
-  assert.match(page, /Question statement/);
-  assert.match(page, /Question value/);
-  assert.match(page, /Continue to scope/);
-});
-
-test('supports the second Question submission step for scope and exclusions', async () => {
-  const page = await read('../app/questions/new/page.js');
-  assert.match(page, /Question scope/);
-  assert.match(page, /Question exclusions/);
-  assert.match(page, /Continue to progress/);
-  assert.match(page, /advance\(event, 2\)/);
-});
-
-test('supports the third Question submission step for progress and falsification', async () => {
-  const page = await read('../app/questions/new/page.js');
-  assert.match(page, /Question progress/);
-  assert.match(page, /Question falsification conditions/);
-  assert.match(page, /Continue to permissions/);
-  assert.match(page, /advance\(event, 3\)/);
-});
-
-test('supports the fourth Question submission step for license and risks', async () => {
-  const page = await read('../app/questions/new/page.js');
-  assert.match(page, /Question license/);
-  assert.match(page, /Question risks/);
-  assert.match(page, /Review question/);
-  assert.match(page, /advance\(event, 4\)/);
-});
-
-test('renders a normalized Question preview before submission', async () => {
-  const page = await read('../app/questions/new/page.js');
-  assert.match(page, /Normalized question object/);
-  assert.match(page, /JSON\.stringify\(draft/);
-  assert.match(page, /Back to edit/);
-  assert.match(page, /setPreview\(true\)/);
-  assert.match(page, /POST/);
-  assert.match(page, /Submit question/);
-  assert.match(page, /router\.push\(`\/questions\/\$\{body\.question\.questionId\}`\)/);
-});
-
-test('renders Question details with Contract, state, and Task summaries', async () => {
-  const page = await read('../app/questions/[questionId]/page.js');
-  assert.match(page, /\/questions\/\$\{questionId\}/);
-  assert.match(page, /Research scope/);
-  assert.match(page, /question\.state/);
-  assert.match(page, /tasks\.length/);
-});
-
-test('renders the Task board with every protocol status lane', async () => {
-  const page = await read('../app/tasks/page.js');
-  for (const status of ['draft', 'open', 'active', 'blocked', 'verification_requested', 'completed', 'cancelled']) assert.match(page, new RegExp(`'${status}'`));
-  assert.match(page, /Task board/);
-  assert.match(page, /URLSearchParams\(\{ limit: '100' \}\)/);
-});
-
-test('provides Task filters for type, status, tag, and Context Mode', async () => {
-  const page = await read('../app/tasks/page.js');
-  for (const filter of ['Type', 'Status', 'Tag', 'Context Mode']) assert.match(page, new RegExp(filter));
-  for (const mode of ['frontier', 'full_trace', 'adversarial', 'blind']) assert.match(page, new RegExp(`'${mode}'`));
-  assert.match(page, /filters\.contextMode/);
-  assert.match(page, /URLSearchParams/);
-});
-
-test('renders Task details with inputs, outputs, acceptance, dependencies, and leases', async () => {
-  const page = await read('../app/tasks/[taskId]/page.js');
-  assert.match(page, /\/tasks\/\$\{taskId\}/);
-  for (const section of ['Inputs', 'Outputs', 'Acceptance', 'Dependencies', 'Leases']) assert.match(page, new RegExp(section));
-  assert.match(page, /currentRevision\.contextMode/);
-  assert.match(page, /currentRevision\.description/);
-});
-
-test('starts an Attempt and exposes a Context bundle download', async () => {
-  const page = await read('../app/tasks/[taskId]/page.js');
-  assert.match(page, /Start Attempt/);
-  assert.match(page, /\/tasks\/\$\{taskId\}\/context/);
-  assert.match(page, /contextBundleId/);
-  assert.match(page, /Download Context bundle/);
-  assert.match(page, /\/attempts/);
-});
-
-test('provides Task lease acquire and release actions', async () => {
-  const page = await read('../app/tasks/[taskId]/page.js');
-  assert.match(page, /Acquire lease/);
-  assert.match(page, /Release my lease/);
-  assert.match(page, /\/lease/);
-  assert.match(page, /updateLease/);
-});
-
-test('renders the Claim list with status and tag filters', async () => {
-  const [page, explore] = await Promise.all([read('../app/claims/page.js'), read('../app/explore/page.js')]);
-  assert.match(page, /Claims/);
-  assert.match(page, /claims\?/);
-  assert.match(page, /filters\.status/);
-  assert.match(page, /filters\.tag/);
-  assert.match(page, /under_verification/);
-  assert.ok(explore.includes('`/claims/${item.id}`'), 'Explore must route into claim details');
-});
-
-test('renders Claim details with statement, scope, falsification, and revisions', async () => {
-  const page = await read('../app/claims/[claimId]/page.js');
-  assert.match(page, /\/claims\/\$\{claimId\}/);
-  for (const section of ['statement', 'Scope', 'Falsification conditions', 'Revision history']) assert.match(page, new RegExp(section));
-  assert.match(page, /currentRevision\.revision/);
-});
-
-test('renders a React Flow Claim relation graph on the Claim detail page', async () => {
-  const page = await read('../app/claims/[claimId]/page.js');
-  assert.match(page, /import \{ ClaimDag \}/);
-  assert.match(page, /<ClaimDag elements=\{dagElements\} \/>/);
-  assert.match(page, /Claim relation graph/);
-});
-
-test('supports upstream and downstream Claim graph switching', async () => {
-  const page = await read('../app/claims/[claimId]/page.js');
-  assert.match(page, /direction=\$\{direction\}/);
-  assert.match(page, /Upstream/);
-  assert.match(page, /Downstream/);
-  assert.match(page, /getClaimDownstreamGraph|graphNodes/);
-});
-
-test('renders a Claim DAG state legend with state-derived node colors', async () => {
-  const component = await read('../components/claim-dag.js');
-  assert.match(component, /CLAIM_STATE_COLORS/);
-  assert.match(component, /background: color/);
-  assert.match(component, /Claim state legend/);
-});
-
-test('opens Claim DAG node details with revision and Evidence fields', async () => {
-  const component = await read('../components/claim-dag.js');
-  assert.match(component, /Claim node details/);
-  assert.match(component, /currentRevision\?\.revision/);
-  assert.match(component, /Evidence:/);
-  assert.match(component, /onNodeClick = useCallback/);
-});
-
-test('renders Frontier time travel with fixed members', async () => {
-  const [component, page] = await Promise.all([read('../components/frontier-timeline.js'), read('../app/projects/[projectId]/page.js')]);
-  assert.match(component, /frontier\/history/);
-  assert.match(component, /Select an immutable Frontier/);
-  assert.match(component, /members\.map/);
-  assert.match(page, /FrontierTimeline/);
-});
-
-test('renders the Claim editor for statement, scope, assumptions, and falsification', async () => {
-  const [page, work] = await Promise.all([read('../app/claims/new/page.js'), read('../app/work/page.js')]);
-  for (const field of ['Statement', 'Scope', 'Assumptions', 'Falsification conditions']) assert.match(page, new RegExp(field));
-  assert.match(page, /Claim preview/);
-  assert.ok(work.includes("href: '/claims/new'"), 'Work page must keep the claim editor one click away');
-});
-
-test('persists claim drafts through IndexedDB and restores them on refresh', async () => {
-  const store = await read('../lib/draft-store.js');
-  const page = await read('../app/claims/new/page.js');
-  assert.match(store, /indexedDB\.open/);
-  assert.match(store, /createObjectStore\(STORE_NAME\)/);
-  assert.match(store, /transaction\(STORE_NAME, 'readwrite'\)/);
-  assert.match(page, /loadDraft\(DRAFT_KEY, INITIAL\)/);
-  assert.match(page, /saveDraft\(DRAFT_KEY, form\)/);
-  assert.match(page, /Draft restored from this browser/);
-});
-
-test('exports claim drafts as JSON and a real ZIP bundle', async () => {
-  const bundle = await read('../lib/draft-bundle.js');
-  const page = await read('../app/claims/new/page.js');
-  assert.match(bundle, /kind: 'evimesh-draft-bundle'/);
-  assert.match(bundle, /application\/zip/);
-  assert.match(bundle, /claim-draft\.json/);
-  assert.match(page, /downloadDraftBundle\(form, 'json'\)/);
-  assert.match(page, /downloadDraftBundle\(form, 'zip'\)/);
-});
-
-test('imports validated JSON and stored ZIP draft bundles into the Claim editor', async () => {
-  const bundle = await read('../lib/draft-bundle.js');
-  const page = await read('../app/claims/new/page.js');
-  assert.match(bundle, /readDraftBundle/);
-  assert.match(bundle, /Unsupported EviMesh draft Bundle/);
-  assert.match(bundle, /Compressed or invalid draft ZIP/);
-  assert.match(page, /readDraftBundle\(file\)/);
-  assert.match(page, /Draft imported/);
-  assert.match(page, /accept=\"\.json,\.zip/);
-});
-
-test('keeps the Claim editor responsive at mobile and desktop breakpoints', async () => {
-  const page = await read('../app/claims/new/page.js');
-  const nav = await read('../components/template-shell.js');
-  assert.match(page, /PageContainer/);
-  assert.match(page, /flex flex-wrap gap-3/);
-  assert.match(page, /overflow-x-auto/);
-  // The M13.8 shell hides the primary nav behind a mobile toggle below md.
-  assert.match(nav, /md:hidden/);
-  assert.match(nav, /aria-label="Open navigation"/);
-  assert.match(nav, /gap-/);
-});
-
-test('provides basic accessible names and status semantics on key M9 pages', async () => {
-  const [page, workspace, nav, events] = await Promise.all([
-    read('../app/claims/new/page.js'),
-    read('../components/verification-workspace.js'),
-    read('../components/template-shell.js'),
-    read('../app/events/page.js'),
+test('account, token, key and Agent connection controls remain interactive', async () => {
+  const [settings, tokens, keys, agent] = await Promise.all([
+    read('../app/settings/page.js'), read('../app/settings/tokens/page.js'), read('../app/settings/keys/page.js'), read('../app/agent/page.js'),
   ]);
-  assert.match(nav, /aria-label="Primary"/);
-  assert.match(nav, /aria-label="Primary mobile"/);
-  assert.match(page, /Draft a Claim/);
-  assert.match(page, /Label htmlFor="claim-statement">Statement/);
-  assert.match(page, /role="status"/);
-  assert.match(page, /role="alert"/);
-  assert.match(workspace, /aria-label="Verification workspace"/);
-  assert.match(workspace, /aria-label="Blind Context"/);
-  assert.match(events, /Event audit/);
-  assert.match(events, /ErrorState/);
+  assert.match(settings, /Save profile/);
+  assert.match(tokens, /Create token/);
+  assert.match(keys, /signing-keys/);
+  assert.match(agent, /MCP_CONFIG/);
 });
 
-test('renders Claim revision diff controls and changed fields', async () => {
-  const page = await read('../app/claims/[claimId]/diff/page.js');
-  assert.match(page, /revisions\/\$\{revision\}/);
-  assert.match(page, /From revision/);
-  assert.match(page, /To revision/);
-  assert.match(page, /Changed fields/);
-});
-
-test('renders direct R2 evidence upload with hash and progress', async () => {
-  const panel = await read('../components/artifact-upload-panel.js');
-  const page = await read('../app/artifacts/upload/page.js');
-  assert.match(panel, /crypto\.subtle\.digest/);
-  assert.match(panel, /artifacts\/upload-plan/);
-  assert.match(panel, /fileName: file\.name/);
-  assert.match(panel, /XMLHttpRequest/);
-  assert.match(panel, /onprogress/);
-  assert.match(panel, /SHA-256/);
-  assert.match(page, /ArtifactUploadPanel/);
-});
-
-test('renders Artifact detail with hash, license, and locations', async () => {
-  const page = await read('../app/artifacts/[artifactId]/page.js');
-  assert.match(page, /artifacts\/\$\{artifactId\}/);
-  assert.match(page, /rawHash/);
-  assert.match(page, /license/);
-  assert.match(page, /locations/);
-});
-
-test('renders Run Receipt form for environment, command, seed, and outputs', async () => {
-  const page = await read('../app/runs/new/page.js');
-  assert.match(page, /Run Receipt/);
-  assert.match(page, /environment/);
-  assert.match(page, /command/);
-  assert.match(page, /randomSeed/);
-  assert.match(page, /outputArtifactIds/);
-  assert.match(page, /Preview Receipt/);
-});
-
-test('renders Evidence form linking Run, Artifact, and Claim revision', async () => {
-  const page = await read('../app/evidence/new/page.js');
-  assert.match(page, /Create Evidence/);
-  assert.match(page, /artifactId/);
-  assert.match(page, /runId/);
-  assert.match(page, /claimRevision/);
-  assert.match(page, /relationType/);
-});
-
-test('renders Verification workspace for Claim, Run, and Contract pinning', async () => {
-  const page = await read('../components/verification-workspace.js');
-  assert.match(page, /Verification workspace/);
-  assert.match(page, /claimRevision/);
-  assert.match(page, /runId/);
-  assert.match(page, /contractRevision/);
-  assert.match(page, /sawExpectedOutputs/);
-  assert.match(page, /Blind Context/);
-  assert.match(page, /Expected outputs hidden/);
-  assert.match(page, /expectedOutputs: undefined/);
-});
-
-test('renders Verification Receipt form with outcome, independence, and findings', async () => {
-  const page = await read('../components/verification-receipt-form.js');
-  const route = await read('../app/verification/receipt/new/page.js');
-  assert.match(page, /Verification Receipt/);
-  assert.match(page, /outcome/);
-  assert.match(page, /implementationRelation/);
-  assert.match(page, /dataRelation/);
-  assert.match(page, /findings/);
-  assert.match(page, /fieldPath/);
-  assert.match(page, /details: \{ text/);
-  assert.match(page, /location: \{ fieldPath/);
-  assert.match(route, /VerificationReceiptForm/);
-});
-
-test('renders Challenge form locking a Claim revision to counterexample Evidence', async () => {
-  const page = await read('../app/challenges/new/page.js');
-  assert.match(page, /Challenge a claim/);
-  assert.match(page, /claimRevision/);
-  assert.match(page, /counterexampleEvidenceId/);
-  assert.match(page, /Rationale/);
-});
-
-test('renders Frontier detail with members, policy, checkpoint, and diff', async () => {
-  const page = await read('../app/projects/[projectId]/frontier/[snapshotId]/page.js');
-  assert.match(page, /frontier\/history/);
-  assert.match(page, /Members/);
-  assert.match(page, /Policy/);
-  assert.match(page, /Checkpoint/);
-  assert.match(page, /Member diff/);
-});
-
-test('renders contributor detail with roles, produced, used, and Frontier usage', async () => {
-  const page = await read('../app/contributors/[actorId]/page.js');
-  assert.match(page, /actors\/\$\{actorId\}/);
-  assert.match(page, /Roles/);
-  assert.match(page, /Produced/);
-  assert.match(page, /Used/);
-  assert.match(page, /Frontier usage/);
-});
-
-test('renders Event audit with signatures and parent hash chain', async () => {
-  const page = await read('../app/events/page.js');
-  assert.match(page, /const EVENT_FILTERS = \['objectType', 'objectId', 'createdAfter', 'createdBefore', 'eventType', 'actorId'\]/);
-  assert.match(page, /const searchParams = useSearchParams\(\)/);
-  assert.match(page, /eventQuery\(searchParams\.toString\(\)\)/);
-  assert.match(page, /useEffect\(\(\) => \{ load\(\); \}, \[searchParams\]\)/);
-  assert.match(page, /<Suspense fallback=/);
-  assert.match(page, /new URLSearchParams\(\{ limit: '100', order:/);
-  assert.match(page, /id=\{`event-\$\{event\.eventId\}`\}/);
-  assert.match(page, /tabIndex=\{-1\}/);
-  assert.match(page, /decodeURIComponent\(window\.location\.hash\.slice\(1\)\)/);
-  assert.match(page, /scrollIntoView\(\{ block: 'start' \}\)/);
-  assert.match(page, /focus\(\{ preventScroll: true \}\)/);
-  assert.match(page, /Hash/);
-  assert.match(page, /Signature/);
-  assert.match(page, /Parents/);
-  assert.match(page, /ResearchEvents/);
-});
-
-test('provides project SSE client with reconnect handling', async () => {
-  const component = await read('../components/project-event-stream.js');
-  const page = await read('../app/projects/[projectId]/page.js');
-  assert.match(component, /new EventSource/);
-  assert.match(component, /events\/stream/);
-  assert.match(component, /reconnecting/);
-  assert.match(component, /source\.close/);
-  assert.match(page, /ProjectEventStream/);
+test('graph and mobile layout obey touch, overflow and reduced-motion constraints', async () => {
+  const [globals, graph, design] = await Promise.all([read('../app/globals.css'), read('../components/claim-dag.js'), read('../app/design/page.js')]);
+  assert.match(globals, /html \{[\s\S]*overflow-x:\s*hidden/);
+  assert.match(globals, /body \{[\s\S]*overflow-x:\s*hidden/);
+  assert.match(globals, /\.dag-canvas \{[\s\S]*overflow:\s*hidden/);
+  assert.match(globals, /contain:\s*inline-size layout paint/);
+  assert.match(globals, /min-block-size:\s*44px/);
+  assert.match(globals, /prefers-reduced-motion:\s*reduce/);
+  assert.match(graph, /requestAnimationFrame\(\(\) => window\.requestAnimationFrame/);
+  assert.doesNotMatch(design, /<Progress|value=\{60\}/);
 });

@@ -76,7 +76,7 @@ export function Badge({ variant = 'default', className, icon: IconOverride, chil
 
 /*
  * Protocol state -> badge variant (design book 02 protocol semantic map).
- * Counts and states are entry points, never scores.
+ * Counts and states open attributable records.
  */
 const STATUS_VARIANTS = {
   /* Claim lifecycle */

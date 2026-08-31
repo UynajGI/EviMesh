@@ -1,0 +1,4 @@
+[
+  { "schema": "srp.rebuttal.v0" },
+  { "schema": "srp.rebuttal.v1", "rebuttal_id": "rebuttal_invalid" }
+]

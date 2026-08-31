@@ -53,7 +53,7 @@ function relativeTime(value) {
 /*
  * Research workspace (M13.8 05-core-ui-spec.md §5): one question, six
  * URL-independent protocol views. Claims form a DAG, never a tree; counts are
- * entry points, never scores.
+ * entry points into exact linked records.
  */
 export default function QuestionDetailPage({ params }) {
   const [questionId, setQuestionId] = useState(null);
@@ -477,7 +477,7 @@ export default function QuestionDetailPage({ params }) {
       {view === 'evidence' ? (
         <section className="mt-6" aria-labelledby="evidence-heading">
           <h2 className="mb-1 text-lg font-semibold" id="evidence-heading">Evidence</h2>
-          <p className="mb-4 max-w-2xl text-sm text-muted-foreground">Links target exact claim revisions; grouped counts are navigation, not a score.</p>
+          <p className="mb-4 max-w-2xl text-sm text-muted-foreground">Links target exact claim revisions; grouped counts open those records.</p>
           {evidence === 'loading' ? <Skeleton className="h-40 w-full" /> : evidence === null || evidence.length === 0 ? (
             <Empty title="No evidence linked yet" description="Evidence attached to this question's claims will appear here, grouped by relation." />
           ) : (

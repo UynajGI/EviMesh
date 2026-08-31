@@ -119,7 +119,7 @@ export function LandingExample({ fallback }) {
           ))}
         </ul>
         <p className="mt-4 text-sm text-muted-foreground">
-          Counts are entry points, never scores. Every number opens onto the exact revision, receipt, or event behind it.
+          Every count opens onto the exact revision, receipt, or event behind it.
         </p>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-5 py-3">

@@ -18,7 +18,8 @@ test("design route map has canonical public people and agent activity routes", a
   assert.match(agent, /\/actors\//);
   assert.match(agent, /\/events\?actorId=/);
   assert.match(agent, /Self-declared, not verified/);
-  assert.match(explore, /actorHref\(entry\.actorId, entry\.actorType\)/);
+  assert.match(explore, /path: '\/answers\?limit=40'/);
+  assert.match(explore, /path: '\/datasets\?limit=40'/);
   assert.match(attribution, /actorType === 'agent'/);
   assert.match(attribution, /return `\/agents\/\$\{encoded\}`/);
   assert.match(attribution, /return `\/contributors\/\$\{encoded\}`/);
@@ -61,14 +62,15 @@ test("agent activity keeps public output attributable and avoids scoring languag
 test("design inventory primitives expose semantic stream, role, and stepper blocks", async () => {
   const [change, role, agent, notifications, attribution] = await Promise.all([
     read("../components/change-item.js"),
-    read("../components/role-bar.js"),
+    read("../components/role-directory.js"),
     read("../app/agent/page.js"),
     read("../app/notifications/page.js"),
     read("../components/attribution.js"),
   ]);
   assert.match(change, /changeitem__icon/);
-  assert.match(role, /rolebar__seg--/);
-  assert.match(role, /aria-label={`Contribution roles/);
+  assert.match(role, /role-directory/);
+  assert.match(role, /recorded role/);
+  assert.doesNotMatch(role, /percentage|style=|role="progressbar"|role="img"/i);
   assert.match(agent, /className="stepper/);
   assert.match(notifications, /aria-controls={`notifications-panel-/);
   assert.match(notifications, /role="tabpanel"/);

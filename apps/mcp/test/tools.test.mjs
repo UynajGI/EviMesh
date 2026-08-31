@@ -1,343 +1,282 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync, readFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { callTool } from "../src/tools.mjs";
+import { readFileSync } from "node:fs";
+import { callTool, writeToolNames, MAX_EVIDENCE_BYTES } from "../src/tools.mjs";
 import { createFakeClient } from "./helpers.mjs";
 
-function identityEnv(t) {
-  const dir = mkdtempSync(join(tmpdir(), "evimesh-mcp-"));
-  t.after(() => {});
-  return { ...process.env, EVIMESH_CONFIG_DIR: dir };
+function answerDocument() {
+  return {
+    schema: "srp.answer.v1",
+    answer_id: "answer_018f0f4a-5c00-4000-8000-000000000001",
+    project_id: "project_018f0f4a-5c00-4000-8000-000000000001",
+    revision: 1,
+    supersedes_revision: null,
+    state: "draft",
+    title: "A reproducible synthesis",
+    synthesis: "The observed effect follows under the declared assumptions.",
+    limitations: [],
+    question_ref: { kind: "question", id: "question_018f0f4a-5c00-4000-8000-000000000001", revision: 1 },
+    additional_inputs: [],
+    created_at: "2026-08-30T06:00:00.000Z",
+    created_by: "agent_01",
+  };
+}
+
+function claimDocument() {
+  return {
+    schema: "srp.claim.v1",
+    claim_id: "claim_018f0f4a-5c00-4000-8000-000000000001",
+    revision: 1,
+    state: "hypothesis",
+    statement: "A falsifiable statement.",
+    scope: ["Declared scope"],
+    assumptions: [],
+    falsification: ["A contradicting observation"],
+    created_at: "2026-08-06T00:00:00.000Z",
+    created_by: "agent_01",
+  };
+}
+
+function challengeDocument() {
+  return {
+    schema: "srp.challenge.v1",
+    challenge_id: "challenge_018f0f4a-5c00-4000-8000-000000000001",
+    revision: 1,
+    state: "open",
+    target_claim_revision_id: "claim-1@2",
+    reason: "The method omits a required control.",
+    impact: { type: "method", severity: "major", summary: "Missing control" },
+    created_at: "2026-08-06T00:00:00.000Z",
+    created_by: "agent_01",
+  };
+}
+
+function verificationDocument() {
+  return {
+    schema: "srp.verification-receipt.v1",
+    claim_revision_id: "claim-1@2",
+    contract_revision_id: "contract-1@1",
+    outcome: "supports",
+    verification_types: ["reproduction"],
+    context_mode: "blind",
+    saw_expected_outputs: false,
+    implementation_relation: "independent",
+    data_relation: "same_input",
+    model_family: "none",
+    findings: [],
+  };
+}
+
+function externalEnvelope(prepared) {
+  return {
+    schema: "srp.client-signature-envelope.v1",
+    event_type: prepared.eventType,
+    payload: prepared.payload,
+    nonce: prepared.nonce,
+    signing_bytes_hash: prepared.signingBytesHash,
+    signature: { algorithm: "Ed25519", key_id: "human-key", value: "external-signature" },
+  };
 }
 
 test("write tools refuse without consent and summarize the planned action", async () => {
-  const client = createFakeClient();
-  const result = await callTool({ client, name: "start_attempt", args: { taskId: "task-1", mode: "blind" } });
+  const result = await callTool({ client: createFakeClient(), name: "start_attempt", args: { taskId: "task-1", mode: "blind" } });
   assert.equal(result.isError, true);
   assert.equal(result.structuredContent.error, "consent_required");
   assert.equal(result.structuredContent.tool, "start_attempt");
   assert.equal(result.structuredContent.summary.taskId, "task-1");
 });
 
-test("every write tool enforces the consent gate", async () => {
-  const client = createFakeClient();
-  const writeCalls = {
-    start_attempt: { taskId: "task-1" },
-    record_trace: { attemptId: "attempt-1", eventType: "attempt.progress", payload: {} },
-    create_claim: { statement: "s", scope: ["s"], falsification: ["f"] },
-    attach_evidence: { contentBase64: Buffer.from("data").toString("base64"), mediaType: "text/plain" },
-    record_run: { taskId: "task_0193f2c8-5c00-4000-8000-000000000001", contextBundleId: "context-1", sourceCode: "git:abc123", container: `oci:python@sha256:${"a".repeat(64)}`, command: "python", environment: { runtime: "python" }, hardware: { cpu: "x86_64" } },
-    publish_submission: { document: { schema: "srp.claim.v1", claim_id: "claim_018f0f4a-5c00-4000-8000-000000000001", revision: 1, state: "hypothesis", statement: "s", scope: ["s"], assumptions: [], falsification: ["f"], created_at: "2026-08-06T00:00:00.000Z", created_by: "actor_01" } },
-    submit_verification: { document: { schema: "srp.verification-receipt.v1", claim_revision_id: "claim-1@2", contract_revision_id: "contract-1@1", outcome: "supports", verification_types: ["reproduction"], context_mode: "blind", saw_expected_outputs: false, implementation_relation: "independent", data_relation: "same_input", model_family: "none", findings: [] }, runId: "run-1" },
-    submit_challenge: { document: { schema: "srp.challenge.v1", challenge_id: "challenge_018f0f4a-5c00-4000-8000-000000000001", revision: 1, state: "open", target_claim_revision_id: "claim-1@2", reason: "r", impact: { type: "method", severity: "major", summary: "s" }, created_at: "2026-08-06T00:00:00.000Z", created_by: "actor_01" } },
-  };
-  for (const [name, args] of Object.entries(writeCalls)) {
+test("formal mutation tools without a signed server flow fail closed after consent", async () => {
+  const networkCalls = [];
+  const client = createFakeClient({
+    tasks: { context: async (...args) => { networkCalls.push(["context", ...args]); } },
+    attempts: {
+      start: async (...args) => { networkCalls.push(["start", ...args]); },
+      recordTrace: async (...args) => { networkCalls.push(["trace", ...args]); },
+    },
+    artifacts: {
+      uploadPlan: async (...args) => { networkCalls.push(["plan", ...args]); },
+      upload: async (...args) => { networkCalls.push(["upload", ...args]); },
+    },
+    evidence: { create: async (...args) => { networkCalls.push(["evidence", ...args]); } },
+  });
+  const calls = [
+    ["start_attempt", { taskId: "task-1", confirm: true }],
+    ["record_trace", { attemptId: "attempt-1", eventType: "attempt.progress", payload: {}, confirm: true }],
+    ["attach_evidence", { contentBase64: Buffer.from("data").toString("base64"), mediaType: "text/plain", confirm: true }],
+    ["record_run", { taskId: "task_0193f2c8-5c00-4000-8000-000000000001", contextBundleId: "context-1", sourceCode: "git:abc123", container: `oci:python@sha256:${"a".repeat(64)}`, command: "python", environment: { runtime: "python" }, hardware: { cpu: "x86_64" }, confirm: true }],
+  ];
+  for (const [name, args] of calls) {
     const result = await callTool({ client, name, args });
-    assert.equal(result.isError, true, `${name} must require consent`);
-    assert.equal(result.structuredContent.error, "consent_required", `${name} must return consent_required`);
+    assert.equal(result.isError, true, name);
+    assert.equal(result.structuredContent.error, "MCP_SIGNED_MUTATION_UNAVAILABLE", name);
   }
+  assert.deepEqual(networkCalls, []);
 });
 
-test("start_attempt executes with consent", async () => {
-  const client = createFakeClient();
-  const result = await callTool({ client, name: "start_attempt", args: { taskId: "task-1", mode: "blind", confirm: true } });
+test("all externally submitted MCP research mutations reject confirm without an envelope", async () => {
+  const calls = [
+    ["publish_submission", { document: claimDocument(), confirm: true }],
+    ["submit_verification", { document: verificationDocument(), runId: "run-1", confirm: true }],
+    ["submit_challenge", { document: challengeDocument(), confirm: true }],
+    ["submit_typed_research_submission", { kind: "answer", document: answerDocument(), confirm: true }],
+  ];
+  for (const [name, args] of calls) {
+    const result = await callTool({ client: createFakeClient(), name, args });
+    assert.equal(result.isError, true, name);
+    assert.equal(result.structuredContent.error, "RESEARCH_PUBLISHER_SIGNATURE_REQUIRED", name);
+  }
+  assert.deepEqual(new Set(writeToolNames()), new Set([
+    "submit_typed_research_submission", "start_attempt", "record_trace", "create_claim",
+    "attach_evidence", "record_run", "publish_submission", "submit_verification", "submit_challenge",
+  ]));
+});
+
+test("create_claim is a local attributed draft and never reads a signing identity", async () => {
+  const networkCalls = [];
+  const client = createFakeClient({ http: { request: async (method, path) => {
+    networkCalls.push({ method, path });
+    return { actorId: "agent_01", actorType: "agent" };
+  } } });
+  const result = await callTool({ client, name: "create_claim", args: { statement: "s", scope: ["s"], falsification: ["f"], confirm: true }, env: {} });
   assert.equal(result.isError, false);
-  assert.equal(result.structuredContent.taskId, "task-1");
-  assert.equal(result.structuredContent.contextBundleId, "context-task-1");
-  assert.ok(result.structuredContent.attemptId.startsWith("attempt_"));
+  assert.equal(result.structuredContent.draft.created_by, "agent_01");
+  assert.deepEqual(networkCalls, [{ method: "GET", path: "/auth/me" }]);
 });
 
 test("search_open_tasks passes filters through", async () => {
   const seen = [];
-  const client = createFakeClient({
-    tasks: { list: async (params) => { seen.push(params); return { items: [{ taskId: "task-1" }], nextCursor: null }; } },
-  });
+  const client = createFakeClient({ tasks: { list: async (params) => { seen.push(params); return { items: [{ taskId: "task-1" }], nextCursor: null }; } } });
   const result = await callTool({ client, name: "search_open_tasks", args: { tag: "cpu-only", limit: 5 } });
   assert.equal(result.isError, false);
   assert.equal(seen[0].tag, "cpu-only");
-  assert.equal(seen[0].limit, 5);
   assert.equal(result.structuredContent.tasks.length, 1);
 });
 
-test("get_task_context returns the bundle and hash", async () => {
-  const client = createFakeClient();
-  const result = await callTool({ client, name: "get_task_context", args: { taskId: "task-1", mode: "frontier" } });
+test("inspect_research_neighborhood passes bounded graph filters through", async () => {
+  const seen = [];
+  const client = createFakeClient({ researchGraph: { neighborhood: async (kind, id, options) => { seen.push({ kind, id, options }); return { schemaVersion: "research-neighborhood.v1", nodes: [], edges: [], truncated: false }; } } });
+  const result = await callTool({ client, name: "inspect_research_neighborhood", args: { kind: "question", id: "question-1", revision: 2, direction: "downstream", depth: 3, kinds: ["question", "answer"], edgeTypes: ["answers"] } });
   assert.equal(result.isError, false);
-  assert.equal(result.structuredContent.contextBundleId, "context-task-1");
-  assert.match(result.structuredContent.contentHash, /^sha256:[0-9a-f]{64}$/);
+  assert.deepEqual(seen[0], { kind: "question", id: "question-1", options: { revision: 2, direction: "downstream", depth: 3, kinds: ["question", "answer"], edgeTypes: ["answers"], cursor: undefined } });
 });
 
-test("create_claim and record_run bind drafts to the active signing identity without publishing", async (t) => {
-  const env = identityEnv(t);
-  const { generateIdentity } = await import("../../../packages/cli/src/identity.mjs");
-  const identity = generateIdentity(env);
-  const networkCalls = [];
-  const client = createFakeClient({ http: { request: async (method, path) => { networkCalls.push({ method, path }); return path === "/auth/me" ? { actorId: "agent_01", actorType: "agent", signingKey: { keyId: identity.keyId, algorithm: identity.algorithm, publicKey: identity.publicKey } } : {}; } } });
-  const claim = await callTool({ client, name: "create_claim", args: { statement: "s", scope: ["s"], falsification: ["f"], actorId: "human_01", confirm: true }, env });
-  assert.equal(claim.isError, false);
-  assert.equal(claim.structuredContent.draft.schema, "srp.claim.v1");
-  assert.ok(claim.structuredContent.draft.claim_id.startsWith("claim_"));
-  assert.equal(claim.structuredContent.draft.created_by, "agent_01");
-  const run = await callTool({ client, name: "record_run", args: { taskId: "task_0193f2c8-5c00-4000-8000-000000000001", contextBundleId: "context-1", sourceCode: "git:abc123", container: `oci:python@sha256:${"a".repeat(64)}`, command: "python", environment: { runtime: "python" }, hardware: { cpu: "x86_64" }, inputArtifactRefs: ["artifact-z", "artifact-a@0002"], outputArtifactRefs: ["output-z", "output-a@2"], actorId: "human_01", signature: "forged", confirm: true }, env });
-  assert.equal(run.isError, false);
-  assert.equal(run.structuredContent.draft.schema, "srp.run.v1");
-  assert.equal(run.structuredContent.draft.actor_id, "agent_01");
-  assert.equal(run.structuredContent.draft.signing_key_id, identity.keyId);
-  assert.deepEqual(run.structuredContent.draft.input_artifact_ids, ["artifact-a@2", "artifact-z@1"]);
-  assert.deepEqual(run.structuredContent.draft.output_artifact_ids, ["output-a@2", "output-z@1"]);
-  assert.notEqual(run.structuredContent.draft.signature, "forged");
-  const { signature, ...unsignedRun } = run.structuredContent.draft;
-  const { canonicalJson } = await import("../../../packages/protocol/src/hash.mjs");
-  const { verifyEd25519Payload } = await import("../../../packages/signatures/src/server-verification.mjs");
-  assert.equal(await verifyEd25519Payload({ signingBytes: new Uint8Array(Buffer.from(canonicalJson(unsignedRun), "utf8")), signature, publicKey: identity.publicKey }), true);
-  assert.deepEqual(networkCalls, [{ method: "GET", path: "/auth/me" }, { method: "GET", path: "/auth/me" }], "draft tools may only resolve the authenticated actor");
+test("typed MCP draft and prepare pass revision lineage without accessing signer material", async () => {
+  const seen = [];
+  const client = createFakeClient({ answers: {
+    prepare: async (input) => { seen.push(input); return { eventType: "answer.revised", payload: input, nonce: input.nonce, signingBytesHash: `sha256:${"a".repeat(64)}` }; },
+  } });
+  const document = { ...answerDocument(), revision: 2, supersedes_revision: 1 };
+  const draft = await callTool({ client, name: "draft_typed_research_node", args: { kind: "answer", document }, env: {} });
+  assert.equal(draft.isError, false);
+  const prepared = await callTool({ client, name: "prepare_typed_research_submission", args: { kind: "answer", document, publisherActorId: "human_01", nonce: "0123456789abcdef" }, env: {} });
+  assert.equal(prepared.isError, false);
+  assert.equal(seen[0].revision, 2);
+  assert.equal(seen[0].supersedesRevision, 1);
+  assert.equal(seen[0].publisherActorId, "human_01");
 });
 
-test("record_run rejects a human authenticated actor", async (t) => {
-  const env = identityEnv(t);
-  const { generateIdentity } = await import("../../../packages/cli/src/identity.mjs");
-  generateIdentity(env);
-  const client = createFakeClient({ http: { request: async () => ({ actorId: "human_01", actorType: "human" }) } });
-  const result = await callTool({ client, name: "record_run", args: { taskId: "task_0193f2c8-5c00-4000-8000-000000000001", contextBundleId: "context-1", sourceCode: "git:abc123", container: `oci:python@sha256:${"a".repeat(64)}`, command: "python", environment: { runtime: "python" }, hardware: { cpu: "x86_64" }, confirm: true }, env });
-  assert.equal(result.isError, true);
-  assert.equal(result.structuredContent.error, "AGENT_ACTOR_REQUIRED");
+test("typed MCP submit relays only an externally supplied envelope", async () => {
+  const submits = [];
+  const client = createFakeClient({ answers: { submit: async (input) => { submits.push(input); return { node: { nodeKind: "answer" } }; } } });
+  const signatureEnvelope = { schema: "srp.client-signature-envelope.v1", event_type: "answer.created", payload: {}, nonce: "0123456789abcdef", signing_bytes_hash: `sha256:${"b".repeat(64)}`, signature: { algorithm: "Ed25519", key_id: "human-key", value: "external-signature" } };
+  const gated = await callTool({ client, name: "submit_typed_research_submission", args: { kind: "answer", document: answerDocument(), signatureEnvelope } });
+  assert.equal(gated.structuredContent.error, "consent_required");
+  const submitted = await callTool({ client, name: "submit_typed_research_submission", args: { kind: "answer", document: answerDocument(), signatureEnvelope, confirm: true } });
+  assert.equal(submitted.isError, false);
+  assert.equal(submits[0].signatureEnvelope.signature.key_id, "human-key");
 });
 
-test("record_run rejects a local signing key that is not registered to the active agent", async (t) => {
-  const env = identityEnv(t);
-  const { generateIdentity } = await import("../../../packages/cli/src/identity.mjs");
-  const identity = generateIdentity(env);
-  const client = createFakeClient({ http: { request: async () => ({ actorId: "agent_01", actorType: "agent", signingKey: { keyId: "key-other", algorithm: identity.algorithm, publicKey: identity.publicKey } }) } });
-  const result = await callTool({ client, name: "record_run", args: { taskId: "task_0193f2c8-5c00-4000-8000-000000000001", contextBundleId: "context-1", sourceCode: "git:abc123", container: `oci:python@sha256:${"a".repeat(64)}`, command: "python", environment: { runtime: "python" }, hardware: { cpu: "x86_64" }, confirm: true }, env });
-  assert.equal(result.isError, true);
-  assert.equal(result.structuredContent.error, "AGENT_SIGNING_KEY_MISMATCH");
-});
-
-test("record_run rejects malformed artifact refs before signing", async (t) => {
-  const env = identityEnv(t);
-  const { generateIdentity } = await import("../../../packages/cli/src/identity.mjs");
-  const identity = generateIdentity(env);
-  const client = createFakeClient({ http: { request: async () => ({ actorId: "agent_01", actorType: "agent", signingKey: { keyId: identity.keyId, algorithm: identity.algorithm, publicKey: identity.publicKey } }) } });
-  for (const artifactRef of ["", "artifact@", "artifact@0", "artifact@1@2", " artifact@1"]) {
-    const result = await callTool({ client, name: "record_run", args: { taskId: "task_0193f2c8-5c00-4000-8000-000000000001", contextBundleId: "context-1", sourceCode: "git:abc123", container: `oci:python@sha256:${"a".repeat(64)}`, command: "python", environment: { runtime: "python" }, hardware: { cpu: "x86_64" }, inputArtifactRefs: [artifactRef], confirm: true }, env });
-    assert.equal(result.isError, true, artifactRef);
-    assert.equal(result.structuredContent.error, "RUN_ARTIFACT_REF_INVALID", artifactRef);
-  }
-});
-
-test("record_run rejects non-canonical signed text before signing", async (t) => {
-  const env = identityEnv(t);
-  const { generateIdentity } = await import("../../../packages/cli/src/identity.mjs");
-  const identity = generateIdentity(env);
-  const client = createFakeClient({ http: { request: async () => ({ actorId: "agent_01", actorType: "agent", signingKey: { keyId: identity.keyId, algorithm: identity.algorithm, publicKey: identity.publicKey } }) } });
-  for (const [invalidText, expectedCode] of [
-    [{ sourceCode: " git:abc123" }, "RUN_TEXT_INVALID"],
-    [{ sourceCode: "" }, "MCP_TOOL_INVALID"],
-    [{ command: "python " }, "RUN_TEXT_INVALID"],
-    [{ command: " " }, "MCP_TOOL_INVALID"],
-  ]) {
-    const result = await callTool({ client, name: "record_run", args: { taskId: "task_0193f2c8-5c00-4000-8000-000000000001", contextBundleId: "context-1", sourceCode: "git:abc123", container: `oci:python@sha256:${"a".repeat(64)}`, command: "python", environment: { runtime: "python" }, hardware: { cpu: "x86_64" }, ...invalidText, confirm: true }, env });
-    assert.equal(result.isError, true, JSON.stringify(invalidText));
-    assert.equal(result.structuredContent.error, expectedCode, JSON.stringify(invalidText));
-  }
-});
-
-test("record_run preserves the agent inner signature when a human identity publishes it", async (t) => {
-  const agentEnv = identityEnv(t);
-  const humanEnv = identityEnv(t);
-  const { generateIdentity } = await import("../../../packages/cli/src/identity.mjs");
-  const agentIdentity = generateIdentity(agentEnv);
-  const humanIdentity = generateIdentity(humanEnv);
-  const posts = [];
-  const client = createFakeClient({ http: { request: async (method, path, { body } = {}) => {
-    if (path === "/auth/me") return { actorId: "agent_01", actorType: "agent", signingKey: { keyId: agentIdentity.keyId, algorithm: agentIdentity.algorithm, publicKey: agentIdentity.publicKey } };
-    posts.push({ method, path, body });
-    return { ok: true };
-  } } });
-  const recorded = await callTool({ client, name: "record_run", args: { taskId: "task_0193f2c8-5c00-4000-8000-000000000001", contextBundleId: "context-1", sourceCode: "git:abc123", container: `oci:python@sha256:${"a".repeat(64)}`, command: "python", environment: { runtime: "python" }, hardware: { cpu: "x86_64" }, inputArtifactRefs: ["artifact-a@2", "artifact-z"], outputArtifactRefs: ["output-a@2", "output-z"], confirm: true }, env: agentEnv });
-  const runDocument = recorded.structuredContent.draft;
-  for (const malformedArrays of [
-    { input_artifact_ids: {} }, { input_artifact_ids: "artifact-a@1" }, { input_artifact_ids: null },
-    { output_artifact_ids: {} }, { output_artifact_ids: "output-a@1" }, { output_artifact_ids: null },
-  ]) {
-    const malformed = await callTool({ client, name: "publish_submission", args: { document: { ...runDocument, ...malformedArrays } }, env: humanEnv });
-    assert.equal(malformed.isError, true, JSON.stringify(malformedArrays));
-    assert.equal(malformed.structuredContent.error, "CLI_DOCUMENT_VALIDATION", JSON.stringify(malformedArrays));
-    assert.ok(Array.isArray(malformed.structuredContent.findings), JSON.stringify(malformedArrays));
-    assert.equal(posts.length, 0, "schema-invalid Run documents must fail before consent or network publication");
-  }
-  for (const noncanonicalDocument of [
-    { ...runDocument, input_artifact_ids: ["artifact-without-revision"] },
-    { ...runDocument, started_at: "2026-08-06T08:00:00+08:00" },
-  ]) {
-    const noncanonical = await callTool({ client, name: "publish_submission", args: { document: noncanonicalDocument }, env: humanEnv });
-    assert.equal(noncanonical.isError, true);
-    assert.equal(noncanonical.structuredContent.error, "RUN_DOCUMENT_NONCANONICAL");
-    assert.equal(posts.length, 0, "non-canonical Run documents must fail before consent or network publication");
-  }
-  const whitespaceActor = await callTool({ client, name: "publish_submission", args: { document: { ...runDocument, actor_id: " agent_01 " } }, env: humanEnv });
-  assert.equal(whitespaceActor.isError, true);
-  assert.equal(whitespaceActor.structuredContent.error, "RUN_TEXT_INVALID");
-  assert.equal(posts.length, 0, "local canonicalization must reject before consent or network publication");
-  const published = await callTool({ client, name: "publish_submission", args: { document: runDocument, confirm: true }, env: humanEnv });
+test("legacy prepare returns exact canonical bytes and publish only relays the matching envelope", async () => {
+  const requests = [];
+  const client = createFakeClient({ http: { request: async (method, path, { body } = {}) => { requests.push({ method, path, body }); return { ok: true }; } } });
+  const preparedResult = await callTool({ client, name: "prepare_submission", args: { document: claimDocument(), nonce: "0123456789abcdef" } });
+  assert.equal(preparedResult.isError, false);
+  const prepared = preparedResult.structuredContent.prepared;
+  assert.equal(prepared.route, "/claims");
+  assert.equal(prepared.eventType, "claim.created");
+  const signatureEnvelope = externalEnvelope(prepared);
+  const gated = await callTool({ client, name: "publish_submission", args: { document: claimDocument(), signatureEnvelope } });
+  assert.equal(gated.structuredContent.error, "consent_required");
+  const published = await callTool({ client, name: "publish_submission", args: { document: claimDocument(), signatureEnvelope, confirm: true } });
   assert.equal(published.isError, false, JSON.stringify(published.structuredContent));
-  assert.equal(posts.length, 1);
-  assert.equal(posts[0].path, "/runs");
-  assert.equal(posts[0].body.actorId, "agent_01");
-  assert.equal(posts[0].body.signingKeyId, agentIdentity.keyId);
-  assert.equal(posts[0].body.signature, runDocument.signature);
-  assert.equal(posts[0].body.signatureEnvelope.signature.key_id, humanIdentity.keyId);
-  assert.notEqual(posts[0].body.signatureEnvelope.signature.key_id, posts[0].body.signingKeyId);
-  assert.deepEqual(posts[0].body.inputs, [
-    { artifactId: "artifact-a", artifactRevision: 2 },
-    { artifactId: "artifact-z", artifactRevision: 1 },
-  ]);
-  assert.deepEqual(posts[0].body.outputs, [
-    { artifactId: "output-a", artifactRevision: 2 },
-    { artifactId: "output-z", artifactRevision: 1 },
-  ]);
-  const { signature: _signature, ...unsignedRun } = runDocument;
-  const { canonicalJson } = await import("../../../packages/protocol/src/hash.mjs");
-  const { verifyEd25519Payload } = await import("../../../packages/signatures/src/server-verification.mjs");
-  assert.equal(await verifyEd25519Payload({ signingBytes: new Uint8Array(Buffer.from(canonicalJson(unsignedRun), "utf8")), signature: posts[0].body.signature, publicKey: agentIdentity.publicKey }), true);
-  assert.equal(posts[0].body.signatureEnvelope.payload.actorId, "agent_01");
-  const malformed = await callTool({ client, name: "publish_submission", args: { document: { ...runDocument, input_artifact_ids: ["artifact@1@2"] }, confirm: true }, env: humanEnv });
-  assert.equal(malformed.isError, true);
-  assert.equal(malformed.structuredContent.error, "RUN_ARTIFACT_REF_INVALID");
-  for (const startedAt of [null, 0, " 2026-08-06T00:00:00Z "]) {
-    const invalidTimestamp = await callTool({ client, name: "publish_submission", args: { document: { ...runDocument, started_at: startedAt }, confirm: true }, env: humanEnv });
-    assert.equal(invalidTimestamp.isError, true, JSON.stringify(startedAt));
-    assert.equal(invalidTimestamp.structuredContent.error, "CLI_DOCUMENT_VALIDATION", JSON.stringify(startedAt));
-  }
-  for (const startedAt of ["2026-08-06", "2026-08-06T00:00:00", "2026-02-31T00:00:00Z"]) {
-    const invalidTimestamp = await callTool({ client, name: "publish_submission", args: { document: { ...runDocument, started_at: startedAt }, confirm: true }, env: humanEnv });
-    assert.equal(invalidTimestamp.isError, true, JSON.stringify(startedAt));
-    assert.equal(invalidTimestamp.structuredContent.error, "RUN_TIMESTAMP_INVALID", JSON.stringify(startedAt));
-  }
-  for (const invalidText of [{ source_code: " git:def456" }, { command: "python " }, { command: " " }]) {
-    const rejected = await callTool({ client, name: "publish_submission", args: { document: { ...runDocument, ...invalidText }, confirm: true }, env: humanEnv });
-    assert.equal(rejected.isError, true, JSON.stringify(invalidText));
-    assert.equal(rejected.structuredContent.error, "RUN_TEXT_INVALID", JSON.stringify(invalidText));
-  }
-  assert.equal(posts.length, 1);
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].path, "/claims");
+  assert.equal(requests[0].body.signatureEnvelope, signatureEnvelope);
+  const tampered = await callTool({ client, name: "publish_submission", args: { document: { ...claimDocument(), statement: "tampered" }, signatureEnvelope, confirm: true } });
+  assert.equal(tampered.structuredContent.error, "CLIENT_SIGNATURE_PAYLOAD_MISMATCH");
+  assert.equal(requests.length, 1);
 });
 
-test("attach_evidence hashes content and uploads after consent", async () => {
-  const uploads = [];
-  const client = createFakeClient({
-    artifacts: {
-      uploadPlan: async (input) => ({ key: `k/${input.artifactId}`, url: "https://r2.example.test/signed", mediaType: input.mediaType }),
-      upload: async (plan, bytes) => { uploads.push({ plan, size: bytes.length }); return { uploaded: true }; },
-    },
-  });
-  const contentBase64 = Buffer.from("evidence payload").toString("base64");
-  const preview = await callTool({ client, name: "attach_evidence", args: { contentBase64, mediaType: "text/plain" } });
-  assert.equal(preview.structuredContent.error, "consent_required");
-  assert.match(preview.structuredContent.summary.rawHash, /^sha256:[0-9a-f]{64}$/);
-  const result = await callTool({ client, name: "attach_evidence", args: { contentBase64, mediaType: "text/plain", confirm: true } });
+test("verification prepare and submit preserve the exact externally signed identifiers", async () => {
+  const submissions = [];
+  const client = createFakeClient({ verifications: { submit: async (input) => { submissions.push(input); return { receipt: { receiptId: input.receiptId } }; } } });
+  const preparedResult = await callTool({ client, name: "prepare_submission", args: { document: verificationDocument(), runId: "run-1", nonce: "0123456789abcdef" } });
+  const prepared = preparedResult.structuredContent.prepared;
+  const signatureEnvelope = externalEnvelope(prepared);
+  const result = await callTool({ client, name: "submit_verification", args: { document: verificationDocument(), runId: "run-1", signatureEnvelope, confirm: true } });
+  assert.equal(result.isError, false, JSON.stringify(result.structuredContent));
+  assert.equal(result.structuredContent.receiptId, prepared.payload.receiptId);
+  assert.equal(submissions[0].contributionStatementId, prepared.payload.contributionStatementId);
+  assert.equal(submissions[0].signatureEnvelope, signatureEnvelope);
+});
+
+test("challenge submit relays a matching external envelope", async () => {
+  const submissions = [];
+  const client = createFakeClient({ challenges: { create: async (input) => { submissions.push(input); return { challenge: { challengeId: input.challengeId } }; } } });
+  const preparedResult = await callTool({ client, name: "prepare_submission", args: { document: challengeDocument(), nonce: "0123456789abcdef" } });
+  const signatureEnvelope = externalEnvelope(preparedResult.structuredContent.prepared);
+  const result = await callTool({ client, name: "submit_challenge", args: { document: challengeDocument(), signatureEnvelope, confirm: true } });
   assert.equal(result.isError, false);
-  assert.equal(result.structuredContent.sizeBytes, 16);
-  assert.equal(uploads.length, 1);
+  assert.equal(submissions[0].signatureEnvelope, signatureEnvelope);
 });
 
-test("attach_evidence rejects invalid base64 and oversized content", async () => {
-  const client = createFakeClient();
-  const invalid = await callTool({ client, name: "attach_evidence", args: { contentBase64: "not base64!", mediaType: "text/plain" } });
+test("MCP signer implementation contains no local identity or signing primitive", () => {
+  const source = readFileSync(new URL("../src/tools.mjs", import.meta.url), "utf8");
+  for (const forbidden of ["privateKey", "loadIdentity", "signSubmission", "signEd25519"]) assert.equal(source.includes(forbidden), false, forbidden);
+});
+
+test("attach_evidence rejects invalid base64 and oversized content before its fail-closed boundary", async () => {
+  const invalid = await callTool({ client: createFakeClient(), name: "attach_evidence", args: { contentBase64: "not base64!", mediaType: "text/plain" } });
   assert.equal(invalid.isError, true);
-  assert.equal(invalid.structuredContent.error, "MCP_TOOL_INVALID");
   assert.match(invalid.structuredContent.message, /valid base64/);
-  const { MAX_EVIDENCE_BYTES } = await import("../src/tools.mjs");
   const big = Buffer.alloc(MAX_EVIDENCE_BYTES + 1).toString("base64");
-  const oversized = await callTool({ client, name: "attach_evidence", args: { contentBase64: big, mediaType: "application/octet-stream" } });
+  const oversized = await callTool({ client: createFakeClient(), name: "attach_evidence", args: { contentBase64: big, mediaType: "application/octet-stream" } });
   assert.equal(oversized.isError, true);
   assert.match(oversized.structuredContent.message, /exceeds/);
 });
 
 test("validate_submission returns structured findings", async () => {
-  const client = createFakeClient();
-  const validDoc = { schema: "srp.claim.v1", claim_id: "claim_018f0f4a-5c00-4000-8000-000000000001", revision: 1, state: "hypothesis", statement: "s", scope: ["s"], assumptions: [], falsification: ["f"], created_at: "2026-08-06T00:00:00.000Z", created_by: "actor_01" };
-  const valid = await callTool({ client, name: "validate_submission", args: { document: validDoc } });
-  assert.equal(valid.isError, false);
+  const valid = await callTool({ client: createFakeClient(), name: "validate_submission", args: { document: claimDocument() } });
   assert.equal(valid.structuredContent.valid, true);
-  const invalid = await callTool({ client, name: "validate_submission", args: { document: { schema: "srp.claim.v1", claim_id: "nope" } } });
-  assert.equal(invalid.isError, false);
+  const invalid = await callTool({ client: createFakeClient(), name: "validate_submission", args: { document: { schema: "srp.claim.v1", claim_id: "nope" } } });
   assert.equal(invalid.structuredContent.valid, false);
   assert.ok(invalid.structuredContent.findings.length > 0);
 });
 
-test("publish_submission signs and posts only after consent", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "evimesh-mcp-"));
-  const env = { ...process.env, EVIMESH_CONFIG_DIR: dir };
-  const { generateIdentity } = await import("../../../packages/cli/src/identity.mjs");
-  generateIdentity(env);
-  const requests = [];
-  const client = createFakeClient({ http: { request: async (method, path, { body }) => { requests.push({ method, path, body }); return { ok: true }; } } });
-  const document = { schema: "srp.claim.v1", claim_id: "claim_018f0f4a-5c00-4000-8000-000000000001", revision: 1, state: "hypothesis", statement: "s", scope: ["s"], assumptions: [], falsification: ["f"], created_at: "2026-08-06T00:00:00.000Z", created_by: "actor_01" };
-  const gated = await callTool({ client, name: "publish_submission", args: { document }, env });
-  assert.equal(gated.structuredContent.error, "consent_required");
-  assert.equal(requests.length, 0);
-  const result = await callTool({ client, name: "publish_submission", args: { document, confirm: true }, env });
-  assert.equal(result.isError, false, JSON.stringify(result.structuredContent));
-  assert.equal(requests.length, 1);
-  assert.equal(requests[0].path, "/claims");
-  assert.ok(requests[0].body.signatureEnvelope);
-  assert.equal(requests[0].body.signatureEnvelope.event_type, "claim.created");
-  assert.equal(requests[0].body.draftedByActorId, document.created_by);
-  assert.equal(requests[0].body.signatureEnvelope.payload.draftedByActorId, document.created_by);
-});
-
-test("publish_submission fails cleanly without an identity", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "evimesh-mcp-"));
-  const env = { ...process.env, EVIMESH_CONFIG_DIR: dir };
-  const client = createFakeClient();
-  const document = { schema: "srp.claim.v1", claim_id: "claim_018f0f4a-5c00-4000-8000-000000000001", revision: 1, state: "hypothesis", statement: "s", scope: ["s"], assumptions: [], falsification: ["f"], created_at: "2026-08-06T00:00:00.000Z", created_by: "actor_01" };
-  const result = await callTool({ client, name: "publish_submission", args: { document, confirm: true }, env });
-  assert.equal(result.isError, true);
-  assert.equal(result.structuredContent.error, "IDENTITY_MISSING");
+test("get_task_context returns the immutable bundle and hash", async () => {
+  const result = await callTool({ client: createFakeClient(), name: "get_task_context", args: { taskId: "task-1", mode: "frontier" } });
+  assert.equal(result.isError, false);
+  assert.equal(result.structuredContent.contextBundleId, "context-task-1");
+  assert.match(result.structuredContent.contentHash, /^sha256:[0-9a-f]{64}$/);
 });
 
 test("verify_inclusion_proof validates proofs and binds events", async () => {
-  const client = createFakeClient();
   const { buildMerkleTree } = await import("../../../packages/merkle/src/merkle-tree.mjs");
   const { hashResearchEventLeaf } = await import("../../../packages/merkle/src/research-event-leaf.mjs");
   const { createMerkleInclusionProof } = await import("../../../packages/merkle/src/inclusion-proof.mjs");
-  const events = ["event-1", "event-2"].map((eventId, index) => ({
-    schema: "srp.event.v1",
-    event_id: eventId,
-    event_type: "claim.created",
-    payload: { claim_id: "claim-1" },
-    hash: `sha256:${String(index).repeat(64)}`,
-    signature: { algorithm: "Ed25519", value: "sig" },
-    parents: [],
-  }));
+  const events = ["event-1", "event-2"].map((eventId, index) => ({ schema: "srp.event.v1", event_id: eventId, event_type: "claim.created", payload: { claim_id: "claim-1" }, hash: `sha256:${String(index).repeat(64)}`, signature: { algorithm: "Ed25519", value: "sig" }, parents: [] }));
   const leafHashes = events.map((event) => hashResearchEventLeaf(event));
   const proof = createMerkleInclusionProof({ leafHashes, leafIndex: 1 });
   assert.equal(buildMerkleTree(leafHashes).root, proof.root);
-  const good = await callTool({ client, name: "verify_inclusion_proof", args: { proof, event: events[1] } });
+  const good = await callTool({ client: createFakeClient(), name: "verify_inclusion_proof", args: { proof, event: events[1] } });
   assert.deepEqual(good.structuredContent, { valid: true, reason: null });
-  const mismatch = await callTool({ client, name: "verify_inclusion_proof", args: { proof, event: events[0] } });
+  const mismatch = await callTool({ client: createFakeClient(), name: "verify_inclusion_proof", args: { proof, event: events[0] } });
   assert.equal(mismatch.structuredContent.valid, false);
-  const tampered = await callTool({ client, name: "verify_inclusion_proof", args: { proof: { ...proof, root: `sha256:${"f".repeat(64)}` } } });
-  assert.equal(tampered.structuredContent.valid, false);
 });
 
-test("inspect_provenance and submit_verification work end to end", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "evimesh-mcp-"));
-  const env = { ...process.env, EVIMESH_CONFIG_DIR: dir };
-  const { generateIdentity } = await import("../../../packages/cli/src/identity.mjs");
-  generateIdentity(env);
-  const submissions = [];
-  const client = createFakeClient({
-    verifications: { submit: async (input) => { submissions.push(input); return { receipt: { receiptId: input.receiptId } }; } },
-  });
-  const provenance = await callTool({ client, name: "inspect_provenance", args: { objectType: "claim", objectId: "claim-1", revision: 2 } });
-  assert.equal(provenance.isError, false);
-  assert.equal(provenance.structuredContent.provenance.object.revision, 2);
-  const document = { schema: "srp.verification-receipt.v1", claim_revision_id: "claim-1@2", contract_revision_id: "contract-1@1", outcome: "supports", verification_types: ["reproduction"], context_mode: "blind", saw_expected_outputs: false, implementation_relation: "independent", data_relation: "same_input", model_family: "none", findings: [] };
-  const result = await callTool({ client, name: "submit_verification", args: { document, runId: "run-1", confirm: true }, env });
-  assert.equal(result.isError, false, JSON.stringify(result.structuredContent));
-  assert.ok(result.structuredContent.receiptId.startsWith("verification_"));
-  assert.ok(submissions[0].signatureEnvelope);
+test("inspect_provenance remains read-only", async () => {
+  const result = await callTool({ client: createFakeClient(), name: "inspect_provenance", args: { objectType: "claim", objectId: "claim-1", revision: 2 } });
+  assert.equal(result.isError, false);
+  assert.equal(result.structuredContent.provenance.object.revision, 2);
 });

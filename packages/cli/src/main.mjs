@@ -1,10 +1,11 @@
 import { parseArgs } from "./args.mjs";
 import * as output from "./output.mjs";
 import { configInit, authLogin, identityGenerate } from "./commands-setup.mjs";
-import { projectList, questionList, taskList, taskInspect, provenance } from "./commands-read.mjs";
+import { projectList, questionList, taskList, taskInspect, graphInspect, provenance } from "./commands-read.mjs";
 import { contextPull, attemptStart } from "./commands-context.mjs";
 import { claimCreate, runRecord, evidenceAdd, validate, submit, challengeCreate } from "./commands-write.mjs";
 import { verifyCheckout, verifySubmit, bundleVerify } from "./commands-verify.mjs";
+import { researchDraft, researchPrepare, researchSign, researchSubmit } from "./commands-research.mjs";
 
 const COMMANDS = Object.freeze({
   "config init": { run: configInit, summary: "Write the CLI configuration file" },
@@ -14,16 +15,21 @@ const COMMANDS = Object.freeze({
   "question list": { run: questionList, summary: "List open questions (supports --field/--state/--project)" },
   "task list": { run: taskList, summary: "List tasks (supports --status/--tag/--type)" },
   "task inspect": { run: taskInspect, summary: "Show one task with dependencies and leases" },
+  "graph inspect": { run: graphInspect, summary: "Inspect a typed research neighborhood (supports --direction/--depth/--kinds/--edge-types)" },
+  "research draft": { run: researchDraft, summary: "Write an Answer/Rebuttal/Evaluation/Dataset/Tool draft" },
+  "research prepare": { run: researchPrepare, summary: "Resolve and prepare canonical typed research signing bytes" },
+  "research sign": { run: researchSign, summary: "Human-local signing step for a prepared typed submission" },
+  "research submit": { run: researchSubmit, summary: "Submit an already externally signed typed research object" },
   "context pull": { run: contextPull, summary: "Download and hash-verify one Task ContextBundle" },
-  "attempt start": { run: attemptStart, summary: "Start an Attempt with a local workspace" },
+  "attempt start": { run: attemptStart, summary: "Attempt mutation disabled until external-envelope flow is available" },
   "claim create": { run: claimCreate, summary: "Write a Claim draft template" },
   "run record": { run: runRecord, summary: "Write a Run receipt template" },
-  "evidence add": { run: evidenceAdd, summary: "Hash a file and upload it directly to object storage" },
-  "challenge create": { run: challengeCreate, summary: "Submit a Challenge from a draft document" },
+  "evidence add": { run: evidenceAdd, summary: "Hash locally with --dry-run; publication requires an external-envelope flow" },
+  "challenge create": { run: challengeCreate, summary: "Legacy combined Challenge publish (disabled; external envelope required)" },
   validate: { run: validate, summary: "Validate one protocol document locally" },
-  submit: { run: submit, summary: "Sign and submit one Claim/Run/Challenge document" },
+  submit: { run: submit, summary: "Legacy combined publish (disabled; external envelope required)" },
   "verify checkout": { run: verifyCheckout, summary: "Lock a ClaimRevision and fetch the Blind Context" },
-  "verify submit": { run: verifySubmit, summary: "Sign and submit one VerificationReceipt" },
+  "verify submit": { run: verifySubmit, summary: "Legacy combined Verification publish (disabled; external envelope required)" },
   "bundle verify": { run: bundleVerify, summary: "Offline-verify hashes, signatures, and proofs in a bundle" },
   provenance: { run: provenance, summary: "Show the contribution and dependency path for one revision" },
 });
