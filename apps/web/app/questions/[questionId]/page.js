@@ -294,6 +294,7 @@ export default function QuestionDetailPage({ params }) {
         )}
         description={<span className="font-serif">{currentRevision.statement}</span>}
         eyebrow={`Question · r${sharedRev ?? currentRevision.revision ?? 1}`}
+        showDescription
         title={<span className="font-serif">{currentRevision.title}</span>}
       />
 
