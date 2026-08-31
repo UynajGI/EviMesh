@@ -4,11 +4,11 @@
 
 /*
  * Sign-in (M13.8 06-personal-ui-spec.md): browser sign-in comes first —
- * GitHub OAuth today, ORCID the moment it is enabled in the Supabase
- * dashboard (the button set is read from /auth/v1/settings at runtime, so
- * the page never advertises a provider the backend would reject), plus
- * passwordless email. Research identity (ORCID) connects from Settings and
- * is OAuth-verified only; typing an iD never renders as verified.
+ * GitHub/Google OAuth today, ORCID when it is enabled in Supabase Auth (the
+ * active button set is read from /auth/v1/settings at runtime, so the page
+ * never advertises a provider the backend would reject), plus passwordless
+ * email. ORCID remains visible as a research-identity entry even before the
+ * provider is configured, with its real setup state and the Settings handoff.
  */
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
@@ -21,8 +21,13 @@ import { createBrowserSupabaseClient } from '@/lib/supabase-browser';
  * live configuration instead of a hardcoded allowlist. */
 const PROVIDER_ICONS = { github: GithubMark, orcid: OrcidMark, google: GoogleMark };
 const PROVIDER_LABELS = { github: 'GitHub', orcid: 'ORCID', google: 'Google' };
-const providerName = (provider) => PROVIDER_LABELS[provider] ?? provider.charAt(0).toUpperCase() + provider.slice(1);
-const providerIcon = (provider) => PROVIDER_ICONS[provider] ?? null;
+const isOrcidProvider = (provider) => {
+  const normalized = String(provider ?? '').toLowerCase();
+  return normalized === 'orcid' || normalized.startsWith('custom:orcid');
+};
+const providerName = (provider) => (isOrcidProvider(provider) ? 'ORCID' : PROVIDER_LABELS[provider] ?? provider.charAt(0).toUpperCase() + provider.slice(1));
+const providerIcon = (provider) => (isOrcidProvider(provider) ? OrcidMark : PROVIDER_ICONS[provider] ?? null);
+const providerRank = (provider) => (isOrcidProvider(provider) ? 0 : provider === 'github' ? 1 : provider === 'google' ? 2 : 3);
 
 export default function LoginPage() {
   const [message, setMessage] = useState(null);
@@ -91,8 +96,25 @@ export default function LoginPage() {
     }
   }
 
-  const providerButtons = (providers ?? [])
+  const providerButtons = (providers ?? []).slice().sort((a, b) => providerRank(a) - providerRank(b))
     .map((provider) => ({ provider, label: providerName(provider), Icon: providerIcon(provider) }));
+  const orcidConfigured = providerButtons.some(({ provider }) => isOrcidProvider(provider));
+
+  const orcidIdentityState = providers === null || orcidConfigured ? null : (
+    <div className="border border-border bg-muted px-4 py-4" aria-label="ORCID identity status">
+      <div className="flex items-start gap-3">
+        <OrcidMark size={20} />
+        <div className="min-w-0">
+          <p className="text-sm font-semibold">ORCID research identity</p>
+          <p className="mt-1 text-sm leading-5 text-muted-foreground">Use a verified ORCID iD to keep your research attribution connected across EviMesh.</p>
+        </div>
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-border pt-3 text-xs">
+        <span className="font-mono uppercase tracking-[0.12em] text-muted-foreground">Not enabled in this workspace</span>
+        <Link className="font-medium text-primary hover:underline" href="/settings">Sign in with email, then connect ORCID →</Link>
+      </div>
+    </div>
+  );
 
   return (
     <main className="grid min-h-screen bg-background text-foreground lg:grid-cols-2">
@@ -107,21 +129,27 @@ export default function LoginPage() {
           {providers === null ? (
             <div className="h-12 w-full animate-pulse rounded-lg border border-border bg-muted" aria-label="Loading sign-in providers" />
           ) : providerButtons.length === 0 ? (
-            <p className="rounded-lg border border-status-warning-border bg-status-warning-bg px-4 py-3 text-sm text-status-warning-fg">No external provider is enabled. Use email below.</p>
+            <div className="space-y-3">
+              {orcidIdentityState}
+              <p className="rounded-lg border border-status-warning-border bg-status-warning-bg px-4 py-3 text-sm text-status-warning-fg">No external provider is enabled. Use email below.</p>
+            </div>
           ) : (
-            <div className="grid gap-3">
-              {providerButtons.map(({ provider, label, Icon }) => (
-                <button
-                  className="flex h-12 w-full items-center justify-center gap-3 rounded-lg border border-border bg-card text-sm font-semibold transition-colors hover:bg-muted disabled:opacity-60"
-                  disabled={pending !== null}
-                  key={provider}
-                  onClick={() => loginWithProvider(provider)}
-                  type="button"
-                >
-                  {Icon ? <Icon size={19} /> : <Globe aria-hidden="true" size={19} />}
-                  {pending === provider ? 'Redirecting…' : `Continue with ${label}`}
-                </button>
-              ))}
+            <div className="space-y-3">
+              <div className="grid gap-3">
+                {providerButtons.map(({ provider, label, Icon }) => (
+                  <button
+                    className="flex h-12 w-full items-center justify-center gap-3 rounded-lg border border-border bg-card text-sm font-semibold transition-colors hover:bg-muted disabled:opacity-60"
+                    disabled={pending !== null}
+                    key={provider}
+                    onClick={() => loginWithProvider(provider)}
+                    type="button"
+                  >
+                    {Icon ? <Icon size={19} /> : <Globe aria-hidden="true" size={19} />}
+                    {pending === provider ? 'Redirecting…' : `Continue with ${label}`}
+                  </button>
+                ))}
+              </div>
+              {orcidIdentityState}
             </div>
           )}
 

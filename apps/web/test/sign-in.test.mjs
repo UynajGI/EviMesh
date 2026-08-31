@@ -22,6 +22,18 @@ test('login renders provider buttons from the live auth configuration', () => {
   assert.match(login, /No external provider is enabled/);
 });
 
+test('login keeps ORCID visible when production has not enabled its OAuth provider', () => {
+  // ORCID is a first-class research identity even when Supabase has no
+  // built-in provider entry yet. The UI must show the honest setup state and
+  // a handoff to Settings instead of rendering a dead OAuth button.
+  assert.match(login, /isOrcidProvider/);
+  assert.match(login, /startsWith\('custom:orcid'\)/);
+  assert.match(login, /ORCID research identity/);
+  assert.match(login, /Not enabled in this workspace/);
+  assert.match(login, /Sign in with email, then connect ORCID/);
+  assert.match(login, /aria-label="ORCID identity status"/);
+});
+
 test('login offers magic link, password, and account creation', () => {
   assert.match(login, /signInWithOtp/);
   assert.match(login, /Email me a sign-in link/);
