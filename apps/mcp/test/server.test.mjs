@@ -106,10 +106,13 @@ test("tools/list exposes every research tool with schemas", async () => {
   const [response] = await roundtrip(handle, [rpc(1, "tools/list")]);
   const names = response.result.tools.map((tool) => tool.name).sort();
   assert.deepEqual(names, [
-    "attach_evidence", "create_claim", "get_task_context", "inspect_provenance",
-    "publish_submission", "record_run", "record_trace", "search_open_tasks",
-    "start_attempt", "submit_challenge", "submit_verification", "validate_submission",
-    "verify_inclusion_proof",
+    "attach_evidence", "browse_typed_research_nodes", "create_claim",
+    "draft_typed_research_node", "get_task_context", "inspect_provenance",
+    "inspect_research_neighborhood", "inspect_typed_research_node",
+    "prepare_submission", "prepare_typed_research_submission", "publish_submission", "record_run",
+    "record_trace", "search_open_tasks", "start_attempt", "submit_challenge",
+    "submit_typed_research_submission", "submit_verification",
+    "validate_submission", "verify_inclusion_proof",
   ]);
   for (const tool of response.result.tools) {
     assert.equal(tool.inputSchema.type, "object");

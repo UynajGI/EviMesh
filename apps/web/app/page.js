@@ -138,7 +138,7 @@ export default function LandingPage() {
                 </Link>
               </div>
               <p className="border-t border-border px-5 py-4 text-sm text-muted-foreground">
-                Counts are entry points, never scores. This demo omits them because it has no exact revision, receipt, finding, or event to open.
+                This demo omits counts because it has no exact revision, receipt, finding, or event to open.
               </p>
             </Card>
           )}

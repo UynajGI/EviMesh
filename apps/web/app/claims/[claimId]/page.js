@@ -85,7 +85,7 @@ function ReadableField({ value }) {
 /*
  * Claim detail (M13.8 05-core-ui-spec.md §6): serif statement, structured
  * fields, DAG graph with an equivalent keyboard-reachable list view, revision
- * history, and a status-summary rail. Counts are entry points, never scores.
+ * history, and a status-summary rail. Counts open the underlying records.
  */
 function ClaimDetailView({ params }) {
   const [claimId, setClaimId] = useState(null);
@@ -96,7 +96,7 @@ function ClaimDetailView({ params }) {
   const [data, setData] = useState(null);
   const [graph, setGraph] = useState(null);
   /* Keep the API traversal names, but describe all typed edges neutrally. */
-  const [direction, setDirection] = useState('upstream');
+  const [direction, setDirection] = useState('both');
   const [handoffOpen, setHandoffOpen] = useState(false);
   const [shared, setShared] = useState(false);
   const [revisionDiff, setRevisionDiff] = useState(null);
@@ -185,7 +185,26 @@ function ClaimDetailView({ params }) {
   }
 
   useEffect(() => { if (claimId) load(); }, [claimId]);
-  useEffect(() => { if (claimId) request(`/claims/${claimId}/graph?direction=${direction}&maxDepth=3`).then(setGraph).catch((reason) => setError(reason.message)); }, [claimId, direction]);
+  useEffect(() => {
+    if (!claimId) return undefined;
+    let cancelled = false;
+    const readDirection = async (value) => {
+      const body = await request(`/claims/${claimId}/graph?direction=${value}&maxDepth=3`);
+      return {
+        ...body,
+        nodes: (body.nodes ?? []).map((node) => ({ ...node, direction: node.claimId === claimId || node.id === claimId ? null : value })),
+      };
+    };
+    const loadGraph = direction === 'both'
+      ? Promise.all([readDirection('upstream'), readDirection('downstream')]).then(([upstream, downstream]) => {
+        const nodes = new Map([...upstream.nodes, ...downstream.nodes].map((node) => [node.nodeId ?? node.objectId ?? node.claimId ?? node.id, node]));
+        const edges = new Map([...(upstream.edges ?? []), ...(downstream.edges ?? [])].map((edge, index) => [edge.edgeId ?? edge.id ?? `${edge.sourceNodeId ?? edge.sourceClaimId ?? edge.source}:${edge.targetNodeId ?? edge.targetClaimId ?? edge.target}:${index}`, edge]));
+        return { nodes: [...nodes.values()], edges: [...edges.values()], complete: !upstream.truncated && !downstream.truncated, truncated: upstream.truncated || downstream.truncated };
+      })
+      : readDirection(direction).then((body) => ({ ...body, complete: !body.truncated }));
+    loadGraph.then((body) => { if (!cancelled) setGraph(body); }).catch((reason) => { if (!cancelled) setError(reason.message); });
+    return () => { cancelled = true; };
+  }, [claimId, direction]);
   useEffect(() => {
     const label = data?.currentRevision?.statement ?? claimId ?? '';
     document.title = label ? `${String(label).slice(0, 48)} · EviMesh` : 'EviMesh';
@@ -211,22 +230,37 @@ function ClaimDetailView({ params }) {
   const draftingContribution = (Array.isArray(data.originatorContributions) ? data.originatorContributions : [])
     .find((contribution) => contribution.draftedByActorId === contribution.actorId);
   const graphNodes = Array.isArray(graph?.nodes) ? graph.nodes : [];
-  const graphEntries = graphNodes.map((node) => ({ id: node.claimId ?? node.id, state: node.state ?? node.status, depth: node.depth })).filter((node) => typeof node.id === 'string' && node.id !== claim.claimId);
+  const graphEntries = graphNodes.map((node) => ({
+    id: node.nodeId ?? node.objectId ?? node.claimId ?? node.id,
+    type: node.nodeType ?? node.objectType ?? node.kind ?? node.type ?? 'claim',
+    label: node.title ?? node.statement ?? node.label ?? node.nodeId ?? node.objectId ?? node.claimId ?? node.id,
+    revision: node.nodeRevision ?? node.revision ?? node.revisionNumber,
+    state: node.state ?? node.status,
+    depth: node.depth,
+    direction: node.direction,
+  })).filter((node) => typeof node.id === 'string' && node.id !== claim.claimId);
   const graphDepthById = new Map([[claim.claimId, 0], ...graphEntries.map(({ id, depth }) => [id, depth])]);
   const graphRelations = Array.isArray(graph?.edges) ? graph.edges : [];
-  const dagEdges = graphRelations.length > 0 ? graphRelations.map((edge, index) => ({
-    id: edge.id ?? `${direction}-${edge.sourceClaimId}-${edge.targetClaimId}-${edge.relationType ?? index}`,
+  const dagEdges = graphRelations.length > 0 ? graphRelations.map((edge, index) => {
+    const source = edge.sourceNodeId ?? edge.sourceObjectId ?? edge.sourceClaimId ?? edge.source;
+    const target = edge.targetNodeId ?? edge.targetObjectId ?? edge.targetClaimId ?? edge.target;
+    return {
+    id: edge.edgeId ?? edge.id ?? `${direction}-${source}-${target}-${edge.relationType ?? index}`,
     /* Reader direction changes traversal, never protocol source/target. */
-    source: edge.sourceClaimId,
-    target: edge.targetClaimId,
-    ...claimLayoutEndpoints({ source: edge.sourceClaimId, target: edge.targetClaimId, sourceDepth: graphDepthById.get(edge.sourceClaimId), targetDepth: graphDepthById.get(edge.targetClaimId), direction }),
-    relation: edge.relationType ?? 'depends_on',
-  })) : graphEntries.map(({ id, depth }) => {
+    source,
+    target,
+    ...(direction === 'both' ? { layoutSource: source, layoutTarget: target } : claimLayoutEndpoints({ source, target, sourceDepth: graphDepthById.get(source), targetDepth: graphDepthById.get(target), direction })),
+    relation: edge.relationType ?? edge.relation ?? 'depends_on',
+  }; }) : graphEntries.map(({ id, depth }) => {
     const source = direction === 'upstream' ? id : claim.claimId;
     const target = direction === 'upstream' ? claim.claimId : id;
-    return { id: `${direction}-${id}`, source, target, ...claimLayoutEndpoints({ source, target, sourceDepth: graphDepthById.get(source) ?? depth, targetDepth: graphDepthById.get(target) ?? depth, direction }), relation: 'depends_on' };
+    return { id: `${direction}-${id}`, source, target, ...(direction === 'both' ? { layoutSource: source, layoutTarget: target } : claimLayoutEndpoints({ source, target, sourceDepth: graphDepthById.get(source) ?? depth, targetDepth: graphDepthById.get(target) ?? depth, direction })), relation: 'depends_on' };
   });
-  const dagElements = [{ data: { id: claim.claimId, label: claim.claimId, state: claim.state, depth: 0 } }, ...graphEntries.map(({ id, state, depth }) => ({ data: { id, label: id, state, depth } })), ...dagEdges.map((edge) => ({ data: { ...edge, source: edge.source, target: edge.target, relationType: edge.relation } }))];
+  const dagGraph = {
+    complete: graph?.complete === true,
+    nodes: [{ id: claim.claimId, type: 'claim', label: currentRevision.statement ?? claim.claimId, revision: currentRevision.revision, state: claim.state, depth: 0 }, ...graphEntries],
+    edges: dagEdges,
+  };
 
   const evidenceFor = (relation) => evidence.filter((item) => evidenceRelations(item).includes(relation));
   const receiptsFor = (outcome) => receipts.filter((receipt) => receipt.outcome === outcome);
@@ -360,20 +394,9 @@ function ClaimDetailView({ params }) {
             </Card>
           </section>
 
-          <section aria-labelledby="graph-heading" className="min-w-0 overflow-x-clip">
-            <div className="mb-1 flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold" id="graph-heading">Claim relation graph</h2>
-              {/* Traversal direction only; the Graph/List equivalence lives
-                  inside ClaimDag (single tab surface, 11-revision-decisions §4.1). */}
-              <div className="flex gap-2">
-                <button className={cn('h-9 rounded-md px-3 text-sm font-medium', direction === 'upstream' ? 'bg-accent text-accent-foreground' : 'border border-border bg-card text-muted-foreground hover:text-foreground')} type="button" onClick={() => setDirection('upstream')}>Upstream</button>
-                <button className={cn('h-9 rounded-md px-3 text-sm font-medium', direction === 'downstream' ? 'bg-accent text-accent-foreground' : 'border border-border bg-card text-muted-foreground hover:text-foreground')} type="button" onClick={() => setDirection('downstream')}>Downstream</button>
-              </div>
-            </div>
-            <p className="mb-3 text-sm text-muted-foreground">{direction === 'upstream' ? 'Upstream context: prerequisites, origins, and prior context.' : 'Downstream context: dependents, responses, and subsequent context.'}</p>
-            {graph?.truncated ? <Alert className="mb-3" description="This bounded graph reached the server node, edge, or relation-read ceiling. The visible DAG and list are partial." title="Graph view truncated" variant="warning" /> : null}
-            <ClaimDag elements={dagElements} />
-            <p className="mt-2 text-sm text-muted-foreground">The list view inside the graph is the keyboard-reachable equivalent; both show the same typed relations.</p>
+          <section aria-label="Research neighborhood" className="min-w-0">
+            {graph?.truncated ? <Alert className="mb-3" description="This bounded neighborhood reached a server read ceiling. Topology remains unknown wherever hidden connections may exist." title="Neighborhood truncated" variant="warning" /> : null}
+            <ClaimDag direction={direction} focusId={claim.claimId} graph={dagGraph} onDirectionChange={setDirection} />
           </section>
 
           <section aria-labelledby="revisions-heading">
@@ -457,7 +480,7 @@ function ClaimDetailView({ params }) {
           </section>
 
           {/* Mockup claim.html 验证回执 section: fielded receipts with per-
-              finding severity rows; receipts never collapse into a score. */}
+              finding severity rows; receipts retain their fielded record. */}
           <section aria-labelledby="receipts-heading">
             <h2 className="mb-1 text-lg font-semibold" id="receipts-heading">Verification receipts</h2>
             {receipts.length === 0 ? (
@@ -526,7 +549,7 @@ function ClaimDetailView({ params }) {
           </section>
         </div>
 
-        {/* Status rail (11 §3): grouped counts as navigation, never a score. */}
+        {/* Status rail (11 §3): grouped counts open exact records. */}
         <Rail label="Status summary">
           <RailSection title="Evidence by relation">
             <div className="grid gap-1.5">
@@ -568,7 +591,7 @@ function ClaimDetailView({ params }) {
             <p className="mt-2 text-xs text-muted-foreground">Challenges track on the claim record.</p>
           </RailSection>
           <RailSection>
-            <p className="text-xs text-muted-foreground">Counts are entry points, never scores.</p>
+            <p className="text-xs text-muted-foreground">Counts open the exact linked records.</p>
           </RailSection>
         </Rail>
       </div>

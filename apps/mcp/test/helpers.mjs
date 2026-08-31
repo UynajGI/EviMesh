@@ -32,9 +32,21 @@ export async function roundtrip(handle, requests) {
 
 /** Fake SDK client mirroring the resource/tool surface the server consumes. */
 export function createFakeClient(overrides = {}) {
+  const typedResource = (kind) => ({
+    list: async () => ({ items: [{ [`${kind}Id`]: `${kind}-1` }], nextCursor: null }),
+    get: async (id) => ({ [kind]: { [`${kind}Id`]: id }, currentRevision: { [`${kind}Id`]: id, revision: 1 } }),
+    prepare: async (input) => ({ eventType: `${kind}.created`, payload: input, nonce: input.nonce, signingBytes: "canonical", signingBytesHash: `sha256:${"a".repeat(64)}` }),
+    submit: async (input) => ({ node: { nodeKind: kind }, signatureEnvelope: input.signatureEnvelope }),
+  });
   return {
     projects: { list: async () => ({ items: [{ projectId: "project-1" }], nextCursor: null }) },
     questions: { list: async () => ({ items: [{ questionId: "question-1", state: "active" }, { questionId: "question-2", state: "resolved" }], nextCursor: null }) },
+    researchGraph: { neighborhood: async (kind, id, options = {}) => ({ schemaVersion: "research-neighborhood.v1", requestedRoot: { kind, id, ...(options.revision ? { revision: options.revision } : {}) }, resolvedRoot: { kind, id, revision: options.revision ?? 1 }, nodes: [], edges: [], truncated: false, nextCursor: null }) },
+    answers: typedResource("answer"),
+    rebuttals: typedResource("rebuttal"),
+    evaluations: typedResource("evaluation"),
+    datasets: typedResource("dataset"),
+    tools: typedResource("tool"),
     tasks: {
       list: async (params = {}) => ({ items: [{ taskId: "task-1", status: params.status ?? "open" }], nextCursor: null }),
       context: async (taskId, mode) => ({ contextBundleId: `context-${taskId}`, taskId, mode, contentHash: `sha256:${"a".repeat(64)}`, manifest: {}, storageUri: "r2://evimesh/x" }),

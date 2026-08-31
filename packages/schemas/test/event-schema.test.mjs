@@ -18,7 +18,7 @@ const validEvent = {
 function validateEvent(value) {
   for (const field of schema.required) if (!(field in value) || value[field] === undefined || value[field] === null) return `${field} is required`;
   if (value.schema !== 'srp.event.v1' || !/^([0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i.test(value.event_id)) return 'event ID';
-  if (!/^[a-z][a-z0-9]*(?:\.[a-z][a-z0-9]*)+$/.test(value.event_type)) return 'event type';
+  if (!/^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$/.test(value.event_type)) return 'event type';
   if (!value.payload || typeof value.payload !== 'object' || Object.keys(value.payload).length === 0) return 'payload';
   if (!/^sha256:[0-9a-f]{64}$/i.test(value.hash)) return 'hash';
   if (!value.signature || value.signature.algorithm !== 'Ed25519' || typeof value.signature.key_id !== 'string' || value.signature.key_id.length < 1 || typeof value.signature.value !== 'string' || value.signature.value.length < 1) return 'signature';
@@ -31,6 +31,7 @@ test('defines signed ResearchEvent and parent event fields', () => {
   assert.equal(schema.$defs.signature.properties.algorithm.const, 'Ed25519');
   assert.equal(schema.properties.parents.uniqueItems, true);
   assert.equal(validateEvent(validEvent), null);
+  assert.equal(validateEvent({ ...validEvent, event_type: 'claim.state_changed' }), null);
 });
 
 test('accepts a genesis event and rejects malformed signature or parent vectors', () => {

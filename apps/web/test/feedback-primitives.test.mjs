@@ -5,8 +5,8 @@ import { readFile } from "node:fs/promises";
 /** M13.5-B06: feedback primitives are token-based and recoverable. */
 const source = await readFile(new URL("../components/ui/feedback.js", import.meta.url), "utf8");
 
-test("feedback primitives export Alert, Empty, ErrorState, Progress, and Skeleton", () => {
-  for (const name of ["Alert", "Empty", "ErrorState", "Progress", "Skeleton"]) {
+test("feedback primitives export Alert, Empty, ErrorState, and Skeleton", () => {
+  for (const name of ["Alert", "Empty", "ErrorState", "Skeleton"]) {
     assert.match(source, new RegExp(`export function ${name}\\(`), `missing ${name}`);
   }
 });
@@ -31,8 +31,6 @@ test("ErrorState and Empty expose recovery and empty patterns", () => {
   assert.match(source, /border-dashed border-border/);
 });
 
-test("Progress is an accessible progressbar", () => {
-  assert.match(source, /role="progressbar"/);
-  assert.match(source, /aria-valuenow=\{clamped\}/);
-  assert.match(source, /aria-valuemin=\{0\}/);
+test("feedback primitives omit competitive meter patterns", () => {
+  assert.doesNotMatch(source, /role="progressbar"|aria-valuenow/);
 });

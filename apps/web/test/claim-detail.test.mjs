@@ -15,27 +15,21 @@ test("claim detail keeps the full section hierarchy", () => {
 
 test("claim detail keeps the relation graph with direction switching", () => {
   assert.match(source, /import \{ ClaimDag \}/);
-  assert.match(source, /<ClaimDag elements=\{dagElements\} \/>/);
-  assert.match(source, /Claim relation graph/);
-  assert.match(source, /direction=\$\{direction\}/);
-  assert.match(source, /Upstream/);
-  assert.match(source, /Downstream/);
-  assert.match(source, /source: edge\.sourceClaimId/);
-  assert.match(source, /target: edge\.targetClaimId/);
-  // The keyboard-reachable list view lives inside ClaimDag (single tab
-  // surface per 11-revision-decisions §4.1), driven by the same typed edges.
-  assert.match(source, /<ClaimDag elements=\{dagElements\} \/>/);
+  assert.match(source, /<ClaimDag direction=\{direction\} focusId=\{claim\.claimId\} graph=\{dagGraph\}/);
+  assert.match(source, /graph\?direction=\$\{value\}/);
+  assert.match(source, /const source = edge\.sourceNodeId/);
+  assert.match(source, /const target = edge\.targetNodeId/);
+  // The keyboard-reachable Relationship Index lives beside the graph and is
+  // driven by the same typed nodes and edges.
+  assert.match(source, /dagGraph/);
   assert.match(source, /graph\?\.truncated/);
-  assert.match(source, /Graph view truncated/);
+  assert.match(source, /Neighborhood truncated/);
   assert.match(source, /originatorContributions/);
   assert.match(source, /drafted by agent/);
   assert.match(source, /signed by human/);
   assert.match(source, /actorHref\(draftingContribution\.actorId, 'agent'\)/);
   assert.match(source, /actorHref\(draftingContribution\.signedBy, 'human'\)/);
-  // Traversal direction stays a page-level control; Graph/List equivalence
-  // lives inside ClaimDag (single tab surface, 11-revision-decisions §4.1).
-  assert.match(source, /setDirection\('upstream'\)/);
-  assert.match(source, /setDirection\('downstream'\)/);
+  assert.match(source, /onDirectionChange=\{setDirection\}/);
 });
 
 test("claim detail renders on the page template with recovery", () => {

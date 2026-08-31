@@ -21,7 +21,7 @@ test("catalog showcases all six badge variants", () => {
 });
 
 test("catalog showcases form, selection, feedback, data, and overlay primitives", () => {
-  for (const name of ['Input', 'Textarea', 'Checkbox', 'Radio', 'Switch', 'Alert', 'Progress', 'Skeleton', 'Empty', 'Metadata', 'Dialog', 'Tooltip']) {
+  for (const name of ['Input', 'Textarea', 'Checkbox', 'Radio', 'Switch', 'Alert', 'Skeleton', 'Empty', 'Metadata', 'Dialog', 'Tooltip']) {
     assert.match(source, new RegExp(name), `missing ${name}`);
   }
 });

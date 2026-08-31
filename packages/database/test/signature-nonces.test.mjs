@@ -46,6 +46,11 @@ test('migration enables RLS and restricts Data API access to service_role', asyn
   const sql = await readFile(new URL('../drizzle/0074_signature_nonces.sql', import.meta.url), 'utf8');
   assert.match(sql, /ENABLE ROW LEVEL SECURITY/);
   assert.match(sql, /REVOKE ALL ON TABLE "public"\."signature_nonces" FROM "anon", "authenticated"/);
+  assert.match(sql, /REVOKE ALL ON TABLE "public"\."signature_nonces" FROM "service_role"/);
   assert.match(sql, /GRANT INSERT, SELECT ON TABLE "public"\."signature_nonces" TO "service_role"/);
+  assert.ok(
+    sql.indexOf('REVOKE ALL ON TABLE "public"."signature_nonces" FROM "service_role"')
+      < sql.indexOf('GRANT INSERT, SELECT ON TABLE "public"."signature_nonces" TO "service_role"'),
+  );
   assert.doesNotMatch(sql, /SECURITY DEFINER/);
 });

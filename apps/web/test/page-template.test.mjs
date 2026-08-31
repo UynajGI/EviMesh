@@ -16,11 +16,12 @@ test("PageHeader supports eyebrow, title, description, and an action slot", () =
   assert.match(source, /title/);
   assert.match(source, /description/);
   assert.match(source, /action/);
-  assert.match(source, /tracking-\[0\.16em\]/);
+  assert.match(source, /grid-cols-12/);
+  assert.match(source, /tracking-\[-0\.055em\]/);
 });
 
 test("PageContainer and SectionHeader keep the quiet rhythm", () => {
-  assert.match(source, /max-w-6xl/);
-  assert.match(source, /px-6 py-14/);
+  assert.match(source, /max-w-\[96rem\]/);
+  assert.match(source, /--evimesh-container-px/);
   assert.match(source, /items-baseline justify-between/);
 });

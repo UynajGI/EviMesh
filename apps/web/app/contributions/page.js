@@ -1,106 +1,57 @@
-'use client';
-
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
-import { StatusBadge } from '@/components/ui/data';
-import { Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
-import { IdChip } from '@/components/ui/idchip';
 import { PageContainer, PageHeader } from '@/components/ui/page';
-import { RoleBar, CONTRIBUTION_ROLES } from '@/components/role-bar';
-import { actorHref } from '@/components/attribution';
-import { apiFetch } from '@/lib/api-client';
 
-function actorLabel(actorId) {
-  return actorId ?? 'Unknown contributor';
+async function readEvents() {
+  const base = process.env.NEXT_PUBLIC_EVIMESH_API_URL;
+  if (!base) return [];
+  try {
+    const response = await fetch(`${base}/events?limit=100`, { cache: 'no-store' });
+    if (!response.ok) return [];
+    const body = await response.json();
+    return Array.isArray(body.items) ? body.items : [];
+  } catch {
+    return [];
+  }
 }
 
-/* Contribution-role hint from an event type: deterministic, count-only. */
-function roleForEventType(type) {
-  const t = type ?? '';
-  if (t.startsWith('claim') && (t.includes('created') || t.includes('proposed'))) return 'originator';
-  if (t.startsWith('verification') || t.startsWith('receipt')) return 'verifier';
-  if (t.startsWith('challenge')) return 'reviewer';
-  if (t.startsWith('witness') || t.startsWith('checkpoint')) return 'witness';
-  return 'contributor';
+function eventActor(event) {
+  return event.actorId ?? event.createdBy ?? event.signedBy ?? 'actor not stated';
 }
 
-export default function ContributionsPage() {
-  const [events, setEvents] = useState([]);
-  const [actorTypes, setActorTypes] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [requestId, setRequestId] = useState(null);
+function eventObject(event) {
+  return event.objectId ?? event.claimId ?? event.questionId ?? event.projectId ?? event.eventId;
+}
 
-  async function load() {
-    setLoading(true);
-    setError(null);
-    setRequestId(null);
-    try {
-      const [body, directory] = await Promise.all([
-        apiFetch('/events?limit=100'),
-        apiFetch('/actors?limit=200').catch(() => ({ items: [] })),
-      ]);
-      setEvents(body.items ?? []);
-      setActorTypes(Object.fromEntries((directory.items ?? []).map((actor) => [actor.actorId, actor.actorType])));
-    } catch (reason) {
-      setError(reason.message);
-      setRequestId(reason.requestId ?? null);
-    } finally {
-      setLoading(false);
-    }
-  }
+export default async function ContributionsPage({ searchParams }) {
+  const params = await searchParams;
+  const role = params?.role ?? 'all';
+  const objectType = params?.object ?? 'all';
+  const events = (await readEvents())
+    .filter((event) => role === 'all' || event.role === role)
+    .filter((event) => objectType === 'all' || event.objectType === objectType)
+    .sort((left, right) => Date.parse(right.createdAt ?? 0) - Date.parse(left.createdAt ?? 0));
 
-  useEffect(() => { load(); }, []);
-  useEffect(() => { document.title = 'Contributions · EviMesh'; }, []);
-
-  const overallCounts = useMemo(() => {
-    const counts = Object.fromEntries(CONTRIBUTION_ROLES.map((role) => [role, 0]));
-    for (const event of events) counts[roleForEventType(event.eventType)] += 1;
-    return counts;
-  }, [events]);
-
-
-  if (error) {
-    return <PageContainer><PageHeader eyebrow="Shared credit" title="Contributions" description="See the people and roles behind each verified step of scientific progress." /><ErrorState className="mt-8" message={error} requestId={requestId} onRetry={load} /></PageContainer>;
-  }
-
-  const byActor = new Map();
-  for (const event of events) {
-    const actor = actorLabel(event.actorId);
-    if (!byActor.has(actor)) byActor.set(actor, { actor, count: 0, types: new Set(), roleCounts: {}, latest: event.createdAt });
-    const entry = byActor.get(actor);
-    entry.count += 1;
-    if (event.eventType) entry.types.add(event.eventType);
-    const role = roleForEventType(event.eventType);
-    entry.roleCounts[role] = (entry.roleCounts[role] ?? 0) + 1;
-    if (event.createdAt && (!entry.latest || event.createdAt > entry.latest)) entry.latest = event.createdAt;
-  }
-  const contributors = [...byActor.values()].sort((left, right) => right.count - left.count);
-
-
-  return <PageContainer wide><PageHeader eyebrow="Shared credit" title="Contributions" description="See the people and roles behind each verified step of scientific progress." />
-    {loading ? <Skeleton className="mt-10 h-96 w-full" /> : contributors.length === 0 ? <Empty className="mt-10" title="No contributions yet" description="Signed contributions will appear here as research work moves through the protocol." /> : <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
-      <div className="grid min-w-0 gap-4 md:grid-cols-2">{contributors.map((entry) => {
-        const counts = entry.roleCounts;
-        return (
-          <article className="rounded-lg border border-border bg-card p-5" key={entry.actor}>
-            <div className="flex flex-wrap items-center gap-3">
-              <span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-full bg-accent text-sm font-semibold text-accent-foreground">{entry.actor.slice(0, 1).toUpperCase()}</span>
-              <div className="min-w-0">
-                <Link className="block truncate font-medium tabular-nums hover:underline" href={actorHref(entry.actor, actorTypes[entry.actor])}>{entry.actor}</Link>
-                <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">{entry.count} {entry.count === 1 ? 'event' : 'events'} · latest {entry.latest ?? 'unknown'}</p>
-              </div>
-            </div>
-            <RoleBar className="mt-4" counts={counts} />
-            <div className="mt-3 flex flex-wrap gap-2">{[...entry.types].sort().slice(0, 4).map((type) => <StatusBadge key={type} label={type} state={roleForEventType(type)} />)}</div>
-          </article>
-        );
-      })}</div>
-      <aside aria-label="Overall role distribution" className="rounded-lg border border-border bg-card p-5 lg:sticky lg:top-20">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Overall role distribution</h2>
-        <RoleBar className="mt-3" counts={overallCounts} />
-        <p className="mt-3 text-xs text-muted-foreground">Counts only, never points or rankings. Each contributor card links to the public record with the signed events behind it.</p>
-      </aside>
-    </div>}
-  </PageContainer>;
+  return (
+    <PageContainer wide>
+      <PageHeader
+        description="Browse attributable public events by time, role and research object. Every row opens the signed record that produced it."
+        eyebrow="Contribution Atlas"
+        title="Work, in public context."
+      />
+      <div className="mt-8 grid min-w-0 gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,9fr)]">
+        <aside className="min-w-0 border-b border-foreground pb-6 lg:border-r lg:border-b-0 lg:pr-8">
+          <h2 className="font-mono text-[10px] font-bold uppercase tracking-[0.08em]">Filter the record</h2>
+          <form className="mt-6 grid gap-5" method="get">
+            <label className="grid gap-2 font-mono text-[9px] font-bold uppercase tracking-[0.06em] text-muted-foreground">Role<select className="min-h-11 border border-border bg-background px-3 font-sans text-sm normal-case tracking-normal text-foreground" defaultValue={role} name="role"><option value="all">All roles</option><option value="author">Author</option><option value="verifier">Verifier</option><option value="curator">Curator</option><option value="maintainer">Maintainer</option></select></label>
+            <label className="grid gap-2 font-mono text-[9px] font-bold uppercase tracking-[0.06em] text-muted-foreground">Object<select className="min-h-11 border border-border bg-background px-3 font-sans text-sm normal-case tracking-normal text-foreground" defaultValue={objectType} name="object"><option value="all">All objects</option><option value="question">Question</option><option value="answer">Answer</option><option value="claim">Claim</option><option value="evidence">Evidence</option><option value="dataset">Dataset</option><option value="tool">Tool</option></select></label>
+            <button className="min-h-11 border border-foreground px-3 font-mono text-[10px] font-bold uppercase text-primary hover:bg-foreground hover:text-background" type="submit">Apply filters</button>
+          </form>
+          <p className="mt-6 font-serif text-sm leading-6 text-muted-foreground">Filters change the visible chronology only.</p>
+        </aside>
+        <section aria-label="Signed contribution events" className="min-w-0">
+          {events.length === 0 ? <div className="border-y border-foreground py-14"><p className="font-serif text-2xl font-medium">No public events match this scope.</p><p className="mt-3 text-sm text-muted-foreground">Try a broader role or object filter.</p></div> : <ol className="m-0 list-none p-0">{events.map((event) => <li className="grid min-w-0 gap-3 border-b border-border py-6 sm:grid-cols-[minmax(0,2fr)_minmax(0,7fr)] sm:gap-8" key={event.eventId}><time className="font-mono text-[10px] font-bold uppercase leading-5 text-primary" dateTime={event.createdAt}>{event.createdAt ? new Date(event.createdAt).toISOString().replace('T', ' ').slice(0, 16) : 'time not stated'}</time><div className="min-w-0"><span className="font-mono text-[9px] font-bold uppercase tracking-[0.06em] text-muted-foreground">{String(event.eventType ?? 'event').replaceAll('_', ' ')}</span><h2 className="mt-2 font-serif text-xl font-medium tracking-[-0.02em] [overflow-wrap:anywhere]">{eventActor(event)} recorded {eventObject(event)}</h2><p className="mt-2 font-mono text-[10px] text-muted-foreground [overflow-wrap:anywhere]">event {event.eventId}</p><Link className="mt-3 inline-flex min-h-11 items-center text-xs font-semibold text-primary hover:underline" href={`/events/${encodeURIComponent(event.eventId)}`}>Open signed event →</Link></div></li>)}</ol>}
+        </section>
+      </div>
+    </PageContainer>
+  );
 }

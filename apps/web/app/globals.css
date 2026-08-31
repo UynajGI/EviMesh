@@ -1,5 +1,45 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: "Inter Tight";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/inter-tight-latin-variable.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Source Serif 4";
+  font-style: normal;
+  font-weight: 200 900;
+  font-display: swap;
+  src: url("/fonts/source-serif-4-latin-variable.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/ibm-plex-mono-latin-400.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/fonts/ibm-plex-mono-latin-600.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/ibm-plex-mono-latin-700.woff2") format("woff2");
+}
+
 /*
  * EviMesh design tokens (M13.8, ported from docs/design/html/assets/tokens.css).
  *
@@ -79,7 +119,7 @@
   --color-dag-structural: var(--evimesh-dag-structural);
   --color-dag-lineage: var(--evimesh-dag-lineage);
 
-  /* Categorical series for count distributions (rolebar) */
+  /* Reserved categorical series tokens; public roles render as text only. */
   --color-series-1: var(--evimesh-series-1);
   --color-series-2: var(--evimesh-series-2);
   --color-series-3: var(--evimesh-series-3);
@@ -205,10 +245,10 @@
   --evimesh-dag-structural: var(--evimesh-p-info-400);
   --evimesh-dag-lineage: var(--evimesh-p-neutral-500);
   /* Typography */
-  --evimesh-font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --evimesh-font-mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
-  --evimesh-font-serif: ui-serif, Georgia, Cambria, "Times New Roman", serif;
-  /* Data-visualization categorical series (counts, never scores) */
+  --evimesh-font-sans: "Inter Tight", ui-sans-serif, system-ui, sans-serif;
+  --evimesh-font-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  --evimesh-font-serif: "Source Serif 4", ui-serif, Georgia, serif;
+  /* Data-visualization categorical series for attributable counts. */
   --evimesh-series-1: var(--evimesh-p-series-1);
   --evimesh-series-2: var(--evimesh-p-series-2);
   --evimesh-series-3: var(--evimesh-p-series-3);
@@ -217,9 +257,9 @@
   --evimesh-series-6: var(--evimesh-p-series-6);
   --evimesh-series-7: var(--evimesh-p-series-7);
   /* Radius */
-  --evimesh-radius-sm: 0.375rem;
-  --evimesh-radius-md: 0.5rem;
-  --evimesh-radius-lg: 0.75rem;
+  --evimesh-radius-sm: 1px;
+  --evimesh-radius-md: 2px;
+  --evimesh-radius-lg: 3px;
 
   /* Component decisions: reusable surfaces point at semantic roles, never at
    * primitive ramps. */
@@ -242,11 +282,11 @@
   --evimesh-container-px: 1.5rem;
   --evimesh-rail-w: 18rem;
   --evimesh-header-h: 3.5rem;
-  --evimesh-radius-control: 6px;
-  --evimesh-radius-surface: 8px;
-  --evimesh-radius-overlay: 12px;
-  --evimesh-motion-fast: 100ms;
-  --evimesh-motion-enter: 160ms;
+  --evimesh-radius-control: 1px;
+  --evimesh-radius-surface: 2px;
+  --evimesh-radius-overlay: 3px;
+  --evimesh-motion-fast: 120ms;
+  --evimesh-motion-enter: 220ms;
   --evimesh-ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -355,12 +395,57 @@
 
 
 body {
+  max-width: 100%;
   margin: 0;
+  overflow-x: hidden;
   background: var(--evimesh-background);
   color: var(--evimesh-foreground);
   font-family: var(--evimesh-font-sans);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+}
+
+html {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.kinetic-page-enter {
+  animation: kinetic-page-enter 200ms var(--evimesh-ease-enter) both;
+}
+
+@keyframes kinetic-page-enter {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.kinetic-nav-link::after {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  background: var(--evimesh-primary);
+  content: "";
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 160ms var(--evimesh-ease-enter);
+}
+
+.kinetic-nav-link:hover::after,
+.kinetic-nav-link[aria-current="page"]::after {
+  transform: scaleX(1);
+}
+
+::selection {
+  background: var(--evimesh-primary);
+  color: var(--evimesh-primary-foreground);
 }
 
 /* Focus visibility: a 2px ring that works on any surface. */
@@ -403,7 +488,7 @@ body {
   border-bottom: 1px solid var(--evimesh-border);
 }
 
-.rolebar {
+.role-directory {
   color: var(--evimesh-muted-foreground);
 }
 
@@ -411,6 +496,681 @@ body {
   list-style: none;
   margin: 0;
   padding: 0;
+}
+
+/* Heterogeneous research neighborhood v2.1. Graph and Relationship Index share
+ * one revision-qualified model; visual treatment never changes protocol meaning. */
+.dag-workspace {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid var(--evimesh-border);
+  border-radius: var(--evimesh-radius-surface);
+  background: var(--evimesh-card);
+}
+
+.dag-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  gap: 2rem;
+  align-items: end;
+  border-bottom: 1px solid var(--evimesh-foreground);
+  padding: 1.5rem;
+}
+
+.dag-heading > * {
+  min-width: 0;
+}
+
+.dag-heading p {
+  margin: 0;
+  color: var(--evimesh-muted-foreground);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.dag-heading > div > p {
+  color: var(--evimesh-primary);
+  font-family: var(--evimesh-font-mono);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.dag-heading h2 {
+  margin: 0.4rem 0 0;
+  font-family: var(--evimesh-font-serif);
+  font-size: clamp(1.75rem, 3vw, 3rem);
+  font-weight: 500;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  overflow-wrap: anywhere;
+}
+
+.dag-toolbar {
+  display: flex;
+  min-height: 4rem;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  border-bottom: 1px solid var(--evimesh-border);
+  background: var(--evimesh-background);
+  padding: 0.5rem 0.75rem;
+}
+
+.dag-toolbar > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.dag-toolbar label {
+  display: grid;
+  min-width: 7.5rem;
+  gap: 0.3rem;
+  color: var(--evimesh-muted-foreground);
+  font-family: var(--evimesh-font-mono);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.dag-toolbar label select {
+  min-height: 2.5rem;
+  border-radius: var(--evimesh-radius-control);
+  font-family: var(--evimesh-font-sans);
+  font-size: 0.75rem;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.dag-toolbar__actions {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-left: auto;
+}
+
+.dag-toolbar__actions button {
+  display: inline-flex;
+  min-height: 2.5rem;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid var(--evimesh-border);
+  border-radius: var(--evimesh-radius-control);
+  background: transparent;
+  color: var(--evimesh-muted-foreground);
+  padding: 0 0.7rem;
+  font-size: 0.75rem;
+  font-weight: 650;
+}
+
+.dag-toolbar__actions button:hover:not(:disabled) {
+  border-color: var(--evimesh-primary);
+  background: var(--evimesh-primary);
+  color: var(--evimesh-primary-foreground);
+}
+
+.dag-toolbar__actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.dag-split {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(20rem, 5fr);
+  min-width: 0;
+}
+
+.dag-split > * {
+  min-width: 0;
+}
+
+.dag-canvas {
+  position: relative;
+  height: clamp(32rem, 62vh, 44rem);
+  min-height: 28rem;
+  overflow: hidden;
+  background: var(--evimesh-card);
+  contain: inline-size layout paint;
+}
+
+.dag-flow,
+.dag-flow .react-flow__renderer,
+.dag-flow .react-flow__pane {
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.dag-mode-switch {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 6;
+  display: flex;
+  overflow: hidden;
+  border: 1px solid var(--evimesh-border);
+  border-radius: var(--evimesh-radius-control);
+  background: var(--evimesh-card);
+}
+
+.dag-mode-switch__button,
+.dag-mode-switch button {
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  place-items: center;
+  border: 0;
+  border-right: 1px solid var(--evimesh-border);
+  background: transparent;
+  color: var(--evimesh-muted-foreground);
+  transition: background-color 160ms cubic-bezier(0.16, 1, 0.3, 1), color 160ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dag-mode-switch__button:last-child,
+.dag-mode-switch button:last-child {
+  border-right: 0;
+}
+
+.dag-mode-switch__button:hover,
+.dag-mode-switch__button[aria-pressed="true"],
+.dag-mode-switch button:hover,
+.dag-mode-switch button[aria-pressed="true"] {
+  background: var(--evimesh-accent);
+  color: var(--evimesh-accent-foreground);
+}
+
+.dag-flow .react-flow__node-research {
+  overflow: visible;
+  border: 1px solid color-mix(in srgb, currentColor 38%, var(--evimesh-border));
+  border-radius: var(--evimesh-radius-surface);
+  transition: border-color var(--evimesh-motion-enter) var(--evimesh-ease-enter), transform var(--evimesh-motion-enter) var(--evimesh-ease-enter);
+}
+
+.dag-flow .react-flow__node-research:hover {
+  border-color: var(--evimesh-primary);
+  transform: translateX(2px);
+}
+
+.dag-flow .react-flow__node-research.selected,
+.dag-flow .react-flow__node-research:focus-visible {
+  border-color: var(--evimesh-primary);
+  outline: 2px solid var(--evimesh-focus);
+  outline-offset: 3px;
+}
+
+.dag-flow .react-flow__node-research:has(.dag-node[data-node-family="structure"]) {
+  border-top-width: 3px;
+}
+
+.dag-flow .react-flow__node-research:has(.dag-node[data-node-family="reasoning"]) {
+  border-left-width: 3px;
+}
+
+.dag-flow .react-flow__node-research:has(.dag-node[data-node-family="resource"]) {
+  clip-path: polygon(0 0, calc(100% - 0.65rem) 0, 100% 0.65rem, 100% 100%, 0 100%);
+}
+
+.dag-flow .react-flow__node-research:has(.dag-node[data-node-family="execution"]) {
+  border-right-width: 3px;
+  border-left-width: 3px;
+}
+
+.dag-flow .react-flow__node-research:has(.dag-node[data-node-family="verification"]) {
+  outline: 1px solid var(--evimesh-border);
+  outline-offset: -4px;
+}
+
+.dag-node {
+  position: relative;
+  display: grid;
+  min-height: 4.5rem;
+  align-content: center;
+  gap: 0.35rem;
+  border-radius: inherit;
+  padding: 0.75rem 0.875rem;
+  text-align: left;
+}
+
+.dag-node__id {
+  overflow: hidden;
+  font-family: var(--evimesh-font-mono);
+  font-size: 0.75rem;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dag-node__state {
+  overflow: hidden;
+  font-size: 0.6875rem;
+  font-weight: 550;
+  opacity: 0.78;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dag-node__type {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--evimesh-primary);
+  font-family: var(--evimesh-font-mono);
+  font-size: 0.5625rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dag-node__label {
+  display: -webkit-box;
+  overflow: hidden;
+  font-family: var(--evimesh-font-serif);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.dag-node__meta {
+  overflow: hidden;
+  color: var(--evimesh-muted-foreground);
+  font-family: var(--evimesh-font-mono);
+  font-size: 0.5625rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dag-flow .react-flow__handle {
+  width: 0.55rem;
+  height: 0.55rem;
+  border: 2px solid var(--evimesh-primary);
+  background: var(--evimesh-card);
+}
+
+.dag-flow .react-flow__edge-path,
+.dag-flow .react-flow__edge-text {
+  transition: stroke 160ms var(--evimesh-ease-enter), fill 160ms var(--evimesh-ease-enter), stroke-width 160ms var(--evimesh-ease-enter);
+}
+
+.dag-flow .react-flow__edge.dag-edge--selected-path .react-flow__edge-path {
+  stroke: var(--evimesh-primary);
+}
+
+.dag-controls.react-flow__controls {
+  overflow: hidden;
+  border: 1px solid var(--evimesh-border);
+  border-radius: var(--evimesh-radius-control);
+  background: var(--evimesh-card);
+}
+
+.dag-controls.react-flow__controls button {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-color: var(--evimesh-border);
+  background: transparent;
+  color: var(--evimesh-foreground);
+}
+
+.dag-controls.react-flow__controls button:hover {
+  background: var(--evimesh-muted);
+}
+
+.dag-minimap.react-flow__minimap {
+  display: none;
+  overflow: hidden;
+  border: 1px solid var(--evimesh-border);
+  border-radius: var(--evimesh-radius-control);
+  background: var(--evimesh-card);
+}
+
+.dag-legend {
+  display: grid;
+  gap: 1rem;
+  border-top: 1px solid var(--evimesh-border);
+  background: var(--evimesh-background);
+  padding: 1rem;
+}
+
+.dag-legend > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem 1rem;
+}
+
+.dag-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--evimesh-muted-foreground);
+  font-family: var(--evimesh-font-mono);
+  font-size: 0.625rem;
+}
+
+.dag-legend i {
+  width: 1.4rem;
+  border-top: 1px solid var(--evimesh-muted-foreground);
+}
+
+.dag-legend p {
+  margin: 0;
+  color: var(--evimesh-muted-foreground);
+  font-size: 0.6875rem;
+  line-height: 1.5;
+}
+
+.relationship-index {
+  height: clamp(32rem, 62vh, 44rem);
+  min-width: 0;
+  overflow: auto;
+  border-left: 1px solid var(--evimesh-foreground);
+  background: var(--evimesh-background);
+}
+
+.relationship-index__selected {
+  border-bottom: 2px solid var(--evimesh-primary);
+  padding: 1rem;
+}
+
+.relationship-index__selected > span {
+  color: var(--evimesh-primary);
+  font-family: var(--evimesh-font-mono);
+  font-size: 0.5625rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+}
+
+.relationship-index__selected > strong {
+  display: block;
+  margin-top: 0.4rem;
+  font-family: var(--evimesh-font-serif);
+  font-size: 1.25rem;
+  font-weight: 500;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.relationship-index__selected p {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  margin: 0.6rem 0 0;
+  color: var(--evimesh-muted-foreground);
+  font-family: var(--evimesh-font-mono);
+  font-size: 0.5625rem;
+}
+
+.relationship-index__detail {
+  display: flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 0.8rem;
+  border-top: 1px solid var(--evimesh-border);
+  color: var(--evimesh-primary);
+  font-family: var(--evimesh-font-mono);
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  transition: padding-left 160ms var(--evimesh-ease-enter);
+}
+
+.relationship-index__detail:hover {
+  padding-left: 2px;
+}
+
+.relationship-group > h3 {
+  display: flex;
+  justify-content: space-between;
+  margin: 0;
+  border-bottom: 1px solid var(--evimesh-foreground);
+  padding: 0.65rem 1rem;
+  font-family: var(--evimesh-font-mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.relationship-group > h3 span,
+.relationship-type > h4 {
+  color: var(--evimesh-primary);
+}
+
+.relationship-type > h4,
+.relationship-relation > h5 {
+  margin: 0;
+  padding-inline: 1rem;
+  font-family: var(--evimesh-font-mono);
+  font-size: 0.5625rem;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.relationship-type > h4 {
+  padding-top: 0.7rem;
+  padding-bottom: 0.25rem;
+}
+
+.relationship-relation > h5 {
+  border-bottom: 1px solid var(--evimesh-border);
+  padding-bottom: 0.5rem;
+  color: var(--evimesh-muted-foreground);
+}
+
+.relationship-relation ul,
+.relationship-all ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.relationship-relation li,
+.relationship-all li {
+  border-bottom: 1px solid var(--evimesh-border);
+}
+
+.relationship-relation button {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 6.5rem minmax(0, 1fr);
+  gap: 0.35rem 0.75rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0.8rem 1rem;
+  color: var(--evimesh-foreground);
+  text-align: left;
+  transition: background-color 160ms var(--evimesh-ease-enter), color 160ms var(--evimesh-ease-enter);
+}
+
+.relationship-relation button:hover,
+.relationship-relation button[aria-pressed="true"] {
+  background: var(--evimesh-primary);
+  color: var(--evimesh-primary-foreground);
+}
+
+.relationship-row__type,
+.relationship-row__relation {
+  font-family: var(--evimesh-font-mono);
+  font-size: 0.5625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.relationship-relation button > strong {
+  min-width: 0;
+  font-family: var(--evimesh-font-serif);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.relationship-row__relation {
+  color: currentColor;
+  opacity: 0.7;
+}
+
+.relationship-row__meta {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.55rem;
+  color: currentColor;
+  font-family: var(--evimesh-font-mono);
+  font-size: 0.5rem;
+  opacity: 0.7;
+}
+
+.relationship-row__meta code {
+  overflow-wrap: anywhere;
+}
+
+.relationship-empty {
+  margin: 0;
+  border-bottom: 1px solid var(--evimesh-border);
+  padding: 0.8rem 1rem;
+  color: var(--evimesh-muted-foreground);
+  font-size: 0.75rem;
+}
+
+.relationship-all summary {
+  display: flex;
+  cursor: pointer;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--evimesh-foreground);
+  padding: 0.75rem 1rem;
+  font-family: var(--evimesh-font-mono);
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.relationship-all button {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 6rem minmax(0, 1fr);
+  gap: 0.25rem 0.75rem;
+  border: 0;
+  background: transparent;
+  padding: 0.75rem 1rem;
+  color: var(--evimesh-foreground);
+  text-align: left;
+}
+
+.relationship-all button:hover,
+.relationship-all button[aria-pressed="true"] {
+  color: var(--evimesh-primary);
+}
+
+.relationship-all button span,
+.relationship-all button code {
+  font-family: var(--evimesh-font-mono);
+  font-size: 0.5625rem;
+}
+
+.relationship-all button code {
+  grid-column: 2;
+  color: var(--evimesh-muted-foreground);
+}
+
+.dag-workspace:fullscreen {
+  height: 100dvh;
+  overflow: auto;
+  border: 0;
+  border-radius: 0;
+  background: var(--evimesh-background);
+}
+
+.dag-workspace:fullscreen .dag-canvas {
+  height: calc(100dvh - 15rem);
+  max-height: none;
+}
+
+@media (min-width: 48rem) {
+  .dag-minimap.react-flow__minimap {
+    display: block;
+  }
+
+  .dag-legend {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+    padding: 1rem 1.25rem;
+  }
+}
+
+@media (max-width: 40rem) {
+  .dag-heading {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  .dag-toolbar {
+    align-items: stretch;
+    overflow: hidden;
+  }
+
+  .dag-toolbar label {
+    min-width: 0;
+    flex: 1 1 40%;
+    width: auto;
+  }
+
+  .dag-toolbar label select {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .dag-toolbar select {
+    flex: 1;
+  }
+
+  .dag-canvas {
+    height: 29rem;
+    max-width: 100%;
+    contain: inline-size layout paint;
+  }
+
+  .dag-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .relationship-index {
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    max-height: none;
+    border-top: 1px solid var(--evimesh-foreground);
+    border-left: 0;
+  }
+
+  .dag-toolbar__actions {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .dag-toolbar__actions button {
+    min-width: 0;
+    flex: 1 1 0;
+    justify-content: center;
+  }
+}
+
+@media (hover: none), (pointer: coarse) {
+  .dag-toolbar select,
+  .dag-toolbar button,
+  .dag-mode-switch button,
+  .relationship-index button,
+  .relationship-all summary {
+    min-block-size: 44px;
+  }
 }
 
 /* Reduced motion (design book 04 §6): every effect degrades to an instant

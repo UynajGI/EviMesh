@@ -3202,7 +3202,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/ProvisionSelfActorResponse"
                 }
               }
             }
@@ -3501,6 +3501,818 @@
           }
         }
       }
+    },
+    "/research-graph/{kind}/{id}/neighborhood": {
+      "get": {
+        "operationId": "getResearchNeighborhood",
+        "summary": "Read one permission-aware bounded heterogeneous research DAG neighborhood",
+        "security": [
+          {},
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ResearchNodeKind"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "revision",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "direction",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "upstream",
+                "downstream",
+                "both"
+              ],
+              "default": "both"
+            }
+          },
+          {
+            "name": "depth",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 3,
+              "default": 1
+            }
+          },
+          {
+            "name": "kinds",
+            "in": "query",
+            "required": false,
+            "description": "Comma-separated ResearchNodeKind filters.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "edgeTypes",
+            "in": "query",
+            "required": false,
+            "description": "Comma-separated ResearchEdgeType filters.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/CursorParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "At most 200 visible nodes and 400 visible edges; hidden counts are never exposed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResearchNeighborhood"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid kind, direction, depth, filter, or cursor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required."
+          },
+          "404": {
+            "description": "Root node or requested revision is absent or not visible.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/answers": {
+      "get": {
+        "operationId": "listAnswers",
+        "summary": "List Answer nodes",
+        "security": [
+          {},
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectIdParam"
+          },
+          {
+            "$ref": "#/components/parameters/ResearchStateParam"
+          },
+          {
+            "$ref": "#/components/parameters/LimitParam"
+          },
+          {
+            "$ref": "#/components/parameters/CursorParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Answer page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnswerPage"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "submitAnswer",
+        "summary": "Submit an externally human-signed Answer",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAnswerRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Answer created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TypedResearchCreateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid content or missing external signature.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/answers/prepare": {
+      "post": {
+        "operationId": "prepareAnswer",
+        "summary": "Prepare canonical Answer signing bytes without publishing",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrepareAnswerRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Canonical signing payload.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreparedResearchSubmission"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/answers/{id}": {
+      "get": {
+        "operationId": "getAnswer",
+        "summary": "Read one Answer and its immutable current revision",
+        "security": [
+          {},
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TypedResearchIdParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Answer detail.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnswerDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Answer not found or not visible.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/rebuttals": {
+      "get": {
+        "operationId": "listRebuttals",
+        "summary": "List Rebuttal nodes",
+        "security": [
+          {},
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectIdParam"
+          },
+          {
+            "$ref": "#/components/parameters/ResearchStateParam"
+          },
+          {
+            "$ref": "#/components/parameters/LimitParam"
+          },
+          {
+            "$ref": "#/components/parameters/CursorParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Rebuttal page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RebuttalPage"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "submitRebuttal",
+        "summary": "Submit an externally human-signed Rebuttal",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRebuttalRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Rebuttal created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TypedResearchCreateResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/rebuttals/prepare": {
+      "post": {
+        "operationId": "prepareRebuttal",
+        "summary": "Prepare canonical Rebuttal signing bytes without publishing",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrepareRebuttalRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Canonical signing payload.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreparedResearchSubmission"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/rebuttals/{id}": {
+      "get": {
+        "operationId": "getRebuttal",
+        "summary": "Read one Rebuttal and its immutable current revision",
+        "security": [
+          {},
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TypedResearchIdParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Rebuttal detail.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RebuttalDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/evaluations": {
+      "get": {
+        "operationId": "listEvaluations",
+        "summary": "List Evaluation nodes",
+        "security": [
+          {},
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectIdParam"
+          },
+          {
+            "$ref": "#/components/parameters/ResearchStateParam"
+          },
+          {
+            "name": "stance",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/EvaluationStance"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/LimitParam"
+          },
+          {
+            "$ref": "#/components/parameters/CursorParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Evaluation page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluationPage"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "submitEvaluation",
+        "summary": "Submit an externally human-signed Evaluation",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateEvaluationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Evaluation created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TypedResearchCreateResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/evaluations/prepare": {
+      "post": {
+        "operationId": "prepareEvaluation",
+        "summary": "Prepare canonical Evaluation signing bytes without publishing",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrepareEvaluationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Canonical signing payload.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreparedResearchSubmission"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/evaluations/{id}": {
+      "get": {
+        "operationId": "getEvaluation",
+        "summary": "Read one Evaluation, its current revision, and bases",
+        "security": [
+          {},
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TypedResearchIdParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Evaluation detail.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluationDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/datasets": {
+      "get": {
+        "operationId": "listDatasets",
+        "summary": "List Dataset nodes",
+        "security": [
+          {},
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectIdParam"
+          },
+          {
+            "$ref": "#/components/parameters/ResearchStateParam"
+          },
+          {
+            "$ref": "#/components/parameters/LimitParam"
+          },
+          {
+            "$ref": "#/components/parameters/CursorParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dataset page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetPage"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "submitDataset",
+        "summary": "Submit an externally human-signed Dataset",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDatasetRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Dataset created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TypedResearchCreateResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/datasets/prepare": {
+      "post": {
+        "operationId": "prepareDataset",
+        "summary": "Prepare canonical Dataset signing bytes without publishing",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrepareDatasetRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Canonical signing payload.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreparedResearchSubmission"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/datasets/{id}": {
+      "get": {
+        "operationId": "getDataset",
+        "summary": "Read one Dataset and its immutable current revision",
+        "security": [
+          {},
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TypedResearchIdParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dataset detail.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools": {
+      "get": {
+        "operationId": "listTools",
+        "summary": "List Tool nodes, including Skill tools",
+        "security": [
+          {},
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectIdParam"
+          },
+          {
+            "$ref": "#/components/parameters/ResearchStateParam"
+          },
+          {
+            "name": "toolKind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/ToolKind"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/LimitParam"
+          },
+          {
+            "$ref": "#/components/parameters/CursorParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tool page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolPage"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "submitTool",
+        "summary": "Submit an externally human-signed Tool",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateToolRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Tool created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TypedResearchCreateResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/prepare": {
+      "post": {
+        "operationId": "prepareTool",
+        "summary": "Prepare canonical Tool signing bytes without publishing",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrepareToolRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Canonical signing payload.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreparedResearchSubmission"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/{id}": {
+      "get": {
+        "operationId": "getTool",
+        "summary": "Read one Tool and its immutable current revision",
+        "security": [
+          {},
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/TypedResearchIdParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tool detail.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolDetail"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3531,6 +4343,32 @@
           "type": "string"
         }
       },
+      "ProjectIdParam": {
+        "name": "projectId",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "ResearchStateParam": {
+        "name": "state",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "$ref": "#/components/schemas/ResearchDocumentState"
+        }
+      },
+      "TypedResearchIdParam": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
       "IfMatchParam": {
         "name": "If-Match",
         "in": "header",
@@ -3542,6 +4380,1455 @@
       }
     },
     "schemas": {
+      "ResearchNodeKind": {
+        "type": "string",
+        "enum": [
+          "project",
+          "research_contract",
+          "question",
+          "answer",
+          "claim",
+          "rebuttal",
+          "evaluation",
+          "dataset",
+          "tool",
+          "artifact",
+          "evidence",
+          "task",
+          "attempt",
+          "context_bundle",
+          "run",
+          "verification_contract",
+          "verification_policy",
+          "policy_evaluation",
+          "verification_receipt",
+          "verification_finding",
+          "challenge",
+          "merge_proposal",
+          "frontier_snapshot"
+        ]
+      },
+      "ResearchEdgeType": {
+        "type": "string",
+        "enum": [
+          "extends_question",
+          "answers",
+          "yields_claim",
+          "rebuts",
+          "grounds_rebuttal",
+          "evaluates",
+          "evaluation_basis",
+          "challenges",
+          "uses_dataset",
+          "uses_tool",
+          "uses_artifact",
+          "materializes_dataset",
+          "packages_tool",
+          "materializes_evidence",
+          "operationalizes",
+          "attempted_as",
+          "produces_run",
+          "context_for",
+          "run_input",
+          "produces_artifact",
+          "produces_evidence",
+          "verifies_claim",
+          "verifies_run",
+          "uses_verification_contract",
+          "reports_finding",
+          "requires",
+          "derived_from",
+          "extends",
+          "implements",
+          "supersedes"
+        ]
+      },
+      "ResearchDocumentState": {
+        "type": "string",
+        "enum": [
+          "draft",
+          "published",
+          "superseded",
+          "retracted"
+        ]
+      },
+      "EvaluationStance": {
+        "type": "string",
+        "enum": [
+          "supports",
+          "refutes",
+          "qualifies",
+          "reproduces",
+          "verifies"
+        ]
+      },
+      "ToolKind": {
+        "type": "string",
+        "enum": [
+          "skill",
+          "method",
+          "software",
+          "model",
+          "workflow"
+        ]
+      },
+      "NodeRevisionRef": {
+        "type": "object",
+        "required": [
+          "kind",
+          "id",
+          "revision"
+        ],
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/ResearchNodeKind"
+          },
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "ResearchGraphNode": {
+        "type": "object",
+        "required": [
+          "ref",
+          "label",
+          "family",
+          "state",
+          "canonicalHref",
+          "createdAt",
+          "createdBy",
+          "isCurrent"
+        ],
+        "properties": {
+          "ref": {
+            "$ref": "#/components/schemas/NodeRevisionRef"
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1
+          },
+          "family": {
+            "type": "string",
+            "enum": [
+              "structure",
+              "reasoning",
+              "resource",
+              "execution",
+              "verification"
+            ]
+          },
+          "state": {
+            "type": "string",
+            "minLength": 1
+          },
+          "canonicalHref": {
+            "type": "string",
+            "minLength": 1
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdBy": {
+            "type": "string",
+            "minLength": 1
+          },
+          "isCurrent": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ResearchGraphEdge": {
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "family",
+          "source",
+          "target",
+          "forwardLabel",
+          "reverseLabel",
+          "provenanceEventId"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "type": {
+            "$ref": "#/components/schemas/ResearchEdgeType"
+          },
+          "family": {
+            "type": "string",
+            "enum": [
+              "lineage",
+              "reasoning",
+              "challenge",
+              "evaluation",
+              "resource",
+              "execution",
+              "result",
+              "dependency"
+            ]
+          },
+          "source": {
+            "$ref": "#/components/schemas/NodeRevisionRef"
+          },
+          "target": {
+            "$ref": "#/components/schemas/NodeRevisionRef"
+          },
+          "forwardLabel": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reverseLabel": {
+            "type": "string",
+            "minLength": 1
+          },
+          "provenanceEventId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "ResearchNeighborhood": {
+        "type": "object",
+        "required": [
+          "schemaVersion",
+          "requestedRoot",
+          "resolvedRoot",
+          "nodes",
+          "edges",
+          "truncated",
+          "permissionPartial",
+          "nextCursor",
+          "graphWatermark"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "const": "research-neighborhood.v1"
+          },
+          "requestedRoot": {
+            "$ref": "#/components/schemas/NodeRevisionRef"
+          },
+          "resolvedRoot": {
+            "$ref": "#/components/schemas/NodeRevisionRef"
+          },
+          "nodes": {
+            "type": "array",
+            "maxItems": 200,
+            "items": {
+              "$ref": "#/components/schemas/ResearchGraphNode"
+            }
+          },
+          "edges": {
+            "type": "array",
+            "maxItems": 400,
+            "items": {
+              "$ref": "#/components/schemas/ResearchGraphEdge"
+            }
+          },
+          "truncated": {
+            "type": "boolean",
+            "description": "True only when the requested visible traversal exceeded a public bound."
+          },
+          "permissionPartial": {
+            "type": "boolean",
+            "description": "True when authorization prevents proving that the visible topology is complete. Hidden object and connection counts are never returned."
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "graphWatermark": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "AnswerRevision": {
+        "type": "object",
+        "required": [
+          "answerId",
+          "revision",
+          "title",
+          "synthesis",
+          "limitations",
+          "questionRef",
+          "additionalInputs"
+        ],
+        "properties": {
+          "answerId": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "supersedesRevision": { "type": ["integer", "null"], "minimum": 1 },
+          "title": {
+            "type": "string"
+          },
+          "synthesis": {
+            "type": "string"
+          },
+          "limitations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "questionRef": {
+            "$ref": "#/components/schemas/NodeRevisionRef"
+          },
+          "additionalInputs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NodeRevisionRef"
+            }
+          }
+        }
+      },
+      "RebuttalRevision": {
+        "type": "object",
+        "required": [
+          "rebuttalId",
+          "revision",
+          "title",
+          "argument",
+          "scope",
+          "targetRef",
+          "basisRefs"
+        ],
+        "properties": {
+          "rebuttalId": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "supersedesRevision": { "type": ["integer", "null"], "minimum": 1 },
+          "title": {
+            "type": "string"
+          },
+          "argument": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "targetRef": {
+            "$ref": "#/components/schemas/NodeRevisionRef"
+          },
+          "basisRefs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NodeRevisionRef"
+            }
+          }
+        }
+      },
+      "EvaluationRevision": {
+        "type": "object",
+        "required": [
+          "evaluationId",
+          "revision",
+          "subjectRef",
+          "basisRefs",
+          "stance",
+          "rationale",
+          "method"
+        ],
+        "properties": {
+          "evaluationId": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "supersedesRevision": { "type": ["integer", "null"], "minimum": 1 },
+          "subjectRef": {
+            "$ref": "#/components/schemas/NodeRevisionRef"
+          },
+          "basisRefs": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/components/schemas/NodeRevisionRef"
+            }
+          },
+          "stance": {
+            "$ref": "#/components/schemas/EvaluationStance"
+          },
+          "rationale": {
+            "type": "string"
+          },
+          "method": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "DatasetRevision": {
+        "type": "object",
+        "required": [
+          "datasetId",
+          "revision",
+          "name",
+          "description",
+          "version",
+          "license",
+          "schemaUri",
+          "provenance",
+          "artifactRef"
+        ],
+        "properties": {
+          "datasetId": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "supersedesRevision": { "type": ["integer", "null"], "minimum": 1 },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "license": {
+            "type": "string"
+          },
+          "schemaUri": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "provenance": {
+            "type": "string"
+          },
+          "artifactRef": {
+            "$ref": "#/components/schemas/NodeRevisionRef"
+          }
+        }
+      },
+      "ToolRevision": {
+        "type": "object",
+        "required": [
+          "toolId",
+          "revision",
+          "name",
+          "description",
+          "toolKind",
+          "version",
+          "runtime",
+          "inputSchemaUri",
+          "outputSchemaUri",
+          "license",
+          "provenance",
+          "artifactRef"
+        ],
+        "properties": {
+          "toolId": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "supersedesRevision": { "type": ["integer", "null"], "minimum": 1 },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "toolKind": {
+            "$ref": "#/components/schemas/ToolKind"
+          },
+          "version": {
+            "type": "string"
+          },
+          "runtime": {
+            "type": "string"
+          },
+          "inputSchemaUri": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "outputSchemaUri": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "license": {
+            "type": "string"
+          },
+          "provenance": {
+            "type": "string"
+          },
+          "artifactRef": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "kind": {
+                "const": "artifact"
+              },
+              "id": {
+                "type": "string"
+              },
+              "revision": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      },
+      "TypedResearchIdentity": {
+        "type": "object",
+        "required": [
+          "projectId",
+          "state",
+          "createdAt",
+          "createdBy"
+        ],
+        "properties": {
+          "projectId": {
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/ResearchDocumentState"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdBy": {
+            "type": "string"
+          }
+        }
+      },
+      "AnswerPage": {
+        "type": "object",
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "answerId",
+                "createdAt"
+              ],
+              "properties": {
+                "answerId": {
+                  "type": "string"
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "RebuttalPage": {
+        "type": "object",
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "rebuttalId",
+                "createdAt"
+              ],
+              "properties": {
+                "rebuttalId": {
+                  "type": "string"
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "EvaluationPage": {
+        "type": "object",
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "evaluationId",
+                "createdAt"
+              ],
+              "properties": {
+                "evaluationId": {
+                  "type": "string"
+                },
+                "stance": {
+                  "$ref": "#/components/schemas/EvaluationStance"
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "DatasetPage": {
+        "type": "object",
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "datasetId",
+                "createdAt"
+              ],
+              "properties": {
+                "datasetId": {
+                  "type": "string"
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "ToolPage": {
+        "type": "object",
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "toolId",
+                "createdAt"
+              ],
+              "properties": {
+                "toolId": {
+                  "type": "string"
+                },
+                "toolKind": {
+                  "$ref": "#/components/schemas/ToolKind"
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "AnswerDetail": {
+        "type": "object",
+        "required": [
+          "answer",
+          "currentRevision"
+        ],
+        "properties": {
+          "answer": {
+            "$ref": "#/components/schemas/TypedResearchIdentity"
+          },
+          "currentRevision": {
+            "$ref": "#/components/schemas/AnswerRevision"
+          }
+        }
+      },
+      "RebuttalDetail": {
+        "type": "object",
+        "required": [
+          "rebuttal",
+          "currentRevision"
+        ],
+        "properties": {
+          "rebuttal": {
+            "$ref": "#/components/schemas/TypedResearchIdentity"
+          },
+          "currentRevision": {
+            "$ref": "#/components/schemas/RebuttalRevision"
+          }
+        }
+      },
+      "EvaluationDetail": {
+        "type": "object",
+        "required": [
+          "evaluation",
+          "currentRevision",
+          "bases"
+        ],
+        "properties": {
+          "evaluation": {
+            "$ref": "#/components/schemas/TypedResearchIdentity"
+          },
+          "currentRevision": {
+            "$ref": "#/components/schemas/EvaluationRevision"
+          },
+          "bases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NodeRevisionRef"
+            }
+          }
+        }
+      },
+      "DatasetDetail": {
+        "type": "object",
+        "required": [
+          "dataset",
+          "currentRevision"
+        ],
+        "properties": {
+          "dataset": {
+            "$ref": "#/components/schemas/TypedResearchIdentity"
+          },
+          "currentRevision": {
+            "$ref": "#/components/schemas/DatasetRevision"
+          }
+        }
+      },
+      "ToolDetail": {
+        "type": "object",
+        "required": [
+          "tool",
+          "currentRevision"
+        ],
+        "properties": {
+          "tool": {
+            "$ref": "#/components/schemas/TypedResearchIdentity"
+          },
+          "currentRevision": {
+            "$ref": "#/components/schemas/ToolRevision"
+          }
+        }
+      },
+      "PreparedResearchSubmission": {
+        "type": "object",
+        "required": [
+          "eventType",
+          "payload",
+          "nonce",
+          "signingBytes",
+          "signingBytesHash"
+        ],
+        "properties": {
+          "eventType": {
+            "type": "string"
+          },
+          "payload": {
+            "type": "object"
+          },
+          "nonce": {
+            "type": "string"
+          },
+          "signingBytes": {
+            "type": "string"
+          },
+          "signingBytesHash": {
+            "type": "string",
+            "pattern": "^sha256:"
+          }
+        }
+      },
+      "TypedResearchCreateResponse": {
+        "type": "object",
+        "required": [
+          "node",
+          "revision",
+          "typedRevision",
+          "edges",
+          "event"
+        ],
+        "properties": {
+          "node": {
+            "type": "object"
+          },
+          "revision": {
+            "type": "object"
+          },
+          "typedRevision": {
+            "type": "object"
+          },
+          "edges": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "bases": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "event": {
+            "type": "object"
+          }
+        }
+      },
+      "PrepareAnswerRequest": {
+        "type": "object",
+        "required": [
+          "answerId",
+          "projectId",
+          "title",
+          "synthesis",
+          "questionRef",
+          "nonce"
+        ],
+        "properties": {
+          "answerId": {
+            "type": "string"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "revision": { "type": "integer", "minimum": 1, "default": 1 },
+          "supersedesRevision": { "type": ["integer", "null"], "minimum": 1, "default": null },
+          "state": {
+            "$ref": "#/components/schemas/ResearchDocumentState"
+          },
+          "title": {
+            "type": "string"
+          },
+          "synthesis": {
+            "type": "string"
+          },
+          "limitations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "questionRef": {
+            "$ref": "#/components/schemas/NodeRevisionRef"
+          },
+          "additionalInputs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NodeRevisionRef"
+            }
+          },
+          "draftedByActorId": {
+            "type": "string"
+          },
+          "nonce": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateAnswerRequest": {
+        "type": "object",
+        "required": [
+          "answerId",
+          "projectId",
+          "title",
+          "synthesis",
+          "questionRef",
+          "signatureEnvelope"
+        ],
+        "properties": {
+          "answerId": {
+            "type": "string"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "revision": { "type": "integer", "minimum": 1, "default": 1 },
+          "supersedesRevision": { "type": ["integer", "null"], "minimum": 1, "default": null },
+          "state": {
+            "$ref": "#/components/schemas/ResearchDocumentState"
+          },
+          "title": {
+            "type": "string"
+          },
+          "synthesis": {
+            "type": "string"
+          },
+          "limitations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "questionRef": {
+            "$ref": "#/components/schemas/NodeRevisionRef"
+          },
+          "additionalInputs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NodeRevisionRef"
+            }
+          },
+          "draftedByActorId": {
+            "type": "string"
+          },
+          "signatureEnvelope": {
+            "$ref": "#/components/schemas/ClientSignatureEnvelope"
+          }
+        }
+      },
+      "PrepareRebuttalRequest": {
+        "type": "object",
+        "required": [
+          "rebuttalId",
+          "projectId",
+          "title",
+          "argument",
+          "targetRef",
+          "nonce"
+        ],
+        "properties": {
+          "rebuttalId": {
+            "type": "string"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "revision": { "type": "integer", "minimum": 1, "default": 1 },
+          "supersedesRevision": { "type": ["integer", "null"], "minimum": 1, "default": null },
+          "state": {
+            "$ref": "#/components/schemas/ResearchDocumentState"
+          },
+          "title": {
+            "type": "string"
+          },
+          "argument": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "targetRef": {
+            "$ref": "#/components/schemas/NodeRevisionRef"
+          },
+          "basisRefs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NodeRevisionRef"
+            }
+          },
+          "draftedByActorId": {
+            "type": "string"
+          },
+          "nonce": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateRebuttalRequest": {
+        "type": "object",
+        "required": [
+          "rebuttalId",
+          "projectId",
+          "title",
+          "argument",
+          "targetRef",
+          "signatureEnvelope"
+        ],
+        "properties": {
+          "rebuttalId": {
+            "type": "string"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "revision": { "type": "integer", "minimum": 1, "default": 1 },
+          "supersedesRevision": { "type": ["integer", "null"], "minimum": 1, "default": null },
+          "state": {
+            "$ref": "#/components/schemas/ResearchDocumentState"
+          },
+          "title": {
+            "type": "string"
+          },
+          "argument": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "targetRef": {
+            "$ref": "#/components/schemas/NodeRevisionRef"
+          },
+          "basisRefs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NodeRevisionRef"
+            }
+          },
+          "draftedByActorId": {
+            "type": "string"
+          },
+          "signatureEnvelope": {
+            "$ref": "#/components/schemas/ClientSignatureEnvelope"
+          }
+        }
+      },
+      "PrepareEvaluationRequest": {
+        "type": "object",
+        "required": [
+          "evaluationId",
+          "projectId",
+          "subjectRef",
+          "basisRefs",
+          "stance",
+          "rationale",
+          "nonce"
+        ],
+        "properties": {
+          "evaluationId": {
+            "type": "string"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "revision": { "type": "integer", "minimum": 1, "default": 1 },
+          "supersedesRevision": { "type": ["integer", "null"], "minimum": 1, "default": null },
+          "state": {
+            "$ref": "#/components/schemas/ResearchDocumentState"
+          },
+          "subjectRef": {
+            "$ref": "#/components/schemas/NodeRevisionRef"
+          },
+          "basisRefs": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/components/schemas/NodeRevisionRef"
+            }
+          },
+          "stance": {
+            "$ref": "#/components/schemas/EvaluationStance"
+          },
+          "rationale": {
+            "type": "string"
+          },
+          "method": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "draftedByActorId": {
+            "type": "string"
+          },
+          "nonce": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateEvaluationRequest": {
+        "type": "object",
+        "required": [
+          "evaluationId",
+          "projectId",
+          "subjectRef",
+          "basisRefs",
+          "stance",
+          "rationale",
+          "signatureEnvelope"
+        ],
+        "properties": {
+          "evaluationId": {
+            "type": "string"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "revision": { "type": "integer", "minimum": 1, "default": 1 },
+          "supersedesRevision": { "type": ["integer", "null"], "minimum": 1, "default": null },
+          "state": {
+            "$ref": "#/components/schemas/ResearchDocumentState"
+          },
+          "subjectRef": {
+            "$ref": "#/components/schemas/NodeRevisionRef"
+          },
+          "basisRefs": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/components/schemas/NodeRevisionRef"
+            }
+          },
+          "stance": {
+            "$ref": "#/components/schemas/EvaluationStance"
+          },
+          "rationale": {
+            "type": "string"
+          },
+          "method": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "draftedByActorId": {
+            "type": "string"
+          },
+          "signatureEnvelope": {
+            "$ref": "#/components/schemas/ClientSignatureEnvelope"
+          }
+        }
+      },
+      "PrepareDatasetRequest": {
+        "type": "object",
+        "required": [
+          "datasetId",
+          "projectId",
+          "name",
+          "description",
+          "version",
+          "license",
+          "provenance",
+          "artifactRef",
+          "nonce"
+        ],
+        "properties": {
+          "datasetId": {
+            "type": "string"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "revision": { "type": "integer", "minimum": 1, "default": 1 },
+          "supersedesRevision": { "type": ["integer", "null"], "minimum": 1, "default": null },
+          "state": {
+            "$ref": "#/components/schemas/ResearchDocumentState"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "license": {
+            "type": "string"
+          },
+          "schemaUri": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "provenance": {
+            "type": "string"
+          },
+          "artifactRef": {
+            "$ref": "#/components/schemas/NodeRevisionRef"
+          },
+          "draftedByActorId": {
+            "type": "string"
+          },
+          "nonce": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateDatasetRequest": {
+        "type": "object",
+        "required": [
+          "datasetId",
+          "projectId",
+          "name",
+          "description",
+          "version",
+          "license",
+          "provenance",
+          "artifactRef",
+          "signatureEnvelope"
+        ],
+        "properties": {
+          "datasetId": {
+            "type": "string"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "revision": { "type": "integer", "minimum": 1, "default": 1 },
+          "supersedesRevision": { "type": ["integer", "null"], "minimum": 1, "default": null },
+          "state": {
+            "$ref": "#/components/schemas/ResearchDocumentState"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "license": {
+            "type": "string"
+          },
+          "schemaUri": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "provenance": {
+            "type": "string"
+          },
+          "artifactRef": {
+            "$ref": "#/components/schemas/NodeRevisionRef"
+          },
+          "draftedByActorId": {
+            "type": "string"
+          },
+          "signatureEnvelope": {
+            "$ref": "#/components/schemas/ClientSignatureEnvelope"
+          }
+        }
+      },
+      "PrepareToolRequest": {
+        "type": "object",
+        "required": [
+          "toolId",
+          "projectId",
+          "name",
+          "description",
+          "toolKind",
+          "version",
+          "runtime",
+          "license",
+          "provenance",
+          "nonce"
+        ],
+        "properties": {
+          "toolId": {
+            "type": "string"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "revision": { "type": "integer", "minimum": 1, "default": 1 },
+          "supersedesRevision": { "type": ["integer", "null"], "minimum": 1, "default": null },
+          "state": {
+            "$ref": "#/components/schemas/ResearchDocumentState"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "toolKind": {
+            "$ref": "#/components/schemas/ToolKind"
+          },
+          "version": {
+            "type": "string"
+          },
+          "runtime": {
+            "type": "string"
+          },
+          "inputSchemaUri": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "outputSchemaUri": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "license": {
+            "type": "string"
+          },
+          "provenance": {
+            "type": "string"
+          },
+          "artifactRef": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "draftedByActorId": {
+            "type": "string"
+          },
+          "nonce": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateToolRequest": {
+        "type": "object",
+        "required": [
+          "toolId",
+          "projectId",
+          "name",
+          "description",
+          "toolKind",
+          "version",
+          "runtime",
+          "license",
+          "provenance",
+          "signatureEnvelope"
+        ],
+        "properties": {
+          "toolId": {
+            "type": "string"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "revision": { "type": "integer", "minimum": 1, "default": 1 },
+          "supersedesRevision": { "type": ["integer", "null"], "minimum": 1, "default": null },
+          "state": {
+            "$ref": "#/components/schemas/ResearchDocumentState"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "toolKind": {
+            "$ref": "#/components/schemas/ToolKind"
+          },
+          "version": {
+            "type": "string"
+          },
+          "runtime": {
+            "type": "string"
+          },
+          "inputSchemaUri": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "outputSchemaUri": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "license": {
+            "type": "string"
+          },
+          "provenance": {
+            "type": "string"
+          },
+          "artifactRef": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "draftedByActorId": {
+            "type": "string"
+          },
+          "signatureEnvelope": {
+            "$ref": "#/components/schemas/ClientSignatureEnvelope"
+          }
+        }
+      },
       "HealthResponse": {
         "type": "object",
         "required": [
@@ -4777,16 +7064,16 @@
             "minLength": 1,
             "description": "Registered agent or service Actor that executed and signed the srp.run.v1 receipt. This is distinct from the authenticated human publisher."
           },
-        "signingKeyId": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Active Ed25519 key owned by the Run producer identified by actorId."
-        },
-        "signature": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Base64url Ed25519 signature over the canonical srp.run.v1 document without its signature field. Signed text fields must be non-empty strings without leading or trailing whitespace. ArtifactRevisionRef arrays use ascending full artifactId@artifactRevision strings, and timestamps use UTC ISO strings from Date.toISOString()."
-        },
+          "signingKeyId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Active Ed25519 key owned by the Run producer identified by actorId."
+          },
+          "signature": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Base64url Ed25519 signature over the canonical srp.run.v1 document without its signature field. Signed text fields must be non-empty strings without leading or trailing whitespace. ArtifactRevisionRef arrays use ascending full artifactId@artifactRevision strings, and timestamps use UTC ISO strings from Date.toISOString()."
+          },
           "inputs": {
             "type": "array",
             "items": {
@@ -5036,8 +7323,25 @@
           }
         }
       },
+      "ProvisionSelfActorResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "actor",
+          "created"
+        ],
+        "properties": {
+          "actor": {
+            "$ref": "#/components/schemas/ActorIdentityCard"
+          },
+          "created": {
+            "type": "boolean"
+          }
+        }
+      },
       "ActorIdentityCard": {
         "type": "object",
+        "additionalProperties": false,
         "required": [
           "actorId"
         ],
@@ -5076,6 +7380,15 @@
             "nullable": true
           },
           "avatarUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "orcidId": {
+            "type": "string",
+            "nullable": true,
+            "description": "ORCID iD when present; verification status is established separately by OAuth."
+          },
+          "affiliation": {
             "type": "string",
             "nullable": true
           },

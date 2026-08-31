@@ -41,6 +41,15 @@ export function createSupabaseNonceStore({ env, fetchImpl = globalThis.fetch, no
   const secret = requiredSecret(env);
   const endpoint = endpointFor(env?.SUPABASE_URL);
   if (!secret || typeof fetchImpl !== 'function') throw new SupabaseNonceStoreError();
+  const headers = {
+    apikey: secret,
+    'content-type': 'application/json',
+    prefer: 'resolution=ignore-duplicates,return=representation',
+  };
+  // Modern Supabase secret keys are opaque API keys, not JWTs. Sending one as
+  // a Bearer credential makes PostgREST reject it. Legacy service_role JWTs
+  // still need both headers so older gateways derive the service role.
+  if (!secret.startsWith('sb_secret_')) headers.authorization = `Bearer ${secret}`;
 
   return Object.freeze({
     async claimSignatureNonce({ actorId, keyId, nonce } = {}) {
@@ -48,12 +57,7 @@ export function createSupabaseNonceStore({ env, fetchImpl = globalThis.fetch, no
       try {
         response = await fetchImpl(endpoint, {
           method: 'POST',
-          headers: {
-            apikey: secret,
-            authorization: `Bearer ${secret}`,
-            'content-type': 'application/json',
-            prefer: 'resolution=ignore-duplicates,return=representation',
-          },
+          headers,
           body: JSON.stringify([{
             actor_id: actorId,
             key_id: keyId,

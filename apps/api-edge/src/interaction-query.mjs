@@ -1,3 +1,5 @@
+import { actorIdentityCard } from "./contribution-query.mjs";
+
 /*
  * Engagement interactions + recommendations (owner direction 2026-08-21).
  *
@@ -137,9 +139,13 @@ export async function provisionSelfActor({ repository, accessToken, claims } = {
   requireAccessToken(accessToken);
   const subject = typeof claims?.sub === 'string' ? claims.sub.trim() : '';
   if (!subject) throw new InteractionError('authenticated subject is required', 'INTERACTION_AUTH_REQUIRED', 401);
-  return repository.provisionSelfActor({
+  const result = await repository.provisionSelfActor({
     accessToken,
     subject,
     email: typeof claims?.email === 'string' && claims.email.trim() ? claims.email.trim() : null,
   });
+  return {
+    actor: actorIdentityCard(result?.actor),
+    created: result?.created === true,
+  };
 }

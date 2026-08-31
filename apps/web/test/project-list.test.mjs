@@ -28,9 +28,8 @@ test("project list keeps the page template and full recovery states", () => {
   assert.match(source, /onRetry=\{load\}/);
 });
 
-test("project creation form keeps its primitives and confirmation", () => {
-  assert.match(source, /Create a project/);
-  assert.match(source, /Textarea/);
-  assert.match(source, /submitting/);
-  assert.match(source, /Project created as a draft\./);
+test("project list exposes an Agent handoff without browser research writes", () => {
+  assert.match(source, /READ-ONLY WEB/);
+  assert.match(source, /Open Agent connection/);
+  assert.doesNotMatch(source, /method:\s*['"]POST|Create a project|Textarea|onSubmit/);
 });

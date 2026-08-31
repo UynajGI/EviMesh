@@ -57,4 +57,7 @@ export { witnessReceipts } from './witness-receipts.mjs';
 export { notifications } from './notifications.mjs';
 export { signingKeys } from './signing-keys.mjs';
 export { claimSignatureNonce, signatureNonces } from './signature-nonces.mjs';
+export * from './research-graph.mjs';
+export * from './research-graph-backfill-repository.mjs';
+export * from './research-graph-backfill-entrypoint.mjs';
 export { schema } from './schema.mjs';

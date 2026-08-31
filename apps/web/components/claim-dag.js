@@ -1,227 +1,393 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { graphStratify, sugiyama, layeringLongestPath, decrossTwoLayer, coordSimplex } from 'd3-dag';
+import Link from 'next/link';
 import {
-  Background, Controls, MarkerType, ReactFlow, ReactFlowProvider, useReactFlow,
+  useCallback, useEffect, useMemo, useRef, useState,
+} from 'react';
+import {
+  graphStratify, sugiyama, layeringLongestPath, decrossTwoLayer, coordSimplex,
+} from 'd3-dag';
+import {
+  Background, Controls, Handle, MarkerType, MiniMap, Position, ReactFlow,
+  ReactFlowProvider, SelectionMode, useNodesState,
 } from '@xyflow/react';
+import {
+  BookOpen, Database, Focus, GitBranch, Hand, Maximize2, Minimize2,
+  MousePointer2, Play, Scan, ShieldCheck,
+} from 'lucide-react';
 import '@xyflow/react/dist/style.css';
-import { Badge } from '@/components/ui/data';
 import { Select } from '@/components/ui/selection';
+import {
+  filterResearchNeighborhood,
+  normalizeResearchNeighborhood,
+  relationshipsForSelection,
+  resolveResearchNodeKey,
+} from '@/lib/research-neighborhood.mjs';
 
 /*
- * Claim relation graph (design book 00 §5.3 / 10 implementation map):
- * d3-dag Sugiyama layered layout as the layout engine + React Flow as the
- * interaction layer (pan, zoom, selection). The keyboard- and list-accessible
- * equivalent view stays a first-class citizen (M13.5 C11). Color is never the
- * only carrier: node states pair fill color with the state label, and the
- * legend lists every state with its name.
+ * v2.1 Kinetic Journal heterogeneous research neighborhood.
+ * d3-dag computes the first layout. React Flow owns local pan, zoom,
+ * selection and drag only. The Relationship Index is always visible beside
+ * the canvas and consumes the same normalized nodes and edges.
  */
 
-export const CLAIM_STATE_COLORS = Object.freeze({
-  hypothesis: { background: 'var(--evimesh-status-neutral-bg)', foreground: 'var(--evimesh-status-neutral-fg)' },
-  candidate: { background: 'var(--evimesh-status-accent-bg)', foreground: 'var(--evimesh-status-accent-fg)' },
-  under_verification: { background: 'var(--evimesh-status-info-bg)', foreground: 'var(--evimesh-status-info-fg)' },
-  provisionally_accepted: { background: 'var(--evimesh-status-success-bg)', foreground: 'var(--evimesh-status-success-fg)' },
-  accepted: { background: 'var(--evimesh-status-success-bg)', foreground: 'var(--evimesh-status-success-fg)' },
-  contested: { background: 'var(--evimesh-status-warning-bg)', foreground: 'var(--evimesh-status-warning-fg)' },
-  refuted: { background: 'var(--evimesh-status-danger-bg)', foreground: 'var(--evimesh-status-danger-fg)' },
-  superseded: { background: 'var(--evimesh-status-neutral-bg)', foreground: 'var(--evimesh-status-neutral-fg)' },
-  retracted: { background: 'var(--evimesh-status-neutral-bg)', foreground: 'var(--evimesh-status-neutral-fg)' },
-  dependency_tainted: { background: 'var(--evimesh-status-warning-bg)', foreground: 'var(--evimesh-status-warning-fg)' },
-});
-
-const EDGE_FAMILIES = Object.freeze({
-  depends_on: 'structural',
-  supports: 'positive',
-  refutes: 'negative',
-  qualifies: 'qualify',
-  reproduces: 'positive',
-  extends: 'lineage',
-  supersedes: 'lineage',
-  contradicts: 'negative',
-  derived_from: 'lineage',
-  uses_method: 'structural',
-  uses_dataset: 'structural',
-  implements: 'structural',
-  verifies: 'positive',
-  challenges: 'negative',
-});
-
 const EDGE_FAMILY_STYLES = Object.freeze({
-  positive: Object.freeze({ label: 'supports / reproduces / verifies', strokeDasharray: 'none', strokeWidth: 1.5 }),
-  negative: Object.freeze({ label: 'refutes / contradicts / challenges', strokeDasharray: 'none', strokeWidth: 2 }),
-  qualify: Object.freeze({ label: 'qualifies', strokeDasharray: '6 4', strokeWidth: 1.5 }),
-  structural: Object.freeze({ label: 'depends on / uses / implements', strokeDasharray: '2 3', strokeWidth: 1.5 }),
-  lineage: Object.freeze({ label: 'extends / supersedes / derived from', strokeDasharray: '10 3 2 3', strokeWidth: 1.5 }),
+  lineage: Object.freeze({ label: 'lineage', dash: '10 3 2 3', width: 1.4 }),
+  reasoning: Object.freeze({ label: 'reasoning', dash: 'none', width: 1.5 }),
+  challenge: Object.freeze({ label: 'challenge', dash: 'none', width: 1.8 }),
+  evaluation: Object.freeze({ label: 'evaluation', dash: '6 4', width: 1.7 }),
+  resource: Object.freeze({ label: 'resource', dash: '2 3', width: 1.4 }),
+  execution: Object.freeze({ label: 'execution', dash: '8 3', width: 1.4 }),
+  result: Object.freeze({ label: 'result', dash: 'none', width: 1.5 }),
+  dependency: Object.freeze({ label: 'dependency', dash: '3 3', width: 1.4 }),
 });
 
-function edgeFamilyFor(relation) {
-  return EDGE_FAMILIES[relation] ?? 'structural';
+const FAMILY_ICONS = Object.freeze({
+  structure: GitBranch,
+  reasoning: BookOpen,
+  resource: Database,
+  execution: Play,
+  verification: ShieldCheck,
+});
+
+function readable(value, fallback = 'not stated') {
+  return String(value ?? fallback).replaceAll('_', ' ');
 }
 
-function edgeStyleFor(family) {
-  return EDGE_FAMILY_STYLES[family] ?? EDGE_FAMILY_STYLES.structural;
+function edgeFamilyFor(edge) {
+  return EDGE_FAMILY_STYLES[edge.family] ? edge.family : 'dependency';
 }
 
-/** Keyboard- and list-accessible alternative to the graph canvas. */
-function ClaimDagList({ nodes, edges }) {
-  return <div aria-label="Claim graph list view" className="grid gap-6 md:grid-cols-2">
-    <div><h3 className="text-sm font-semibold">Nodes</h3><ul className="mt-3 space-y-2">{nodes.map((node) => <li className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card p-3" key={node.id}><span className="text-sm font-medium tabular-nums">{node.id}</span><Badge>{node.state ?? 'unknown'}</Badge></li>)}</ul></div>
-    <div><h3 className="text-sm font-semibold">Edges</h3>{edges.length === 0 ? <p className="mt-3 text-sm text-muted-foreground">No connections.</p> : <ul className="mt-3 space-y-2">{edges.map((edge) => <li className="rounded-lg border border-border bg-card p-3 text-sm tabular-nums" key={edge.id}>{edge.source} → {edge.target} <span className="ml-2 text-xs text-muted-foreground">{edge.relation ?? 'depends_on'}</span></li>)}</ul>}</div>
-  </div>;
+function relationColor(family) {
+  return family === 'challenge' || family === 'evaluation'
+    ? 'var(--evimesh-primary)'
+    : 'var(--evimesh-muted-foreground)';
 }
 
-/** Sugiyama layout via d3-dag: returns nodes with x/y coordinates. */
+function useReducedMotionPreference() {
+  const query = '(prefers-reduced-motion: reduce)';
+  const [reducedMotion, setReducedMotion] = useState(() => (
+    typeof window !== 'undefined' && window.matchMedia(query).matches
+  ));
+
+  useEffect(() => {
+    const media = window.matchMedia(query);
+    const sync = () => setReducedMotion(media.matches);
+    sync();
+    media.addEventListener('change', sync);
+    return () => media.removeEventListener('change', sync);
+  }, []);
+
+  return reducedMotion;
+}
+
+function ResearchNode({ data }) {
+  const Icon = FAMILY_ICONS[data.family] ?? GitBranch;
+  return (
+    <div className="dag-node" data-node-family={data.family} data-node-kind={data.type}>
+      <Handle aria-hidden="true" isConnectable={false} position={Position.Top} type="target" />
+      <span className="dag-node__type"><Icon aria-hidden="true" size={12} strokeWidth={1.7} />{readable(data.type)}</span>
+      <strong className="dag-node__label">{data.label}</strong>
+      <span className="dag-node__meta tabular-nums">{data.id}@r{data.revision}{data.state ? ` / ${readable(data.state)}` : ''}</span>
+      <Handle aria-hidden="true" isConnectable={false} position={Position.Bottom} type="source" />
+    </div>
+  );
+}
+
+const NODE_TYPES = Object.freeze({ research: ResearchNode });
+
 function layoutGraph(nodes, edges) {
-  if (nodes.length === 0) return { positioned: [], width: 0, height: 0 };
-  const byId = new Map(nodes.map((node) => [node.id, node]));
+  if (nodes.length === 0) return [];
+  const byKey = new Map(nodes.map((node) => [node.key, node]));
   const stratifyData = nodes.map((node) => ({
-    id: node.id,
-    parentIds: edges.filter((edge) => edge.layoutTarget === node.id && byId.has(edge.layoutSource)).map((edge) => edge.layoutSource),
+    id: node.key,
+    parentIds: edges
+      .filter((edge) => edge.layoutTarget === node.key && byKey.has(edge.layoutSource))
+      .map((edge) => edge.layoutSource),
   }));
   try {
-    const dagBuilder = graphStratify();
-    const dag = dagBuilder(stratifyData);
-    const layout = sugiyama().layering(layeringLongestPath()).decross(decrossTwoLayer()).coord(coordSimplex()).nodeSize([160, 56]).gap([24, 48]);
-    const { width, height } = layout(dag);
-    const positioned = [];
-    for (const node of dag.nodes()) {
-      positioned.push({ id: node.data.id, x: node.x, y: node.y });
-    }
-    return { positioned, width, height };
+    const dag = graphStratify()(stratifyData);
+    const layout = sugiyama()
+      .layering(layeringLongestPath())
+      .decross(decrossTwoLayer())
+      .coord(coordSimplex())
+      .nodeSize([204, 92])
+      .gap([46, 76]);
+    layout(dag);
+    return [...dag.nodes()].map((node) => ({ id: node.data.id, x: node.x - 102, y: node.y - 46 }));
   } catch {
-    /* cyclic or degenerate input: fall back to a vertical stack */
-    return { positioned: nodes.map((node, index) => ({ id: node.id, x: 80, y: index * 80 })), width: 240, height: nodes.length * 80 };
+    return nodes.map((node, index) => ({ id: node.key, x: (index % 3) * 242, y: Math.floor(index / 3) * 132 }));
   }
 }
 
-function ClaimGraphCanvas({ nodes, edges, onSelect }) {
-  const { setCenter } = useReactFlow();
-  const { positioned, width, height } = useMemo(() => layoutGraph(nodes, edges), [nodes, edges]);
-  const coordinates = new Map(positioned.map((node) => [node.id, node]));
+function connectedPath(edges, selectedKey) {
+  if (!selectedKey) return { edges: new Set(), nodes: new Set() };
+  const edgeIds = new Set();
+  const nodeKeys = new Set([selectedKey]);
+  const walk = (side, nextSide) => {
+    const queue = [selectedKey];
+    const visited = new Set(queue);
+    for (let cursor = 0; cursor < queue.length; cursor += 1) {
+      const key = queue[cursor];
+      for (const edge of edges) {
+        if (edge[side] !== key) continue;
+        edgeIds.add(edge.id);
+        nodeKeys.add(edge[nextSide]);
+        if (!visited.has(edge[nextSide])) {
+          visited.add(edge[nextSide]);
+          queue.push(edge[nextSide]);
+        }
+      }
+    }
+  };
+  walk('source', 'target');
+  walk('target', 'source');
+  return { edges: edgeIds, nodes: nodeKeys };
+}
 
-  const flowNodes = useMemo(() => nodes.map((node) => {
-    const point = coordinates.get(node.id) ?? { x: 0, y: 0 };
-    const color = CLAIM_STATE_COLORS[node.state] ?? { background: 'var(--evimesh-status-accent-bg)', foreground: 'var(--evimesh-status-accent-fg)' };
+function GraphCanvas({ edges, nodes, onFlowReady, onSelect, reducedMotion, selectedNodeKey }) {
+  const frameRef = useRef(null);
+  const [interactionMode, setInteractionMode] = useState('pan');
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const positioned = useMemo(() => layoutGraph(nodes, edges), [nodes, edges]);
+  const coordinates = useMemo(() => new Map(positioned.map((node) => [node.id, node])), [positioned]);
+  const path = useMemo(() => connectedPath(edges, selectedNodeKey), [edges, selectedNodeKey]);
+  const initialFlowNodes = useMemo(() => nodes.map((node) => {
+    const point = coordinates.get(node.key) ?? { x: 0, y: 0 };
     return {
-      id: node.id,
+      id: node.key,
+      type: 'research',
       position: { x: point.x, y: point.y },
-      data: { label: `${node.id} · ${node.state ?? 'unknown'}`, color, state: node.state },
-      style: {
-        background: color.background, color: color.foreground, border: '1px solid var(--evimesh-border)', borderRadius: '8px',
-        fontSize: '11px', width: 160, padding: '4px 8px',
-      },
+      data: node,
+      ariaLabel: `${readable(node.type)} ${node.label}, state ${readable(node.state)}`,
+      style: { width: 204 },
     };
-  }), [nodes, coordinates]);
+  }), [coordinates, nodes]);
+  const [flowNodes, setFlowNodes, onNodesChange] = useNodesState(initialFlowNodes);
 
-  /* The graph API returns typed relation edges. Keep a depends_on label only
-   * for legacy payloads that predate the edge list. */
-  const flowEdges = useMemo(() => edges.map((edge, index) => {
-    const family = edgeFamilyFor(edge.relation);
-    const edgeStyle = edgeStyleFor(family);
-    const edgeColor = `var(--evimesh-dag-${family}, var(--evimesh-border))`;
+  useEffect(() => setFlowNodes(initialFlowNodes), [initialFlowNodes, setFlowNodes]);
+  useEffect(() => setFlowNodes((current) => current.map((node) => ({
+    ...node,
+    className: path.nodes.has(node.id) ? 'dag-node-path' : '',
+    selected: node.id === selectedNodeKey,
+  }))), [path.nodes, selectedNodeKey, setFlowNodes]);
+  useEffect(() => {
+    const handleFullscreen = () => setIsFullscreen(document.fullscreenElement === frameRef.current?.closest('.dag-workspace'));
+    document.addEventListener('fullscreenchange', handleFullscreen);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreen);
+  }, []);
+
+  const flowEdges = useMemo(() => edges.map((edge) => {
+    const family = edgeFamilyFor(edge);
+    const edgeStyle = EDGE_FAMILY_STYLES[family];
+    const onPath = path.edges.has(edge.id);
+    const edgeColor = onPath ? 'var(--evimesh-primary)' : relationColor(family);
     return {
-      id: edge.id ?? `edge-${index}`,
+      id: edge.id,
       source: edge.source,
       target: edge.target,
       animated: false,
-      type: 'default',
-      label: edge.relation ?? 'depends_on',
-      labelStyle: { fill: 'var(--evimesh-muted-foreground)', fontSize: 9 },
-      labelBgStyle: { fill: 'var(--evimesh-card)' },
-      className: `dag__edge dag__edge--${family}`,
+      className: onPath ? 'dag-edge--selected-path' : '',
+      label: edge.forwardLabel ?? readable(edge.relation),
+      labelStyle: { fill: onPath ? 'var(--evimesh-primary)' : 'var(--evimesh-muted-foreground)', fontSize: 9 },
+      labelBgPadding: [4, 2],
+      labelBgBorderRadius: 1,
+      labelBgStyle: { fill: 'var(--evimesh-card)', fillOpacity: 1 },
       markerEnd: { type: MarkerType.ArrowClosed, color: edgeColor },
       style: {
         stroke: edgeColor,
-        strokeDasharray: edgeStyle.strokeDasharray,
-        strokeWidth: edgeStyle.strokeWidth,
+        strokeDasharray: edgeStyle.dash,
+        strokeWidth: onPath ? Math.max(2.2, edgeStyle.width) : edgeStyle.width,
       },
     };
-  }), [edges]);
+  }), [edges, path.edges]);
 
-  const onNodeClick = useCallback((_, node) => onSelect({ id: node.id, state: node.data.state }), [onSelect]);
+  const toggleFullscreen = useCallback(async () => {
+    try {
+      const workspace = frameRef.current?.closest('.dag-workspace');
+      if (document.fullscreenElement === workspace) await document.exitFullscreen();
+      else await workspace?.requestFullscreen();
+    } catch {
+      // Fullscreen is an enhancement; the graph remains complete in place.
+    }
+  }, []);
+
+  const initializeFlow = useCallback((instance) => {
+    onFlowReady(instance);
+    // React Flow's first fit can run before measured node dimensions exist,
+    // which offsets a single-node fallback graph on narrow screens. Re-fit
+    // after two paint frames so the real bounds, not zero-size placeholders,
+    // drive the viewport transform.
+    window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+      instance.fitView({ duration: reducedMotion ? 0 : 260, maxZoom: 1.3, minZoom: 0.35, padding: 0.2 });
+    }));
+  }, [onFlowReady, reducedMotion]);
+
+  if (nodes.length === 0) {
+    return <div aria-label="Research neighborhood graph" className="dag-canvas dag-canvas--empty" role="application"><p>No research objects match these filters.</p></div>;
+  }
 
   return (
-    <div aria-label="Claim relation graph" className="dag mt-3 h-80 w-full overflow-hidden rounded-lg border border-border bg-card" role="application">
+    <div className="dag-canvas" ref={frameRef}>
+      <div aria-label="Graph interaction mode" className="dag-mode-switch" role="group">
+        <button aria-label="Pan graph" aria-pressed={interactionMode === 'pan'} onClick={() => setInteractionMode('pan')} type="button"><Hand aria-hidden="true" size={15} /></button>
+        <button aria-label="Select graph nodes" aria-pressed={interactionMode === 'select'} onClick={() => setInteractionMode('select')} type="button"><MousePointer2 aria-hidden="true" size={15} /></button>
+        <button aria-label={isFullscreen ? 'Exit full screen graph' : 'Open full screen graph'} onClick={toggleFullscreen} type="button">{isFullscreen ? <Minimize2 aria-hidden="true" size={15} /> : <Maximize2 aria-hidden="true" size={15} />}</button>
+      </div>
       <ReactFlow
+        aria-label="Research neighborhood graph"
+        className="dag-flow"
+        deleteKeyCode={null}
         edges={flowEdges}
+        elementsSelectable
         fitView
-        maxZoom={2}
-        minZoom={0.2}
+        fitViewOptions={{ duration: reducedMotion ? 0 : 280, maxZoom: 1.3, minZoom: 0.35, padding: 0.2 }}
+        maxZoom={2.5}
+        minZoom={0.25}
+        nodeTypes={NODE_TYPES}
         nodes={flowNodes}
         nodesConnectable={false}
-        nodesDraggable={false}
-        onNodeClick={onNodeClick}
+        nodesDraggable
+        onInit={initializeFlow}
+        onNodeClick={(_, node) => onSelect(node.id)}
+        onNodesChange={onNodesChange}
+        onSelectionChange={({ nodes: selected }) => { if (selected.length === 1) onSelect(selected[0].id); }}
+        panOnDrag={interactionMode === 'pan' ? true : [1, 2]}
+        panOnScroll
         proOptions={{ hideAttribution: true }}
+        selectionMode={SelectionMode.Partial}
+        selectionOnDrag={interactionMode === 'select'}
+        snapGrid={[12, 12]}
+        snapToGrid
+        zoomOnDoubleClick
+        zoomOnPinch
+        zoomOnScroll
       >
-        <Background gap={24} />
-        <Controls fitViewOptions={{ padding: 0.2 }} onFitView={() => setCenter(width / 2, height / 2, { zoom: 1 })} showInteractive={false} />
+        <Background color="var(--evimesh-border)" gap={32} size={1} />
+        <Controls aria-label="Graph viewport controls" className="dag-controls" fitViewOptions={{ duration: reducedMotion ? 0 : 280, padding: 0.2 }} orientation="horizontal" showInteractive={false} />
+        <MiniMap ariaLabel="Research graph overview" className="dag-minimap" maskColor="var(--evimesh-background)" nodeColor="var(--evimesh-primary)" pannable zoomable />
       </ReactFlow>
     </div>
   );
 }
 
-export function ClaimDag({ elements }) {
-  const [view, setView] = useState('graph');
+function RelationshipGroup({ heading, items, onSelect, selectedNodeKey }) {
+  const grouped = useMemo(() => {
+    const byType = new Map();
+    for (const item of items) {
+      const byRelation = byType.get(item.node.type) ?? new Map();
+      const relation = item.relationLabel ?? item.relation;
+      const rows = byRelation.get(relation) ?? [];
+      rows.push(item);
+      byRelation.set(relation, rows);
+      byType.set(item.node.type, byRelation);
+    }
+    return [...byType.entries()].sort(([left], [right]) => left.localeCompare(right));
+  }, [items]);
+  return (
+    <section className="relationship-group">
+      <h3>{heading}<span className="tabular-nums">{String(items.length).padStart(2, '0')}</span></h3>
+      {items.length === 0 ? <p className="relationship-empty">No direct {heading.toLowerCase()} relations in this filtered view.</p> : (
+        grouped.map(([type, byRelation]) => <div className="relationship-type" key={type}>
+          <h4>{readable(type)}</h4>
+          {[...byRelation.entries()].sort(([left], [right]) => left.localeCompare(right)).map(([relation, rows]) => <div className="relationship-relation" key={relation}>
+            <h5>{readable(relation)}</h5>
+            <ul>{rows.map((item) => <li key={item.id}>
+              <button aria-pressed={selectedNodeKey === item.node.key} onClick={() => onSelect(item.node.key)} type="button">
+                <span className="relationship-row__type">{readable(item.node.type)}</span>
+                <strong>{item.node.label}</strong>
+                <span className="relationship-row__relation">{readable(item.relationLabel ?? item.relation)}</span>
+                <span className="relationship-row__meta"><span>distance {Math.max(1, item.node.distance ?? item.node.depth ?? 1)}</span><span>{readable(item.node.state)}</span><code>{item.node.id}@r{item.node.revision}</code></span>
+              </button>
+            </li>)}</ul>
+          </div>)}
+        </div>)
+      )}
+    </section>
+  );
+}
+
+function RelationshipIndex({ complete, edges, nodes, onSelect, selectedNode }) {
+  const relations = useMemo(() => relationshipsForSelection(nodes, edges, selectedNode?.key), [edges, nodes, selectedNode?.key]);
+  const topology = !complete
+    ? 'Topology unknown / bounded view'
+    : relations.upstream.length === 0
+      ? 'Root'
+      : relations.downstream.length === 0
+        ? 'Leaf'
+        : 'Interior';
+  return (
+    <aside aria-label="Relationship Index" className="relationship-index">
+      <header className="relationship-index__selected">
+        <span>SELECTED NODE REVISION</span>
+        <strong>{selectedNode?.label ?? 'Select an object'}</strong>
+        {selectedNode ? <p><span>{readable(selectedNode.type)}</span><code>{selectedNode.id}@r{selectedNode.revision}</code><span>{topology}</span></p> : <p>Graph and index share selection.</p>}
+        {selectedNode?.canonicalHref ? <Link className="relationship-index__detail" href={selectedNode.canonicalHref}>Open full detail <span aria-hidden="true">→</span></Link> : null}
+      </header>
+      {selectedNode ? <><RelationshipGroup heading="Upstream" items={relations.upstream} onSelect={onSelect} selectedNodeKey={selectedNode.key} /><RelationshipGroup heading="Downstream" items={relations.downstream} onSelect={onSelect} selectedNodeKey={selectedNode.key} /></> : null}
+      <details className="relationship-all">
+        <summary>All visible objects <span className="tabular-nums">{String(nodes.length).padStart(2, '0')}</span></summary>
+        <ul>{nodes.map((node) => <li key={node.key}><button aria-pressed={selectedNode?.key === node.key} onClick={() => onSelect(node.key)} type="button"><span>{readable(node.type)}</span><strong>{node.label}</strong><code>{node.id}@r{node.revision}</code></button></li>)}</ul>
+      </details>
+    </aside>
+  );
+}
+
+export function ResearchNeighborhood({ direction: controlledDirection, elements, focusId, graph, maxDepth: initialMaxDepth = 3, onDirectionChange }) {
+  const reducedMotion = useReducedMotionPreference();
+  const normalized = useMemo(() => normalizeResearchNeighborhood(graph ?? elements ?? []), [elements, graph]);
+  const rootKey = useMemo(() => resolveResearchNodeKey(normalized.nodes, focusId) ?? normalized.rootKey, [focusId, normalized.nodes, normalized.rootKey]);
+  const [direction, setDirection] = useState(controlledDirection ?? 'both');
+  const [maxDepth, setMaxDepth] = useState(Math.min(3, Math.max(1, initialMaxDepth)));
+  const [typeFilter, setTypeFilter] = useState('');
   const [stateFilter, setStateFilter] = useState('');
-  const [selectedNode, setSelectedNode] = useState(null);
-  const [selectedDetail, setSelectedDetail] = useState(null);
+  const [selectedKey, setSelectedKey] = useState(rootKey ?? normalized.nodes[0]?.key ?? null);
+  const [flowApi, setFlowApi] = useState(null);
 
-  const rawNodes = (elements ?? []).filter((element) => element.data?.id && !element.data?.source).map((element) => ({ id: element.data.id, state: element.data.state ?? null }));
-  const rawEdges = (elements ?? []).filter((element) => element.data?.source).map((element) => ({ id: element.data.id, source: element.data.source, target: element.data.target, layoutSource: element.data.layoutSource ?? element.data.source, layoutTarget: element.data.layoutTarget ?? element.data.target, relation: element.data.relationType ?? element.data.relation ?? 'depends_on' }));
-  const visibleNodeIds = new Set(stateFilter ? rawNodes.filter((node) => node.state === stateFilter).map((node) => node.id) : rawNodes.map((node) => node.id));
-  const nodes = rawNodes.filter((node) => visibleNodeIds.has(node.id));
-  const edges = rawEdges.filter((edge) => visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target));
-  const states = [...new Set(rawNodes.map((node) => node.state).filter(Boolean))].sort();
-
+  useEffect(() => { if (controlledDirection) setDirection(controlledDirection); }, [controlledDirection]);
   useEffect(() => {
-    if (!selectedNode?.id) return undefined;
-    let cancelled = false;
-    fetch(`${process.env.NEXT_PUBLIC_EVIMESH_API_URL}/claims/${selectedNode.id}`).then((response) => response.json()).then((payload) => {
-      if (!cancelled) setSelectedDetail(payload);
-    }).catch(() => {
-      if (!cancelled) setSelectedDetail(null);
-    });
-    return () => { cancelled = true; };
-  }, [selectedNode]);
+    if (rootKey && !normalized.nodes.some((node) => node.key === selectedKey)) setSelectedKey(rootKey);
+    else if (!normalized.nodes.some((node) => node.key === selectedKey)) setSelectedKey(normalized.nodes[0]?.key ?? null);
+  }, [normalized.nodes, rootKey, selectedKey]);
 
-  const evidence = selectedNode?.evidence ?? selectedDetail?.evidence ?? [];
-  return <div>
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <div role="tablist" aria-label="Claim graph view" className="flex gap-1 rounded-md border border-border p-1"><button type="button" role="tab" aria-selected={view === 'graph'} onClick={() => setView('graph')} className={view === 'graph' ? 'rounded px-3 py-1 text-sm font-medium bg-primary/10 text-primary' : 'rounded px-3 py-1 text-sm font-medium text-muted-foreground'}>Graph</button><button type="button" role="tab" aria-selected={view === 'list'} onClick={() => setView('list')} className={view === 'list' ? 'rounded px-3 py-1 text-sm font-medium bg-primary/10 text-primary' : 'rounded px-3 py-1 text-sm font-medium text-muted-foreground'}>List</button></div>
-      <label className="flex items-center gap-2 text-sm"><span className="text-muted-foreground">Filter by state</span><Select value={stateFilter} onChange={(event) => setStateFilter(event.target.value)} className="w-44"><option value="">All states</option>{states.map((state) => <option key={state} value={state}>{state.replaceAll('_', ' ')}</option>)}</Select></label>
-    </div>
-    {view === 'graph'
-      ? <ReactFlowProvider><ClaimGraphCanvas edges={edges} nodes={nodes} onSelect={setSelectedNode} /></ReactFlowProvider>
-      : <div className="mt-3"><ClaimDagList edges={edges} nodes={nodes} /></div>}
-    {selectedNode && view === 'graph' && <aside aria-label="Claim node details" className="mt-4 rounded-lg border border-border bg-card p-4"><div className="flex items-center justify-between gap-3"><h3 className="font-mono text-sm tabular-nums">{selectedNode.id}</h3><button className="rounded-md border border-border px-2 py-1 text-xs" type="button" onClick={() => { setSelectedNode(null); setSelectedDetail(null); }}>Close</button></div><p className="mt-2 text-xs uppercase tracking-wide text-muted-foreground">State: {selectedNode.state ?? 'unknown'}</p><p className="mt-3 text-sm">Revision: {selectedDetail?.currentRevision?.revision ?? selectedNode.revision ?? 'Unavailable'}</p><p className="mt-2 text-sm">Evidence: {Array.isArray(evidence) ? evidence.length : 0} linked items</p>{Array.isArray(evidence) && evidence.length > 0 && <pre className="mt-3 overflow-x-auto rounded-lg bg-muted p-3 text-xs leading-6">{JSON.stringify(evidence, null, 2)}</pre>}</aside>}
-    <p className="mt-2 text-xs text-muted-foreground">Edges retain the protocol relation type; the list view exposes the same typed edges.</p>
-    <div aria-label="Claim state legend" className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">{Object.keys(CLAIM_STATE_COLORS).map((state) => <span className="inline-flex items-center gap-2" key={state}><span aria-hidden="true" className="h-3 w-3 rounded-full" style={{ backgroundColor: CLAIM_STATE_COLORS[state].background }} />{state.replaceAll('_', ' ')}</span>)}</div>
-    {/* Edge family legend (design book 02: five DAG edge families). */}
-    <div aria-label="DAG edge family legend" className="mt-2 flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">
-      {Object.entries(EDGE_FAMILY_STYLES).map(([family, edgeStyle]) => {
-        const edgeColor = `var(--evimesh-dag-${family}, var(--evimesh-border))`;
-        return <span className="inline-flex items-center gap-2" key={family}>
-          <span aria-hidden="true" className="inline-flex items-center gap-0">
-            <svg className="h-2 w-5 shrink-0" viewBox="0 0 20 8">
-              <line
-                x1="0"
-                x2="20"
-                y1="4"
-                y2="4"
-                style={{
-                  stroke: edgeColor,
-                  strokeDasharray: edgeStyle.strokeDasharray,
-                  strokeWidth: edgeStyle.strokeWidth,
-                }}
-              />
-            </svg>
-            <span style={{ color: edgeColor }}>→</span>
-          </span>
-          {edgeStyle.label}
-        </span>;
-      })}
-    </div>
-  </div>;
+  const filtered = useMemo(() => filterResearchNeighborhood(normalized, {
+    direction,
+    focusKey: rootKey,
+    maxDepth,
+    states: stateFilter ? [stateFilter] : [],
+    types: typeFilter ? [typeFilter] : [],
+  }), [direction, maxDepth, normalized, rootKey, stateFilter, typeFilter]);
+  const selectedNode = filtered.nodes.find((node) => node.key === selectedKey) ?? filtered.nodes[0] ?? null;
+  const types = useMemo(() => [...new Set(normalized.nodes.map((node) => node.type))].sort(), [normalized.nodes]);
+  const states = useMemo(() => [...new Set(normalized.nodes.map((node) => node.state).filter(Boolean))].sort(), [normalized.nodes]);
+
+  const updateDirection = (value) => { setDirection(value); onDirectionChange?.(value); };
+  const focusSelected = () => {
+    if (!flowApi || !selectedNode) return;
+    const node = flowApi.getNode(selectedNode.key);
+    if (node) flowApi.setCenter(node.position.x + 102, node.position.y + 46, { duration: reducedMotion ? 0 : 260, zoom: 1.2 });
+  };
+
+  return (
+    <section aria-label="Interactive research neighborhood" className="dag-workspace">
+      <header className="dag-heading"><div><p>LOCAL RESEARCH NEIGHBORHOOD</p><h2>Graph + Relationship Index</h2></div><p>One normalized node and edge model. Selection and filters stay synchronized across both surfaces.</p></header>
+      <div className="dag-toolbar">
+        <label><span>Direction</span><Select onChange={(event) => updateDirection(event.target.value)} value={direction}><option value="both">Both</option><option value="upstream">Upstream</option><option value="downstream">Downstream</option></Select></label>
+        <label><span>Depth</span><Select onChange={(event) => setMaxDepth(Number(event.target.value))} value={maxDepth}>{[1, 2, 3].map((depth) => <option key={depth} value={depth}>{depth}</option>)}</Select></label>
+        <label><span>Type</span><Select onChange={(event) => setTypeFilter(event.target.value)} value={typeFilter}><option value="">All types</option>{types.map((type) => <option key={type} value={type}>{readable(type)}</option>)}</Select></label>
+        <label><span>State</span><Select onChange={(event) => setStateFilter(event.target.value)} value={stateFilter}><option value="">All states</option>{states.map((state) => <option key={state} value={state}>{readable(state)}</option>)}</Select></label>
+        <div className="dag-toolbar__actions"><button onClick={() => flowApi?.fitView({ duration: reducedMotion ? 0 : 260, padding: 0.2 })} type="button"><Scan aria-hidden="true" size={14} />Fit</button><button disabled={!selectedNode} onClick={focusSelected} type="button"><Focus aria-hidden="true" size={14} />Focus</button></div>
+      </div>
+      <div className="dag-split">
+        <ReactFlowProvider><GraphCanvas edges={filtered.edges} nodes={filtered.nodes} onFlowReady={setFlowApi} onSelect={setSelectedKey} reducedMotion={reducedMotion} selectedNodeKey={selectedNode?.key} /></ReactFlowProvider>
+        <RelationshipIndex complete={filtered.complete} edges={filtered.edges} nodes={filtered.nodes} onSelect={setSelectedKey} selectedNode={selectedNode} />
+      </div>
+      <footer className="dag-legend"><div>{Object.entries(EDGE_FAMILY_STYLES).map(([family, style]) => <span key={family}><i style={{ borderTopColor: relationColor(family), borderTopStyle: style.dash === 'none' ? 'solid' : 'dashed', borderTopWidth: style.width }}></i>{style.label}</span>)}</div><p>Local movement changes only this viewport. Research relations remain read-only.</p></footer>
+    </section>
+  );
+}
+
+/** Backward-compatible export while callers migrate from Claim-only naming. */
+export function ClaimDag(props) {
+  return <ResearchNeighborhood {...props} />;
 }

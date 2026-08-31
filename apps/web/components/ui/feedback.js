@@ -92,17 +92,6 @@ export function DeniedState({ title = 'Permission needed', description, scope, a
   );
 }
 
-/** Linear progress with an accessible role. */
-export function Progress({ value = 0, max = 100, className }) {
-  const clamped = Math.max(0, Math.min(max, value));
-  const percentage = max === 0 ? 0 : Math.round((clamped / max) * 100);
-  return (
-    <div aria-label="Progress" aria-valuemax={max} aria-valuemin={0} aria-valuenow={clamped} className={cn('h-1.5 w-full overflow-hidden rounded-full bg-muted', className)} role="progressbar">
-      <div className="h-full rounded-full bg-primary transition-[width] duration-300" style={{ width: `${percentage}%` }} />
-    </div>
-  );
-}
-
 /** Skeleton block; combine widths for a loading layout. */
 export function Skeleton({ className }) {
   return <div aria-hidden="true" className={cn('skeleton animate-pulse rounded bg-muted', className)} />;

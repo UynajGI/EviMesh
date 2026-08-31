@@ -217,6 +217,61 @@ M3-64 adds `assert_claim_dependency_acyclic()`, a database trigger that rejects
 any `depends_on` edge which would make the Claim dependency graph cyclic.
 and self-dependency enforcement are subsequent database constraints.
 
+## v2.1 unified graph migration state
+
+Migration `0080` adds the private revision-DAG kernel, typed subtype tables,
+legacy crosswalk/finding primitives, and RLS-backed public read views. Migration
+`0081` adds private `research_graph_backfill_checkpoints` and append-only
+`research_graph_backfill_staging` tables for resumable repository-driven legacy
+imports. The staging primary key is `(project_id, source, source_key)` and every
+raw payload is bound to a SHA-256 semantic checksum.
+
+Migration `0082` adds immutable typed-node registration crosswalks and the
+service-only `execute_research_graph_legacy_dual_write` RPC. The RPC has a fixed
+eight-command dispatcher; it does not accept table names, arbitrary nodes, or
+edge plans. Claim, Evidence, VerificationReceipt, and Challenge writes persist
+their legacy rows, exact revision nodes, provenance events, crosswalks, and
+registry-approved DAG motifs in one transaction. Evidence is anchored to its
+Artifact, while receipts are anchored to their Claim, Run, and pinned
+VerificationContract and emit explicit finding edges. Event parents are copied
+to the immutable parent junction and checked as an exact set. Identical retries
+are no-ops; conflicting bytes or revisions roll back the complete statement.
+
+The public wrapper remains security-invoker and executable only by
+`service_role`; the private dispatcher is a fixed-search-path security-definer
+function so PostgREST does not require broad direct table grants. It assumes the
+service caller already performed the real signature verification and rejects
+event/command/projection mismatches. Missing application-side cryptographic
+verification must fail closed before invoking this RPC.
+
+Neither backfill table is exposed to `anon` or `authenticated`. RLS is enabled,
+all browser-role privileges are explicitly revoked, and only `service_role` may
+insert staging rows or advance checkpoints. Completed checkpoints and staged
+rows cannot be updated or deleted. The server-only
+`public.research_graph_legacy_relations` security-invoker view exposes the
+immutable crosswalk to `service_role` only, so a compatibility adapter can
+reconstruct old response shapes without granting browser enumeration access.
+
+`createPostgresResearchGraphBackfillRepository()` is the service-side
+Postgres.js adapter. It executes with `SET LOCAL ROLE service_role`, scans a
+stable exported PostgreSQL snapshot, persists page checkpoints in independent
+serializable transactions, and implements formal edge, Evaluation/Rebuttal
+motif, and Challenge-revision materialization. It never infers absent legacy
+Claim or Task revisions.
+
+The package entrypoint is intentionally dry-run by default:
+
+```powershell
+pnpm --filter @evimesh/database graph:backfill -- --project <project-id>
+pnpm --filter @evimesh/database graph:backfill -- --project <project-id> --apply
+```
+
+`DATABASE_URL` is mandatory. `--apply` is the only flag that permits writes;
+the command emits a redacted parity/cutover summary. Shipping this adapter does
+not mean any hosted or production dataset has been migrated. Applying migrations,
+reviewing the dry-run findings, and explicitly invoking apply remain deployment
+operations.
+
 `DATABASE_URL` is read from the environment, with the local-only Compose URL
 used as a development fallback for Drizzle Kit commands. Production URLs must
 be provided by the deployment environment.

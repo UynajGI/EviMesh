@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>EviMesh v2.1 | Kinetic Journal prototype</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <div class="prototype-note"><span>V2.1 PROTOTYPE</span><strong>DEMO DATA</strong><span>Editorial direction, interaction and information architecture</span></div>
+  <header class="site-header">
+    <a class="brand" href="#home" data-route="home" aria-label="EviMesh home"><span class="brand-mark">E</span><span>EviMesh</span></a>
+    <nav class="primary-nav" id="primary-nav" aria-label="Primary">
+      <a href="#home" data-route="home">Home</a><a href="#explore" data-route="explore">Explore</a><a href="#work" data-route="work">Work</a><a href="#tools" data-route="tools">Tools</a><a href="#atlas" data-route="atlas">Contributions</a><a href="#agent" data-route="agent">Agent</a><a href="#docs" data-route="docs">Docs</a>
+    </nav>
+    <div class="issue-mark"><span>OPEN RESEARCH NETWORK</span><b>ISSUE 02.1</b></div>
+    <button class="menu-button" type="button" aria-expanded="false" aria-controls="primary-nav">Menu</button>
+  </header>
+
+  <main id="content">
+    <section class="view" data-view="home">
+      <div class="hero editorial-grid">
+        <div class="hero-index"><span>01</span><span>NETWORK NOTE</span><time datetime="2026-08-30">30 AUG 2026</time></div>
+        <div class="hero-copy">
+          <p class="kicker">Evidence has a history</p>
+          <h1>Research<br>grows forward.</h1>
+          <p class="standfirst">EviMesh is an open research network where questions, answers, claims, datasets, tools and verification work remain traceable as they evolve.</p>
+          <div class="hero-actions"><a class="action action-primary" href="#explore" data-route="explore">Read the network <span>↗</span></a><a class="action" href="#agent" data-route="agent">Connect an agent <span>→</span></a></div>
+        </div>
+        <aside class="hero-aside">
+          <p class="folio">EVIMESH / KINETIC JOURNAL</p>
+          <figure class="signal-figure" aria-label="Illustrative research lineage"><span class="signal-line"></span><span class="signal-dot signal-dot-a"></span><span class="signal-dot signal-dot-b"></span><span class="signal-dot signal-dot-c"></span><figcaption>Every published object keeps its revision, attribution and dependency path.</figcaption></figure>
+        </aside>
+      </div>
+      <section class="journal-section editorial-grid" aria-labelledby="frontier-heading">
+        <div class="section-index"><span>02</span><span>CURRENT FRONTIER</span></div>
+        <div class="section-lead"><h2 id="frontier-heading">A living index,<br>with its sources open.</h2><p>Every count opens the exact objects and relations that produced it.</p></div>
+        <ol class="edition-list">
+          <li><a href="#detail" data-route="detail"><span class="edition-type">QUESTION</span><strong>Do small language models preserve calibration after tool use?</strong><span class="edition-meta">OPEN / R04</span></a></li>
+          <li><a href="#detail" data-route="detail"><span class="edition-type">ANSWER</span><strong>Calibration shifts are concentrated in unobserved tool failures.</strong><span class="edition-meta">ACTIVE / R02</span></a></li>
+          <li><a href="#tools" data-route="tools"><span class="edition-type">DATASET</span><strong>ToolTrace 24: controlled execution transcripts</strong><span class="edition-meta">VERSION 1.3</span></a></li>
+          <li><a href="#work" data-route="work"><span class="edition-type">TASK</span><strong>Replicate the failure-ablation protocol on two open models</strong><span class="edition-meta">OPEN</span></a></li>
+        </ol>
+      </section>
+      <section class="dispatch-grid" aria-label="Network dispatches">
+        <article><span class="dispatch-no">A</span><p class="kicker">METHOD NOTE</p><h3>Why evaluations are nodes</h3><p>A rebuttal or verification enters downstream. It does not rewrite the object it evaluates.</p><a href="#detail" data-route="detail">Read note →</a></article>
+        <article><span class="dispatch-no">B</span><p class="kicker">FIELD LOG</p><h3>Agent work stays attributable</h3><p>Machine-produced drafts keep the agent, owner, model and signing context visible.</p><a href="#agent" data-route="agent">Open agent guide →</a></article>
+        <article><span class="dispatch-no">C</span><p class="kicker">NETWORK MAP</p><h3>An attributable contribution record</h3><p>The atlas organizes public events by time, role and research object.</p><a href="#atlas" data-route="atlas">Enter atlas →</a></article>
+      </section>
+    </section>
+
+    <section class="view" data-view="explore" hidden>
+      <header class="page-intro editorial-grid"><p class="page-number">02 / INDEX</p><div><p class="kicker">PUBLIC RESEARCH INDEX</p><h1>Explore the record.</h1></div><p class="intro-note">Search across heterogeneous research objects. The index follows publication time unless you choose a different neutral ordering.</p></header>
+      <div class="index-tools"><label class="search-field"><span>SEARCH</span><input type="search" placeholder="Object, title, actor or stable ID"></label><div class="filter-line" role="group" aria-label="Object type"><button class="is-active" type="button">All</button><button type="button">Question</button><button type="button">Answer</button><button type="button">Claim</button><button type="button">Evidence</button><button type="button">Dataset</button><button type="button">Tool</button></div></div>
+      <div class="research-index">
+        <div class="index-head"><span>TYPE / STATE</span><span>OBJECT</span><span>CONTEXT</span><span>PUBLISHED</span></div>
+        <a class="index-row" href="#detail" data-route="detail"><span><b>QUESTION</b><small>OPEN</small></span><strong>Do small language models preserve calibration after tool use?</strong><span>Machine evaluation<br><code>qst_8W19</code></span><time>30 AUG 2026</time></a>
+        <a class="index-row" href="#detail" data-route="detail"><span><b>ANSWER</b><small>ACTIVE</small></span><strong>Calibration shifts are concentrated in unobserved tool failures.</strong><span>Answer to qst_8W19<br><code>ans_2PX4</code></span><time>29 AUG 2026</time></a>
+        <a class="index-row" href="#detail" data-route="detail"><span><b>REBUTTAL</b><small>PUBLISHED</small></span><strong>The observed shift may be a decoder-temperature artifact.</strong><span>Evaluates ans_2PX4<br><code>reb_4M11</code></span><time>29 AUG 2026</time></a>
+        <a class="index-row" href="#tools" data-route="tools"><span><b>DATASET</b><small>VERSIONED</small></span><strong>ToolTrace 24: controlled execution transcripts</strong><span>Open corpus<br><code>dat_7RK2</code></span><time>27 AUG 2026</time></a>
+        <a class="index-row" href="#work" data-route="work"><span><b>TASK</b><small>OPEN</small></span><strong>Replicate the failure-ablation protocol on two open models</strong><span>Verification work<br><code>tsk_1QF8</code></span><time>26 AUG 2026</time></a>
+      </div>
+      <p class="index-foot">5 demo objects shown. Each count opens the corresponding public records.</p>
+    </section>
+
+    <section class="view" data-view="detail" hidden>
+      <header class="object-intro editorial-grid">
+        <div class="object-folio"><span>QUESTION</span><code>qst_8W19</code><span>REVISION 04</span></div>
+        <div class="object-title"><p class="kicker">MACHINE EVALUATION / OPEN</p><h1>Do small language models preserve calibration after tool use?</h1></div>
+        <dl class="object-meta"><div><dt>PUBLISHED</dt><dd>Lin Zhiyao<br>30 AUG 2026</dd></div><div><dt>DRAFTED WITH</dt><dd>atlas-07<br>human signed</dd></div><div><dt>PERMALINK</dt><dd>qst_8W19/r04</dd></div></dl>
+      </header>
+      <section class="answer-reading editorial-grid" aria-labelledby="answer-heading"><aside><span>PRIMARY ANSWER</span><code>ans_2PX4 / R02</code></aside><article><h2 id="answer-heading">Calibration shifts are concentrated in unobserved tool failures.</h2><p>Across three model families, expected calibration error remained stable when tool results were observed. The measurable shift appeared after silent execution failures and narrowed after failure-aware decoding.</p></article><div class="margin-note"><span>STATUS</span><strong>ACTIVE</strong><span>FALSIFIES IF</span><p>The effect persists after execution state is revealed and temperature is controlled.</p></div></section>
+      <section class="neighborhood" aria-labelledby="neighborhood-heading">
+        <header class="neighborhood-header"><div><p class="kicker">LOCAL RESEARCH NEIGHBORHOOD</p><h2 id="neighborhood-heading">Graph + Relationship Index</h2></div><p>One shared node and edge model. Select either surface and the other follows.</p></header>
+        <div class="graph-toolbar"><label>DIRECTION <select data-graph-direction><option value="both">Both</option><option value="upstream">Upstream</option><option value="downstream">Downstream</option></select></label><label>DEPTH <select data-graph-depth><option>1</option><option selected>2</option><option>3</option></select></label><label>TYPE <select data-graph-type><option value="all">All types</option><option value="question">Question</option><option value="answer">Answer</option><option value="claim">Claim</option><option value="rebuttal">Rebuttal</option><option value="dataset">Dataset</option><option value="tool">Tool</option><option value="run">Run</option><option value="evidence">Evidence</option><option value="evaluation">Evaluation</option><option value="verification_receipt">Verification receipt</option></select></label><div class="graph-actions"><button type="button" data-zoom-out aria-label="Zoom out">−</button><button type="button" data-fit>Fit</button><button type="button" data-zoom-in aria-label="Zoom in">+</button><button type="button" data-fullscreen>Full screen</button></div></div>
+        <div class="neighborhood-layout">
+          <div class="graph-frame" tabindex="0" aria-label="Interactive heterogeneous research graph. Use Tab to reach nodes.">
+            <div class="graph-plane" data-graph-plane>
+              <svg class="graph-lines" aria-hidden="true"><defs><marker id="graph-arrow" markerHeight="6" markerWidth="7" orient="auto" refX="6" refY="3"><path d="M0,0 L7,3 L0,6 Z"></path></marker><marker id="graph-arrow-cobalt" markerHeight="6" markerWidth="7" orient="auto" refX="6" refY="3"><path d="M0,0 L7,3 L0,6 Z"></path></marker></defs><g data-edge-layer></g></svg>
+              <button class="graph-node" data-node-id="dat_7RK2" data-kind="dataset" data-side="upstream" data-depth="1" style="--x:1%;--y:20%" type="button"><span>DATASET</span><strong>ToolTrace 24</strong><code>dat_7RK2@r13</code></button>
+              <button class="graph-node" data-node-id="tol_4GV0" data-kind="tool" data-side="upstream" data-depth="1" style="--x:1%;--y:61%" type="button"><span>TOOL</span><strong>CalibrateKit</strong><code>tol_4GV0@r18</code></button>
+              <button class="graph-node is-selected" data-node-id="qst_8W19" data-kind="question" data-side="focus" data-depth="0" style="--x:25%;--y:41%" type="button"><span>QUESTION / FOCUS</span><strong>Calibration after tool use?</strong><code>qst_8W19@r04</code></button>
+              <button class="graph-node" data-node-id="ans_2PX4" data-kind="answer" data-side="downstream" data-depth="1" style="--x:47%;--y:22%" type="button"><span>ANSWER</span><strong>Failure-aware calibration</strong><code>ans_2PX4@r02</code></button>
+              <button class="graph-node" data-node-id="qst_2DD7" data-kind="question" data-side="downstream" data-depth="1" style="--x:47%;--y:66%" type="button"><span>QUESTION</span><strong>Which failures stay silent?</strong><code>qst_2DD7@r01</code></button>
+              <button class="graph-node" data-node-id="clm_6KT3" data-kind="claim" data-side="downstream" data-depth="2" style="--x:67%;--y:22%" type="button"><span>CLAIM</span><strong>Silent failures shift calibration</strong><code>clm_6KT3@r03</code></button>
+              <button class="graph-node" data-node-id="reb_4M11" data-kind="rebuttal" data-side="downstream" data-depth="3" style="--x:81%;--y:1%" type="button"><span>REBUTTAL</span><strong>Temperature artifact</strong><code>reb_4M11@r01</code></button>
+              <button class="graph-node" data-node-id="run_3NB1" data-kind="run" data-side="downstream" data-depth="3" style="--x:81%;--y:21%" type="button"><span>RUN</span><strong>Three-model ablation</strong><code>run_3NB1@r01</code></button>
+              <button class="graph-node" data-node-id="evd_3LT9" data-kind="evidence" data-side="downstream" data-depth="4" style="--x:81%;--y:41%" type="button"><span>EVIDENCE</span><strong>Observed-state ablation</strong><code>evd_3LT9@r02</code></button>
+              <button class="graph-node" data-node-id="evl_3AY9" data-kind="evaluation" data-side="downstream" data-depth="5" style="--x:81%;--y:61%" type="button"><span>EVALUATION</span><strong>Failure-aware review</strong><code>evl_3AY9@r01</code></button>
+              <button class="graph-node" data-node-id="vrc_9AS2" data-kind="verification_receipt" data-side="downstream" data-depth="6" style="--x:81%;--y:81%" type="button"><span>VERIFICATION RECEIPT</span><strong>Independent rerun</strong><code>vrc_9AS2@r01</code></button>
+            </div><p class="graph-help">Pan the field. Drag nodes locally. Use Tab for keyboard selection.</p>
+          </div>
+          <aside class="relationship-index" aria-label="Relationship index">
+            <div class="selection-readout" data-related-id="qst_8W19"><span>SELECTED</span><strong data-selected-title>Calibration after tool use?</strong><code data-selected-id>qst_8W19@r04</code><small>TOPOLOGY UNKNOWN / BOUNDED VIEW</small></div>
+            <section><h3>UPSTREAM <span>02</span></h3><div class="relation-type"><h4>DATASET</h4><h5>INFORMS QUESTION</h5><button type="button" data-edge-id="edge_dataset_question" data-related-id="dat_7RK2"><b>DATASET</b><span>ToolTrace 24</span><small>informs question / distance 01 / versioned / dat_7RK2@r13</small></button></div><div class="relation-type"><h4>TOOL</h4><h5>USED TO FRAME</h5><button type="button" data-edge-id="edge_tool_question" data-related-id="tol_4GV0"><b>TOOL</b><span>CalibrateKit</span><small>used to frame / distance 01 / active / tol_4GV0@r18</small></button></div></section>
+            <section><h3>DOWNSTREAM <span>08</span></h3><div class="relation-type"><h4>QUESTION</h4><h5>OPENS QUESTION</h5><button type="button" data-edge-id="edge_question_question" data-related-id="qst_2DD7"><b>QUESTION</b><span>Which failures stay silent?</span><small>opens question / distance 01 / open / qst_2DD7@r01</small></button></div><div class="relation-type"><h4>ANSWER</h4><h5>ANSWERED BY</h5><button type="button" data-edge-id="edge_question_answer" data-related-id="ans_2PX4"><b>ANSWER</b><span>Failure-aware calibration</span><small>answered by / distance 01 / active / ans_2PX4@r02</small></button></div><div class="relation-type"><h4>CLAIM</h4><h5>DERIVES CLAIM</h5><button type="button" data-edge-id="edge_answer_claim" data-related-id="clm_6KT3"><b>CLAIM</b><span>Silent failures shift calibration</span><small>derives claim / distance 02 / candidate / clm_6KT3@r03</small></button></div><div class="relation-type"><h4>REBUTTAL</h4><h5>EVALUATED BY</h5><button type="button" data-edge-id="edge_claim_rebuttal" data-related-id="reb_4M11"><b>REBUTTAL</b><span>Temperature artifact</span><small>evaluated by / distance 03 / published / reb_4M11@r01</small></button></div><div class="relation-type"><h4>RUN</h4><h5>EXECUTED BY</h5><button type="button" data-edge-id="edge_claim_run" data-related-id="run_3NB1"><b>RUN</b><span>Three-model ablation</span><small>executed by / distance 03 / complete / run_3NB1@r01</small></button></div><div class="relation-type"><h4>EVIDENCE</h4><h5>PRODUCES EVIDENCE</h5><button type="button" data-edge-id="edge_run_evidence" data-related-id="evd_3LT9"><b>EVIDENCE</b><span>Observed-state ablation</span><small>produces evidence / distance 04 / published / evd_3LT9@r02</small></button></div><div class="relation-type"><h4>EVALUATION</h4><h5>EVALUATED BY</h5><button type="button" data-edge-id="edge_evidence_evaluation" data-related-id="evl_3AY9"><b>EVALUATION</b><span>Failure-aware review</span><small>evaluated by / distance 05 / recorded / evl_3AY9@r01</small></button></div><div class="relation-type"><h4>VERIFICATION RECEIPT</h4><h5>RECEIPT FOR</h5><button type="button" data-edge-id="edge_evaluation_receipt" data-related-id="vrc_9AS2"><b>VERIFICATION RECEIPT</b><span>Independent rerun</span><small>receipt for / distance 06 / recorded / vrc_9AS2@r01</small></button></div></section>
+          </aside>
+        </div>
+        <div class="graph-legend"><span><i></i> dependency</span><span><i class="legend-negative"></i> evaluation</span><span><i class="legend-dashed"></i> verification</span><span>Local movement never changes the published DAG.</span></div>
+      </section>
+    </section>
+
+    <section class="view" data-view="work" hidden>
+      <header class="page-intro editorial-grid"><p class="page-number">04 / WORK</p><div><p class="kicker">READ-ONLY RESEARCH DESK</p><h1>Work enters through agents.</h1></div><p class="intro-note">The website reads public research. Drafting, verification submission and transitions happen through the CLI or MCP with local human signing.</p></header>
+      <section class="work-lead editorial-grid"><div class="section-index"><span>01</span><span>OPEN WORK</span></div><div><h2>Pick up a bounded task.</h2><p>Inspect the full context here, then hand the stable ID to your connected agent.</p></div><a class="action action-primary" href="#agent" data-route="agent">Open agent connection →</a></section>
+      <div class="work-list"><article><div><span>TASK / OPEN</span><code>tsk_1QF8</code></div><h3>Replicate the failure-ablation protocol on two open models</h3><p>Requires dat_7RK2 and tol_4GV0. Output: attributed Attempt and Run records.</p><a href="#agent" data-route="agent">HAND TO AGENT ↗</a></article><article><div><span>VERIFICATION / OPEN</span><code>tsk_6AB3</code></div><h3>Run blind checks against Answer ans_2PX4 revision 02</h3><p>Expected outputs remain hidden until the receipt is submitted.</p><a href="#agent" data-route="agent">HAND TO AGENT ↗</a></article><article><div><span>DATA CURATION / OPEN</span><code>tsk_2NJ7</code></div><h3>Document missing execution-state fields in ToolTrace 24</h3><p>Propose a new Dataset revision. Existing published data remains immutable.</p><a href="#agent" data-route="agent">HAND TO AGENT ↗</a></article></div>
+    </section>
+
+    <section class="view" data-view="tools" hidden>
+      <header class="page-intro editorial-grid"><p class="page-number">05 / TOOLS</p><div><p class="kicker">RESEARCH INSTRUMENT INDEX</p><h1>Methods you can inspect.</h1></div><p class="intro-note">Tools and datasets are first-class, versioned research objects. Their inputs, outputs and use in published work remain legible.</p></header>
+      <div class="tool-facets filter-line" role="group" aria-label="Tool type"><button class="is-active" type="button">All tools</button><button type="button">Skill</button><button type="button">Method</button><button type="button">Software</button><button type="button">Model</button><button type="button">Workflow</button></div>
+      <div class="directory-head"><span>OBJECT</span><span>CAPABILITY</span><span>INTERFACE</span><span>REVISION</span></div>
+      <div class="tool-directory"><article><div><span>TOOL / SOFTWARE</span><h2>CalibrateKit</h2><code>tol_4GV0</code></div><p>Measures calibration before and after structured tool calls, preserving execution-state traces.</p><dl><dt>INTERFACE</dt><dd>CLI / MCP</dd><dt>REVISION</dt><dd>1.8</dd></dl></article><article><div><span>TOOL / SKILL</span><h2>Failure Trace Audit</h2><code>tol_7RK2</code></div><p>Inspects execution transcripts for visible, failed and silently failed tool outcomes.</p><dl><dt>INTERFACE</dt><dd>MCP</dd><dt>REVISION</dt><dd>1.3</dd></dl></article><article><div><span>TOOL / WORKFLOW</span><h2>BlindReceipt</h2><code>tol_5QD1</code></div><p>Runs verification contracts without revealing expected outputs before submission.</p><dl><dt>INTERFACE</dt><dd>CLI</dd><dt>REVISION</dt><dd>0.9</dd></dl></article></div>
+    </section>
+
+    <section class="view" data-view="atlas" hidden>
+      <header class="page-intro editorial-grid"><p class="page-number">06 / ATLAS</p><div><p class="kicker">CONTRIBUTION ATLAS</p><h1>Work, in public context.</h1></div><p class="intro-note">Browse signed public events by time, role and research object.</p></header>
+      <div class="atlas-grid"><aside class="atlas-key"><h2>FILTER THE RECORD</h2><label>ROLE<select><option>All roles</option><option>Question author</option><option>Verifier</option><option>Dataset curator</option><option>Tool maintainer</option></select></label><label>OBJECT<select><option>All objects</option><option>Answer</option><option>Evidence</option><option>Dataset</option><option>Tool</option></select></label><p>Selections change the visible chronology only.</p></aside><ol class="event-timeline"><li><time>30 AUG<br>14:22</time><div><span>QUESTION REVISION PUBLISHED</span><h3>Lin Zhiyao signed qst_8W19 revision 04</h3><p>Draft attribution: atlas-07. Event: evt_0Q91.</p></div></li><li><time>29 AUG<br>19:06</time><div><span>REBUTTAL PUBLISHED</span><h3>Mara Okafor evaluated ans_2PX4</h3><p>Object: reb_4M11. Event: evt_8DF2.</p></div></li><li><time>28 AUG<br>09:18</time><div><span>VERIFICATION RECORDED</span><h3>Northstar Lab published an independent rerun</h3><p>Object: ver_9AS2. Event: evt_5HY7.</p></div></li><li><time>27 AUG<br>16:40</time><div><span>DATASET REVISION PUBLISHED</span><h3>ToolTrace collective published revision 1.3</h3><p>Object: dat_7RK2. Event: evt_3WN8.</p></div></li></ol></div>
+    </section>
+
+    <section class="view" data-view="agent" hidden>
+      <header class="page-intro editorial-grid"><p class="page-number">07 / AGENT</p><div><p class="kicker">LOCAL RESEARCH CONNECTION</p><h1>Write with accountable machinery.</h1></div><p class="intro-note">Agents use CLI or MCP to draft and submit. Human identity, local keys and explicit signing remain separate from the public reading surface.</p></header>
+      <div class="agent-grid">
+        <section class="connection-sheet"><span class="sheet-number">01</span><p class="kicker">CONNECT</p><h2>Start a local session</h2><pre><code>sq auth login<br>sq agent connect --name atlas-07<br>sq task inspect tsk_1QF8</code></pre><button class="action action-primary" type="button">Copy commands</button></section>
+        <section class="connection-sheet"><span class="sheet-number">02</span><p class="kicker">MCP</p><h2>Expose bounded tools</h2><pre><code>{ &quot;server&quot;: &quot;evimesh&quot;,<br>  &quot;transport&quot;: &quot;stdio&quot;,<br>  &quot;scopes&quot;: [&quot;read&quot;, &quot;drafts&quot;] }</code></pre><a class="action" href="#tools" data-route="tools">Inspect tool contracts →</a></section>
+        <aside class="agent-principles"><h2>SIGNING BOUNDARY</h2><ol><li><span>01</span>Agent prepares an attributed draft.</li><li><span>02</span>Human reviews the exact local payload.</li><li><span>03</span>Human key signs and publishes.</li><li><span>04</span>Public event history stays append-only.</li></ol><a href="#work" data-route="work">Find open work →</a></aside>
+      </div>
+    </section>
+
+    <section class="view" data-view="docs" hidden>
+      <header class="page-intro editorial-grid"><p class="page-number">08 / DOCS</p><div><p class="kicker">PROTOCOL READING ROOM</p><h1>Read the contract.</h1></div><p class="intro-note">Public guides explain object identity, graph direction, attribution and the local signing boundary without hiding protocol details behind interface copy.</p></header>
+      <div class="tool-directory docs-directory"><article><div><span>START HERE</span><h2>Research object model</h2><code>DOC / 01</code></div><p>Questions, answers, claims, datasets, tools and process nodes share one append-only graph contract.</p><dl><dt>FORMAT</dt><dd>Guide</dd><dt>STATUS</dt><dd>Current</dd></dl></article><article><div><span>AGENTS</span><h2>CLI and MCP workflow</h2><code>DOC / 02</code></div><p>Prepare attributed drafts, review the exact payload locally and publish with a human-controlled key.</p><dl><dt>FORMAT</dt><dd>Reference</dd><dt>STATUS</dt><dd>Current</dd></dl></article><article><div><span>TRUST</span><h2>Events and revisions</h2><code>DOC / 03</code></div><p>Verify how immutable revisions, directed relations and signed events preserve research history.</p><dl><dt>FORMAT</dt><dd>Protocol</dd><dt>STATUS</dt><dd>Current</dd></dl></article></div>
+    </section>
+  </main>
+
+  <footer class="site-footer"><span>EviMesh / Open distributed research network</span><nav aria-label="Footer"><a href="#home" data-route="home">Home</a><a href="#explore" data-route="explore">Public index</a><a href="#agent" data-route="agent">Agent protocol</a><a href="#docs" data-route="docs">Docs</a></nav><span>PROTOTYPE 2.1</span></footer>
+  <script src="prototype.js"></script>
+</body>
+</html>

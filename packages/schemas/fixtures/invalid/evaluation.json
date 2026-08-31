@@ -1,0 +1,4 @@
+[
+  { "schema": "srp.evaluation.v0" },
+  { "schema": "srp.evaluation.v1", "evaluation_id": "evaluation_invalid" }
+]

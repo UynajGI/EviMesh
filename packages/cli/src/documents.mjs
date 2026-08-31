@@ -238,6 +238,61 @@ export function challengeDocToApi(document) {
   };
 }
 
+const TYPED_DOCUMENTS = Object.freeze({
+  "srp.answer.v1": Object.freeze({ kind: "answer", plural: "answers", idField: "answer_id" }),
+  "srp.rebuttal.v1": Object.freeze({ kind: "rebuttal", plural: "rebuttals", idField: "rebuttal_id" }),
+  "srp.evaluation.v1": Object.freeze({ kind: "evaluation", plural: "evaluations", idField: "evaluation_id" }),
+  "srp.dataset.v1": Object.freeze({ kind: "dataset", plural: "datasets", idField: "dataset_id" }),
+  "srp.tool.v1": Object.freeze({ kind: "tool", plural: "tools", idField: "tool_id" }),
+});
+
+export function typedDocumentDefinition(document) {
+  return TYPED_DOCUMENTS[document?.schema] ?? null;
+}
+
+export function typedDocToApi(document) {
+  const definition = typedDocumentDefinition(document);
+  if (!definition) throw new CliDocumentError(`expected a typed research document, got ${document?.schema ?? "unknown"}`, "CLI_TYPED_DOCUMENT_EXPECTED");
+  const common = {
+    [`${definition.kind}Id`]: document[definition.idField],
+    projectId: document.project_id,
+    revision: document.revision,
+    supersedesRevision: document.supersedes_revision ?? null,
+    state: document.state,
+    draftedByActorId: document.created_by,
+  };
+  switch (definition.kind) {
+    case "answer": return { ...common, title: document.title, synthesis: document.synthesis, limitations: document.limitations, questionRef: document.question_ref, additionalInputs: document.additional_inputs };
+    case "rebuttal": return { ...common, title: document.title, argument: document.argument, scope: document.scope, targetRef: document.target_ref, basisRefs: document.basis_refs };
+    case "evaluation": return { ...common, subjectRef: document.subject_ref, basisRefs: document.basis_refs, stance: document.stance, rationale: document.rationale, method: document.method };
+    case "dataset": return { ...common, name: document.name, description: document.description, version: document.version, license: document.license, schemaUri: document.schema_uri, provenance: document.provenance, artifactRef: document.artifact_ref };
+    case "tool": return { ...common, name: document.name, description: document.description, toolKind: document.tool_kind, version: document.version, runtime: document.runtime, inputSchemaUri: document.input_schema_uri, outputSchemaUri: document.output_schema_uri, license: document.license, provenance: document.provenance, artifactRef: document.artifact_ref };
+    default: throw new CliDocumentError(`unsupported typed research document: ${document.schema}`, "CLI_TYPED_DOCUMENT_EXPECTED");
+  }
+}
+
+export function typedSubmissionRoute(document) {
+  const definition = typedDocumentDefinition(document);
+  if (!definition) return null;
+  return Object.freeze({ kind: definition.kind, path: `/${definition.plural}`, preparePath: `/${definition.plural}/prepare`, eventType: `${definition.kind}.${document.revision === 1 ? "created" : "revised"}` });
+}
+
+function todoRef(kind) {
+  return { kind, id: `${kind}_TODO`, revision: 1 };
+}
+
+export function typedResearchTemplate({ kind, id, projectId = "project_TODO", createdBy = "TODO: drafting actor id" } = {}) {
+  const common = { schema: `srp.${kind}.v1`, [`${kind}_id`]: id, project_id: projectId, revision: 1, supersedes_revision: null, state: "draft", created_at: new Date().toISOString(), created_by: createdBy };
+  switch (kind) {
+    case "answer": return { ...common, title: "TODO: answer title", synthesis: "TODO: synthesize the answer", limitations: [], question_ref: todoRef("question"), additional_inputs: [] };
+    case "rebuttal": return { ...common, title: "TODO: rebuttal title", argument: "TODO: state the counterargument", scope: [], target_ref: todoRef("claim"), basis_refs: [] };
+    case "evaluation": return { ...common, subject_ref: todoRef("claim"), basis_refs: [todoRef("evidence")], stance: "supports", rationale: "TODO: explain the evaluation", method: null };
+    case "dataset": return { ...common, name: "TODO: dataset name", description: "TODO: describe the dataset", version: "1.0.0", license: "TODO: SPDX license", schema_uri: null, provenance: "TODO: dataset provenance", artifact_ref: todoRef("artifact") };
+    case "tool": return { ...common, name: "TODO: tool name", description: "TODO: describe the tool", tool_kind: "skill", version: "1.0.0", runtime: "TODO: pinned runtime", input_schema_uri: null, output_schema_uri: null, license: "TODO: SPDX license", provenance: "TODO: tool provenance", artifact_ref: null };
+    default: throw new CliDocumentError(`unsupported typed research kind: ${kind}`, "CLI_TYPED_KIND_INVALID");
+  }
+}
+
 export function submissionRoute(document) {
   switch (document.schema) {
     case "srp.claim.v1":

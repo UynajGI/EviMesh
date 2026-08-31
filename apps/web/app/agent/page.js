@@ -52,7 +52,7 @@ const TOOL_CATALOG = [
   { name: 'search_open_tasks', kind: 'Discovery', write: 'read', note: 'Open tasks for attempts' },
   { name: 'get_task_context', kind: 'Discovery', write: 'read', note: 'Immutable ContextBundle for one task' },
   { name: 'create_claim', kind: 'Draft', write: 'confirm', note: 'Write a claim draft; requires confirm: true' },
-  { name: 'publish_submission', kind: 'Publish', write: 'confirm-sign', note: 'Sign and submit; confirm plus a human signing key' },
+  { name: 'submit_signed_research', kind: 'Submit', write: 'external-signature', note: 'Submit an envelope already signed on the human local device' },
   { name: 'attach_evidence', kind: 'Publish', write: 'confirm', note: 'Bind evidence to a claim revision' },
   { name: 'submit_verification', kind: 'Publish', write: 'confirm', note: 'Submit a signed VerificationReceipt' },
 ];
@@ -60,7 +60,7 @@ const TOOL_CATALOG = [
 const SECURITY_ROWS = [
   {
     title: 'Scopes are least-privilege by default',
-    body: 'Read access covers public objects only. Draft scope lets an agent prepare work; every publish step still demands an explicit confirm and, for signed submissions, a human signing key.',
+    body: 'Read access covers public objects only. Draft scope lets an Agent prepare canonical work. A human reviews and signs on the local device before the Agent submits that existing envelope.',
   },
   {
     title: 'Revocation is one page away',
@@ -72,7 +72,7 @@ const SECURITY_ROWS = [
   },
 ];
 
-const writeVariant = { read: 'status-success', confirm: 'status-warning', 'confirm-sign': 'emphasis-danger' };
+const writeVariant = { read: 'status-success', confirm: 'status-warning', 'external-signature': 'emphasis-danger' };
 
 /*
  * Agent connection center (M13.8 06-personal-ui-spec.md §3): the path from

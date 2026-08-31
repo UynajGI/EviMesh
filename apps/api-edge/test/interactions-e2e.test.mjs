@@ -15,6 +15,7 @@ import { createWorker } from "../src/index.mjs";
 const SUPABASE_URL = "https://project.supabase.co";
 const SUBJECT = "auth-user-e2e";
 const ACTOR_ID = "actor-e2e-1";
+const ACTOR_PUBLIC_SELECT = "actor_id,actor_type,identity_strength,model_name,runtime,scope,public_key_fingerprint,owner_actor_id,created_at,updated_at";
 
 function base64Url(value) {
   return Buffer.from(value).toString("base64url");
@@ -40,6 +41,7 @@ function startWorker({ identities = {}, interactions = [], recommendations = [],
   }
 
   const calls = [];
+  const actors = new Map();
   const postgrest = async (url, options = {}) => {
     const target = new URL(url);
     calls.push({ method: options.method ?? "GET", path: target.pathname, params: target.searchParams, options, body: options.body ? JSON.parse(options.body) : null });
@@ -64,9 +66,31 @@ function startWorker({ identities = {}, interactions = [], recommendations = [],
     }
     if (method === "GET" && path === "/rest/v1/engagement_interactions") return Response.json(interactions);
     if (method === "GET" && path === "/rest/v1/recommendation_cache") return Response.json(recommendations);
+    if (method === "GET" && path === "/rest/v1/actor_directory") {
+      const actorId = filter("actor_id");
+      const rows = actorId ? [actors.get(actorId)].filter(Boolean) : [...actors.values()];
+      return Response.json(rows);
+    }
     if (method === "POST" && path === "/rest/v1/engagement_interactions") return Response.json([], { status: 201 });
     if (method === "DELETE") return Response.json([]);
-    if (method === "POST" && (path === "/rest/v1/actors" || path === "/rest/v1/identities")) {
+    if (method === "POST" && path === "/rest/v1/actors") {
+      const body = JSON.parse(options.body);
+      const row = body[0];
+      actors.set(row.actor_id, {
+        actor_id: row.actor_id,
+        actor_type: row.actor_type,
+        identity_strength: row.identity_strength,
+        model_name: null,
+        runtime: null,
+        scope: null,
+        public_key_fingerprint: null,
+        owner_actor_id: null,
+        created_at: "2026-08-21T00:00:00Z",
+        updated_at: "2026-08-21T00:00:00Z",
+      });
+      return new Response(null, { status: 201 });
+    }
+    if (method === "POST" && path === "/rest/v1/identities") {
       const body = JSON.parse(options.body);
       return Response.json(body, { status: 201 });
     }
@@ -141,11 +165,15 @@ test("POST /actors/self provisions the actor and the pinned identity end to end"
   const body = await response.json();
   assert.equal(body.created, true);
   assert.match(body.actor.actorId, /^actor_/);
-  assert.equal(body.actor.authSubject, SUBJECT);
+  assert.equal(Object.hasOwn(body.actor, "authSubject"), false);
 
   const actorInsert = harness.calls.find((call) => call.method === "POST" && call.path === "/rest/v1/actors");
   assert.equal(actorInsert.body[0].auth_subject, SUBJECT);
   assert.equal(actorInsert.body[0].identity_strength, "self_declared");
+  assert.equal(actorInsert.options.headers.prefer, "return=minimal");
+  const actorRead = harness.calls.find((call) => call.method === "GET" && call.path === "/rest/v1/actor_directory");
+  assert.equal(actorRead.params.get("select"), ACTOR_PUBLIC_SELECT);
+  assert.equal(actorRead.params.get("select").includes("auth_subject"), false);
   const identityInsert = harness.calls.find((call) => call.method === "POST" && call.path === "/rest/v1/identities");
   assert.equal(identityInsert.body[0].provider, "supabase");
   assert.equal(identityInsert.body[0].subject, SUBJECT);

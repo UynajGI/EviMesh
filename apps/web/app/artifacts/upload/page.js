@@ -1,6 +1,5 @@
-import { ArtifactUploadPanel } from '@/components/artifact-upload-panel';
-import { PageContainer, PageHeader } from '@/components/ui/page';
+import { ResearchWriteHandoff } from '@/components/research-write-handoff';
 
 export default function ArtifactUploadPage() {
-  return <PageContainer><PageHeader eyebrow="Evidence graph" title="Artifact upload" description="Hash a file locally and upload it to R2 through a short-lived signed URL." /><ArtifactUploadPanel /></PageContainer>;
+  return <ResearchWriteHandoff command="sq evidence add ./artifact.bin" description="Files are hashed and transferred by the local CLI or Agent connection. The public website does not receive research uploads." eyebrow="Artifact authoring" kind="artifact" title="Upload through your Agent" />;
 }

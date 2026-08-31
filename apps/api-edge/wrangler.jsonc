@@ -24,6 +24,9 @@
     "ACTOR_RATE_LIMIT_MAX": "120",
     "API_TOKEN_RATE_LIMIT_MAX": "60",
     "RATE_LIMIT_WINDOW_SECONDS": "60",
+    "RESEARCH_GRAPH_READ_MODE": "legacy",
+    "RESEARCH_GRAPH_WRITE_MODE": "legacy",
+    "RESEARCH_GRAPH_CUTOVER_READY": "false",
     "GITHUB_MIRROR_OWNER": "UynajGI",
     "GITHUB_MIRROR_REPO": "EviMesh-frontiers",
     "SUPABASE_URL": "http://127.0.0.1:54321"
@@ -48,6 +51,9 @@
         "ACTOR_RATE_LIMIT_MAX": "120",
         "API_TOKEN_RATE_LIMIT_MAX": "60",
         "RATE_LIMIT_WINDOW_SECONDS": "60",
+        "RESEARCH_GRAPH_READ_MODE": "legacy",
+        "RESEARCH_GRAPH_WRITE_MODE": "legacy",
+        "RESEARCH_GRAPH_CUTOVER_READY": "false",
         "GITHUB_MIRROR_OWNER": "UynajGI",
         "GITHUB_MIRROR_REPO": "EviMesh-frontiers",
         "SUPABASE_URL": "https://qotwxdhzpoubniqdhskl.supabase.co"
@@ -72,6 +78,9 @@
         "ACTOR_RATE_LIMIT_MAX": "120",
         "API_TOKEN_RATE_LIMIT_MAX": "60",
         "RATE_LIMIT_WINDOW_SECONDS": "60",
+        "RESEARCH_GRAPH_READ_MODE": "legacy",
+        "RESEARCH_GRAPH_WRITE_MODE": "legacy",
+        "RESEARCH_GRAPH_CUTOVER_READY": "false",
         "GITHUB_MIRROR_OWNER": "UynajGI",
         "GITHUB_MIRROR_REPO": "EviMesh-frontiers",
         "SUPABASE_URL": "https://rruhruccjnuffodfbkuh.supabase.co"

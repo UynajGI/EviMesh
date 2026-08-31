@@ -1,13 +1,10 @@
 import { randomUUID } from "node:crypto";
-import { validateDocument, CliDocumentError, canonicalRunDocument, assertCanonicalRunDocument, claimDocToApi, runDocToApi, verificationDocToApi, challengeDocToApi, submissionRoute } from "../../../packages/cli/src/documents.mjs";
-import { signSubmission, createNonce } from "../../../packages/cli/src/signing.mjs";
-import { loadIdentity, CliIdentityError } from "../../../packages/cli/src/identity.mjs";
+import { validateDocument, CliDocumentError, assertCanonicalRunDocument, verificationDocToApi, challengeDocToApi, submissionRoute, typedDocToApi, typedDocumentDefinition, typedSubmissionRoute } from "../../../packages/cli/src/documents.mjs";
 import { createObjectId } from "../../../packages/protocol/src/uuidv7.mjs";
 import { sha256Bytes } from "../../../packages/artifact/src/hash.mjs";
 import { verifyMerkleInclusionProof } from "../../../packages/merkle/src/verify-inclusion-proof.mjs";
 import { hashResearchEventLeaf } from "../../../packages/merkle/src/research-event-leaf.mjs";
-import { canonicalJson } from "../../../packages/protocol/src/hash.mjs";
-import { signEd25519Payload } from "../../../packages/signatures/src/client-signature.mjs";
+import { canonicalJson, rawHash } from "../../../packages/protocol/src/hash.mjs";
 import { CONTEXT_MODES } from "./resources.mjs";
 
 export class McpToolError extends Error {
@@ -21,6 +18,13 @@ export class McpToolError extends Error {
 const STRING = { type: "string" };
 const BOOLEAN = { type: "boolean" };
 const OBJECT = { type: "object" };
+const TYPED_RESEARCH_KINDS = Object.freeze({
+  answer: Object.freeze({ schema: "srp.answer.v1", resource: "answers" }),
+  rebuttal: Object.freeze({ schema: "srp.rebuttal.v1", resource: "rebuttals" }),
+  evaluation: Object.freeze({ schema: "srp.evaluation.v1", resource: "evaluations" }),
+  dataset: Object.freeze({ schema: "srp.dataset.v1", resource: "datasets" }),
+  tool: Object.freeze({ schema: "srp.tool.v1", resource: "tools" }),
+});
 
 export const MAX_EVIDENCE_BYTES = 16 * 1024 * 1024;
 
@@ -51,6 +55,21 @@ function validateToolDocument(document) {
   }
 }
 
+function typedResearchKind(kind) {
+  const value = TYPED_RESEARCH_KINDS[kind];
+  if (!value) throw new McpToolError(`kind must be one of: ${Object.keys(TYPED_RESEARCH_KINDS).join(", ")}`, "RESEARCH_NODE_KIND_INVALID");
+  return value;
+}
+
+function validateTypedResearchDocument(kind, document) {
+  const definition = typedResearchKind(kind);
+  validateToolDocument(document);
+  if (document.schema !== definition.schema || typedDocumentDefinition(document)?.kind !== kind) {
+    throw new McpToolError(`expected ${definition.schema} for ${kind}`, "TYPED_RESEARCH_SCHEMA_MISMATCH");
+  }
+  return definition;
+}
+
 function consentResult(tool, summary) {
   return {
     isError: true,
@@ -67,47 +86,85 @@ function ok(structuredContent) {
   return { isError: false, structuredContent };
 }
 
-function signatureEnvelope({ eventType, body, env }) {
-  const nonce = createNonce();
-  return signSubmission({ eventType, payload: body, nonce }, { env }).then((signed) => ({
-    schema: "srp.client-signature-envelope.v1",
-    event_type: eventType,
-    payload: body,
-    nonce,
-    signing_bytes_hash: signed.signingBytesHash,
-    signature: signed.signature,
-  }));
+function createNonce() {
+  return Buffer.from(`${Date.now()}:${randomUUID()}`, "utf8").toString("base64url").slice(0, 64);
 }
 
-function requireIdentity(env) {
-  try {
-    return loadIdentity(env);
-  } catch (error) {
-    if (error instanceof CliIdentityError) {
-      throw new McpToolError("no signing identity configured; run `sq identity generate` first", "IDENTITY_MISSING");
-    }
-    throw error;
+function preparedExternalSignature({ eventType, payload, nonce = createNonce() }) {
+  if (typeof nonce !== "string" || !/^[A-Za-z0-9_-]{16,128}$/.test(nonce)) {
+    throw new McpToolError("nonce must be 16-128 base64url characters", "SIGNATURE_NONCE_INVALID");
   }
+  const signingBytes = canonicalJson({ event_type: eventType, payload, nonce });
+  return Object.freeze({
+    eventType,
+    payload,
+    nonce,
+    signingBytes,
+    signingBytesHash: `sha256:${rawHash(signingBytes)}`,
+  });
 }
 
-async function requireActiveAgentActor(client, identity) {
+function requireExternalSignatureEnvelope(value, { eventType, payload }) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new McpToolError("an external human signature envelope is required", "RESEARCH_PUBLISHER_SIGNATURE_REQUIRED");
+  }
+  const envelope = requiredObject(value, "signatureEnvelope");
+  if (envelope.schema !== "srp.client-signature-envelope.v1" || envelope.event_type !== eventType) {
+    throw new McpToolError(`an external ${eventType} signature envelope is required`, "RESEARCH_PUBLISHER_SIGNATURE_REQUIRED");
+  }
+  if (canonicalJson(envelope.payload) !== canonicalJson(payload)) {
+    throw new McpToolError("external signature envelope payload does not match the exact submission", "CLIENT_SIGNATURE_PAYLOAD_MISMATCH");
+  }
+  const expected = preparedExternalSignature({ eventType, payload, nonce: envelope.nonce });
+  if (envelope.signing_bytes_hash !== expected.signingBytesHash) {
+    throw new McpToolError("external signature envelope signing hash does not match the exact submission", "CLIENT_SIGNATURE_HASH_MISMATCH");
+  }
+  if (envelope.signature?.algorithm !== "Ed25519" || typeof envelope.signature?.key_id !== "string" || typeof envelope.signature?.value !== "string") {
+    throw new McpToolError("an external Ed25519 signature is required", "RESEARCH_PUBLISHER_SIGNATURE_REQUIRED");
+  }
+  return envelope;
+}
+
+async function requireActiveAgentActor(client) {
   const actor = await client.http.request("GET", "/auth/me");
   if (typeof actor?.actorId !== "string" || !actor.actorId) throw new McpToolError("authenticated actor binding is unavailable", "AGENT_ACTOR_MISSING");
   if (actor.actorType !== "agent" && actor.actorType !== "service") {
     throw new McpToolError("MCP drafts require an authenticated agent or service actor", "AGENT_ACTOR_REQUIRED");
   }
-  if (identity) {
-    if (!actor.signingKey) throw new McpToolError("authenticated agent has no active signing key", "AGENT_SIGNING_KEY_MISSING");
-    if (actor.signingKey.keyId !== identity.keyId || actor.signingKey.algorithm !== identity.algorithm || actor.signingKey.publicKey !== identity.publicKey) {
-      throw new McpToolError("configured signing identity does not match the authenticated agent", "AGENT_SIGNING_KEY_MISMATCH");
-    }
-  }
   return actor;
 }
 
-async function signRunDraft(unsignedDraft, identity) {
-  const signingBytes = Buffer.from(canonicalJson(unsignedDraft), "utf8");
-  return signEd25519Payload({ signingBytes: new Uint8Array(signingBytes), privateKey: identity.privateKey });
+function failClosedMutation(name) {
+  throw new McpToolError(
+    `${name} is disabled until its API exposes a canonical prepare and externally signed submit flow`,
+    "MCP_SIGNED_MUTATION_UNAVAILABLE",
+  );
+}
+
+function legacySubmissionPlan(document, options = {}) {
+  validateToolDocument(document);
+  if (document.schema === "srp.run.v1") assertCanonicalRunDocument(document);
+  if (document.schema === "srp.verification-receipt.v1") {
+    const runId = requiredArg(options.runId, "runId");
+    const receiptId = options.receiptId ?? createObjectId("Verification");
+    const contributionStatementId = options.contributionStatementId ?? `statement_${randomUUID()}`;
+    return Object.freeze({
+      kind: "verification",
+      path: "/verifications",
+      method: "POST",
+      eventType: "verification.submitted",
+      body: verificationDocToApi(document, { receiptId, runId, contributionStatementId }),
+    });
+  }
+  const route = submissionRoute(document);
+  if (!route) throw new McpToolError(`submission is not supported for schema ${document.schema}`);
+  return Object.freeze({
+    kind: route.kind,
+    path: route.path,
+    method: route.method,
+    eventType: route.eventType,
+    body: route.toApi(document),
+  });
 }
 
 function jsonContent(data) {
@@ -115,6 +172,133 @@ function jsonContent(data) {
 }
 
 const TOOL_DEFINITIONS = [
+  {
+    name: "inspect_research_neighborhood",
+    description: "Read the same bounded, typed research neighborhood used by the graph and categorized relation directory.",
+    write: false,
+    inputSchema: {
+      type: "object",
+      required: ["kind", "id"],
+      properties: {
+        kind: STRING,
+        id: STRING,
+        revision: { type: "integer", minimum: 1 },
+        direction: { type: "string", enum: ["upstream", "downstream", "both"] },
+        depth: { type: "integer", minimum: 1, maximum: 3 },
+        kinds: { type: "array", items: STRING },
+        edgeTypes: { type: "array", items: STRING },
+        cursor: STRING,
+      },
+    },
+    outputSchema: { type: "object", required: ["neighborhood"], properties: { neighborhood: OBJECT } },
+    run: async ({ client, args }) => {
+      requiredArg(args.kind, "kind");
+      requiredArg(args.id, "id");
+      const neighborhood = await client.researchGraph.neighborhood(args.kind, args.id, {
+        revision: args.revision,
+        direction: args.direction ?? "both",
+        depth: args.depth ?? 1,
+        kinds: args.kinds,
+        edgeTypes: args.edgeTypes,
+        cursor: args.cursor,
+      });
+      return ok({ neighborhood });
+    },
+  },
+  {
+    name: "browse_typed_research_nodes",
+    description: "List Answer, Rebuttal, Evaluation, Dataset, or Tool nodes visible to the current caller.",
+    write: false,
+    inputSchema: {
+      type: "object",
+      required: ["kind"],
+      properties: {
+        kind: { type: "string", enum: Object.keys(TYPED_RESEARCH_KINDS) },
+        projectId: STRING,
+        state: STRING,
+        stance: STRING,
+        toolKind: STRING,
+        limit: { type: "integer", minimum: 1, maximum: 100 },
+        cursor: STRING,
+      },
+    },
+    outputSchema: { type: "object", required: ["items"], properties: { items: { type: "array" }, nextCursor: { type: ["string", "null"] } } },
+    run: async ({ client, args }) => {
+      const definition = typedResearchKind(requiredArg(args.kind, "kind"));
+      const page = await client[definition.resource].list({
+        projectId: args.projectId,
+        state: args.state,
+        stance: args.stance,
+        toolKind: args.toolKind,
+        limit: args.limit,
+        cursor: args.cursor,
+      });
+      return ok({ items: page.items ?? [], nextCursor: page.nextCursor ?? null });
+    },
+  },
+  {
+    name: "inspect_typed_research_node",
+    description: "Read one typed research node and its immutable current revision.",
+    write: false,
+    inputSchema: { type: "object", required: ["kind", "id"], properties: { kind: { type: "string", enum: Object.keys(TYPED_RESEARCH_KINDS) }, id: STRING } },
+    outputSchema: { type: "object", required: ["detail"], properties: { detail: OBJECT } },
+    run: async ({ client, args }) => {
+      const definition = typedResearchKind(requiredArg(args.kind, "kind"));
+      const detail = await client[definition.resource].get(requiredArg(args.id, "id"));
+      return ok({ detail });
+    },
+  },
+  {
+    name: "draft_typed_research_node",
+    description: "Validate and return an Agent-authored typed research draft. This performs no network mutation and never reads a human private key.",
+    write: false,
+    inputSchema: { type: "object", required: ["kind", "document"], properties: { kind: { type: "string", enum: Object.keys(TYPED_RESEARCH_KINDS) }, document: OBJECT } },
+    outputSchema: { type: "object", required: ["draft"], properties: { draft: OBJECT } },
+    run: async ({ args }) => {
+      requiredObject(args.document, "document");
+      validateTypedResearchDocument(requiredArg(args.kind, "kind"), args.document);
+      return ok({ draft: args.document });
+    },
+  },
+  {
+    name: "prepare_typed_research_submission",
+    description: "Prepare canonical signing bytes for a named human publisher. The Agent receives no private key and cannot sign the result.",
+    write: false,
+    inputSchema: { type: "object", required: ["kind", "document", "publisherActorId"], properties: { kind: { type: "string", enum: Object.keys(TYPED_RESEARCH_KINDS) }, document: OBJECT, publisherActorId: STRING, nonce: STRING } },
+    outputSchema: { type: "object", required: ["prepared"], properties: { prepared: OBJECT } },
+    run: async ({ client, args }) => {
+      const kind = requiredArg(args.kind, "kind");
+      const definition = validateTypedResearchDocument(kind, requiredObject(args.document, "document"));
+      const route = typedSubmissionRoute(args.document);
+      const prepared = await client[definition.resource].prepare({
+        ...typedDocToApi(args.document),
+        publisherActorId: requiredArg(args.publisherActorId, "publisherActorId"),
+        nonce: args.nonce ?? createNonce(),
+      });
+      return ok({ kind: route.kind, prepared });
+    },
+  },
+  {
+    name: "submit_typed_research_submission",
+    description: "Relay an externally human-signed typed research submission. confirm:true gates the network write but can never replace signatureEnvelope.",
+    write: true,
+    inputSchema: { type: "object", required: ["kind", "document", "signatureEnvelope"], properties: { kind: { type: "string", enum: Object.keys(TYPED_RESEARCH_KINDS) }, document: OBJECT, signatureEnvelope: OBJECT, confirm: BOOLEAN } },
+    outputSchema: { type: "object", required: ["submitted", "response"], properties: { submitted: BOOLEAN, response: OBJECT } },
+    run: async ({ client, args }) => {
+      const kind = requiredArg(args.kind, "kind");
+      const definition = validateTypedResearchDocument(kind, requiredObject(args.document, "document"));
+      if (!args.signatureEnvelope) throw new McpToolError("an external human signature envelope is required", "RESEARCH_PUBLISHER_SIGNATURE_REQUIRED");
+      const signatureEnvelope = requiredObject(args.signatureEnvelope, "signatureEnvelope");
+      if (signatureEnvelope.schema !== "srp.client-signature-envelope.v1" || typeof signatureEnvelope.signature !== "object") {
+        throw new McpToolError("an external srp.client-signature-envelope.v1 human signature is required", "RESEARCH_PUBLISHER_SIGNATURE_REQUIRED");
+      }
+      const route = typedSubmissionRoute(args.document);
+      const summary = { action: "relay an externally signed typed research submission", kind, route: route.path, signingBytesHash: signatureEnvelope.signing_bytes_hash ?? null };
+      if (args.confirm !== true) return consentResult("submit_typed_research_submission", summary);
+      const response = await client[definition.resource].submit({ ...typedDocToApi(args.document), signatureEnvelope });
+      return ok({ submitted: true, response });
+    },
+  },
   {
     name: "search_open_tasks",
     description: "Search research tasks that are open for attempts, with optional filters.",
@@ -163,7 +347,7 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: "start_attempt",
-    description: "Start one Attempt for a task in a context mode. Requires confirm: true.",
+    description: "Compatibility placeholder. Attempt mutation is fail-closed until a canonical external-envelope API flow exists.",
     write: true,
     inputSchema: {
       type: "object",
@@ -180,18 +364,12 @@ const TOOL_DEFINITIONS = [
       const mode = args.mode ?? "frontier";
       const summary = { action: "start an Attempt", taskId: args.taskId, contextMode: mode };
       if (args.confirm !== true) return consentResult("start_attempt", summary);
-      const bundle = await client.tasks.context(args.taskId, mode);
-      const attempt = await client.attempts.start(args.taskId, {
-        attemptId: `attempt_${randomUUID()}`,
-        contextBundleId: bundle.contextBundleId,
-        contextMode: mode,
-      });
-      return ok({ attemptId: attempt.attempt?.attemptId ?? attempt.attemptId, taskId: args.taskId, contextBundleId: bundle.contextBundleId, contextMode: mode });
+      return failClosedMutation("start_attempt");
     },
   },
   {
     name: "record_trace",
-    description: "Append one public-summary trace event to an active Attempt. Requires confirm: true.",
+    description: "Compatibility placeholder. Trace mutation is fail-closed until a canonical external-envelope API flow exists.",
     write: true,
     inputSchema: {
       type: "object",
@@ -209,12 +387,7 @@ const TOOL_DEFINITIONS = [
       requiredArg(args.eventType, "eventType");
       const summary = { action: "append a public trace event", attemptId: args.attemptId, eventType: args.eventType };
       if (args.confirm !== true) return consentResult("record_trace", summary);
-      const traceEvent = await client.attempts.recordTrace(args.attemptId, {
-        eventId: `trace_${randomUUID()}`,
-        eventType: args.eventType,
-        payload: args.payload ?? {},
-      });
-      return ok({ recorded: true, traceEvent });
+      return failClosedMutation("record_trace");
     },
   },
   {
@@ -234,12 +407,11 @@ const TOOL_DEFINITIONS = [
       },
     },
     outputSchema: { type: "object", required: ["draft"], properties: { draft: OBJECT } },
-    run: async ({ client, args, env }) => {
+    run: async ({ client, args }) => {
       requiredArg(args.statement, "statement");
       const summary = { action: "create a local Claim draft", statement: args.statement };
       if (args.confirm !== true) return consentResult("create_claim", summary);
-      const identity = requireIdentity(env);
-      const actor = await requireActiveAgentActor(client, identity);
+      const actor = await requireActiveAgentActor(client);
       const claimId = createObjectId("Claim");
       const draft = {
         schema: "srp.claim.v1",
@@ -260,7 +432,7 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: "attach_evidence",
-    description: "Hash provided content, upload it to object storage, and attach it as Evidence. Requires confirm: true.",
+    description: "Validate and hash provided content locally. Evidence publication is fail-closed until a canonical external-envelope API flow exists.",
     write: true,
     inputSchema: {
       type: "object",
@@ -289,20 +461,12 @@ const TOOL_DEFINITIONS = [
       const rawHash = await sha256Bytes(bytes);
       const summary = { action: "upload evidence content and register it", sizeBytes: bytes.length, rawHash, mediaType: args.mediaType };
       if (args.confirm !== true) return consentResult("attach_evidence", summary);
-      const artifactId = `artifact_${randomUUID()}`;
-      const plan = await client.artifacts.uploadPlan({ artifactId, revision: 1, rawHash, sizeBytes: bytes.length, mediaType: args.mediaType });
-      await client.artifacts.upload(plan, new Uint8Array(bytes));
-      let evidenceId = null;
-      if (Array.isArray(args.links) && args.links.length > 0) {
-        evidenceId = createObjectId("Evidence");
-        await client.evidence.create({ evidenceId, evidenceType: args.evidenceType ?? "dataset", artifactId, artifactRevision: 1, links: args.links });
-      }
-      return ok({ artifactId, rawHash, sizeBytes: bytes.length, key: plan.key, evidenceId });
+      return failClosedMutation("attach_evidence");
     },
   },
   {
     name: "record_run",
-    description: "Draft one Run Receipt object locally. Nothing is published. Requires confirm: true.",
+    description: "Compatibility placeholder. Run production requires an external producer signature and is fail-closed in MCP.",
     write: true,
     inputSchema: {
       type: "object",
@@ -324,7 +488,7 @@ const TOOL_DEFINITIONS = [
       },
     },
     outputSchema: { type: "object", required: ["draft"], properties: { draft: OBJECT } },
-    run: async ({ client, args, env }) => {
+    run: async ({ args }) => {
       requiredArg(args.taskId, "taskId");
       requiredArg(args.contextBundleId, "contextBundleId");
       requiredArg(args.sourceCode, "sourceCode");
@@ -334,33 +498,7 @@ const TOOL_DEFINITIONS = [
       requiredObject(args.hardware, "hardware");
       const summary = { action: "create a local Run Receipt draft", taskId: args.taskId, command: args.command };
       if (args.confirm !== true) return consentResult("record_run", summary);
-      const identity = requireIdentity(env);
-      const actor = await requireActiveAgentActor(client, identity);
-      const now = new Date().toISOString();
-      const unsignedDraft = canonicalRunDocument({
-        schema: "srp.run.v1",
-        run_id: createObjectId("Run"),
-        task_id: args.taskId,
-        context_bundle_id: args.contextBundleId,
-        input_artifact_ids: args.inputArtifactRefs ?? [],
-        source_code: args.sourceCode,
-        container: args.container,
-        command: args.command,
-        args: args.args ?? [],
-        environment: args.environment ?? {},
-        hardware: args.hardware ?? {},
-        random_seed: args.randomSeed ?? {},
-        started_at: now,
-        ended_at: now,
-        network_access: false,
-        output_artifact_ids: args.outputArtifactRefs ?? [],
-        exit_code: args.exitCode ?? 0,
-        actor_id: actor.actorId,
-        signing_key_id: identity.keyId,
-      });
-      const draft = { ...unsignedDraft, signature: await signRunDraft(unsignedDraft, identity) };
-      validateToolDocument(draft);
-      return ok({ draft });
+      return failClosedMutation("record_run");
     },
   },
   {
@@ -381,65 +519,81 @@ const TOOL_DEFINITIONS = [
     },
   },
   {
+    name: "prepare_submission",
+    description: "Prepare canonical signing bytes for a Claim, Run, Challenge, or VerificationReceipt. This is local and never signs the payload.",
+    write: false,
+    inputSchema: {
+      type: "object",
+      required: ["document"],
+      properties: {
+        document: OBJECT,
+        runId: STRING,
+        receiptId: STRING,
+        contributionStatementId: STRING,
+        nonce: STRING,
+      },
+    },
+    outputSchema: { type: "object", required: ["prepared"], properties: { prepared: OBJECT } },
+    run: async ({ args }) => {
+      const plan = legacySubmissionPlan(requiredObject(args.document, "document"), args);
+      const prepared = preparedExternalSignature({ eventType: plan.eventType, payload: plan.body, nonce: args.nonce ?? createNonce() });
+      return ok({ prepared: { route: plan.path, ...prepared } });
+    },
+  },
+  {
     name: "publish_submission",
-    description: "Validate and publish one Claim, Run, or Challenge document with the current human publisher's outer signature. Existing Run producer signatures are preserved. Only executes with confirm: true.",
+    description: "Relay one externally human-signed Claim, Run, or Challenge. confirm:true gates the write but never signs the payload.",
     write: true,
-    inputSchema: { type: "object", required: ["document"], properties: { document: OBJECT, confirm: BOOLEAN } },
+    inputSchema: { type: "object", required: ["document", "signatureEnvelope"], properties: { document: OBJECT, signatureEnvelope: OBJECT, confirm: BOOLEAN } },
     outputSchema: { type: "object", required: ["published", "route"], properties: { published: BOOLEAN, route: STRING, signingBytesHash: STRING, response: OBJECT } },
-    run: async ({ client, args, env }) => {
-      requiredArg(args.document, "document");
-      const document = args.document;
-      validateToolDocument(document);
-      if (document.schema === "srp.run.v1") {
-        assertCanonicalRunDocument(document);
-      }
-      const route = submissionRoute(document);
-      if (!route) throw new McpToolError(`submission is not supported for schema ${document.schema}`);
-      const body = route.toApi(document);
-      const summary = { action: "sign and publish a submission", route: route.path, eventType: route.eventType, objectId: body.claimId ?? body.runId ?? body.challengeId };
+    run: async ({ client, args }) => {
+      const plan = legacySubmissionPlan(requiredObject(args.document, "document"));
+      if (plan.kind === "verification") throw new McpToolError("use submit_verification for VerificationReceipt documents");
+      const envelope = requireExternalSignatureEnvelope(args.signatureEnvelope, { eventType: plan.eventType, payload: plan.body });
+      const summary = { action: "relay an externally signed submission", route: plan.path, eventType: plan.eventType, objectId: plan.body.claimId ?? plan.body.runId ?? plan.body.challengeId };
       if (args.confirm !== true) return consentResult("publish_submission", summary);
-      requireIdentity(env);
-      const envelope = await signatureEnvelope({ eventType: route.eventType, body, env });
-      const response = await client.http.request(route.method, route.path, { body: { ...body, signatureEnvelope: envelope } });
-      return ok({ published: true, route: route.path, signingBytesHash: envelope.signing_bytes_hash, response });
+      const response = await client.http.request(plan.method, plan.path, { body: { ...plan.body, signatureEnvelope: envelope } });
+      return ok({ published: true, route: plan.path, signingBytesHash: envelope.signing_bytes_hash, response });
     },
   },
   {
     name: "submit_verification",
-    description: "Sign and submit one VerificationReceipt document, locking the referenced ClaimRevision. Requires confirm: true.",
+    description: "Relay one externally human-signed VerificationReceipt. confirm:true gates the write but never signs the payload.",
     write: true,
-    inputSchema: { type: "object", required: ["document", "runId"], properties: { document: OBJECT, runId: STRING, receiptId: STRING, confirm: BOOLEAN } },
+    inputSchema: { type: "object", required: ["document", "runId", "signatureEnvelope"], properties: { document: OBJECT, runId: STRING, signatureEnvelope: OBJECT, confirm: BOOLEAN } },
     outputSchema: { type: "object", required: ["submitted", "receiptId"], properties: { submitted: BOOLEAN, receiptId: STRING, signingBytesHash: STRING, response: OBJECT } },
-    run: async ({ client, args, env }) => {
-      requiredArg(args.document, "document");
-      requiredArg(args.runId, "runId");
-      validateToolDocument(args.document);
-      if (args.document.schema !== "srp.verification-receipt.v1") throw new McpToolError(`expected srp.verification-receipt.v1, got ${args.document.schema}`);
-      const receiptId = args.receiptId ?? createObjectId("Verification");
-      const summary = { action: "sign and submit a VerificationReceipt", receiptId, runId: args.runId, claimRevision: args.document.claim_revision_id };
+    run: async ({ client, args }) => {
+      if (!args.signatureEnvelope || typeof args.signatureEnvelope !== "object" || Array.isArray(args.signatureEnvelope)) {
+        throw new McpToolError("an external human signature envelope is required", "RESEARCH_PUBLISHER_SIGNATURE_REQUIRED");
+      }
+      const suppliedEnvelope = requiredObject(args.signatureEnvelope, "signatureEnvelope");
+      const plan = legacySubmissionPlan(requiredObject(args.document, "document"), {
+        runId: requiredArg(args.runId, "runId"),
+        receiptId: suppliedEnvelope.payload?.receiptId,
+        contributionStatementId: suppliedEnvelope.payload?.contributionStatementId,
+      });
+      if (plan.kind !== "verification") throw new McpToolError(`expected srp.verification-receipt.v1, got ${args.document.schema}`);
+      const envelope = requireExternalSignatureEnvelope(suppliedEnvelope, { eventType: plan.eventType, payload: plan.body });
+      const receiptId = plan.body.receiptId;
+      const summary = { action: "relay an externally signed VerificationReceipt", receiptId, runId: args.runId, claimRevision: args.document.claim_revision_id };
       if (args.confirm !== true) return consentResult("submit_verification", summary);
-      requireIdentity(env);
-      const body = verificationDocToApi(args.document, { receiptId, runId: args.runId, contributionStatementId: `statement_${randomUUID()}` });
-      const envelope = await signatureEnvelope({ eventType: "verification.submitted", body, env });
-      const response = await client.verifications.submit({ ...body, signatureEnvelope: envelope });
+      const response = await client.verifications.submit({ ...plan.body, signatureEnvelope: envelope });
       return ok({ submitted: true, receiptId, signingBytesHash: envelope.signing_bytes_hash, response });
     },
   },
   {
     name: "submit_challenge",
-    description: "Sign and submit one Challenge document against a fixed ClaimRevision. Requires confirm: true.",
+    description: "Relay one externally human-signed Challenge against a fixed ClaimRevision. confirm:true never signs the payload.",
     write: true,
-    inputSchema: { type: "object", required: ["document"], properties: { document: OBJECT, confirm: BOOLEAN } },
+    inputSchema: { type: "object", required: ["document", "signatureEnvelope"], properties: { document: OBJECT, signatureEnvelope: OBJECT, confirm: BOOLEAN } },
     outputSchema: { type: "object", required: ["submitted", "challengeId"], properties: { submitted: BOOLEAN, challengeId: STRING, signingBytesHash: STRING, response: OBJECT } },
-    run: async ({ client, args, env }) => {
-      requiredArg(args.document, "document");
-      validateToolDocument(args.document);
+    run: async ({ client, args }) => {
+      validateToolDocument(requiredObject(args.document, "document"));
       if (args.document.schema !== "srp.challenge.v1") throw new McpToolError(`expected srp.challenge.v1, got ${args.document.schema}`);
       const body = challengeDocToApi(args.document);
-      const summary = { action: "sign and submit a Challenge", challengeId: body.challengeId, targetClaimRevision: body.targetClaimId + "@" + body.targetClaimRevision };
+      const envelope = requireExternalSignatureEnvelope(args.signatureEnvelope, { eventType: "challenge.created", payload: body });
+      const summary = { action: "relay an externally signed Challenge", challengeId: body.challengeId, targetClaimRevision: body.targetClaimId + "@" + body.targetClaimRevision };
       if (args.confirm !== true) return consentResult("submit_challenge", summary);
-      requireIdentity(env);
-      const envelope = await signatureEnvelope({ eventType: "challenge.created", body, env });
       const response = await client.challenges.create({ ...body, signatureEnvelope: envelope });
       return ok({ submitted: true, challengeId: body.challengeId, signingBytesHash: envelope.signing_bytes_hash, response });
     },

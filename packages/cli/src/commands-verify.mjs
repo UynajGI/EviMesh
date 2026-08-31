@@ -1,16 +1,14 @@
 import { mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
-import { randomUUID } from "node:crypto";
 import { buildClient } from "./client.mjs";
 import { flagString, flagBool, requirePositional } from "./args.mjs";
-import { readDocument, validateDocument, verificationDocToApi } from "./documents.mjs";
-import { signSubmission, createNonce } from "./signing.mjs";
+import { readDocument, validateDocument } from "./documents.mjs";
+import { createNonce } from "./signing.mjs";
 import { verifyContextBundleHash } from "../../protocol/src/context-bundle-hash.mjs";
 import { verifyMerkleInclusionProof } from "../../merkle/src/verify-inclusion-proof.mjs";
 import { buildMerkleTree } from "../../merkle/src/merkle-tree.mjs";
 import { hashResearchEventLeaf } from "../../merkle/src/research-event-leaf.mjs";
 import { verifyMerkleCheckpoint } from "../../signatures/src/merkle-checkpoint.mjs";
-import { createObjectId } from "../../protocol/src/uuidv7.mjs";
 
 /** Lock one ClaimRevision, prepare verification signing bytes, and fetch the Blind Context. */
 export async function verifyCheckout({ flags, output, positionals, env = process.env, fetchImpl } = {}) {
@@ -49,35 +47,17 @@ export async function verifyCheckout({ flags, output, positionals, env = process
   return 0;
 }
 
-/** Sign and submit one VerificationReceipt document. */
-export async function verifySubmit({ flags, output, positionals, env = process.env, fetchImpl } = {}) {
-  const client = buildClient(flags, { env, fetchImpl });
+/** Legacy combined publishing is fail-closed; signing is an explicit local step. */
+export async function verifySubmit({ flags, positionals } = {}) {
   const path = requirePositional(positionals, 0, "file");
   const document = readDocument(path);
   validateDocument(document);
   if (document.schema !== "srp.verification-receipt.v1") throw new Error(`expected srp.verification-receipt.v1, got ${document.schema}`);
-  const receiptId = flagString(flags, "receipt-id", createObjectId("Verification"));
   const runId = flagString(flags, "run", flagString(flags, "run-id", null));
   if (!runId) throw new Error("--run-id is required to submit a verification receipt");
-  const contributionStatementId = flagString(flags, "statement-id", `statement_${randomUUID()}`);
-  const body = verificationDocToApi(document, { receiptId, runId, contributionStatementId });
-  const nonce = createNonce();
-  const signed = await signSubmission({ eventType: "verification.submitted", payload: body, nonce }, { env });
-  const envelope = {
-    schema: "srp.client-signature-envelope.v1",
-    event_type: "verification.submitted",
-    payload: body,
-    nonce,
-    signing_bytes_hash: signed.signingBytesHash,
-    signature: signed.signature,
-  };
-  if (flagBool(flags, "dry-run")) {
-    output.emit({ json: flagBool(flags, "json") }, { dryRun: true, route: "/verifications", envelope }, (data) => `[dry-run] would POST ${data.route}\n${JSON.stringify(data.envelope, null, 2)}`);
-    return 0;
-  }
-  const response = await client.verifications.submit({ ...body, signatureEnvelope: envelope });
-  output.emit({ json: flagBool(flags, "json") }, { submitted: true, receiptId, envelope, response }, (data) => `submitted verification receipt ${data.receiptId}\nsigning hash: ${data.envelope.signing_bytes_hash}`);
-  return 0;
+  const error = new Error("sq verify submit no longer signs and submits in one step; use prepare -> the explicit human-local sign step -> submit with an existing envelope");
+  error.code = "CLI_EXTERNAL_SIGNATURE_FLOW_REQUIRED";
+  throw error;
 }
 
 /**

@@ -5,6 +5,80 @@
 
 export type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
 
+export type ResearchNodeKind = "project" | "research_contract" | "question" | "answer" | "claim" | "rebuttal" | "evaluation" | "dataset" | "tool" | "artifact" | "evidence" | "task" | "attempt" | "context_bundle" | "run" | "verification_contract" | "verification_policy" | "policy_evaluation" | "verification_receipt" | "verification_finding" | "challenge" | "merge_proposal" | "frontier_snapshot";
+
+export type ResearchEdgeType = "extends_question" | "answers" | "yields_claim" | "rebuts" | "grounds_rebuttal" | "evaluates" | "evaluation_basis" | "challenges" | "uses_dataset" | "uses_tool" | "uses_artifact" | "materializes_dataset" | "packages_tool" | "materializes_evidence" | "operationalizes" | "attempted_as" | "produces_run" | "context_for" | "run_input" | "produces_artifact" | "produces_evidence" | "verifies_claim" | "verifies_run" | "uses_verification_contract" | "reports_finding" | "requires" | "derived_from" | "extends" | "implements" | "supersedes";
+
+export type ResearchDocumentState = "draft" | "published" | "superseded" | "retracted";
+
+export type EvaluationStance = "supports" | "refutes" | "qualifies" | "reproduces" | "verifies";
+
+export type ToolKind = "skill" | "method" | "software" | "model" | "workflow";
+
+export type NodeRevisionRef = { kind: ResearchNodeKind; id: string; revision: number; };
+
+export type ResearchGraphNode = { ref: NodeRevisionRef; label: string; family: "structure" | "reasoning" | "resource" | "execution" | "verification"; state: string; canonicalHref: string; createdAt: string; createdBy: string; isCurrent: boolean; };
+
+export type ResearchGraphEdge = { id: string; type: ResearchEdgeType; family: "lineage" | "reasoning" | "challenge" | "evaluation" | "resource" | "execution" | "result" | "dependency"; source: NodeRevisionRef; target: NodeRevisionRef; forwardLabel: string; reverseLabel: string; provenanceEventId: string; };
+
+export type ResearchNeighborhood = { schemaVersion: "research-neighborhood.v1"; requestedRoot: NodeRevisionRef; resolvedRoot: NodeRevisionRef; nodes: ResearchGraphNode[]; edges: ResearchGraphEdge[]; truncated: boolean; permissionPartial: boolean; nextCursor: string | null; graphWatermark: string; };
+
+export type AnswerRevision = { answerId: string; revision: number; supersedesRevision?: number | null; title: string; synthesis: string; limitations: string[]; questionRef: NodeRevisionRef; additionalInputs: NodeRevisionRef[]; };
+
+export type RebuttalRevision = { rebuttalId: string; revision: number; supersedesRevision?: number | null; title: string; argument: string; scope: string[]; targetRef: NodeRevisionRef; basisRefs: NodeRevisionRef[]; };
+
+export type EvaluationRevision = { evaluationId: string; revision: number; supersedesRevision?: number | null; subjectRef: NodeRevisionRef; basisRefs: NodeRevisionRef[]; stance: EvaluationStance; rationale: string; method: string | null; };
+
+export type DatasetRevision = { datasetId: string; revision: number; supersedesRevision?: number | null; name: string; description: string; version: string; license: string; schemaUri: string | null; provenance: string; artifactRef: NodeRevisionRef; };
+
+export type ToolRevision = { toolId: string; revision: number; supersedesRevision?: number | null; name: string; description: string; toolKind: ToolKind; version: string; runtime: string; inputSchemaUri: string | null; outputSchemaUri: string | null; license: string; provenance: string; artifactRef: { kind?: "artifact"; id?: string; revision?: number; } | null; };
+
+export type TypedResearchIdentity = { projectId: string; state: ResearchDocumentState; createdAt: string; createdBy: string; };
+
+export type AnswerPage = { items: { answerId: string; createdAt: string; }[]; nextCursor: string | null; };
+
+export type RebuttalPage = { items: { rebuttalId: string; createdAt: string; }[]; nextCursor: string | null; };
+
+export type EvaluationPage = { items: { evaluationId: string; stance?: EvaluationStance; createdAt: string; }[]; nextCursor: string | null; };
+
+export type DatasetPage = { items: { datasetId: string; createdAt: string; }[]; nextCursor: string | null; };
+
+export type ToolPage = { items: { toolId: string; toolKind?: ToolKind; createdAt: string; }[]; nextCursor: string | null; };
+
+export type AnswerDetail = { answer: TypedResearchIdentity; currentRevision: AnswerRevision; };
+
+export type RebuttalDetail = { rebuttal: TypedResearchIdentity; currentRevision: RebuttalRevision; };
+
+export type EvaluationDetail = { evaluation: TypedResearchIdentity; currentRevision: EvaluationRevision; bases: NodeRevisionRef[]; };
+
+export type DatasetDetail = { dataset: TypedResearchIdentity; currentRevision: DatasetRevision; };
+
+export type ToolDetail = { tool: TypedResearchIdentity; currentRevision: ToolRevision; };
+
+export type PreparedResearchSubmission = { eventType: string; payload: Record<string, unknown>; nonce: string; signingBytes: string; signingBytesHash: string; };
+
+export type TypedResearchCreateResponse = { node: Record<string, unknown>; revision: Record<string, unknown>; typedRevision: Record<string, unknown>; edges: Record<string, unknown>[]; bases?: Record<string, unknown>[]; event: Record<string, unknown>; };
+
+export type PrepareAnswerRequest = { answerId: string; projectId: string; revision?: number; supersedesRevision?: number | null; state?: ResearchDocumentState; title: string; synthesis: string; limitations?: string[]; questionRef: NodeRevisionRef; additionalInputs?: NodeRevisionRef[]; draftedByActorId?: string; nonce: string; };
+
+export type CreateAnswerRequest = { answerId: string; projectId: string; revision?: number; supersedesRevision?: number | null; state?: ResearchDocumentState; title: string; synthesis: string; limitations?: string[]; questionRef: NodeRevisionRef; additionalInputs?: NodeRevisionRef[]; draftedByActorId?: string; signatureEnvelope: ClientSignatureEnvelope; };
+
+export type PrepareRebuttalRequest = { rebuttalId: string; projectId: string; revision?: number; supersedesRevision?: number | null; state?: ResearchDocumentState; title: string; argument: string; scope?: string[]; targetRef: NodeRevisionRef; basisRefs?: NodeRevisionRef[]; draftedByActorId?: string; nonce: string; };
+
+export type CreateRebuttalRequest = { rebuttalId: string; projectId: string; revision?: number; supersedesRevision?: number | null; state?: ResearchDocumentState; title: string; argument: string; scope?: string[]; targetRef: NodeRevisionRef; basisRefs?: NodeRevisionRef[]; draftedByActorId?: string; signatureEnvelope: ClientSignatureEnvelope; };
+
+export type PrepareEvaluationRequest = { evaluationId: string; projectId: string; revision?: number; supersedesRevision?: number | null; state?: ResearchDocumentState; subjectRef: NodeRevisionRef; basisRefs: NodeRevisionRef[]; stance: EvaluationStance; rationale: string; method?: string | null; draftedByActorId?: string; nonce: string; };
+
+export type CreateEvaluationRequest = { evaluationId: string; projectId: string; revision?: number; supersedesRevision?: number | null; state?: ResearchDocumentState; subjectRef: NodeRevisionRef; basisRefs: NodeRevisionRef[]; stance: EvaluationStance; rationale: string; method?: string | null; draftedByActorId?: string; signatureEnvelope: ClientSignatureEnvelope; };
+
+export type PrepareDatasetRequest = { datasetId: string; projectId: string; revision?: number; supersedesRevision?: number | null; state?: ResearchDocumentState; name: string; description: string; version: string; license: string; schemaUri?: string | null; provenance: string; artifactRef: NodeRevisionRef; draftedByActorId?: string; nonce: string; };
+
+export type CreateDatasetRequest = { datasetId: string; projectId: string; revision?: number; supersedesRevision?: number | null; state?: ResearchDocumentState; name: string; description: string; version: string; license: string; schemaUri?: string | null; provenance: string; artifactRef: NodeRevisionRef; draftedByActorId?: string; signatureEnvelope: ClientSignatureEnvelope; };
+
+export type PrepareToolRequest = { toolId: string; projectId: string; revision?: number; supersedesRevision?: number | null; state?: ResearchDocumentState; name: string; description: string; toolKind: ToolKind; version: string; runtime: string; inputSchemaUri?: string | null; outputSchemaUri?: string | null; license: string; provenance: string; artifactRef?: Record<string, unknown> | null; draftedByActorId?: string; nonce: string; };
+
+export type CreateToolRequest = { toolId: string; projectId: string; revision?: number; supersedesRevision?: number | null; state?: ResearchDocumentState; name: string; description: string; toolKind: ToolKind; version: string; runtime: string; inputSchemaUri?: string | null; outputSchemaUri?: string | null; license: string; provenance: string; artifactRef?: Record<string, unknown> | null; draftedByActorId?: string; signatureEnvelope: ClientSignatureEnvelope; };
+
 export type HealthResponse = { service: "evimesh-api-edge"; status: "ok"; environment: string; };
 
 export type AuthMeResponse = { subject: string; email: string | null; actorId: string; actorType?: "human" | "agent" | "organization" | "service" | "maintainer" | "witness" | null; signingKey: { keyId: string; algorithm: "Ed25519"; publicKey: string; } | null; };
@@ -85,7 +159,9 @@ export type CreateChallengeRequest = { challengeId: string; targetClaimId: strin
 
 export type ActorDirectoryResponse = { items: ActorIdentityCard[]; };
 
-export type ActorIdentityCard = { actorId: string; actorType?: "human" | "agent" | "organization" | "service" | "maintainer" | "witness"; identityStrength?: "verified" | "observed" | "self_declared" | "unknown"; displayName?: string; bio?: string; avatarUrl?: string; modelName?: string; runtime?: string; scope?: string; publicKeyFingerprint?: string; ownerActorId?: string; createdAt?: string; updatedAt?: string; };
+export type ProvisionSelfActorResponse = { actor: ActorIdentityCard; created: boolean; };
+
+export type ActorIdentityCard = { actorId: string; actorType?: "human" | "agent" | "organization" | "service" | "maintainer" | "witness"; identityStrength?: "verified" | "observed" | "self_declared" | "unknown"; displayName?: string; bio?: string; avatarUrl?: string; orcidId?: string; affiliation?: string; modelName?: string; runtime?: string; scope?: string; publicKeyFingerprint?: string; ownerActorId?: string; createdAt?: string; updatedAt?: string; };
 
 export type InteractionRecord = { objectType: "question" | "claim" | "task" | "project"; objectId: string; kind: "helpful" | "favorite" | "watch" | "view"; createdAt?: string; };
 
@@ -236,6 +312,48 @@ export interface EviMeshOperations {
   listMyInteractions: { method: "GET"; path: "/interactions/mine" };
   /** GET /recommendations (bearer auth) */
   getMyRecommendations: { method: "GET"; path: "/recommendations" };
+  /** GET /research-graph/{kind}/{id}/neighborhood (bearer auth) */
+  getResearchNeighborhood: { method: "GET"; path: "/research-graph/{kind}/{id}/neighborhood" };
+  /** GET /answers (bearer auth) */
+  listAnswers: { method: "GET"; path: "/answers" };
+  /** POST /answers (bearer auth) */
+  submitAnswer: { method: "POST"; path: "/answers" };
+  /** POST /answers/prepare (bearer auth) */
+  prepareAnswer: { method: "POST"; path: "/answers/prepare" };
+  /** GET /answers/{id} (bearer auth) */
+  getAnswer: { method: "GET"; path: "/answers/{id}" };
+  /** GET /rebuttals (bearer auth) */
+  listRebuttals: { method: "GET"; path: "/rebuttals" };
+  /** POST /rebuttals (bearer auth) */
+  submitRebuttal: { method: "POST"; path: "/rebuttals" };
+  /** POST /rebuttals/prepare (bearer auth) */
+  prepareRebuttal: { method: "POST"; path: "/rebuttals/prepare" };
+  /** GET /rebuttals/{id} (bearer auth) */
+  getRebuttal: { method: "GET"; path: "/rebuttals/{id}" };
+  /** GET /evaluations (bearer auth) */
+  listEvaluations: { method: "GET"; path: "/evaluations" };
+  /** POST /evaluations (bearer auth) */
+  submitEvaluation: { method: "POST"; path: "/evaluations" };
+  /** POST /evaluations/prepare (bearer auth) */
+  prepareEvaluation: { method: "POST"; path: "/evaluations/prepare" };
+  /** GET /evaluations/{id} (bearer auth) */
+  getEvaluation: { method: "GET"; path: "/evaluations/{id}" };
+  /** GET /datasets (bearer auth) */
+  listDatasets: { method: "GET"; path: "/datasets" };
+  /** POST /datasets (bearer auth) */
+  submitDataset: { method: "POST"; path: "/datasets" };
+  /** POST /datasets/prepare (bearer auth) */
+  prepareDataset: { method: "POST"; path: "/datasets/prepare" };
+  /** GET /datasets/{id} (bearer auth) */
+  getDataset: { method: "GET"; path: "/datasets/{id}" };
+  /** GET /tools (bearer auth) */
+  listTools: { method: "GET"; path: "/tools" };
+  /** POST /tools (bearer auth) */
+  submitTool: { method: "POST"; path: "/tools" };
+  /** POST /tools/prepare (bearer auth) */
+  prepareTool: { method: "POST"; path: "/tools/prepare" };
+  /** GET /tools/{id} (bearer auth) */
+  getTool: { method: "GET"; path: "/tools/{id}" };
 }
 
 export type EviMeshOperationId = keyof EviMeshOperations;

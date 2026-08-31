@@ -55,6 +55,22 @@ import { merkleCheckpoints } from './merkle-checkpoints.mjs';
 import { mirrorReceipts } from './mirror-receipts.mjs';
 import { witnessReceipts } from './witness-receipts.mjs';
 import { notifications } from './notifications.mjs';
+import {
+  answerRevisions,
+  datasetRevisions,
+  evaluationBases,
+  evaluationRevisions,
+  legacyRelationRecords,
+  legacyNodeRecords,
+  researchGraphBackfillCheckpoints,
+  researchGraphBackfillStaging,
+  rebuttalRevisions,
+  researchEdges,
+  researchGraphMigrationFindings,
+  researchNodes,
+  researchNodeRevisions,
+  toolRevisions,
+} from './research-graph.mjs';
 
 export { actorProfiles } from './actor-profiles.mjs';
 export { apiTokens } from './api-tokens.mjs';
@@ -113,6 +129,7 @@ export { mirrorReceipts } from './mirror-receipts.mjs';
 export { witnessReceipts } from './witness-receipts.mjs';
 export { notifications } from './notifications.mjs';
 export { signingKeys } from './signing-keys.mjs';
+export * from './research-graph.mjs';
 
 export const schema = {
   actors,
@@ -172,6 +189,20 @@ export const schema = {
   mirrorReceipts,
   witnessReceipts,
   notifications,
+  researchNodes,
+  researchNodeRevisions,
+  researchEdges,
+  answerRevisions,
+  rebuttalRevisions,
+  evaluationRevisions,
+  evaluationBases,
+  datasetRevisions,
+  toolRevisions,
+  legacyRelationRecords,
+  legacyNodeRecords,
+  researchGraphBackfillCheckpoints,
+  researchGraphBackfillStaging,
+  researchGraphMigrationFindings,
 };
 
 export default schema;

@@ -24,18 +24,17 @@ test("event audit renders on the template with recovery states", () => {
   assert.match(events, /requestId/);
 });
 
-test("contributions groups signed events by contributor", () => {
-  assert.match(contributions, /byActor/);
-  assert.match(contributions, /actorId/);
-  assert.match(contributions, /Unknown contributor/);
-  assert.match(contributions, /entry\.count/);
-  assert.match(contributions, /entry\.types/);
+test("contributions presents signed events as filterable chronology", () => {
+  assert.match(contributions, /eventActor/);
+  assert.match(contributions, /eventObject/);
+  assert.match(contributions, /Filter the record/);
+  assert.match(contributions, /Signed contribution events/);
+  assert.doesNotMatch(contributions, /entry\.count|RoleBar|ranking/);
 });
 
-test("contributions renders on the template with recovery states", () => {
+test("contributions renders on the server page template", () => {
   assert.match(contributions, /PageContainer/);
   assert.match(contributions, /PageHeader/);
-  assert.match(contributions, /ErrorState/);
-  assert.match(contributions, /Empty/);
-  assert.match(contributions, /apiFetch/);
+  assert.match(contributions, /readEvents/);
+  assert.match(contributions, /cache: 'no-store'/);
 });

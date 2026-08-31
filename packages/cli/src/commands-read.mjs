@@ -81,6 +81,38 @@ export async function taskInspect({ flags, output, positionals, env = process.en
   return 0;
 }
 
+export async function graphInspect({ flags, output, positionals, env = process.env, fetchImpl } = {}) {
+  const client = buildClient(flags, { env, fetchImpl });
+  const kind = requirePositional(positionals, 0, "kind");
+  const id = requirePositional(positionals, 1, "id");
+  const revisionText = flagString(flags, "revision", null);
+  const commaValues = (name) => {
+    const value = flagString(flags, name, null);
+    return value ? value.split(",").map((item) => item.trim()).filter(Boolean) : undefined;
+  };
+  const neighborhood = await client.researchGraph.neighborhood(kind, id, {
+    revision: revisionText === null ? undefined : Number(revisionText),
+    direction: flagString(flags, "direction", "both"),
+    depth: Number(flagString(flags, "depth", "1")),
+    kinds: commaValues("kinds"),
+    edgeTypes: commaValues("edge-types"),
+    cursor: flagString(flags, "cursor", undefined),
+  });
+  output.emit({ json: flagBool(flags, "json") }, neighborhood, (data) => {
+    const root = data.resolvedRoot ?? data.requestedRoot ?? { kind, id, revision: revisionText ?? "?" };
+    const nodes = (data.nodes ?? []).map((node) => `${node.ref.kind.padEnd(18)} ${node.ref.id}@${node.ref.revision}  ${node.state ?? "unknown"}  ${node.label ?? ""}`);
+    const edges = (data.edges ?? []).map((edge) => `${edge.source.kind}:${edge.source.id}@${edge.source.revision} -> ${edge.target.kind}:${edge.target.id}@${edge.target.revision}  ${edge.type}`);
+    return [
+      `root: ${root.kind}:${root.id}@${root.revision ?? "current"}`,
+      `nodes: ${nodes.length}${nodes.length ? `\n  ${nodes.join("\n  ")}` : ""}`,
+      `edges: ${edges.length}${edges.length ? `\n  ${edges.join("\n  ")}` : ""}`,
+      `truncated: ${Boolean(data.truncated)}`,
+      `next cursor: ${data.nextCursor ?? "(none)"}`,
+    ].join("\n");
+  });
+  return 0;
+}
+
 export async function provenance({ flags, output, positionals, env = process.env, fetchImpl } = {}) {
   const client = buildClient(flags, { env, fetchImpl });
   const objectType = requirePositional(positionals, 0, "objectType");

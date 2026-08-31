@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://evimesh.org/schema/tool.schema.json",
+  "title": "EviMesh Tool revision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "tool_id", "project_id", "revision", "supersedes_revision", "state", "name", "description", "tool_kind", "version", "runtime", "input_schema_uri", "output_schema_uri", "license", "provenance", "artifact_ref", "created_at", "created_by"],
+  "properties": {
+    "schema": { "const": "srp.tool.v1" },
+    "tool_id": { "type": "string", "pattern": "^tool_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" },
+    "project_id": { "type": "string", "pattern": "^project_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" },
+    "revision": { "type": "integer", "minimum": 1 },
+    "supersedes_revision": { "type": ["integer", "null"], "minimum": 1 },
+    "state": { "$ref": "#/$defs/state" },
+    "name": { "type": "string", "minLength": 1, "maxLength": 500 },
+    "description": { "type": "string", "minLength": 1, "maxLength": 20000 },
+    "tool_kind": { "type": "string", "enum": ["skill", "method", "software", "model", "workflow"] },
+    "version": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "runtime": { "type": "string", "minLength": 1, "maxLength": 2000 },
+    "input_schema_uri": { "type": ["string", "null"], "minLength": 1, "maxLength": 2000 },
+    "output_schema_uri": { "type": ["string", "null"], "minLength": 1, "maxLength": 2000 },
+    "license": { "type": "string", "minLength": 1, "maxLength": 500 },
+    "provenance": { "type": "string", "minLength": 1, "maxLength": 20000 },
+    "artifact_ref": { "type": ["object", "null"], "additionalProperties": false, "required": ["kind", "id", "revision"], "properties": { "kind": { "const": "artifact" }, "id": { "type": "string", "minLength": 1 }, "revision": { "type": "integer", "minimum": 1 } } },
+    "created_at": { "type": "string", "format": "date-time" },
+    "created_by": { "type": "string", "minLength": 1 }
+  },
+  "allOf": [{
+    "if": { "properties": { "revision": { "const": 1 } }, "required": ["revision"] },
+    "then": { "properties": { "supersedes_revision": { "const": null } } },
+    "else": { "properties": { "supersedes_revision": { "type": "integer", "minimum": 1 } } }
+  }],
+  "$defs": {
+    "state": { "type": "string", "enum": ["draft", "published", "superseded", "retracted"] }
+  }
+}

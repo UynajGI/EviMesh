@@ -1,15 +1,19 @@
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
-import { buildClient } from "./client.mjs";
 import { flagString, flagBool, requirePositional } from "./args.mjs";
 import { claimTemplate, runTemplate, readDocument, validateDocument, assertCanonicalRunDocument, submissionRoute } from "./documents.mjs";
-import { signSubmission, createNonce } from "./signing.mjs";
 import { sha256Bytes } from "../../artifact/src/hash.mjs";
 import { createObjectId } from "../../protocol/src/uuidv7.mjs";
 
 function ensureParent(path) {
   mkdirSync(dirname(path), { recursive: true });
+}
+
+function externalSignatureMigrationError(command) {
+  const error = new Error(`${command} no longer signs and submits in one step; use draft -> prepare -> the explicit human-local sign step -> submit with an existing envelope`);
+  error.code = "CLI_EXTERNAL_SIGNATURE_FLOW_REQUIRED";
+  return error;
 }
 
 export async function claimCreate({ flags, output }) {
@@ -35,8 +39,7 @@ export async function runRecord({ flags, output, env = process.env }) {
   return 0;
 }
 
-export async function evidenceAdd({ flags, output, positionals, env = process.env, fetchImpl } = {}) {
-  const client = buildClient(flags, { env, fetchImpl });
+export async function evidenceAdd({ flags, output, positionals } = {}) {
   const file = requirePositional(positionals, 0, "file");
   const bytes = new Uint8Array(readFileSync(file));
   const rawHash = await sha256Bytes(bytes);
@@ -47,11 +50,7 @@ export async function evidenceAdd({ flags, output, positionals, env = process.en
     output.emit({ json: flagBool(flags, "json") }, { dryRun: true, artifactId, revision, rawHash, sizeBytes: bytes.length, mediaType }, (data) => `[dry-run] would upload ${data.sizeBytes} bytes as ${data.artifactId}@${data.revision}\nhash: ${data.rawHash}`);
     return 0;
   }
-  const plan = await client.artifacts.uploadPlan({ artifactId, revision, rawHash, sizeBytes: bytes.length, mediaType });
-  await client.artifacts.upload(plan, bytes, { fetchImpl: fetchImpl ?? fetch });
-  const result = { artifactId, revision, rawHash, sizeBytes: bytes.length, key: plan.key, uploaded: true };
-  output.emit({ json: flagBool(flags, "json") }, result, (data) => `uploaded ${data.sizeBytes} bytes for ${data.artifactId}@${data.revision}\nhash: ${data.rawHash}\nkey: ${data.key}`);
-  return 0;
+  throw externalSignatureMigrationError("sq evidence add");
 }
 
 export async function validate({ flags, output, positionals }) {
@@ -62,57 +61,20 @@ export async function validate({ flags, output, positionals }) {
   return 0;
 }
 
-export async function submit({ flags, output, positionals, env = process.env, fetchImpl } = {}) {
-  const client = buildClient(flags, { env, fetchImpl });
+export async function submit({ positionals } = {}) {
   const path = requirePositional(positionals, 0, "file");
   const document = readDocument(path);
   validateDocument(document);
   if (document.schema === "srp.run.v1") assertCanonicalRunDocument(document);
   const route = submissionRoute(document);
   if (!route) throw new Error(`submission is not supported for schema ${document.schema}`);
-  const body = route.toApi(document);
-  const nonce = createNonce();
-  const signed = await signSubmission({ eventType: route.eventType, payload: body, nonce }, { env });
-  const envelope = {
-    schema: "srp.client-signature-envelope.v1",
-    event_type: route.eventType,
-    payload: body,
-    nonce,
-    signing_bytes_hash: signed.signingBytesHash,
-    signature: signed.signature,
-  };
-  if (flagBool(flags, "dry-run")) {
-    output.emit({ json: flagBool(flags, "json") }, { dryRun: true, route: route.path, envelope }, (data) => `[dry-run] would POST ${data.route}\n${JSON.stringify(data.envelope, null, 2)}`);
-    return 0;
-  }
-  const response = await client.http.request(route.method, route.path, { body: { ...body, signatureEnvelope: envelope } });
-  output.emit({ json: flagBool(flags, "json") }, { submitted: true, route: route.path, envelope, response }, (data) => `submitted to ${data.route}\nsigning hash: ${data.envelope.signing_bytes_hash}`);
-  return 0;
+  throw externalSignatureMigrationError("sq submit");
 }
 
-export async function challengeCreate({ flags, output, positionals, env = process.env, fetchImpl } = {}) {
-  const client = buildClient(flags, { env, fetchImpl });
+export async function challengeCreate({ positionals } = {}) {
   const path = requirePositional(positionals, 0, "file");
   const document = readDocument(path);
   validateDocument(document);
   if (document.schema !== "srp.challenge.v1") throw new Error(`expected srp.challenge.v1, got ${document.schema}`);
-  const { challengeDocToApi } = await import("./documents.mjs");
-  const body = challengeDocToApi(document);
-  const nonce = createNonce();
-  const signed = await signSubmission({ eventType: "challenge.created", payload: body, nonce }, { env });
-  const envelope = {
-    schema: "srp.client-signature-envelope.v1",
-    event_type: "challenge.created",
-    payload: body,
-    nonce,
-    signing_bytes_hash: signed.signingBytesHash,
-    signature: signed.signature,
-  };
-  if (flagBool(flags, "dry-run")) {
-    output.emit({ json: flagBool(flags, "json") }, { dryRun: true, route: "/challenges", body, envelope }, (data) => `[dry-run] would POST ${data.route}\n${JSON.stringify(data.body, null, 2)}`);
-    return 0;
-  }
-  const response = await client.challenges.create({ ...body, signatureEnvelope: envelope });
-  output.emit({ json: flagBool(flags, "json") }, { submitted: true, response }, () => `challenge ${body.challengeId} submitted`);
-  return 0;
+  throw externalSignatureMigrationError("sq challenge create");
 }

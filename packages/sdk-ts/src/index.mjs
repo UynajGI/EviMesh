@@ -11,6 +11,8 @@ import { createChallengeClient } from "./resources/challenges.mjs";
 import { createFrontierClient } from "./resources/frontier.mjs";
 import { createEventClient } from "./resources/events.mjs";
 import { createContributionClient } from "./resources/contributions.mjs";
+import { createResearchGraphClient } from "./resources/research-graph.mjs";
+import { createTypedResearchClients } from "./resources/typed-research.mjs";
 import { verifyMerkleInclusionProof } from "../../merkle/src/verify-inclusion-proof.mjs";
 import { hashResearchEventLeaf } from "../../merkle/src/research-event-leaf.mjs";
 
@@ -23,6 +25,7 @@ export { iterateItems, collectItems } from "./pagination.mjs";
 export function createClient(options = {}) {
   const http = createEviMeshClient(options);
   const fetchImpl = options.fetchImpl ?? fetch;
+  const typedResearch = createTypedResearchClients(http);
   return Object.freeze({
     http,
     projects: createProjectClient(http),
@@ -50,6 +53,8 @@ export function createClient(options = {}) {
     frontier: createFrontierClient(http),
     events: createEventClient(http),
     contributions: createContributionClient(http),
+    researchGraph: createResearchGraphClient(http),
+    ...typedResearch,
     verifyEventProof: ({ proof, event = null } = {}) => {
       if (!verifyMerkleInclusionProof(proof)) return { valid: false, reason: "proof does not reconstruct its root" };
       if (event !== null) {

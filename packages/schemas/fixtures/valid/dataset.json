@@ -1,0 +1,17 @@
+{
+  "schema": "srp.dataset.v1",
+  "dataset_id": "dataset_018f0f4a-5c00-4000-8000-000000000001",
+  "project_id": "project_018f0f4a-5c00-4000-8000-000000000001",
+  "revision": 1,
+  "supersedes_revision": null,
+  "state": "published",
+  "name": "Reference cohort 2026-08",
+  "description": "Versioned observations used by the reference analysis.",
+  "version": "2026.08",
+  "license": "CC-BY-4.0",
+  "schema_uri": "https://example.org/schema/cohort-v1.json",
+  "provenance": "Collected by the declared sampling protocol and hashed as an Artifact.",
+  "artifact_ref": { "kind": "artifact", "id": "artifact_018f0f4a-5c00-4000-8000-000000000001", "revision": 1 },
+  "created_at": "2026-08-30T06:00:00.000Z",
+  "created_by": "actor_01"
+}

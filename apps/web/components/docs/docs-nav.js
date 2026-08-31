@@ -3,8 +3,8 @@ import { cn } from '@/lib/utils';
 
 /*
  * Docs section navigation (docs-plan.md §4.2): the left column lists the IA
- * sections and their pages. Selection marks position only - never progress,
- * popularity, or rank. Desktop sticky; mobile it stays at the top of the
+ * sections and their pages. Selection marks reading position only. Desktop
+ * sticky; mobile it stays at the top of the
  * article and scrolls horizontally.
  */
 export function DocsNav({ sections, activeSlug }) {

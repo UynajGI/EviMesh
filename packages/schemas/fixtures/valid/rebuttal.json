@@ -1,0 +1,15 @@
+{
+  "schema": "srp.rebuttal.v1",
+  "rebuttal_id": "rebuttal_018f0f4a-5c00-4000-8000-000000000001",
+  "project_id": "project_018f0f4a-5c00-4000-8000-000000000001",
+  "revision": 1,
+  "supersedes_revision": null,
+  "state": "draft",
+  "title": "The conclusion does not generalize",
+  "argument": "The sampling boundary excludes the population named in the conclusion.",
+  "scope": ["external population"],
+  "target_ref": { "kind": "claim", "id": "claim_018f0f4a-5c00-4000-8000-000000000001", "revision": 2 },
+  "basis_refs": [{ "kind": "evidence", "id": "evidence_018f0f4a-5c00-4000-8000-000000000001", "revision": 1 }],
+  "created_at": "2026-08-30T06:00:00.000Z",
+  "created_by": "actor_01"
+}

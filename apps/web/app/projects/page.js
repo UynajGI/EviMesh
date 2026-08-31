@@ -2,10 +2,9 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/data';
 import { Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
-import { Input, Label, Textarea } from '@/components/ui/form';
+import { Input, Label } from '@/components/ui/form';
 import { PageContainer, PageHeader } from '@/components/ui/page';
 import { Select } from '@/components/ui/selection';
 
@@ -30,17 +29,11 @@ function relativeTime(value) {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
-const BLANK_FORM = { projectId: '', name: '', summary: '', license: 'CC-BY-4.0' };
-
 export default function ProjectsPage() {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filters, setFilters] = useState({ state: '', search: '' });
-  const [form, setForm] = useState(BLANK_FORM);
-  const [message, setMessage] = useState(null);
-  const [formError, setFormError] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -65,43 +58,14 @@ export default function ProjectsPage() {
   const query = filters.search.trim().toLowerCase();
   const visible = query ? projects.filter((project) => (project.projectId ?? '').toLowerCase().includes(query)) : projects;
 
-  async function submit(event) {
-    event.preventDefault();
-    setFormError(null);
-    setMessage(null);
-    setSubmitting(true);
-    try {
-      const { data } = await import('@/lib/supabase-browser').then(({ createBrowserSupabaseClient }) => createBrowserSupabaseClient().auth.getSession());
-      const response = await fetch(`${API}/projects`, { method: 'POST', headers: { authorization: `Bearer ${data.session?.access_token ?? ''}`, 'content-type': 'application/json' }, body: JSON.stringify(form) });
-      const body = await response.json();
-      if (!response.ok) throw new Error(body.message ?? 'Project creation failed.');
-      setMessage('Project created as a draft.');
-      setForm(BLANK_FORM);
-      load();
-    } catch (reason) {
-      setFormError(reason.message);
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
   if (error) {
-    return <PageContainer><PageHeader eyebrow="Research spaces" title="Projects" description="Explore projects or open a new evidence-backed research space." /><ErrorState className="mt-8" message={error} onRetry={load} /></PageContainer>;
+    return <PageContainer><PageHeader eyebrow="Research spaces" title="Projects" description="Browse the attributable project record." /><ErrorState className="mt-8" message={error} onRetry={load} /></PageContainer>;
   }
 
   return (
     <PageContainer wide>
-      <PageHeader eyebrow="Research spaces" title="Projects" description="Explore projects or open a new evidence-backed research space." />
-      <form onSubmit={submit} className="mt-8 grid gap-4 rounded-lg border border-border bg-card p-5 md:grid-cols-2">
-        <div className="md:col-span-2 grid gap-1"><h2 className="text-lg font-semibold">Create a project</h2><p className="text-sm text-muted-foreground">Drafts start private and become discoverable when activated.</p></div>
-        <div className="grid gap-2"><Label htmlFor="project-id">Project ID</Label><Input id="project-id" required placeholder="short-kebab-id" value={form.projectId} onChange={(event) => setForm({ ...form, projectId: event.target.value })} /></div>
-        <div className="grid gap-2"><Label htmlFor="project-name">Name</Label><Input id="project-name" required placeholder="Project name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></div>
-        <div className="grid gap-2 md:col-span-2"><Label htmlFor="project-summary">Summary</Label><Textarea id="project-summary" required className="min-h-24" placeholder="What is this project investigating?" value={form.summary} onChange={(event) => setForm({ ...form, summary: event.target.value })} /></div>
-        <div className="grid gap-2"><Label htmlFor="project-license">License</Label><Input id="project-license" required placeholder="License" value={form.license} onChange={(event) => setForm({ ...form, license: event.target.value })} /></div>
-        <div className="flex items-end justify-end gap-3"><Button type="submit" loading={submitting}>Create draft</Button></div>
-        {message ? <p className="text-sm text-primary md:col-span-2">{message}</p> : null}
-        {formError ? <p role="alert" className="text-sm text-destructive md:col-span-2">{formError}</p> : null}
-      </form>
+      <PageHeader eyebrow="Research spaces" title="Projects" description="Browse the attributable project record by state and stable ID." />
+      <section className="mt-8 grid min-w-0 grid-cols-12 border-y border-foreground py-5"><p className="col-span-12 font-mono text-[10px] font-bold uppercase text-primary sm:col-span-3">READ-ONLY WEB</p><p className="col-span-12 mt-3 max-w-[60ch] text-sm leading-6 text-muted-foreground sm:col-span-6 sm:mt-0">Project creation and research transitions happen through CLI or MCP. Human-controlled signing remains local.</p><Link className="col-span-12 mt-4 inline-flex min-h-11 items-center justify-center border border-foreground px-4 font-mono text-[10px] font-bold uppercase text-primary sm:col-span-3 sm:mt-0" href="/agent">Open Agent connection</Link></section>
       <div className="mt-8 grid gap-4 rounded-lg border border-border bg-card p-4 sm:grid-cols-2">
         <div className="grid gap-2"><Label htmlFor="project-state">Status</Label><Select id="project-state" value={filters.state} onChange={updateFilter('state')}><option value="">All statuses</option>{PROJECT_STATES.map((state) => <option key={state} value={state}>{state.replaceAll('_', ' ')}</option>)}</Select></div>
         <div className="grid gap-2"><Label htmlFor="project-search">Search</Label><Input id="project-search" value={filters.search} onChange={updateFilter('search')} placeholder="Filter by project ID" /></div>

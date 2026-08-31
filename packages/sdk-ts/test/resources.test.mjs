@@ -89,6 +89,33 @@ test("claim client covers create, revise, transition, graph, and revisions", asy
   assert.equal(calls[6].url, "https://api.example.test/claims/claim-1/verifications?outcome=supports");
 });
 
+test("research graph client reads one filtered heterogeneous neighborhood", async () => {
+  const { calls, client } = setup({ schemaVersion: "research-neighborhood.v1", nodes: [], edges: [] });
+  await client.researchGraph.neighborhood("question", "question/1", {
+    revision: 2,
+    direction: "both",
+    depth: 3,
+    kinds: ["question", "answer", "dataset"],
+    edgeTypes: ["answers", "uses_dataset"],
+    cursor: "next page",
+  });
+  assert.equal(calls[0].url, "https://api.example.test/research-graph/question/question%2F1/neighborhood?revision=2&direction=both&depth=3&kinds=question%2Canswer%2Cdataset&edgeTypes=answers%2Cuses_dataset&cursor=next+page");
+});
+
+test("typed research clients share list, detail, prepare, and externally signed submit routes", async () => {
+  const { calls, client } = setup({});
+  await client.answers.list({ projectId: "project-1", state: "published" });
+  await client.rebuttals.get("rebuttal/1");
+  await client.evaluations.prepare({ evaluationId: "evaluation-1", nonce: "0123456789abcdef" });
+  await client.datasets.submit({ datasetId: "dataset-1", signatureEnvelope: { signature: { value: "external" } } });
+  await client.tools.list({ toolKind: "skill" });
+  assert.equal(calls[0].url, "https://api.example.test/answers?projectId=project-1&state=published");
+  assert.equal(calls[1].url, "https://api.example.test/rebuttals/rebuttal%2F1");
+  assert.equal(calls[2].url, "https://api.example.test/evaluations/prepare");
+  assert.equal(calls[3].url, "https://api.example.test/datasets");
+  assert.equal(calls[4].url, "https://api.example.test/tools?toolKind=skill");
+});
+
 test("artifact client plans uploads and uploads bytes to the signed URL", async () => {
   const uploads = [];
   const plan = { uploadType: "single", key: "artifacts/artifact-1/1/sha256-abc", sizeBytes: 4, mediaType: "text/plain", url: "https://r2.example.test/signed" };

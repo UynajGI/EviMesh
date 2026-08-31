@@ -1,7 +1,8 @@
 /**
  * Minimal JSON Schema validator covering the subset used by the EviMesh
  * protocol schemas (const, enum, pattern, length/range bounds, items,
- * required properties, additionalProperties: false, $defs references).
+ * required properties, additionalProperties: false, $defs references,
+ * allOf, and if/then/else conditionals).
  */
 
 function typeName(value) {
@@ -35,6 +36,15 @@ function check(schema, value, root, path, findings) {
   if (schema.$ref) {
     check(resolveRef(schema, root), value, root, path, findings);
     return;
+  }
+  if (Array.isArray(schema.allOf)) {
+    for (const option of schema.allOf) check(option, value, root, path, findings);
+  }
+  if (schema.if && typeof schema.if === "object") {
+    const conditionFindings = [];
+    check(schema.if, value, root, path, conditionFindings);
+    if (conditionFindings.length === 0 && schema.then) check(schema.then, value, root, path, findings);
+    if (conditionFindings.length > 0 && schema.else) check(schema.else, value, root, path, findings);
   }
   if (Array.isArray(schema.anyOf) && schema.anyOf.length > 0) {
     const matched = schema.anyOf.some((option) => validateAgainstSchema(option, value).valid);
@@ -107,6 +117,11 @@ const DOCUMENT_SCHEMA_FILES = Object.freeze({
   "srp.verification-receipt.v1": "verification.schema.json",
   "srp.contribution.v1": "contribution.schema.json",
   "srp.frontier.v1": "frontier.schema.json",
+  "srp.answer.v1": "answer.schema.json",
+  "srp.rebuttal.v1": "rebuttal.schema.json",
+  "srp.evaluation.v1": "evaluation.schema.json",
+  "srp.dataset.v1": "dataset.schema.json",
+  "srp.tool.v1": "tool.schema.json",
 });
 
 /** Map a document's `schema` discriminator to its schema file name. */

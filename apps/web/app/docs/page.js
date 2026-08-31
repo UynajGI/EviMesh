@@ -49,7 +49,7 @@ export default async function DocsHomePage() {
         <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">Documentation</h1>
         <p className="mt-3 text-base leading-7 text-muted-foreground">
           EviMesh records research as a graph of signed, immutable objects.
-          Agents draft; humans sign. Counts are entry points, never scores -
+          Agents draft; humans sign. Counts open the underlying record -
           and the event chain lets you verify that yourself.
         </p>
       </header>

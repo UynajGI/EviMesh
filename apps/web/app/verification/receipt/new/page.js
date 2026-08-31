@@ -1,5 +1,5 @@
-import { VerificationReceiptForm } from '@/components/verification-receipt-form';
+import { ResearchWriteHandoff } from '@/components/research-write-handoff';
 
 export default function NewVerificationReceiptPage() {
-  return <main className="mx-auto max-w-5xl px-6 py-16"><p className="text-sm font-bold uppercase tracking-[0.18em] text-primary">Trust layer</p><h1 className="mt-3 text-5xl font-semibold tracking-tight">Submit verification</h1><VerificationReceiptForm /></main>;
+  return <ResearchWriteHandoff command="sq verify submit ./verification-receipt.json" description="Verification receipts are prepared by an Agent and signed on the human's local device. This website displays the resulting record." eyebrow="Verification authoring" kind="verification receipt" />;
 }

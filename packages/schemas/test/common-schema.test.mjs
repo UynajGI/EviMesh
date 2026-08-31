@@ -19,7 +19,7 @@ test('defines the common schema and protocol vocabulary', () => {
   assert.equal(schema.$schema, 'https://json-schema.org/draft/2020-12/schema');
   assert.equal(schema.$id, 'https://evimesh.org/schema/common.schema.json');
   assert.deepEqual(Object.keys(schema.$defs).sort(), [
-    'actorType', 'hash', 'identityStrength', 'objectId', 'revision', 'signature', 'timestamp', 'uuid', 'uuidv7',
+    'actorType', 'hash', 'identityStrength', 'nodeKind', 'nodeRevisionRef', 'objectId', 'revision', 'signature', 'timestamp', 'uuid', 'uuidv7',
   ]);
   for (const [name, value] of validVectors) {
     assert.equal(typeof schema.$defs[name], 'object');
