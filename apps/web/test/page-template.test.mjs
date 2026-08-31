@@ -18,6 +18,8 @@ test("PageHeader supports eyebrow, title, description, and an action slot", () =
   assert.match(source, /action/);
   assert.match(source, /showDescription = false/);
   assert.match(source, /titleClassName/);
+  assert.match(source, /titleColumnClass/);
+  assert.match(source, /titleMaxClass/);
   assert.match(source, /grid-cols-12/);
   assert.match(source, /tracking-\[-0\.055em\]/);
 });

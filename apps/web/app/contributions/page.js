@@ -37,7 +37,7 @@ export default async function ContributionsPage({ searchParams }) {
         description="Browse attributable public events by time, role and research object. Every row opens the signed record that produced it."
         eyebrow="Contribution Atlas"
         title="Work, in public context."
-        titleClassName="lg:max-w-none lg:whitespace-nowrap"
+        titleClassName="sm:max-w-none sm:whitespace-nowrap"
       />
       <div className="mt-8 grid min-w-0 gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,9fr)]">
         <aside className="min-w-0 border-b border-foreground pb-6 lg:border-r lg:border-b-0 lg:pr-8">
