@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input, Label, Textarea } from '@/components/ui/form';
 import { PageContainer, PageHeader } from '@/components/ui/page';
 import { createBrowserSupabaseClient } from '@/lib/supabase-browser';
+import { ORCID_PROVIDER, ORCID_PROVIDER_CONFIGURED, isOrcidProvider } from '@/lib/orcid-provider';
 
 const SECTIONS = [
   { id: 's-profile', label: 'Profile' },
@@ -59,7 +60,10 @@ export default function SettingsPage() {
     if (url && key) {
       fetch(`${url}/auth/v1/settings`, { headers: { apikey: key, authorization: `Bearer ${key}` } })
         .then((response) => (response.ok ? response.json() : null))
-        .then((settings) => { setOrcidEnabled(settings?.external?.orcid === true); })
+        .then((settings) => {
+          const external = settings?.external ?? {};
+          setOrcidEnabled(ORCID_PROVIDER_CONFIGURED || Object.keys(external).some((provider) => external[provider] === true && isOrcidProvider(provider)));
+        })
         .catch(() => { setOrcidEnabled(false); });
     }
   }, []);
@@ -69,7 +73,7 @@ export default function SettingsPage() {
   async function connectOrcid() {
     setConnecting(true);
     try {
-      const { error } = await createBrowserSupabaseClient().auth.linkIdentity({ provider: 'orcid', options: { redirectTo: `${window.location.origin}/settings` } });
+      const { error } = await createBrowserSupabaseClient().auth.linkIdentity({ provider: ORCID_PROVIDER, options: { redirectTo: `${window.location.origin}/settings` } });
       if (error) throw error;
     } catch (error) {
       setMessage(`ORCID connect failed: ${error.message}`);

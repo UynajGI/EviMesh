@@ -283,8 +283,9 @@ test('settings offer the ORCID OAuth connect only when the provider is enabled',
   const settings = await read('../app/settings/page.js');
   assert.match(settings, /auth\/v1\/settings/);
   assert.match(settings, /orcidEnabled/);
-  assert.match(settings, /settings\?\.external\?\.orcid === true/);
-  assert.match(settings, /linkIdentity\(\{ provider: 'orcid'/);
+  assert.match(settings, /ORCID_PROVIDER_CONFIGURED/);
+  assert.match(settings, /Object\.keys\(external\)\.some/);
+  assert.match(settings, /linkIdentity\(\{ provider: ORCID_PROVIDER/);
   assert.match(settings, /Connect ORCID \(OAuth\)/);
   assert.match(settings, /Enable the ORCID provider to connect/);
 });

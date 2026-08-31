@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const login = await readFile(new URL('../app/login/page.js', import.meta.url), 'utf8');
+const orcidProvider = await readFile(new URL('../lib/orcid-provider.js', import.meta.url), 'utf8');
 const legacy = await readFile(new URL('../app/sign-in/page.js', import.meta.url), 'utf8');
 
 test('login renders provider buttons from the live auth configuration', () => {
@@ -19,6 +20,8 @@ test('login renders provider buttons from the live auth configuration', () => {
   assert.doesNotMatch(login, /GitFork|Fingerprint/);
   assert.match(login, /providerButtons/);
   assert.match(login, /signInWithOAuth\(\{ provider, /);
+  assert.match(login, /ORCID_PROVIDER_CONFIGURED/);
+  assert.match(login, /enabled\.unshift\(ORCID_PROVIDER\)/);
   assert.match(login, /No external provider is enabled/);
 });
 
@@ -27,7 +30,7 @@ test('login keeps ORCID visible when production has not enabled its OAuth provid
   // built-in provider entry yet. The UI must show the honest setup state and
   // a handoff to Settings instead of rendering a dead OAuth button.
   assert.match(login, /isOrcidProvider/);
-  assert.match(login, /startsWith\('custom:orcid'\)/);
+  assert.match(orcidProvider, /startsWith\('custom:orcid'\)/);
   assert.match(login, /ORCID research identity/);
   assert.match(login, /Not enabled in this workspace/);
   assert.match(login, /Sign in with email, then connect ORCID/);

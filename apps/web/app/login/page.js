@@ -15,16 +15,13 @@ import { useEffect, useState } from 'react';
 import { ArrowLeft, Eye, EyeOff, Globe, Network } from 'lucide-react';
 import { GithubMark, GoogleMark, OrcidMark } from '@/components/brand-marks';
 import { createBrowserSupabaseClient } from '@/lib/supabase-browser';
+import { ORCID_PROVIDER, ORCID_PROVIDER_CONFIGURED, isOrcidProvider } from '@/lib/orcid-provider';
 
 /* Known providers get their icon and display name; anything else the
  * backend enables still renders, generically — the button set follows the
  * live configuration instead of a hardcoded allowlist. */
 const PROVIDER_ICONS = { github: GithubMark, orcid: OrcidMark, google: GoogleMark };
 const PROVIDER_LABELS = { github: 'GitHub', orcid: 'ORCID', google: 'Google' };
-const isOrcidProvider = (provider) => {
-  const normalized = String(provider ?? '').toLowerCase();
-  return normalized === 'orcid' || normalized.startsWith('custom:orcid');
-};
 const providerName = (provider) => (isOrcidProvider(provider) ? 'ORCID' : PROVIDER_LABELS[provider] ?? provider.charAt(0).toUpperCase() + provider.slice(1));
 const providerIcon = (provider) => (isOrcidProvider(provider) ? OrcidMark : PROVIDER_ICONS[provider] ?? null);
 const providerRank = (provider) => (isOrcidProvider(provider) ? 0 : provider === 'github' ? 1 : provider === 'google' ? 2 : 3);
@@ -48,7 +45,12 @@ export default function LoginPage() {
       .then((settings) => {
         if (cancelled) return;
         const external = settings?.external ?? {};
-        setProviders(Object.keys(external).filter((provider) => external[provider] === true));
+        const enabled = Object.keys(external).filter((provider) => external[provider] === true);
+        /* Custom OIDC providers are intentionally omitted by Supabase's
+         * public settings payload. The production build flag is the
+         * authoritative capability signal for EviMesh's custom ORCID row. */
+        if (ORCID_PROVIDER_CONFIGURED && !enabled.some(isOrcidProvider)) enabled.unshift(ORCID_PROVIDER);
+        setProviders(enabled);
       })
       .catch(() => { if (!cancelled) setProviders([]); });
     return () => { cancelled = true; };
