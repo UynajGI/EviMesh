@@ -35,6 +35,11 @@ test('shell exposes global search, theme toggle, and sign-in without hiding them
   assert.match(shell, /Sign in/);
 });
 
+test('shell renders the approved branched mark with the two-tone wordmark', () => {
+  assert.match(shell, /src="\/brand\/evimesh-mark-kinetic\.svg"/);
+  assert.match(shell, /<span className="text-foreground">Evi<\/span><span className="text-primary">Mesh<\/span>/);
+});
+
 test('shell keeps the same publication inventory on every viewport', () => {
   assert.match(shell, /const isLanding = pathname === '\/'/);
   assert.match(shell, /const visibleNavItems = NAV_ITEMS/);
