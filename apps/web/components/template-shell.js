@@ -102,7 +102,9 @@ function BrandLink({ onNavigate }) {
         aria-hidden="true"
         className="size-7 shrink-0"
       />
-      EviMesh
+      <span className="whitespace-nowrap">
+        <span className="text-foreground">Evi</span><span className="text-primary">Mesh</span>
+      </span>
     </Link>
   );
 }
