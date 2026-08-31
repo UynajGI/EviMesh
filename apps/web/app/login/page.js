@@ -45,7 +45,9 @@ export default function LoginPage() {
       .then((settings) => {
         if (cancelled) return;
         const external = settings?.external ?? {};
-        const enabled = Object.keys(external).filter((provider) => external[provider] === true);
+        /* Email is rendered once by the dedicated form below; keeping it out
+         * of this OAuth row avoids duplicate entry points. */
+        const enabled = Object.keys(external).filter((provider) => provider.toLowerCase() !== 'email' && external[provider] === true);
         /* Custom OIDC providers are intentionally omitted by Supabase's
          * public settings payload. The production build flag is the
          * authoritative capability signal for EviMesh's custom ORCID row. */
