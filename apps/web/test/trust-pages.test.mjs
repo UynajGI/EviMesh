@@ -6,6 +6,7 @@ import { readFile } from "node:fs/promises";
 const events = await readFile(new URL("../app/events/page.js", import.meta.url), "utf8");
 const contributions = await readFile(new URL("../app/contributions/page.js", import.meta.url), "utf8");
 const tools = await readFile(new URL("../app/tools/page.js", import.meta.url), "utf8");
+const explore = await readFile(new URL("../app/explore/page.js", import.meta.url), "utf8");
 
 test("event audit keeps hash chain and signature traces", () => {
   assert.match(events, /Event audit/);
@@ -44,4 +45,9 @@ test("contributions renders on the server page template", () => {
 test("tools keeps the instrument index title on one desktop line", () => {
   assert.match(tools, /title="Methods you can inspect\."/);
   assert.match(tools, /titleClassName="sm:max-w-none sm:whitespace-nowrap"/);
+});
+
+test("explore keeps the long index title fitted on desktop", () => {
+  assert.match(explore, /title="Follow the research, object by object\."/);
+  assert.match(explore, /titleClassName="lg:max-w-none lg:whitespace-nowrap lg:text-\[clamp\(2\.75rem,5vw,5\.25rem\)\]"/);
 });
