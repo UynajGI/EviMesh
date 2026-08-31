@@ -73,7 +73,7 @@ export default async function ExplorePage({ searchParams }) {
 
   return (
     <PageContainer wide>
-      <PageHeader description="Browse the attributable record across reasoning, resources and execution. Every row opens one stable research object." eyebrow="Explore" title="Follow the research, object by object." />
+      <PageHeader description="Browse the attributable record across reasoning, resources and execution. Every row opens one stable research object." eyebrow="Explore" title="Follow the research, object by object." titleClassName="lg:max-w-none lg:whitespace-nowrap lg:text-[clamp(2.75rem,5vw,5.25rem)]" />
       <section className="grid min-w-0 grid-cols-12 border-y border-foreground" aria-label="Research object facets">
         <p className="col-span-12 border-b border-border px-3 py-3 font-mono text-[10px] font-bold uppercase text-primary lg:col-span-2 lg:border-r lg:border-b-0">OBJECT TYPE</p>
         <nav className="col-span-12 flex min-w-0 overflow-x-auto lg:col-span-10" aria-label="Filter by research object type">
