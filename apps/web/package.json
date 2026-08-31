@@ -19,7 +19,7 @@
     "wrangler": "4.124.0"
   },
   "dependencies": {
-    "@opennextjs/cloudflare": "^1.20.2",
+    "@opennextjs/cloudflare": "^1.20.4",
     "@radix-ui/react-dialog": "1.1.23",
     "@supabase/supabase-js": "^2.112.3",
     "class-variance-authority": "0.7.1",
