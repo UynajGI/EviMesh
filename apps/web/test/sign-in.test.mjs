@@ -16,8 +16,7 @@ test('login renders provider buttons from the live auth configuration', () => {
   assert.match(login, /PROVIDER_LABELS\[provider\] \?\? provider\.charAt\(0\)\.toUpperCase\(\) \+ provider\.slice\(1\)/);
   // Official brand marks, not generic lucide stand-ins (design book 06).
   assert.match(login, /github: GithubMark, orcid: OrcidMark, google: GoogleMark/);
-  assert.match(login, /email: Mail/);
-  assert.match(login, /provider === 'email'/);
+  assert.match(login, /provider\.toLowerCase\(\) !== 'email'/);
   assert.match(login, /brand-marks/);
   assert.doesNotMatch(login, /GitFork|Fingerprint/);
   assert.match(login, /providerButtons/);

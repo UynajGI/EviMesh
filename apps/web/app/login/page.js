@@ -12,7 +12,7 @@
  */
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Eye, EyeOff, Globe, Mail, Network } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff, Globe, Network } from 'lucide-react';
 import { GithubMark, GoogleMark, OrcidMark } from '@/components/brand-marks';
 import { createBrowserSupabaseClient } from '@/lib/supabase-browser';
 import { ORCID_PROVIDER, ORCID_PROVIDER_CONFIGURED, isOrcidProvider } from '@/lib/orcid-provider';
@@ -20,7 +20,7 @@ import { ORCID_PROVIDER, ORCID_PROVIDER_CONFIGURED, isOrcidProvider } from '@/li
 /* Known providers get their icon and display name; anything else the
  * backend enables still renders, generically — the button set follows the
  * live configuration instead of a hardcoded allowlist. */
-const PROVIDER_ICONS = { github: GithubMark, orcid: OrcidMark, google: GoogleMark, email: Mail };
+const PROVIDER_ICONS = { github: GithubMark, orcid: OrcidMark, google: GoogleMark };
 const PROVIDER_LABELS = { github: 'GitHub', orcid: 'ORCID', google: 'Google' };
 const providerName = (provider) => (isOrcidProvider(provider) ? 'ORCID' : PROVIDER_LABELS[provider] ?? provider.charAt(0).toUpperCase() + provider.slice(1));
 const providerIcon = (provider) => (isOrcidProvider(provider) ? OrcidMark : PROVIDER_ICONS[provider] ?? null);
@@ -45,7 +45,9 @@ export default function LoginPage() {
       .then((settings) => {
         if (cancelled) return;
         const external = settings?.external ?? {};
-        const enabled = Object.keys(external).filter((provider) => external[provider] === true);
+        /* Email is rendered once by the dedicated form below; keeping it out
+         * of this OAuth row avoids duplicate entry points. */
+        const enabled = Object.keys(external).filter((provider) => provider.toLowerCase() !== 'email' && external[provider] === true);
         /* Custom OIDC providers are intentionally omitted by Supabase's
          * public settings payload. The production build flag is the
          * authoritative capability signal for EviMesh's custom ORCID row. */
@@ -57,14 +59,6 @@ export default function LoginPage() {
   }, []);
 
   async function loginWithProvider(provider) {
-    /* Email is a first-class Auth method, not an OAuth provider. Keep the
-     * shortcut in the provider row, but send it to the magic-link form. */
-    if (provider === 'email') {
-      setMode('magic');
-      setMessage(null);
-      requestAnimationFrame(() => document.getElementById('email')?.focus());
-      return;
-    }
     setPending(provider);
     setMessage(null);
     try {
