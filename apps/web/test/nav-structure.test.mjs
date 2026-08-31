@@ -36,7 +36,7 @@ test('shell exposes global search, theme toggle, and sign-in without hiding them
 });
 
 test('shell renders the approved branched mark with the two-tone wordmark', () => {
-  assert.match(shell, /src="\/brand\/evimesh-mark-kinetic\.svg"/);
+  assert.match(shell, /<EviMeshMark className="size-7 shrink-0" \/>/);
   assert.match(shell, /<span className="text-foreground">Evi<\/span><span className="text-primary">Mesh<\/span>/);
 });
 

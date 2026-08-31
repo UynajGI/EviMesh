@@ -292,7 +292,13 @@ test('settings offer the ORCID OAuth connect only when the provider is enabled',
 
 test('brand marks carry the official provider marks', async () => {
   const marks = await read('../components/brand-marks.js');
+  const icon = await read('../app/icon.svg');
   // GitHub octocat path, Google four-color G, ORCID green disc with white iD.
+  assert.match(marks, /export function EviMeshMark/);
+  assert.match(marks, /var\(--evimesh-foreground\)/);
+  assert.match(marks, /var\(--evimesh-background\)/);
+  assert.match(icon, /prefers-color-scheme: dark/);
+  assert.match(icon, /class="surface"/);
   assert.match(marks, /export function GithubMark/);
   assert.match(marks, /export function GoogleMark/);
   assert.match(marks, /export function OrcidMark/);

@@ -18,6 +18,7 @@ import {
 import { ThemeToggle } from '@/components/theme-toggle';
 import { CommandPalette } from '@/components/command-palette';
 import { OfflineBanner } from '@/components/offline-banner';
+import { EviMeshMark } from '@/components/brand-marks';
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
@@ -96,12 +97,7 @@ function BrandLink({ onNavigate }) {
       href="/"
       onClick={onNavigate}
     >
-      <img
-        src="/brand/evimesh-mark-kinetic.svg"
-        alt=""
-        aria-hidden="true"
-        className="size-7 shrink-0"
-      />
+      <EviMeshMark className="size-7 shrink-0" />
       <span className="whitespace-nowrap">
         <span className="text-foreground">Evi</span><span className="text-primary">Mesh</span>
       </span>
