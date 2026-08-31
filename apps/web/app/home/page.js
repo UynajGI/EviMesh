@@ -64,13 +64,6 @@ function toRelativeTime(value) {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
-function observationDescription(window) {
-  if (!window) return 'Preparing the seven-day observation window.';
-  const start = formatDateTime(window.windowStart, window.timeZone);
-  const end = formatDateTime(window.asOf, window.timeZone);
-  return `Seven-day observation window: ${start} to ${end} (${window.timeZone}, ${window.offset}). Change levels show attention priority, not truth, acceptance, or evidence quality.`;
-}
-
 async function getJson(path, options) {
   const response = await fetch(`${API}${path}`, options);
   const payload = await response.json().catch(() => ({}));
@@ -551,7 +544,6 @@ export default function HomePage() {
             Open event audit
           </Link>
         )}
-        description={observationDescription(observationWindow)}
         eyebrow="Home"
         title="What changed in the research you watch"
       />

@@ -65,7 +65,7 @@ export default function ProjectDetailPage({ params }) {
 
   return (
     <PageContainer>
-      <PageHeader eyebrow={identity.state.replaceAll('_', ' ')} title={currentRevision.name} description={currentRevision.summary} />
+      <PageHeader eyebrow={identity.state.replaceAll('_', ' ')} title={currentRevision.name} description={currentRevision.summary} showDescription />
       <div className="mt-10 flex gap-6 overflow-x-auto border-b border-border pb-1" role="tablist" aria-label="Project sections">{TABS.map(tabButton)}</div>
       {tab === 'Overview' && <section className="mt-8" aria-labelledby="overview-heading"><h2 id="overview-heading" className="text-lg font-semibold">Overview</h2><dl className="mt-4 divide-y divide-border rounded-lg border border-border bg-card"><div className="flex items-center justify-between gap-4 px-5 py-3"><dt className="text-sm text-muted-foreground">Project ID</dt><dd className="text-sm tabular-nums">{identity.projectId}</dd></div><div className="flex items-center justify-between gap-4 px-5 py-3"><dt className="text-sm text-muted-foreground">Status</dt><dd><Badge variant={stateVariant(identity.state)}>{identity.state.replaceAll('_', ' ')}</Badge></dd></div></dl></section>}
       {tab === 'Questions' && <section className="mt-8" aria-labelledby="questions-heading"><h2 id="questions-heading" className="text-lg font-semibold">Questions</h2>{linkedList(questions, 'questionId', (item) => `/questions/${item.questionId}`, (item) => `Question · ${item.state.replaceAll('_', ' ')}`)}</section>}

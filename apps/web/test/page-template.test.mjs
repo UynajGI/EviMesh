@@ -16,8 +16,15 @@ test("PageHeader supports eyebrow, title, description, and an action slot", () =
   assert.match(source, /title/);
   assert.match(source, /description/);
   assert.match(source, /action/);
+  assert.match(source, /showDescription = false/);
   assert.match(source, /grid-cols-12/);
   assert.match(source, /tracking-\[-0\.055em\]/);
+});
+
+test('generic page guidance is not rendered as a subtitle by default', async () => {
+  const home = await readFile(new URL('../app/home/page.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(home, /Seven-day observation window|Change levels show attention priority/);
+  assert.match(source, /showDescription && description/);
 });
 
 test("PageContainer and SectionHeader keep the quiet rhythm", () => {
