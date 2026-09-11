@@ -124,15 +124,23 @@ function ShellFooter() {
 
 function AuthLink({ className, onNavigate }) {
   const { session, ready } = useAuth();
-  if (!ready) return <span aria-live="polite" className={className}>Checking session…</span>;
-  if (session) return (
-    <Link className={className} href="/settings" onClick={onNavigate}>
-      <UserRound aria-hidden="true" size={16} /> Account
-    </Link>
+  const Icon = session ? UserRound : LogIn;
+  let label = 'Checking session…';
+  if (ready) label = session ? 'Account' : 'Sign in';
+  const content = (
+    <>
+      <Icon aria-hidden="true" className="shrink-0" size={16} />
+      <span className="inline-grid">
+        {/* Reserve the widest label in every auth state. */}
+        <span aria-hidden="true" className="invisible col-start-1 row-start-1">Account</span>
+        <span className={ready ? 'col-start-1 row-start-1' : 'sr-only'}>{label}</span>
+      </span>
+    </>
   );
+  if (!ready) return <span aria-live="polite" className={className}>{content}</span>;
   return (
-    <Link className={className} href="/login" onClick={onNavigate}>
-      <LogIn aria-hidden="true" size={16} /> Sign in
+    <Link className={className} href={session ? '/settings' : '/login'} onClick={onNavigate}>
+      {content}
     </Link>
   );
 }

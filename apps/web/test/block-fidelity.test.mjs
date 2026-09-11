@@ -52,7 +52,8 @@ test('shell wires notifications, account, and the g-key chords', async () => {
   const shell = await read('../components/template-shell.js');
   assert.match(shell, /aria-label="Notifications"/);
   assert.match(shell, /href="\/notifications"/);
-  assert.match(shell, />\n?\s*Account\n?\s*<\/Link>/);
+  assert.match(shell, /session \? 'Account' : 'Sign in'/);
+  assert.match(shell, /href=\{session \? '\/settings' : '\/login'\}/);
   assert.match(shell, /const G_CHORDS = \{ h: '\/home', e: '\/explore', w: '\/work', t: '\/tools', c: '\/contributions', a: '\/agent', d: '\/docs' \}/);
   assert.match(shell, /function useGChords/);
   assert.match(shell, /pendingG/);
