@@ -888,9 +888,8 @@ app.delete('/tasks/:taskId/lease', async (context) => {
 
 app.get('/profile', async (context) => {
   try {
-    const claims = await authenticateRequest(context.req.raw, context.env);
-    const actorId = await resolveActorForSupabaseClaims({ repository, claims });
-    return context.json(await getOwnProfile({ repository, actorId }));
+    const { actorId, accessToken } = await authedActorFor(context);
+    return context.json(await getOwnProfile({ repository, actorId, accessToken }));
   } catch (error) {
     const status = error instanceof JwtVerificationError ? 401 : error instanceof ActorIdentityError ? error.status : error instanceof ActorProfileError ? 400 : error.status;
     if (status) return context.json(errorBody(error.code ?? 'profile_unavailable', error.message, context.get('requestId')), status);
@@ -900,10 +899,9 @@ app.get('/profile', async (context) => {
 
 app.patch('/profile', async (context) => {
   try {
-    const claims = await authenticateRequest(context.req.raw, context.env);
-    const actorId = await resolveActorForSupabaseClaims({ repository, claims });
+    const { actorId, accessToken } = await authedActorFor(context);
     const patch = await context.req.json();
-    return context.json(await patchOwnProfile({ repository, actorId, patch }));
+    return context.json(await patchOwnProfile({ repository, actorId, accessToken, patch }));
   } catch (error) {
     const status = error instanceof JwtVerificationError ? 401 : error instanceof ActorIdentityError ? error.status : error instanceof ActorProfileError ? 400 : error.status;
     if (status) return context.json(errorBody(error.code ?? 'profile_unavailable', error.message, context.get('requestId')), status);
