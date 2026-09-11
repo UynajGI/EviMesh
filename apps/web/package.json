@@ -16,21 +16,21 @@
     "@tailwindcss/postcss": "4.3.3",
     "postcss": "8.5.26",
     "tailwindcss": "4.3.3",
-    "wrangler": "4.124.0"
+    "wrangler": "4.128.0"
   },
   "dependencies": {
-    "@opennextjs/cloudflare": "^1.20.2",
+    "@opennextjs/cloudflare": "^1.20.6",
     "@radix-ui/react-dialog": "1.1.23",
-    "@supabase/supabase-js": "^2.112.3",
+    "@supabase/supabase-js": "^2.114.0",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
-    "lucide-react": "1.33.0",
-    "next": "16.3.3",
+    "lucide-react": "1.39.0",
+    "next": "16.3.4",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "styled-jsx": "5.1.7",
     "tailwind-merge": "3.6.0",
     "d3-dag": "^1.2.0",
-    "@xyflow/react": "^12.3.0"
+    "@xyflow/react": "^12.11.6"
   }
 }
