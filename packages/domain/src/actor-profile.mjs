@@ -16,7 +16,7 @@ function assertActorId(actorId) {
   return actorId.trim();
 }
 
-function normalizePatch(patch) {
+export function normalizeActorProfilePatch(patch) {
   if (!patch || typeof patch !== "object" || Array.isArray(patch)) {
     throw new ActorProfileError("profile patch must be an object");
   }
@@ -51,7 +51,7 @@ export async function updateOwnActorProfile({ repository, actorId, patch } = {})
     throw new ActorProfileError("repository updateActorProfile is required");
   }
   actorId = assertActorId(actorId);
-  patch = normalizePatch(patch);
+  patch = normalizeActorProfilePatch(patch);
 
   return repository.withTransaction(async (transaction) => {
     const updated = await transaction.updateActorProfile(actorId, patch);

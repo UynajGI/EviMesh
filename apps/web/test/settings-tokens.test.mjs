@@ -32,7 +32,7 @@ test("revoking a token requires confirmation", () => {
 });
 
 test("profile settings render on the page template with primitives", () => {
-  assert.match(profile, /profileRequest\('\/profile'/);
+  assert.match(profile, /requestOwnProfile/);
   assert.match(profile, /Save profile/);
   assert.match(profile, /PageContainer/);
   assert.match(profile, /Label htmlFor="display-name"/);
