@@ -22,9 +22,9 @@
   },
   "devDependencies": {
     "esbuild": "0.28.2",
-    "lefthook": "^2.1.10",
+    "lefthook": "^2.1.12",
     "playwright": "^1.62.1",
-    "turbo": "^2.10.11"
+    "turbo": "^2.10.12"
   },
   "pnpm": {
     "overrides": {
