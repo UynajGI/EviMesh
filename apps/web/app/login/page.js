@@ -23,6 +23,7 @@ import { ORCID_PROVIDER, ORCID_PROVIDER_CONFIGURED, isOrcidProvider } from '@/li
  * backend enables still renders, generically — the button set follows the
  * live configuration instead of a hardcoded allowlist. */
 const PROVIDER_ICONS = { github: GithubMark, orcid: OrcidMark, google: GoogleMark };
+const HOME_PATH = '/home';
 const PROVIDER_LABELS = { github: 'GitHub', orcid: 'ORCID', google: 'Google' };
 const providerName = (provider) => (isOrcidProvider(provider) ? 'ORCID' : PROVIDER_LABELS[provider] ?? provider.charAt(0).toUpperCase() + provider.slice(1));
 const providerIcon = (provider) => (isOrcidProvider(provider) ? OrcidMark : PROVIDER_ICONS[provider] ?? null);
@@ -38,7 +39,7 @@ export default function LoginPage() {
   const [providers, setProviders] = useState(null);
 
   useEffect(() => {
-    if (ready && session) router.replace('/home');
+    if (ready && session) router.replace(HOME_PATH);
   }, [ready, session, router]);
 
   /* Ask the auth service which providers are actually enabled: buttons
@@ -70,7 +71,7 @@ export default function LoginPage() {
     setPending(provider);
     setMessage(null);
     try {
-      const { error } = await createBrowserSupabaseClient().auth.signInWithOAuth({ provider, options: { redirectTo: `${window.location.origin}/home` } });
+      const { error } = await createBrowserSupabaseClient().auth.signInWithOAuth({ provider, options: { redirectTo: `${window.location.origin}${HOME_PATH}` } });
       if (error) throw error;
     } catch (error) {
       setMessage(error.message);
@@ -88,21 +89,21 @@ export default function LoginPage() {
     try {
       const auth = createBrowserSupabaseClient().auth;
       if (mode === 'magic') {
-        const { error } = await auth.signInWithOtp({ email, options: { emailRedirectTo: `${window.location.origin}/home` } });
+        const { error } = await auth.signInWithOtp({ email, options: { emailRedirectTo: `${window.location.origin}${HOME_PATH}` } });
         if (error) throw error;
         setMessage(`Sign-in link sent to ${email}. It expires in one hour; open it on this device.`);
       } else if (mode === 'signup') {
-        const { data, error } = await auth.signUp({ email, password, options: { emailRedirectTo: `${window.location.origin}/home` } });
+        const { data, error } = await auth.signUp({ email, password, options: { emailRedirectTo: `${window.location.origin}${HOME_PATH}` } });
         if (error) throw error;
-        if (data.session) {
-          router.replace('/home');
+        if (data?.session) {
+          router.replace(HOME_PATH);
         } else {
           setMessage(`Check ${email} for a confirmation link. Open it to confirm your email and continue to your workspace.`);
         }
       } else {
         const { error } = await auth.signInWithPassword({ email, password });
         if (error) throw error;
-        router.replace('/home');
+        router.replace(HOME_PATH);
       }
     } catch (error) {
       setMessage(error.message);

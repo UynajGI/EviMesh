@@ -71,6 +71,10 @@ executable. The suite covers password login, both signup outcomes, email and
 OAuth callbacks, reloads, token refresh/expiry, invalid credentials, mobile
 navigation, and cross-tab sign-out.
 
+GitHub Actions runs the same suite explicitly in `auth-session.yml` on PRs
+and pushes to main. The job starts its own local server with the test-only
+configuration above and installs Chromium; it needs no hosted Auth secrets.
+
 ## Hosted project setup
 
 For each Supabase environment, open the project's Auth settings:
