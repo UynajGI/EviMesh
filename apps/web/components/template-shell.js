@@ -19,6 +19,7 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { CommandPalette } from '@/components/command-palette';
 import { OfflineBanner } from '@/components/offline-banner';
 import { EviMeshMark } from '@/components/brand-marks';
+import { useAuth } from '@/components/auth-provider';
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
@@ -121,6 +122,21 @@ function ShellFooter() {
   );
 }
 
+function AuthLink({ className, onNavigate }) {
+  const { session, ready } = useAuth();
+  if (!ready) return <span aria-live="polite" className={className}>Checking session…</span>;
+  if (session) return (
+    <Link className={className} href="/settings" onClick={onNavigate}>
+      <UserRound aria-hidden="true" size={16} /> Account
+    </Link>
+  );
+  return (
+    <Link className={className} href="/login" onClick={onNavigate}>
+      <LogIn aria-hidden="true" size={16} /> Sign in
+    </Link>
+  );
+}
+
 /* Mobile navigation sheet (M13.8 B08): Radix Dialog owns the focus trap,
  * Escape dismissal, aria wiring, and background scroll lock; the hand-built
  * variant only supplies the left-drawer surface. `md:hidden` keeps it a
@@ -167,20 +183,13 @@ function MobileDrawer({ isLanding, items, onClose, pathname }) {
             <Link className={cn('flex h-11 items-center gap-3 rounded-[1px] px-3 text-sm text-muted-foreground transition-colors hover:text-foreground', FOCUS_RING)} href="/notifications" onClick={onClose}>
               <Bell aria-hidden="true" size={16} /> Notifications
             </Link>
-            <Link className={cn('flex h-11 items-center gap-3 rounded-[1px] px-3 text-sm text-muted-foreground transition-colors hover:text-foreground', FOCUS_RING)} href="/settings" onClick={onClose}>
-              <UserRound aria-hidden="true" size={16} /> Account
-            </Link>
           </div>
         ) : null}
 
-        <Link
+        <AuthLink
           className={cn('mt-auto inline-flex h-11 items-center gap-3 rounded-[1px] border border-foreground px-3 text-sm font-medium text-primary transition-colors hover:bg-foreground hover:text-background', FOCUS_RING)}
-          href="/login"
-          onClick={onClose}
-        >
-          <LogIn aria-hidden="true" size={16} />
-          Sign in
-        </Link>
+          onNavigate={onClose}
+        />
       </DialogPrimitive.Content>
     </DialogPrimitive.Portal>
   );
@@ -259,17 +268,10 @@ export function TemplateShell({ children }) {
               >
                 <Bell aria-hidden="true" size={15} />
               </Link>
-              <Link
-                className={cn('hidden h-9 items-center gap-2 rounded-[1px] border border-border bg-transparent px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground hover:text-foreground xl:inline-flex', FOCUS_RING)}
-                href="/settings"
-              >
-                <span aria-hidden="true" className="grid size-5 place-items-center border border-border text-[10px] font-semibold">?</span>
-                Account
-              </Link>
             </>
           ) : null}
 
-          <Link
+          <AuthLink
             className={cn(
               'h-9 items-center gap-2 rounded-[1px] px-3 text-xs font-semibold transition-colors',
               FOCUS_RING,
@@ -277,11 +279,7 @@ export function TemplateShell({ children }) {
                 ? 'inline-flex border border-foreground bg-transparent hover:bg-foreground hover:text-background'
                 : 'hidden bg-primary text-primary-foreground hover:bg-foreground sm:inline-flex',
             )}
-            href="/login"
-          >
-            <LogIn aria-hidden="true" size={14} />
-            Sign in
-          </Link>
+          />
         </div>
       </header>
 

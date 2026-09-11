@@ -34,6 +34,43 @@ provider Identity in one repository transaction. A repeat login for the same
 provider/subject reuses the existing Actor; see
 `packages/domain/src/actor-provisioning.mjs`.
 
+## Browser session behavior
+
+The Next.js app shares one browser Supabase client and mounts `AuthProvider`
+on every route, including `/`. It restores saved sessions and consumes OAuth
+and email-link callbacks before deciding whether navigation should show
+`Sign in` or `Account`. Subsequent auth events update desktop and mobile
+navigation. The SDK persists and refreshes the session; the legacy
+`apps/web/src/auth.mjs` helper is not the Next.js app's session store.
+
+Password sign-in and signup that returns a session go directly to `/home`.
+A signup without a session stays on the form with email-confirmation
+instructions. Email and OAuth redirects target `/home`; older callback links
+to `/` still restore the session. Opening `/login` while signed in returns to
+`/home`. These follow the SDK's [signup result](https://supabase.com/docs/reference/javascript/auth-signup)
+and [auth-state events](https://supabase.com/docs/reference/javascript/auth-onauthstatechange).
+
+The browser regression suite uses intercepted auth/API responses and no real
+accounts or email. From `apps/web`, start an isolated local server (POSIX shell):
+
+```sh
+NEXT_PUBLIC_SUPABASE_URL=https://auth.evimesh.test \
+NEXT_PUBLIC_SUPABASE_ANON_KEY=evimesh-browser-test-key \
+NEXT_PUBLIC_EVIMESH_API_URL=https://api.evimesh.test \
+node node_modules/next/dist/bin/next dev --hostname 127.0.0.1 --port 3107
+```
+
+In a second terminal, also inside `apps/web`, run:
+
+```sh
+node --test e2e/auth-session.mjs
+```
+
+Install Playwright Chromium first, or set `CHROME_PATH` to an existing Chrome
+executable. The suite covers password login, both signup outcomes, email and
+OAuth callbacks, reloads, token refresh/expiry, invalid credentials, mobile
+navigation, and cross-tab sign-out.
+
 ## Hosted project setup
 
 For each Supabase environment, open the project's Auth settings:
