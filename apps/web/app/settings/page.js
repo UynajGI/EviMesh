@@ -34,6 +34,7 @@ export default function SettingsPage() {
   const userId = session?.user?.id;
   const [profile, setProfile] = useState(editableProfile);
   const [profileLoaded, setProfileLoaded] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const identities = ready ? connectedIdentities(session?.user) : null;
   const orcidConnected = identities?.some((identity) => isOrcidProvider(identity.kind));
   const [message, setMessage] = useState(null);
@@ -62,7 +63,7 @@ export default function SettingsPage() {
       else setMessage(error.message);
     });
     return () => { active = false; };
-  }, [ready, userId]);
+  }, [ready, userId, loadAttempt]);
 
   useEffect(() => {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -127,6 +128,7 @@ export default function SettingsPage() {
               {ready && !userId && <p className="text-sm text-muted-foreground"><Link href="/login" className="underline">Sign in</Link> to edit your profile.</p>}
               {userId && !profileLoaded && !message && <p role="status" className="text-sm text-muted-foreground">Loading profile…</p>}
               {message && <p role={message === 'Profile saved.' ? 'status' : 'alert'} aria-live="polite" className={`text-sm ${message === 'Profile saved.' ? 'text-success' : 'text-destructive'}`}>{message}</p>}
+              {userId && !profileLoaded && message && <Button type="button" onClick={() => setLoadAttempt((attempt) => attempt + 1)}>Retry loading profile</Button>}
             </form>
           </section>
 

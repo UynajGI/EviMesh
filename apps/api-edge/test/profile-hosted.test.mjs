@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { generateKeyPairSync, sign } from 'node:crypto';
 import { createWorker } from '../src/index.mjs';
+import { createSupabaseReadRepository } from '../src/supabase-read-repository.mjs';
 import { requestOwnProfile } from '../../web/lib/account-settings.mjs';
 
 function setup({ provisioned = true, failWrite = false, emptyWrite = false } = {}) {
@@ -31,7 +32,13 @@ function setup({ provisioned = true, failWrite = false, emptyWrite = false } = {
       assert.equal(url.searchParams.get('subject'), 'eq.user-a');
       return Response.json(actorId ? [{ actor_id: actorId, subject: 'user-a', provider: 'supabase' }] : []);
     }
-    if (url.pathname === '/rest/v1/actors') return new Response(null, { status: 201 });
+    if (url.pathname === '/rest/v1/actors') {
+      assert.equal(body[0].auth_subject, 'user-a');
+      assert.equal(body[0].actor_type, 'human');
+      assert.equal(body[0].identity_strength, 'self_declared');
+      assert.match(body[0].actor_id, /^actor_/);
+      return new Response(null, { status: 201 });
+    }
     if (url.pathname === '/rest/v1/actor_directory') return Response.json([{ actor_id: actorId, actor_type: 'human' }]);
     assert.equal(url.pathname, '/rest/v1/actor_profiles');
     if (method === 'GET') {
@@ -115,4 +122,16 @@ test('profile does not report success when PostgREST rejects or returns no row',
     assert.equal(response.status, 502);
     assert.equal((await response.json()).code, 'ACTOR_PROFILE_WRITE_FAILED');
   }
+});
+
+test('anonymous profile lookup never uses the optional service credential', async () => {
+  const repository = createSupabaseReadRepository({
+    url: 'https://profile.supabase.co', publishableKey: 'public-key', serviceRoleKey: 'private-service-key',
+    fetchImpl: async (_url, options) => {
+      assert.equal(options.headers.apikey, 'public-key');
+      assert.notEqual(options.headers.authorization, 'Bearer private-service-key');
+      return Response.json([]);
+    },
+  });
+  assert.equal(await repository.getActorProfile('actor-other'), null);
 });

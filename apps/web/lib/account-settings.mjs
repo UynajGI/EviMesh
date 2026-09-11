@@ -1,3 +1,5 @@
+import { isOrcidProvider } from './orcid-provider.js';
+
 export function editableProfile(profile = {}) {
   return { displayName: profile.displayName ?? '', bio: profile.bio ?? '', avatarUrl: profile.avatarUrl ?? '' };
 }
@@ -39,7 +41,9 @@ export function connectedIdentities(user) {
     entries.push({
       id: identity.identity_id ?? identity.id ?? identity.provider,
       kind: identity.provider,
-      label: data.orcid ?? data.sub ?? data.user_name ?? data.full_name ?? data.name ?? identity.provider,
+      label: isOrcidProvider(identity.provider)
+        ? data.orcid ?? data.sub ?? identity.provider
+        : data.user_name ?? data.full_name ?? data.name ?? data.sub ?? identity.provider,
       verified: true,
     });
   }
@@ -47,8 +51,8 @@ export function connectedIdentities(user) {
 }
 
 export function orcidLinkError(error) {
-  if (error.code === 'manual_linking_disabled' || /manual linking is disabled/i.test(error.message ?? '')) {
+  if (error?.code === 'manual_linking_disabled' || /manual linking is disabled/i.test(error?.message ?? '')) {
     return 'ORCID connection is unavailable because account linking is disabled. Please contact the site administrator.';
   }
-  return `ORCID connect failed: ${error.message ?? 'Please try again.'}`;
+  return `ORCID connect failed: ${error?.message ?? 'Please try again.'}`;
 }
