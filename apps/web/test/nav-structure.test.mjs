@@ -31,7 +31,7 @@ test('shell exposes global search, theme toggle, and sign-in without hiding them
   assert.match(shell, /href="\/explore"/);
   assert.match(shell, /Search research/);
   assert.match(shell, /<ThemeToggle \/>/);
-  assert.match(shell, /href="\/login"/);
+  assert.match(shell, /href=\{session \? '\/settings' : '\/login'\}/);
   assert.match(shell, /Sign in/);
 });
 
@@ -58,7 +58,7 @@ test('mobile navigation uses an accessible drawer and backdrop', () => {
   assert.match(shell, /bg-foreground\/40/);
   assert.match(shell, /Search research/);
   assert.match(shell, /> Notifications/);
-  assert.match(shell, /> Account/);
+  assert.match(shell, /<AuthLink[\s\S]*?onNavigate=\{onClose\}/);
 });
 
 test('mobile drawer delegates focus management to Radix Dialog', () => {

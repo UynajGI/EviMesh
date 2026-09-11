@@ -1,5 +1,6 @@
 import './globals.css';
 import { TemplateShell } from '@/components/template-shell';
+import { AuthProvider } from '@/components/auth-provider';
 
 export const metadata = {
   title: { default: 'EviMesh', template: '%s · EviMesh' },
@@ -29,7 +30,7 @@ export default function RootLayout({ children }) {
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
       </head>
       <body>
-        <TemplateShell>{children}</TemplateShell>
+        <AuthProvider><TemplateShell>{children}</TemplateShell></AuthProvider>
       </body>
     </html>
   );
