@@ -2,7 +2,7 @@
 # Configure Settings > Secrets and variables > Actions:
 #   Secret DEEPSEEK_API_KEY: your real DeepSeek API key (never commit it here).
 #   Optional variable DEEPSEEK_MODEL: override the model ID if needed.
-# The placeholder below is intentionally invalid; live reviews need the secret.
+# Live reviews require the DEEPSEEK_API_KEY repository secret.
 name: OpenCodeReview
 
 on:
@@ -35,7 +35,7 @@ jobs:
         with:
           ocr_version: '1.11.9'
           llm_url: https://api.deepseek.com/chat/completions
-          llm_auth_token: ${{ secrets.DEEPSEEK_API_KEY || 'sk-placeholder-replace-with-github-secret' }}
+          llm_auth_token: ${{ secrets.DEEPSEEK_API_KEY }}
           llm_model: ${{ vars.DEEPSEEK_MODEL || 'deepseek-flash' }}
           llm_use_anthropic: 'false'
           language: Chinese
