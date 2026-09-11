@@ -1174,8 +1174,30 @@ export function createSupabaseReadRepository({ url, publishableKey, serviceRoleK
     async getActor(actorId) {
       return getPublicActor(actorId);
     },
-    async getActorProfile(actorId) {
-      return getOne("actorProfiles", { actor_id: actorId });
+    async getActorProfile(actorId, { accessToken = null } = {}) {
+      if (!accessToken) return getOne("actorProfiles", { actor_id: actorId });
+      const result = await authedRequest("actorProfiles", {
+        accessToken, params: { actor_id: `eq.${actorId}`, deleted_at: "is.null", select: "*", limit: "1" },
+      });
+      if (!result.ok) throw authedFailure(result, "ACTOR_PROFILE_READ_FAILED");
+      return Array.isArray(result.payload) && result.payload[0] ? mapRow(result.payload[0]) : null;
+    },
+    async upsertActorProfile(actorId, patch, { accessToken } = {}) {
+      const body = { actor_id: actorId, updated_at: new Date().toISOString() };
+      for (const [field, column] of Object.entries({ displayName: "display_name", bio: "bio", avatarUrl: "avatar_url" })) {
+        if (Object.hasOwn(patch, field)) body[column] = patch[field];
+      }
+      const result = await authedRequest("actorProfiles", {
+        accessToken, method: "POST", body,
+        params: { on_conflict: "actor_id" },
+        prefer: "resolution=merge-duplicates,return=representation",
+      });
+      if (!result.ok) throw authedFailure(result, "ACTOR_PROFILE_WRITE_FAILED");
+      const row = Array.isArray(result.payload) ? result.payload[0] : null;
+      if (!row || row.actor_id !== actorId) {
+        throw new SupabaseReadRepositoryError("Profile save returned no owned profile", "ACTOR_PROFILE_WRITE_FAILED", 502);
+      }
+      return mapRow(row);
     },
     listContributionStatements: (actorId) => list("contributionStatements", { actor_id: actorId }),
     listContributionEdges: (statementIds) => list("contributionEdges", { statement_id: statementIds }),
