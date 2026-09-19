@@ -31,7 +31,7 @@ jobs:
       pull-requests: write
     steps:
       - name: Review PR with DeepSeek
-        uses: alibaba/open-code-review@7f8f254d8407b26edff06f2e3a5940906f1f28ae # v1.11.9
+        uses: alibaba/open-code-review@f1101fd7f51304c82e4a4f292bbee88aea0823cf # v1.12.4
         with:
           ocr_version: '1.11.9'
           llm_url: https://api.deepseek.com/chat/completions
