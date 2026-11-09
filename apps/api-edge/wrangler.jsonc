@@ -89,7 +89,7 @@
         "EVIMESH_WEB_URL": "https://evimesh.com",
         "EVIMESH_ENV": "production",
         "EVIMESH_RELEASE_CHANNEL": "preview",
-        "EVIMESH_DEVICE_AUTH_ENABLED": "false",
+        "EVIMESH_DEVICE_AUTH_ENABLED": "true",
         "EVIMESH_RESEARCH_PREPARE_ENABLED": "false",
         "EVIMESH_RESEARCH_SUBMIT_ENABLED": "false",
         "EVIMESH_TYPED_RESEARCH_ATOMIC_RPC_READY": "false",

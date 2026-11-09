@@ -1,12 +1,12 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-09T14:28:53.046Z",
+  "generatedAt": "2026-11-09T16:07:43.619Z",
   "title": "Design System: EviMesh",
   "extensions": {
     "colorMeta": {
       "cobalt": {
         "role": "primary",
-        "displayName": "Standards Cobalt",
+        "displayName": "Link Cobalt",
         "canonical": "oklch(0.511 0.1591 257.75)",
         "tonalRamp": [
           "oklch(0.356 0.1099 257.78)",
@@ -607,40 +607,48 @@
     },
     "typographyMeta": {
       "display": {
-        "displayName": "Display (statement)",
-        "purpose": "The statement or title inside a research object title block. Research words only, max 38ch."
+        "displayName": "Display (landing headline)",
+        "purpose": "The landing headline only. Serif research voice at clamp(2.25rem, 4.4vw, 3.25rem)."
       },
       "headline": {
-        "displayName": "Headline (page head)",
-        "purpose": "Page head on list, workspace, account and governance pages, on an ink bottom rule."
+        "displayName": "Headline (record title)",
+        "purpose": "A research object's own statement or title, max 40ch, at clamp(1.5rem, 2.4vw, 2rem)."
       },
       "title": {
-        "displayName": "Title (clause head)",
-        "purpose": "Clause and section headings on an ink top rule, with a muted tabular clause number."
+        "displayName": "Title (page title)",
+        "purpose": "Plain-noun page title on a hairline at 1.5rem; also the non-serif record head and, in serif, the landing example title."
       },
       "reading": {
         "displayName": "Reading",
-        "purpose": "Research prose and ruled lists in the 68ch reading column."
+        "purpose": "Research prose and bulleted lists at 1.0625rem in a 70ch column."
       },
       "reference": {
-        "displayName": "Reference title",
-        "purpose": "Title of a normative-reference row (response, evidence, linked object)."
+        "displayName": "Reference",
+        "purpose": "Serif title of a record row at 1rem."
+      },
+      "section": {
+        "displayName": "Section",
+        "purpose": "Section headings on a hairline and list-row names at 0.9375rem (15px) semibold."
       },
       "body": {
         "displayName": "Body",
-        "purpose": "Interface text, descriptions and help."
+        "purpose": "Base interface size, 0.9375rem (15px)."
+      },
+      "control": {
+        "displayName": "Control",
+        "purpose": "Buttons, inputs, field labels, secondary descriptions, empty-state lines at 0.875rem."
+      },
+      "meta": {
+        "displayName": "Meta",
+        "purpose": "Byline, section index, breadcrumb, nav, footer, margin content and ledger at 0.8125rem (13px)."
       },
       "label": {
         "displayName": "Label",
-        "purpose": "Sentence-case identity-cell labels, toolbar labels and badge text. Never uppercase, never tracked."
-      },
-      "margin-heading": {
-        "displayName": "Margin heading",
-        "purpose": "Heads of margin sections (Revisions, Continue, Attribution) on an ink rule."
+        "purpose": "Margin section labels at 0.75rem semibold in muted ink; badges and row metadata at the same size, weight 500."
       },
       "identifier": {
         "displayName": "Identifier",
-        "purpose": "Ids, revision tags, hashes and keys only. Tabular, slashed-zero numerals."
+        "purpose": "IBM Plex Mono 0.75rem, shortened ids and revision suffixes only."
       }
     },
     "shadows": [],
@@ -648,7 +656,7 @@
       {
         "name": "motion-fast",
         "value": "120ms",
-        "purpose": "Colour and border changes on hover (clause rail, controls)."
+        "purpose": "Colour changes on hover (section index, anchors, controls)."
       },
       {
         "name": "motion-enter",
@@ -658,11 +666,11 @@
       {
         "name": "ease-enter",
         "value": "cubic-bezier(0.16, 1, 0.3, 1)",
-        "purpose": "The single enter curve for page, nav underline, dialog and graph transitions."
+        "purpose": "The single enter curve for route, nav underline, dialog and graph transitions."
       },
       {
         "name": "page-enter",
-        "value": "200ms ease-enter; opacity 0 to 1, translateX 8px to 0",
+        "value": "160ms ease-enter; opacity 0.6 to 1",
         "purpose": "Route change on the main region."
       },
       {
@@ -683,19 +691,19 @@
     ],
     "breakpoints": [
       {
+        "name": "sm",
+        "value": "40rem",
+        "purpose": "Breadcrumb shows the full trail; below it the graph toolbar wraps and the Relationship Index stacks under the canvas."
+      },
+      {
         "name": "md",
         "value": "48rem",
-        "purpose": "Gutter widens to 1.5rem (from 768px); title-block cells fill rows of 3 to 5; reference rows go three-column; desktop nav appears."
+        "purpose": "Gutter widens to 1.5rem; record rows go three-column (7rem | 1fr | auto); desktop nav appears."
       },
       {
         "name": "lg",
         "value": "64rem",
-        "purpose": "Document grid becomes reading column plus 18rem margin."
-      },
-      {
-        "name": "xl",
-        "value": "80rem",
-        "purpose": "Sticky 11rem clause rail appears as a third track."
+        "purpose": "Record grid becomes reading column plus a sticky 17rem margin; landing goes two-column."
       }
     ],
     "themes": {
@@ -707,164 +715,171 @@
       "name": "Primary Button",
       "kind": "button",
       "refersTo": "button-primary",
-      "description": "The one primary action per view, usually the handoff to an Agent.",
-      "html": "<button class=\"ds-btn-primary\" type=\"button\">Continue with an agent</button>",
-      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 40px; padding: 0 16px; border: 0; border-radius: 2px; background: var(--evimesh-primary); color: var(--evimesh-primary-foreground); font-family: var(--evimesh-font-sans); font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: background-color 120ms ease-out; } .ds-btn-primary:hover { background: color-mix(in oklch, var(--evimesh-primary) 90%, transparent); } .ds-btn-primary:focus-visible { outline: 2px solid var(--evimesh-focus); outline-offset: 2px; } .ds-btn-primary:disabled { opacity: 0.5; pointer-events: none; }"
+      "description": "The one primary action in a form.",
+      "html": "<button class=\"ds-btn-primary\" type=\"button\">Create Agent</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 40px; padding: 0 16px; border: 0; border-radius: var(--evimesh-radius-surface); background: var(--evimesh-primary); color: var(--evimesh-primary-foreground); font-family: var(--evimesh-font-sans); font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: background-color 120ms ease-out; } .ds-btn-primary:hover { background: color-mix(in oklch, var(--evimesh-primary) 90%, transparent); } .ds-btn-primary:focus-visible { outline: 2px solid var(--evimesh-focus); outline-offset: 2px; } .ds-btn-primary:disabled { opacity: 0.5; pointer-events: none; }"
     },
     {
       "name": "Outline Button",
       "kind": "button",
       "refersTo": "button-outline",
-      "description": "Secondary decisions such as Decline and Retire.",
-      "html": "<button class=\"ds-btn-outline\" type=\"button\">Decline</button>",
-      "css": ".ds-btn-outline { display: inline-flex; align-items: center; justify-content: center; height: 40px; padding: 0 16px; border: 1px solid color-mix(in oklch, var(--evimesh-foreground) 25%, transparent); border-radius: 2px; background: transparent; color: var(--evimesh-foreground); font-family: var(--evimesh-font-sans); font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: border-color 120ms ease-out, background-color 120ms ease-out; } .ds-btn-outline:hover { border-color: var(--evimesh-foreground); background: var(--evimesh-muted); } .ds-btn-outline:focus-visible { outline: 2px solid var(--evimesh-focus); outline-offset: 2px; }"
+      "description": "The record handoff in the margin and secondary decisions such as Retire.",
+      "html": "<button class=\"ds-btn-outline\" type=\"button\">Continue with an agent</button>",
+      "css": ".ds-btn-outline { display: inline-flex; align-items: center; justify-content: center; height: 36px; padding: 0 12px; border: 1px solid color-mix(in oklch, var(--evimesh-foreground) 25%, transparent); border-radius: var(--evimesh-radius-surface); background: transparent; color: var(--evimesh-foreground); font-family: var(--evimesh-font-sans); font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: border-color 120ms ease-out, background-color 120ms ease-out; } .ds-btn-outline:hover { border-color: var(--evimesh-foreground); background: var(--evimesh-muted); } .ds-btn-outline:focus-visible { outline: 2px solid var(--evimesh-focus); outline-offset: 2px; }"
     },
     {
       "name": "Text Input",
       "kind": "input",
       "refersTo": "input-text",
-      "description": "Labelled field group with a cobalt focus border and worded help or error.",
-      "html": "<label class=\"ds-field\"><span class=\"ds-field__label\">Agent name</span><input class=\"ds-input\" placeholder=\"atlas\" /><span class=\"ds-field__help\">Shown publicly as the drafter, always followed by your name.</span></label>",
-      "css": ".ds-field { display: flex; flex-direction: column; gap: 8px; max-width: 24rem; font-family: var(--evimesh-font-sans); } .ds-field__label { font-size: 0.875rem; font-weight: 500; color: var(--evimesh-foreground); } .ds-field__help { font-size: 0.75rem; color: var(--evimesh-muted-foreground); } .ds-input { height: 40px; padding: 8px 12px; border: 1px solid color-mix(in oklch, var(--evimesh-foreground) 25%, transparent); border-radius: 2px; background: var(--evimesh-card); color: var(--evimesh-foreground); font: inherit; font-size: 0.875rem; transition: border-color 120ms ease-out; } .ds-input::placeholder { color: var(--evimesh-muted-foreground); } .ds-input:hover { border-color: color-mix(in oklch, var(--evimesh-foreground) 50%, transparent); } .ds-input:focus-visible { outline: 2px solid color-mix(in oklch, var(--evimesh-focus) 30%, transparent); outline-offset: 0; border-color: var(--evimesh-primary); } .ds-input[aria-invalid=\"true\"] { border-color: var(--evimesh-destructive); }"
+      "description": "Sheet field with a 25% ink border that turns cobalt on focus.",
+      "html": "<input class=\"ds-input\" type=\"search\" placeholder=\"Search title, stable ID, project or statement\" />",
+      "css": ".ds-input { width: 100%; height: 40px; padding: 8px 12px; border: 1px solid color-mix(in oklch, var(--evimesh-foreground) 25%, transparent); border-radius: var(--evimesh-radius-surface); background: var(--evimesh-card); color: var(--evimesh-foreground); font-family: var(--evimesh-font-sans); font-size: 0.875rem; transition: border-color 120ms ease-out; } .ds-input::placeholder { color: var(--evimesh-muted-foreground); } .ds-input:hover { border-color: color-mix(in oklch, var(--evimesh-foreground) 50%, transparent); } .ds-input:focus-visible { outline: none; border-color: var(--evimesh-primary); box-shadow: 0 0 0 2px color-mix(in oklch, var(--evimesh-focus) 30%, transparent); }"
     },
     {
       "name": "Status Badges",
       "kind": "chip",
-      "refersTo": "badge-status-warning",
-      "description": "Protocol state in words with a 12px icon; muted dual tier by default, solid emphasis only for the most consequential state.",
-      "html": "<span class=\"ds-badge ds-badge--warning\"><svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z\"/><path d=\"m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z\"/><path d=\"M7 21h10\"/><path d=\"M12 3v18\"/><path d=\"M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2\"/></svg>contested</span> <span class=\"ds-badge ds-badge--accent\">under verification</span> <span class=\"ds-badge ds-badge--success\">supports</span> <span class=\"ds-badge ds-badge--emphasis-danger\">refuted</span>",
-      "css": ".ds-badge { display: inline-flex; align-items: center; gap: 4px; padding: 1px 6px; border: 1px solid transparent; border-radius: 2px; font-family: var(--evimesh-font-sans); font-size: 0.75rem; font-weight: 500; line-height: 1.25rem; } .ds-badge--warning { border-color: var(--evimesh-status-warning-border); background: var(--evimesh-status-warning-bg); color: var(--evimesh-status-warning-fg); } .ds-badge--accent { border-color: var(--evimesh-status-accent-border); background: var(--evimesh-status-accent-bg); color: var(--evimesh-status-accent-fg); } .ds-badge--success { border-color: var(--evimesh-status-success-border); background: var(--evimesh-status-success-bg); color: var(--evimesh-status-success-fg); } .ds-badge--emphasis-danger { background: var(--evimesh-emphasis-danger); color: var(--evimesh-emphasis-foreground); }"
+      "refersTo": "badge-status-neutral",
+      "description": "Protocol state in words, muted dual tier; solid only for refuted, upheld, critical. No icon.",
+      "html": "<span class=\"ds-badge ds-badge--neutral\">hypothesis</span> <span class=\"ds-badge ds-badge--success\">supports</span> <span class=\"ds-badge ds-badge--warning\">contested</span> <span class=\"ds-badge ds-badge--accent\">under verification</span> <span class=\"ds-badge ds-badge--emphasis\">refuted</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; padding: 0 6px; border: 1px solid transparent; border-radius: var(--evimesh-radius-surface); font-family: var(--evimesh-font-sans); font-size: 0.75rem; font-weight: 500; line-height: 20px; white-space: nowrap; } .ds-badge--neutral { background: var(--evimesh-status-neutral-bg); color: var(--evimesh-status-neutral-fg); border-color: var(--evimesh-status-neutral-border); } .ds-badge--success { background: var(--evimesh-status-success-bg); color: var(--evimesh-status-success-fg); border-color: var(--evimesh-status-success-border); } .ds-badge--warning { background: var(--evimesh-status-warning-bg); color: var(--evimesh-status-warning-fg); border-color: var(--evimesh-status-warning-border); } .ds-badge--accent { background: var(--evimesh-status-accent-bg); color: var(--evimesh-status-accent-fg); border-color: var(--evimesh-status-accent-border); } .ds-badge--emphasis { background: var(--evimesh-emphasis-danger); color: var(--evimesh-emphasis-foreground); }"
     },
     {
       "name": "Shell Navigation",
       "kind": "nav",
       "refersTo": "nav-link",
-      "description": "Ruled header row; the current destination carries a 2px cobalt underline.",
-      "html": "<nav class=\"ds-nav\" aria-label=\"Primary\"><a class=\"ds-nav__brand\" href=\"#\"><span>Evi</span><span class=\"ds-nav__mesh\">Mesh</span></a><a class=\"ds-nav__link\" href=\"#\" aria-current=\"page\">Home</a><a class=\"ds-nav__link\" href=\"#\">Explore</a><a class=\"ds-nav__link\" href=\"#\">Work</a><a class=\"ds-nav__link\" href=\"#\">Docs</a></nav>",
-      "css": ".ds-nav { display: flex; align-items: stretch; height: 3.5rem; padding: 0 1.5rem; border-bottom: 1px solid var(--evimesh-foreground); background: var(--evimesh-background); font-family: var(--evimesh-font-sans); } .ds-nav__brand { display: inline-flex; align-items: center; padding-right: 20px; color: var(--evimesh-foreground); font-size: 15px; font-weight: 700; letter-spacing: -0.02em; text-decoration: none; } .ds-nav__mesh { color: var(--evimesh-primary); } .ds-nav__link { position: relative; display: inline-flex; align-items: center; padding: 0 12px; color: var(--evimesh-muted-foreground); font-size: 13px; font-weight: 500; text-decoration: none; transition: color 120ms ease-out; } .ds-nav__link::after { content: \"\"; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--evimesh-primary); transform: scaleX(0); transform-origin: left; transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-nav__link:hover, .ds-nav__link[aria-current=\"page\"] { color: var(--evimesh-foreground); } .ds-nav__link:hover::after, .ds-nav__link[aria-current=\"page\"]::after { transform: scaleX(1); } .ds-nav__link:focus-visible { outline: 2px solid var(--evimesh-focus); outline-offset: 2px; }"
+      "description": "48px header on a hairline; 13px muted links with a 2px cobalt underline on hover and current.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav__brand\" href=\"#\">Evi<span>Mesh</span></a><a class=\"ds-nav__link\" href=\"#\">Home</a><a class=\"ds-nav__link\" aria-current=\"page\" href=\"#\">Explore</a><a class=\"ds-nav__link\" href=\"#\">Work</a><a class=\"ds-nav__link\" href=\"#\">Docs</a></nav>",
+      "css": ".ds-nav { display: flex; align-items: stretch; height: 48px; gap: 4px; border-bottom: 1px solid var(--evimesh-border); background: var(--evimesh-background); font-family: var(--evimesh-font-sans); } .ds-nav__brand { display: inline-flex; align-items: center; padding-right: 16px; color: var(--evimesh-foreground); font-size: 15px; font-weight: 600; letter-spacing: -0.01em; text-decoration: none; } .ds-nav__brand span { color: var(--evimesh-primary); } .ds-nav__link { position: relative; display: inline-flex; align-items: center; padding: 0 8px; color: var(--evimesh-muted-foreground); font-size: 13px; text-decoration: none; transition: color 120ms ease-out; } .ds-nav__link::after { content: \"\"; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--evimesh-primary); transform: scaleX(0); transform-origin: left; transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-nav__link:hover, .ds-nav__link[aria-current=\"page\"] { color: var(--evimesh-foreground); } .ds-nav__link:hover::after, .ds-nav__link[aria-current=\"page\"]::after { transform: scaleX(1); } .ds-nav__link:focus-visible { outline: 2px solid var(--evimesh-focus); outline-offset: 2px; }"
     },
     {
-      "name": "Title Block",
+      "name": "Record Head and Byline",
       "kind": "custom",
-      "refersTo": "title-block-head",
-      "description": "The ruled identity grid every research object opens on: serif statement, then sentence-case identity cells.",
-      "html": "<section class=\"ds-tb\" aria-label=\"Claim identity\"><div class=\"ds-tb__head\"><h1 class=\"ds-tb__title\">SimCLR-style pretraining narrows the few-shot gap to within 1.0 point of supervised baselines when protocols are matched.</h1></div><dl class=\"ds-tb__cells\"><div class=\"ds-tb__cell\"><dt>Kind</dt><dd><strong>Claim</strong></dd></div><div class=\"ds-tb__cell\"><dt>State</dt><dd>hypothesis</dd></div><div class=\"ds-tb__cell\"><dt>Identifier</dt><dd class=\"ds-mono\">claim_43b1e5…141b</dd></div><div class=\"ds-tb__cell\"><dt>Revision</dt><dd>r1 of 1</dd></div><div class=\"ds-tb__cell\"><dt>Drafted by</dt><dd>atlas <span class=\"ds-muted\">for</span> Lin</dd></div><div class=\"ds-tb__cell\"><dt>Signed by</dt><dd>Lin</dd></div><div class=\"ds-tb__cell\"><dt>Recorded</dt><dd>2026-11-09 11:44 UTC</dd></div><div class=\"ds-tb__cell\"><dt>Answers</dt><dd>Do contrastive few-shot gains survive blind reproduction?</dd></div></dl></section>",
-      "css": ".ds-tb { border: 1px solid var(--evimesh-foreground); background: var(--evimesh-card); color: var(--evimesh-foreground); font-family: var(--evimesh-font-sans); } .ds-tb__head { padding: 1.75rem 2rem 2rem; } .ds-tb__title { max-width: 38ch; margin: 0; font-family: var(--evimesh-font-serif); font-size: clamp(1.625rem, 2.6vw, 2.375rem); font-weight: 500; line-height: 1.18; letter-spacing: -0.015em; } .ds-tb__cells { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; margin: 0; border-top: 1px solid var(--evimesh-foreground); background: var(--evimesh-border); } .ds-tb__cell { min-width: 0; padding: 0.7rem 1rem 0.8rem; background: var(--evimesh-card); } .ds-tb__cell dt { color: var(--evimesh-muted-foreground); font-size: 0.75rem; font-weight: 500; line-height: 1.2; } .ds-tb__cell dd { margin: 0.3rem 0 0; font-size: 0.875rem; font-weight: 500; line-height: 1.35; overflow-wrap: anywhere; } .ds-mono { font-family: var(--evimesh-font-mono); font-size: 0.8125rem; font-variant-numeric: tabular-nums slashed-zero; } .ds-muted { color: var(--evimesh-muted-foreground); font-weight: 400; }"
+      "refersTo": "record-title",
+      "description": "The object's own words in serif, then one inline byline of bare cells on a hairline, then the section index.",
+      "html": "<section class=\"ds-record\"><h1 class=\"ds-record__title\">SimCLR-style pretraining narrows the few-shot gap to within 1.0 point of supervised baselines when protocols are matched.</h1><dl class=\"ds-record__byline\"><div><dt class=\"ds-sr\">Kind</dt><dd><b>Claim</b></dd></div><div><dt class=\"ds-sr\">State</dt><dd><span class=\"ds-record__badge\">hypothesis</span></dd></div><div><dt class=\"ds-sr\">Revision</dt><dd>r1</dd></div><div><dt>Drafted by</dt><dd><a href=\"#\">atlas</a> <span class=\"ds-muted\">for</span> <a href=\"#\">Lin</a></dd></div><div><dt>Signed by</dt><dd><a href=\"#\">Lin</a></dd></div><div><dt class=\"ds-sr\">Recorded</dt><dd class=\"ds-muted\">2026-11-09</dd></div><div><dt class=\"ds-sr\">Identifier</dt><dd class=\"ds-record__id\">claim_43b1e5…141b</dd></div></dl><nav class=\"ds-record__index\"><a aria-current=\"true\" href=\"#\">Scope</a><a href=\"#\">Assumptions</a><a href=\"#\">Responses <span>2</span></a><a href=\"#\">Evidence</a><a href=\"#\">History</a></nav></section>",
+      "css": ".ds-record { font-family: var(--evimesh-font-sans); color: var(--evimesh-foreground); } .ds-record__title { max-width: 40ch; margin: 0; font-family: var(--evimesh-font-serif); font-size: clamp(1.5rem, 2.4vw, 2rem); font-weight: 500; line-height: 1.22; letter-spacing: -0.01em; } .ds-record__byline { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.35rem 1.25rem; margin: 1rem 0 0; padding-bottom: 1rem; border-bottom: 1px solid var(--evimesh-border); font-size: 0.8125rem; line-height: 1.4; } .ds-record__byline > div { display: inline-flex; align-items: baseline; gap: 0.35rem; } .ds-record__byline dt { color: var(--evimesh-muted-foreground); } .ds-record__byline dd { margin: 0; } .ds-record__byline a { color: var(--evimesh-foreground); font-weight: 500; text-decoration: none; } .ds-record__byline a:hover { text-decoration: underline; } .ds-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); } .ds-muted { color: var(--evimesh-muted-foreground); } .ds-record__badge { padding: 0 6px; border: 1px solid var(--evimesh-status-neutral-border); border-radius: var(--evimesh-radius-surface); background: var(--evimesh-status-neutral-bg); color: var(--evimesh-status-neutral-fg); font-size: 0.75rem; font-weight: 500; line-height: 20px; } .ds-record__id { color: var(--evimesh-muted-foreground); font-family: var(--evimesh-font-mono); font-size: 0.75rem; } .ds-record__index { display: flex; flex-wrap: wrap; gap: 0.25rem 1.25rem; padding: 0.6rem 0; border-bottom: 1px solid var(--evimesh-border); font-size: 0.8125rem; } .ds-record__index a { color: var(--evimesh-muted-foreground); text-decoration: none; transition: color 120ms ease-out; } .ds-record__index a:hover, .ds-record__index a[aria-current=\"true\"] { color: var(--evimesh-foreground); } .ds-record__index span { margin-left: 0.3rem; font-variant-numeric: tabular-nums; color: var(--evimesh-muted-foreground); }"
     },
     {
-      "name": "Clause with Clause Rail",
+      "name": "Section",
       "kind": "custom",
-      "refersTo": "clause-rail-link",
-      "description": "Numbered citable section on an ink rule, mirrored by a contents rail whose active entry turns ink.",
-      "html": "<div class=\"ds-clausewrap\"><nav class=\"ds-rail\" aria-label=\"Sections\"><a href=\"#\" aria-current=\"true\"><span class=\"ds-num\">1</span>Scope</a><a href=\"#\"><span class=\"ds-num\">2</span>Assumptions</a><a href=\"#\"><span class=\"ds-num\">4</span>Responses<span class=\"ds-count\">2</span></a></nav><section class=\"ds-clause\"><div class=\"ds-clause__head\"><h2><span class=\"ds-num ds-num--head\">1</span>Scope</h2><a class=\"ds-clause__anchor\" href=\"#\">#</a></div><ul class=\"ds-doclist\"><li>four benchmarks</li><li>k &lt;= 16 labelled samples per class</li></ul></section></div>",
-      "css": ".ds-clausewrap { display: grid; grid-template-columns: 11rem minmax(0, 1fr); gap: 3rem; font-family: var(--evimesh-font-sans); color: var(--evimesh-foreground); } .ds-rail a { display: block; padding: 0.3rem 0 0.3rem 0.85rem; border-left: 1px solid var(--evimesh-border); color: var(--evimesh-muted-foreground); font-size: 0.8125rem; line-height: 1.35; text-decoration: none; transition: color 120ms ease-out, border-color 120ms ease-out; } .ds-rail a:hover, .ds-rail a[aria-current=\"true\"] { border-left-color: var(--evimesh-foreground); color: var(--evimesh-foreground); } .ds-rail a:focus-visible { outline: 2px solid var(--evimesh-focus); outline-offset: 2px; } .ds-num { display: inline-block; min-width: 1.5rem; color: var(--evimesh-muted-foreground); font-variant-numeric: tabular-nums; font-weight: 500; } .ds-num--head { min-width: 2rem; } .ds-count { margin-left: 6px; color: var(--evimesh-muted-foreground); font-variant-numeric: tabular-nums; } .ds-clause__head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--evimesh-foreground); } .ds-clause__head h2 { margin: 0; font-size: 1.125rem; font-weight: 600; line-height: 1.3; letter-spacing: -0.01em; } .ds-clause__anchor { color: var(--evimesh-muted-foreground); font-size: 0.8125rem; text-decoration: none; } .ds-clause__anchor:hover { color: var(--evimesh-primary); } .ds-doclist { max-width: 68ch; margin: 1rem 0 0; padding: 0; list-style: none; } .ds-doclist li { position: relative; padding: 0.65rem 0 0.65rem 1.5rem; border-bottom: 1px solid var(--evimesh-border); font-family: var(--evimesh-font-serif); font-size: 1rem; line-height: 1.6; } .ds-doclist li::before { content: \"\"; position: absolute; top: 1.25rem; left: 0.25rem; width: 0.5rem; border-top: 1px solid var(--evimesh-foreground); }"
+      "refersTo": "section-head",
+      "description": "A 15px semibold heading on a hairline with a hover-revealed anchor, then serif reading content.",
+      "html": "<section class=\"ds-section\"><div class=\"ds-section__head\"><h2>Scope</h2><a class=\"ds-section__anchor\" href=\"#\">#</a></div><ul class=\"ds-section__list\"><li>four benchmarks</li><li>k &lt;= 16 labelled samples per class</li></ul></section>",
+      "css": ".ds-section { font-family: var(--evimesh-font-sans); color: var(--evimesh-foreground); } .ds-section__head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; padding-bottom: 0.4rem; border-bottom: 1px solid var(--evimesh-border); } .ds-section__head h2 { margin: 0; font-size: 0.9375rem; font-weight: 600; line-height: 1.3; } .ds-section__anchor { color: var(--evimesh-muted-foreground); font-size: 0.8125rem; text-decoration: none; opacity: 0; transition: opacity 120ms ease-out; } .ds-section:hover .ds-section__anchor, .ds-section__anchor:focus-visible { opacity: 1; } .ds-section__anchor:hover { color: var(--evimesh-primary); } .ds-section__list { max-width: 70ch; margin: 0.75rem 0 0; padding-left: 1.1rem; } .ds-section__list li { padding: 0.2rem 0; font-family: var(--evimesh-font-serif); font-size: 1.0625rem; line-height: 1.6; } .ds-section__list li::marker { color: var(--evimesh-muted-foreground); }"
     },
     {
-      "name": "Normative Reference Row",
+      "name": "Record Row",
       "kind": "custom",
-      "refersTo": "reference-row",
-      "description": "A typed response set as a reference entry: relation, serif title, attribution, date and revision link.",
-      "html": "<ul class=\"ds-refs\"><li class=\"ds-ref\"><div><span class=\"ds-rbadge\">rebuttal</span></div><div class=\"ds-ref__main\"><a class=\"ds-ref__title\" href=\"#\">The fourth benchmark breaks the matched-protocol claim</a><p class=\"ds-ref__body\">Under four of six prompt variants the gain disappears, which the claim scope does not exclude.</p><p class=\"ds-ref__attr\">Drafted by <strong>witness</strong> · signed by <strong>Chen</strong></p></div><div class=\"ds-ref__meta\"><span>2026-11-09</span><a href=\"#\">open r1</a></div></li></ul>",
-      "css": ".ds-refs { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--evimesh-border); font-family: var(--evimesh-font-sans); color: var(--evimesh-foreground); } .ds-ref { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr) auto; gap: 0.35rem 1.5rem; padding: 1rem 0; border-bottom: 1px solid var(--evimesh-border); } .ds-rbadge { display: inline-flex; padding: 1px 6px; border: 1px solid var(--evimesh-status-warning-border); border-radius: 2px; background: var(--evimesh-status-warning-bg); color: var(--evimesh-status-warning-fg); font-size: 0.75rem; font-weight: 500; } .ds-ref__title { color: var(--evimesh-foreground); font-family: var(--evimesh-font-serif); font-size: 1.0625rem; font-weight: 500; line-height: 1.4; text-decoration: none; text-underline-offset: 0.2em; } .ds-ref__title:hover { text-decoration: underline; } .ds-ref__title:focus-visible { outline: 2px solid var(--evimesh-focus); outline-offset: 2px; } .ds-ref__body { max-width: 64ch; margin: 4px 0 0; color: var(--evimesh-muted-foreground); font-size: 0.875rem; line-height: 1.5rem; } .ds-ref__attr { margin: 8px 0 0; color: var(--evimesh-muted-foreground); font-size: 0.75rem; } .ds-ref__attr strong { color: var(--evimesh-foreground); font-weight: 500; } .ds-ref__meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; color: var(--evimesh-muted-foreground); font-size: 0.75rem; font-variant-numeric: tabular-nums; } .ds-ref__meta a { color: var(--evimesh-foreground); font-family: var(--evimesh-font-mono); text-decoration: none; } .ds-ref__meta a:hover { color: var(--evimesh-primary); text-decoration: underline; }"
+      "refersTo": "record-row",
+      "description": "State column, serif title with one metadata line, date; rows on hairlines.",
+      "html": "<ul class=\"ds-rows\"><li class=\"ds-row\"><div><p class=\"ds-row__kind\">Rebuttal</p><span class=\"ds-row__badge\">published</span></div><div><a class=\"ds-row__title\" href=\"#\">The fourth benchmark breaks the matched-protocol claim</a><p class=\"ds-row__meta\"><span>rebuttal_dd6a13…a77a</span><span>project_e85bc5…972f</span></p></div><time class=\"ds-row__date\">2026-11-09</time></li></ul>",
+      "css": ".ds-rows { margin: 0; padding: 0; list-style: none; font-family: var(--evimesh-font-sans); } .ds-row { display: grid; grid-template-columns: 7rem minmax(0, 1fr) auto; gap: 0.25rem 1.25rem; padding: 0.75rem 0; border-bottom: 1px solid var(--evimesh-border); } .ds-row__kind { margin: 0 0 0.25rem; color: var(--evimesh-muted-foreground); font-size: 0.875rem; } .ds-row__badge { padding: 0 6px; border: 1px solid var(--evimesh-status-neutral-border); border-radius: var(--evimesh-radius-surface); background: var(--evimesh-status-neutral-bg); color: var(--evimesh-status-neutral-fg); font-size: 0.75rem; font-weight: 500; line-height: 20px; } .ds-row__title { color: var(--evimesh-foreground); font-family: var(--evimesh-font-serif); font-size: 1rem; font-weight: 500; line-height: 1.4; text-decoration: none; } .ds-row__title:hover { text-decoration: underline; } .ds-row__meta { display: flex; flex-wrap: wrap; gap: 0 0.75rem; margin: 0.25rem 0 0; color: var(--evimesh-muted-foreground); font-family: var(--evimesh-font-mono); font-size: 0.75rem; } .ds-row__date { color: var(--evimesh-muted-foreground); font-size: 0.75rem; font-variant-numeric: tabular-nums; text-align: right; }"
     },
     {
-      "name": "Revision Ledger with Change Bar",
+      "name": "Margin Ledger",
       "kind": "custom",
       "refersTo": "ledger-row",
-      "description": "Margin revision ledger with the current revision in cobalt, and the 2px cobalt change bar beside revised text.",
-      "html": "<div class=\"ds-ledgerwrap\"><section class=\"ds-margin\"><h2>Revisions</h2><ol class=\"ds-ledger\"><li aria-current=\"true\"><a href=\"#\">r2</a><div><span class=\"ds-date\">2026-11-10</span> <span class=\"ds-current\">current</span><br><span>atlas</span></div></li><li><a href=\"#\">r1</a><div><span class=\"ds-date\">2026-11-09</span><br><span>atlas</span></div></li></ol></section><p class=\"ds-changebar\">The gap holds on three benchmarks but widens on the fourth under prompt variation.</p></div>",
-      "css": ".ds-ledgerwrap { display: grid; gap: 2rem; max-width: 18rem; padding-left: 1rem; font-family: var(--evimesh-font-sans); color: var(--evimesh-foreground); } .ds-margin h2 { margin: 0 0 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--evimesh-foreground); font-size: 0.8125rem; font-weight: 600; line-height: 1.3; } .ds-ledger { margin: 0; padding: 0; list-style: none; } .ds-ledger li { display: grid; grid-template-columns: 2.5rem minmax(0, 1fr); gap: 0.15rem 0.75rem; padding: 0.65rem 0; border-bottom: 1px solid var(--evimesh-border); font-size: 0.8125rem; line-height: 1.4; } .ds-ledger a { color: var(--evimesh-foreground); font-family: var(--evimesh-font-mono); font-variant-numeric: tabular-nums; text-decoration: none; } .ds-ledger a:hover { text-decoration: underline; } .ds-ledger li[aria-current=\"true\"] > a { color: var(--evimesh-primary); font-weight: 600; } .ds-date { color: var(--evimesh-muted-foreground); font-variant-numeric: tabular-nums; } .ds-current { color: var(--evimesh-primary); font-size: 0.75rem; font-weight: 500; } .ds-changebar { position: relative; margin: 0; font-family: var(--evimesh-font-serif); font-size: 1rem; line-height: 1.75rem; } .ds-changebar::before { content: \"\"; position: absolute; top: 0.15em; bottom: 0.15em; left: -1rem; width: 2px; background: var(--evimesh-primary); }"
+      "description": "Margin section with a 12px muted label, revisions as mono rN and date, current tag in cobalt.",
+      "html": "<aside class=\"ds-margin\"><section><h2>Revisions</h2><ol class=\"ds-ledger\"><li aria-current=\"true\"><a href=\"#\">r2</a><span>2026-11-09 <b>current</b></span></li><li><a href=\"#\">r1</a><span>2026-11-02</span></li></ol></section><section><h2>Record</h2><a class=\"ds-margin__link\" href=\"#\">Event audit</a></section></aside>",
+      "css": ".ds-margin { width: 17rem; font-family: var(--evimesh-font-sans); color: var(--evimesh-foreground); } .ds-margin section + section { margin-top: 1.75rem; } .ds-margin h2 { margin: 0 0 0.5rem; color: var(--evimesh-muted-foreground); font-size: 0.75rem; font-weight: 600; line-height: 1.3; } .ds-ledger { margin: 0; padding: 0; list-style: none; } .ds-ledger li { display: grid; grid-template-columns: 2.25rem minmax(0, 1fr); gap: 0.1rem 0.6rem; padding: 0.3rem 0; font-size: 0.8125rem; line-height: 1.4; } .ds-ledger a { color: var(--evimesh-foreground); font-family: var(--evimesh-font-mono); text-decoration: none; } .ds-ledger a:hover { text-decoration: underline; } .ds-ledger li[aria-current=\"true\"] a { color: var(--evimesh-primary); font-weight: 600; } .ds-ledger span { color: var(--evimesh-muted-foreground); font-variant-numeric: tabular-nums; } .ds-ledger b { margin-left: 0.5rem; color: var(--evimesh-primary); font-size: 0.75rem; font-weight: 500; } .ds-margin__link { color: var(--evimesh-primary); font-size: 0.8125rem; text-decoration: none; } .ds-margin__link:hover { text-decoration: underline; }"
     }
   ],
   "narrative": {
-    "northStar": "The Controlled Document",
-    "overview": "Every research object on EviMesh is presented the way a standards body prints a normative document. The page opens on a title block, a ruled identity grid that says what the object is, which revision you are reading, its protocol state, which Agent drafted it and which person signed it. Content follows as numbered, citable clauses in a reading column with a real measure, while a right margin carries the revision ledger, attribution and a single handoff action. The reader knows within one glance what they are looking at and whose it is; only then do they read.\n\nThe ground is cold paper, the structure is ink rules, and colour is spent sparingly. One cobalt accent marks links, selection, focus, the active revision and revised text. Protocol state speaks through a muted dual-tier status palette that always leads with words. Depth is drawn, never lifted: 1px ink rules divide sections, hairlines divide rows, and nothing floats on a shadow. Density is that of a reference document rather than a dashboard: generous vertical rhythm between clauses (3rem), tight rhythm inside them.\n\nThe system refuses the editorial magazine hero, tracked uppercase kicker labels above titles, and card grids. Disagreement is information, so contested, refuted and challenged states are set as plainly as supported ones, and nothing on the page converts evidence into a score.",
+    "northStar": "The Research Record",
+    "overview": "A research object on EviMesh reads like a record that sits between a journal page and a GitHub repository: dense, quiet, and scannable. The research's own words lead. A claim opens on its statement in Source Serif 4, followed by one byline that names kind, state, revision, drafter, signer, date and a short identifier, an inline index of its sections, and then the sections themselves, each a plain heading on a hairline. A narrow margin beside the reading column holds links and data (revisions, the one handoff action, frontier membership, the event audit), never prose.\n\nThe chrome recedes. The shell is a 48px header on a hairline and a one-line footer; navigation, labels, bylines and margins are Inter Tight at 13 to 15px in muted ink; identifiers are IBM Plex Mono, shown short with the full value on hover and copy. Page titles are plain nouns at 1.5rem. There are no subtitles explaining the page, no eyebrows above titles, no decorative icons, and no cards. Colour is spent on links, the current revision, revised text, focus, and protocol state, which always reads as words first.\n\nDensity is closer to a repository listing than a dashboard: 0.75rem record rows on hairlines, 2.25rem between sections, a 70ch reading measure. Disagreement is information, so rebuttals, refuting evidence and contested states sit beside what they answer and are set as plainly as supported ones. Nothing converts evidence into a score.",
     "keyCharacteristics": [
-      "Title block first: a 1px ink-ruled grid of sentence-case labelled cells (Kind, State, Identifier, Revision, Drafted by, Signed by, Recorded).",
-      "Numbered clauses on ink rules, mirrored by a sticky clause rail of citable anchors.",
-      "A 68ch reading column set in Source Serif 4 for the research's own words.",
-      "A right margin ledger of revisions, with the current revision in cobalt.",
-      "A 2px cobalt change bar beside text that changed since the previous revision.",
-      "Normative-reference rows for responses, evidence and receipts, never cards.",
-      "Flat throughout: rules and hairlines, no shadows, corners of 1 to 3px.",
+      "Research words in Source Serif 4; interface in Inter Tight at 13 to 15px; identifiers in IBM Plex Mono, shortened.",
+      "Record head: the object's words, then one inline byline of bare cells, then an inline section index.",
+      "Sections are 15px semibold headings on a hairline, with a hover-revealed \"#\" anchor.",
+      "Record rows on hairlines: state column, serif title with one metadata line, date.",
+      "A 17rem sticky margin of links and data beside a 70ch reading column.",
+      "Flat throughout: hairline rules, no shadows, no cards, corners of 1 to 3px.",
       "Light and dark themes from one semantic token set, both WCAG 2.2 AA."
     ],
     "rules": [
       {
         "name": "The One Cobalt Rule",
-        "body": "Cobalt is the only accent. It marks links, selection, focus, the primary action, the current revision and revised text, and nothing else. No second brand colour, no decorative tint.",
+        "body": "Cobalt is the only accent. It marks links, focus, selection, the primary action, the current revision and revised text, and nothing else.",
         "section": "colors"
       },
       {
-        "name": "The Text-Leads-State Rule",
-        "body": "A protocol state is always its words first, with a 12px icon, in a muted dual-tier badge. Colour is never the only carrier. The solid emphasis tier is spent on at most the one most consequential state in a view.",
+        "name": "The Words-Carry-State Rule",
+        "body": "A protocol state is its words in a muted badge, with no icon. Colour is never the only carrier, and the solid tier is spent only on refuted, upheld and critical.",
         "section": "colors"
       },
       {
         "name": "The Token-Only Rule",
-        "body": "Every colour comes from a semantic `--evimesh-*` role in `app/globals.css` (exposed to Tailwind as `bg-primary`, `text-muted-foreground`, `border-status-warning-border`, and so on). No raw hex, rgb or oklch in components, and no second component library.",
+        "body": "Every colour comes from a semantic `--evimesh-*` role in `app/globals.css` (exposed to Tailwind as `bg-primary`, `text-muted-foreground`, `border-border` and so on). No raw hex, rgb or oklch in components, and no second component library.",
         "section": "colors"
       },
       {
         "name": "The No-Score Rule",
-        "body": "Counts are navigation entry points only, set in muted tabular numerals beside the clause they open. Never render evidence as percentages, progress bars, truth or support scores, likes or rankings. Private \"helpful\" marks and saves never render a public count anywhere.",
+        "body": "Counts are navigation entry points only, set in muted tabular numerals beside the section or facet they open. Never render evidence as percentages, progress bars, truth or support scores, likes or rankings. Private \"helpful\" marks and saves never render a public count.",
         "section": "colors"
       },
       {
         "name": "The Three Voices Rule",
-        "body": "Serif only for research words (statements, titles of research objects, research prose). Mono only for identifiers. Inter Tight for everything else. A label is never set in serif; a statement is never set in sans.",
+        "body": "Serif only for research words. Mono only for identifiers. Inter Tight for everything else. A label is never set in serif; a statement is never set in sans.",
         "section": "typography"
       },
       {
-        "name": "The Sentence-Case Label Rule",
-        "body": "Labels and context lines are sentence case at normal tracking, set beside or below what they label. There are no tracked uppercase kickers or eyebrows above titles.",
+        "name": "The Short Identifier Rule",
+        "body": "Identifiers render shortened (prefix, six characters, ellipsis, last four) in muted mono, with the full value in the title attribute and on copy. Full ids appear only in the record details section.",
         "section": "typography"
       },
       {
-        "name": "The Title Block First Rule",
-        "body": "A research object opens on its title block, directly under the breadcrumb. No hero, no kicker, no illustration above it.",
+        "name": "The Plain Label Rule",
+        "body": "Labels are sentence case at normal tracking, beside or below what they label. No tracked uppercase kickers or eyebrows above titles.",
+        "section": "typography"
+      },
+      {
+        "name": "The Words-First Rule",
+        "body": "A research record opens on its own words directly under the breadcrumb. Nothing sits above the title: no kicker, no hero, no illustration.",
         "section": "layout"
       },
       {
-        "name": "The Measure Rule",
-        "body": "Reading prose never runs wider than 68ch; secondary descriptions sit at 60 to 64ch.",
+        "name": "The Margin-Holds-Data Rule",
+        "body": "The margin carries links and data only: revisions, frontier membership, the event audit, related links, short numbered steps. No explanatory paragraphs.",
         "section": "layout"
       },
       {
-        "name": "The One Handoff Rule",
-        "body": "The margin carries at most one primary action, the handoff to an Agent (\"Continue with an agent\"), with quiet text actions beneath it. The web hands off; it never simulates a signature.",
+        "name": "The One Primary Action Rule",
+        "body": "A form or margin carries at most one primary action. On records it is \"Continue with an agent\"; the rest are quiet text actions. The web hands off; it never simulates a signature.",
         "section": "layout"
       },
       {
-        "name": "The Ink Rule Rule",
-        "body": "Structure is drawn, never lifted. Use a 1px ink rule to open a section and a 1px hairline to divide rows. No `box-shadow` on any surface.",
+        "name": "The Hairline Rule",
+        "body": "Structure is a 1px hairline, never an ink rule and never a lift. No `box-shadow` on any surface.",
         "section": "elevation"
       },
       {
-        "name": "The Rules-Not-Cards Rule",
-        "body": "Group content under a ruled head, not inside a bordered, rounded, filled box. Lists of research objects are rows on hairlines.",
+        "name": "The No-Cards Rule",
+        "body": "Group content under a heading on a hairline, not inside a bordered, rounded, filled box. Lists of research objects are rows on hairlines.",
         "section": "elevation"
       }
     ],
     "dos": [
-      "**Do** open every research object with the breadcrumb and then the title block, with Kind, State, Identifier, Revision, Drafted by, Signed by and Recorded in ruled, sentence-case cells.",
-      "**Do** show the attribution chain on every agent-produced item: the Agent as \"Drafted by\" (with \"for\" its owning person) and the person as \"Signed by\". An Agent is never shown as the signer.",
-      "**Do** ship a keyboard-reachable list view (the Relationship Index) beside every graph view. The claim graph is a DAG of typed directed edges, never a parent-child tree.",
-      "**Do** set statements and research-object titles in Source Serif 4, identifiers in IBM Plex Mono, and everything else in Inter Tight.",
-      "**Do** take every colour from the semantic `--evimesh-*` roles in `app/globals.css`, and check both `data-theme` light and dark.",
-      "**Do** use the 2px cobalt change bar beside revised text and cobalt for the current revision in the ledger.",
-      "**Do** keep a 2px focus ring, 44px targets on coarse pointers, and instant state changes under reduced motion.",
-      "**Do** render an ORCID iD as verified only when it came through ORCID OAuth."
+      "Do open every research record with the breadcrumb, then its own words, then the byline and the inline section index, each on a hairline.",
+      "Do show the attribution chain on every agent-produced item: \"Drafted by <agent> for <owner>\" and \"Signed by <person>\". An Agent is never shown as the signer.",
+      "Do keep copy to what a researcher needs to act or read. Page titles are plain nouns (\"Explore\", \"My Agents\"); empty states are one line.",
+      "Do set research words in Source Serif 4, identifiers in IBM Plex Mono shown short, and everything else in Inter Tight at 13 to 15px.",
+      "Do ship the keyboard-reachable Relationship Index beside every graph view. The claim graph is a DAG of typed directed edges, never a parent-child tree.",
+      "Do put links and data in the margin, with at most one primary action.",
+      "Do take every colour from the semantic `--evimesh-*` roles in `app/globals.css`, and check both `data-theme` light and dark.",
+      "Do keep a 2px focus ring, 44px targets on coarse pointers, and instant state changes under reduced motion.",
+      "Do render an ORCID iD as verified only when it came through ORCID OAuth."
     ],
     "donts": [
-      "**Don't** render evidence counts as percentages, progress bars, truth or support scores, likes or rankings; counts are navigation only.",
-      "**Don't** put a tracked uppercase kicker or eyebrow above a title, or open a page on a magazine hero.",
-      "**Don't** wrap content in cards, card grids or rounded filled boxes; use ruled heads and hairline rows.",
-      "**Don't** add `box-shadow` to any surface.",
-      "**Don't** introduce a raw colour, a second accent, or a second component library.",
-      "**Don't** mark a manually typed ORCID iD as verified.",
-      "**Don't** use em dashes or emoji in visible copy.",
-      "**Don't** use colour alone to carry a protocol state or a graph relation."
+      "Don't render evidence counts as percentages, progress bars, truth or support scores, likes or rankings; counts are navigation only.",
+      "Don't add subtitles or helper paragraphs that explain the page to itself.",
+      "Don't put an eyebrow or kicker above a title, or open a page on a hero.",
+      "Don't wrap content in cards or rounded filled boxes; use headings on hairlines and rows on hairlines.",
+      "Don't use ink rules or `box-shadow` for structure.",
+      "Don't add decorative icons; the only glyphs are functional controls and the Agent marker.",
+      "Don't introduce a raw colour, a second accent, or a second component library.",
+      "Don't mark a manually typed ORCID iD as verified.",
+      "Don't use em dashes or emoji in visible copy.",
+      "Don't use colour alone to carry a protocol state or a graph relation."
     ]
   }
 }

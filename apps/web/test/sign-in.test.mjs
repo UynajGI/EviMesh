@@ -23,7 +23,7 @@ test('login renders provider buttons from the live auth configuration', () => {
   assert.match(login, /signInWithOAuth\(\{ provider, /);
   assert.match(login, /ORCID_PROVIDER_CONFIGURED/);
   assert.match(login, /enabled\.unshift\(ORCID_PROVIDER\)/);
-  assert.match(login, /No external provider is enabled/);
+  assert.match(login, /No external provider is enabled: email only/);
 });
 
 test('login keeps ORCID visible when production has not enabled its OAuth provider', () => {

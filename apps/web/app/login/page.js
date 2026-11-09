@@ -158,10 +158,8 @@ export default function LoginPage() {
           {providers === null ? (
             <div className="h-10 w-full animate-pulse rounded-[2px] border border-border bg-muted" aria-label="Loading sign-in providers" />
           ) : providerButtons.length === 0 ? (
-            <div className="space-y-3">
-              {orcidIdentityState}
-              <p className="text-[13px] text-muted-foreground">No external provider is enabled. Use email below.</p>
-            </div>
+            /* No external provider is enabled: email only, plus the honest ORCID state. */
+            <div className="mb-5">{orcidIdentityState}</div>
           ) : (
             <div className="space-y-3">
               <div className="grid gap-2">
@@ -182,7 +180,7 @@ export default function LoginPage() {
             </div>
           )}
 
-          <div className="my-5 flex items-center gap-3"><span className="h-px flex-1 bg-border" /><span className="text-[13px] text-muted-foreground">or email</span><span className="h-px flex-1 bg-border" /></div>
+          {providerButtons.length > 0 ? <div className="my-5 flex items-center gap-3"><span className="h-px flex-1 bg-border" /><span className="text-[13px] text-muted-foreground">or email</span><span className="h-px flex-1 bg-border" /></div> : null}
 
           <div className="mb-4 flex border-b border-border" role="tablist" aria-label="Email sign-in mode">
             {[['magic', 'Sign-in link'], ['password', 'Password'], ['signup', 'Create account']].map(([id, label]) => (
