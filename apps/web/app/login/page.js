@@ -11,17 +11,20 @@
  * provider is configured, with its real setup state and the Settings handoff.
  */
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { GithubMark, GoogleMark, OrcidMark } from '@/components/brand-marks';
 import { safeCallbackPath } from '@/lib/auth-session.mjs';
 import { createBrowserSupabaseClient } from '@/lib/supabase-browser';
+import { useAuth } from '@/components/auth-provider';
 import { ORCID_PROVIDER, ORCID_PROVIDER_CONFIGURED, isOrcidProvider } from '@/lib/orcid-provider';
 
 /* Known providers get their icon and display name; anything else the
  * backend enables still renders, generically; the button set follows the
  * live configuration instead of a hardcoded allowlist. */
 const PROVIDER_ICONS = { github: GithubMark, orcid: OrcidMark, google: GoogleMark };
+const HOME_PATH = '/home';
 const PROVIDER_LABELS = { github: 'GitHub', orcid: 'ORCID', google: 'Google' };
 const providerName = (provider) => (isOrcidProvider(provider) ? 'ORCID' : PROVIDER_LABELS[provider] ?? provider.charAt(0).toUpperCase() + provider.slice(1));
 const providerIcon = (provider) => (isOrcidProvider(provider) ? OrcidMark : PROVIDER_ICONS[provider] ?? null);
@@ -35,11 +38,17 @@ function authCallbackUrl() {
 }
 
 export default function LoginPage() {
+  const router = useRouter();
+  const { session, ready } = useAuth();
   const [message, setMessage] = useState(null);
   const [pending, setPending] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
   const [mode, setMode] = useState('magic');
   const [providers, setProviders] = useState(null);
+
+  useEffect(() => {
+    if (ready && session) router.replace(HOME_PATH);
+  }, [ready, session, router]);
 
   /* Ask the auth service which providers are actually enabled: buttons
    * render from this list, so configuration is never contradicted. */
@@ -91,16 +100,20 @@ export default function LoginPage() {
     const form = new FormData(event.currentTarget);
     const email = form.get('email');
     const password = form.get('password');
-    const auth = createBrowserSupabaseClient().auth;
     try {
+      const auth = createBrowserSupabaseClient().auth;
       if (mode === 'magic') {
         const { error } = await auth.signInWithOtp({ email, options: { emailRedirectTo: authCallbackUrl() } });
         if (error) throw error;
         setMessage(`Sign-in link sent to ${email}. Open it on this device within an hour.`);
       } else if (mode === 'signup') {
-        const { error } = await auth.signUp({ email, password, options: { emailRedirectTo: authCallbackUrl() } });
+        const { data, error } = await auth.signUp({ email, password, options: { emailRedirectTo: authCallbackUrl() } });
         if (error) throw error;
-        setMessage('Account created. Check your email for a confirmation link, or sign in with your password.');
+        if (data?.session) {
+          window.location.assign(authCallbackUrl());
+          return;
+        }
+        setMessage(`Check ${email} for a confirmation link, then sign in.`);
         setMode('password');
       } else {
         const { error } = await auth.signInWithPassword({ email, password });
@@ -125,6 +138,12 @@ export default function LoginPage() {
       <span className="text-muted-foreground">Not enabled in this workspace.</span>
       <Link className="text-primary hover:underline" href="/settings">Sign in with email, then connect ORCID</Link>
     </div>
+  );
+
+  if (!ready || session) return (
+    <main className="flex min-h-screen items-center justify-center bg-background text-foreground">
+      <p aria-live="polite" role="status">{session ? 'Opening your workspace…' : 'Checking session…'}</p>
+    </main>
   );
 
   return (

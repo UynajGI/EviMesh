@@ -1,0 +1,53 @@
+name: Auth browser regression
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: auth-browser-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  auth-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          version: 11.17.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Install test browser
+        run: node node_modules/playwright/cli.js install --with-deps chromium
+      - name: Run isolated auth browser regression
+        working-directory: apps/web
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://auth.evimesh.test
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: evimesh-browser-test-key
+          NEXT_PUBLIC_EVIMESH_API_URL: https://api.evimesh.test
+          EVIMESH_AUTH_WEB_URL: http://127.0.0.1:3107
+        run: |
+          node node_modules/next/dist/bin/next dev --hostname 127.0.0.1 --port 3107 > "$RUNNER_TEMP/auth-web.log" 2>&1 &
+          AUTH_WEB_PID=$!
+          trap 'kill "$AUTH_WEB_PID" 2>/dev/null || true; cat "$RUNNER_TEMP/auth-web.log"' EXIT
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent "$EVIMESH_AUTH_WEB_URL/login" > /dev/null; then
+              node --test e2e/auth-session.mjs
+              exit $?
+            fi
+            kill -0 "$AUTH_WEB_PID" || exit 1
+            sleep 2
+          done
+          echo 'Auth test server did not become ready' >&2
+          exit 1

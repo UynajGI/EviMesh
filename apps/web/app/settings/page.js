@@ -8,8 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Input, Label, Textarea } from '@/components/ui/form';
 import { PageContainer, PageHeader, SectionHeader } from '@/components/ui/page';
 import { MarginSection } from '@/components/ui/doc';
+import { useAuth } from '@/components/auth-provider';
 import { createBrowserSupabaseClient } from '@/lib/supabase-browser';
 import { ORCID_PROVIDER, ORCID_PROVIDER_CONFIGURED, isOrcidProvider } from '@/lib/orcid-provider';
+import { connectedIdentities, editableProfile, orcidLinkError, requestOwnProfile } from '@/lib/account-settings.mjs';
 
 const SECTIONS = [
   { id: 's-profile', label: 'Profile' },
@@ -19,13 +21,8 @@ const SECTIONS = [
   { id: 's-notifications', label: 'Notifications' },
 ];
 
-async function profileRequest(path, options = {}) {
-  const { data, error } = await createBrowserSupabaseClient().auth.getSession();
-  if (error || !data.session) throw new Error('Please sign in to edit your profile.');
-  const response = await fetch(`${process.env.NEXT_PUBLIC_EVIMESH_API_URL}${path}`, { ...options, headers: { authorization: `Bearer ${data.session.access_token}`, 'content-type': 'application/json', ...(options.headers ?? {}) } });
-  const payload = await response.json();
-  if (!response.ok) throw new Error(payload.message ?? 'Profile request failed.');
-  return payload;
+function profileRequest(options = {}) {
+  return requestOwnProfile({ auth: createBrowserSupabaseClient().auth, apiUrl: process.env.NEXT_PUBLIC_EVIMESH_API_URL, ...options });
 }
 
 /*
@@ -34,9 +31,15 @@ async function profileRequest(path, options = {}) {
  * behind one-time reveal only.
  */
 export default function SettingsPage() {
-  const [profile, setProfile] = useState({ displayName: '', bio: '', avatarUrl: '' });
-  const [identities, setIdentities] = useState(null);
+  const { session, ready } = useAuth();
+  const userId = session?.user?.id;
+  const [profile, setProfile] = useState(editableProfile);
+  const [profileLoaded, setProfileLoaded] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const identities = ready ? connectedIdentities(session?.user) : null;
+  const orcidConnected = identities?.some((identity) => isOrcidProvider(identity.kind));
   const [message, setMessage] = useState(null);
+  const [identityMessage, setIdentityMessage] = useState(null);
   const [saving, setSaving] = useState(false);
   /* ORCID connect (design book 06 §2): offered only when the Supabase
    * project actually has the ORCID OAuth provider enabled; the button set
@@ -45,17 +48,25 @@ export default function SettingsPage() {
   const [connecting, setConnecting] = useState(false);
 
   useEffect(() => {
-    profileRequest('/profile').then(setProfile).catch((error) => setMessage(error.message));
-    createBrowserSupabaseClient().auth.getSession().then(({ data }) => {
-      if (!data.session) return;
-      const user = data.session.user ?? {};
-      const meta = user.user_metadata ?? {};
-      const entries = [];
-      if (user.email) entries.push({ kind: 'email', label: user.email, verified: user.email_confirmed_at ? true : false });
-      const provider = user.app_metadata?.provider ?? meta.provider;
-      if (provider && provider !== 'email') entries.push({ kind: provider, label: meta.user_name ?? meta.full_name ?? meta.name ?? provider, verified: true });
-      setIdentities(entries);
-    }).catch(() => setIdentities([]));
+    let active = true;
+    setProfile(editableProfile());
+    setProfileLoaded(false);
+    setMessage(null);
+    setIdentityMessage(null);
+    if (!ready || !userId) return;
+    profileRequest().then((saved) => {
+      if (!active) return;
+      setProfile(editableProfile(saved));
+      setProfileLoaded(true);
+    }).catch((error) => {
+      if (!active) return;
+      if (error.status === 404 && error.code === 'ACTOR_PROFILE_NOT_FOUND') setProfileLoaded(true);
+      else setMessage(error.message);
+    });
+    return () => { active = false; };
+  }, [ready, userId, loadAttempt]);
+
+  useEffect(() => {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     if (url && key) {
@@ -69,15 +80,16 @@ export default function SettingsPage() {
     }
   }, []);
 
-  /* Linking attaches the ORCID identity to the signed-in account; the
-   * collision warning above is enforced by re-authenticating both sides. */
+  /* OAuth linking also requires "Allow manual linking" in Supabase Auth.
+   * The public settings endpoint does not expose that server-side switch. */
   async function connectOrcid() {
     setConnecting(true);
+    setIdentityMessage(null);
     try {
       const { error } = await createBrowserSupabaseClient().auth.linkIdentity({ provider: ORCID_PROVIDER, options: { redirectTo: `${window.location.origin}/settings` } });
       if (error) throw error;
     } catch (error) {
-      setMessage(`ORCID connect failed: ${error.message}`);
+      setIdentityMessage(orcidLinkError(error));
     } finally {
       setConnecting(false);
     }
@@ -86,7 +98,8 @@ export default function SettingsPage() {
   async function save(event) {
     event.preventDefault();
     setSaving(true);
-    try { const saved = await profileRequest('/profile', { method: 'PATCH', body: JSON.stringify(profile) }); setProfile(saved); setMessage('Profile saved.'); } catch (error) { setMessage(error.message); } finally { setSaving(false); }
+    setMessage(null);
+    try { const saved = await profileRequest({ method: 'PATCH', profile }); setProfile(editableProfile(saved)); setMessage('Profile saved.'); } catch (error) { setMessage(error.message); } finally { setSaving(false); }
   }
 
   const update = (key) => (event) => setProfile({ ...profile, [key]: event.target.value });
@@ -100,6 +113,7 @@ export default function SettingsPage() {
           <section aria-labelledby="s-profile-heading" id="s-profile">
             <SectionHeader id="s-profile-heading" title="Profile" />
             <form className="mt-4 max-w-2xl space-y-4" onSubmit={save}>
+              <fieldset className="space-y-4" disabled={!userId || !profileLoaded || saving}>
               <div className="grid gap-2"><Label htmlFor="display-name">Display name</Label><Input id="display-name" onChange={update('displayName')} value={profile.displayName ?? ''} /></div>
               <div className="grid gap-2"><Label htmlFor="avatar-url">Avatar URL</Label><Input id="avatar-url" onChange={update('avatarUrl')} value={profile.avatarUrl ?? ''} /></div>
               <div className="grid gap-2"><Label htmlFor="bio">Bio</Label><Textarea id="bio" className="min-h-28" onChange={update('bio')} value={profile.bio ?? ''} /></div>
@@ -107,6 +121,10 @@ export default function SettingsPage() {
                 <Button type="submit" loading={saving}>Save profile</Button>
                 {message && <p role={message === 'Profile saved.' ? 'status' : 'alert'} aria-live="polite" className={`text-sm ${message === 'Profile saved.' ? 'text-success' : 'text-destructive'}`}>{message}</p>}
               </div>
+              </fieldset>
+              {ready && !userId && <p className="text-sm text-muted-foreground"><Link href="/login" className="underline">Sign in</Link> to edit your profile.</p>}
+              {userId && !profileLoaded && !message && <p role="status" className="text-sm text-muted-foreground">Loading profile…</p>}
+              {userId && !profileLoaded && message && <Button type="button" variant="outline" size="sm" onClick={() => setLoadAttempt((attempt) => attempt + 1)}>Retry loading profile</Button>}
             </form>
           </section>
 
@@ -124,22 +142,23 @@ export default function SettingsPage() {
               {identities === null ? <li className="border-b border-border py-3 text-sm text-muted-foreground">Loading identities…</li> : identities.length === 0 ? (
                 <li className="border-b border-border py-3 text-sm text-muted-foreground">No external identities</li>
               ) : identities.map((identity) => (
-                <li className="grid items-baseline gap-x-4 gap-y-1 border-b border-border py-3 sm:grid-cols-[7.5rem_minmax(0,1fr)_auto]" key={identity.kind}>
-                  <span className="text-sm font-medium capitalize">{identity.kind}</span>
+                <li className="grid items-baseline gap-x-4 gap-y-1 border-b border-border py-3 sm:grid-cols-[7.5rem_minmax(0,1fr)_auto]" key={identity.id ?? identity.kind}>
+                  <span className="text-sm font-medium capitalize">{isOrcidProvider(identity.kind) ? 'ORCID' : identity.kind}</span>
                   <span className="min-w-0 truncate text-sm text-muted-foreground">{identity.label}</span>
                   <Badge variant={identity.verified ? 'status-success' : 'status-neutral'}>{identity.verified ? 'verified' : 'pending'}</Badge>
                 </li>
               ))}
-              <li className="grid items-center gap-x-4 gap-y-2 border-b border-border py-3 sm:grid-cols-[7.5rem_minmax(0,1fr)_auto]">
+              {identities !== null && !orcidConnected && <li className="grid items-center gap-x-4 gap-y-2 border-b border-border py-3 sm:grid-cols-[7.5rem_minmax(0,1fr)_auto]">
                 <span className="text-sm font-medium">ORCID</span>
                 <span className="text-sm text-muted-foreground">Not connected</span>
                 {orcidEnabled ? (
-                  <Button onClick={connectOrcid} size="sm" type="button" loading={connecting}>Connect ORCID (OAuth)</Button>
+                  <Button onClick={connectOrcid} size="sm" type="button" loading={connecting} disabled={!userId}>Connect ORCID (OAuth)</Button>
                 ) : (
                   <span className="text-xs text-muted-foreground">ORCID sign-in is not available on this deployment yet.</span>
                 )}
-              </li>
+              </li>}
             </ul>
+            {identityMessage && <p role="alert" className="mt-3 max-w-2xl text-sm text-destructive">{identityMessage}</p>}
           </section>
 
           <section aria-labelledby="s-tokens-heading" id="s-tokens">

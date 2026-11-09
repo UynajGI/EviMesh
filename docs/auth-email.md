@@ -34,6 +34,47 @@ provider Identity in one repository transaction. A repeat login for the same
 provider/subject reuses the existing Actor; see
 `packages/domain/src/actor-provisioning.mjs`.
 
+## Browser session behavior
+
+The Next.js app shares one browser Supabase client and mounts `AuthProvider`
+on every route, including `/`. It restores saved sessions and consumes OAuth
+and email-link callbacks before deciding whether navigation should show
+`Sign in` or `Account`. Subsequent auth events update desktop and mobile
+navigation. The SDK persists and refreshes the session; the legacy
+`apps/web/src/auth.mjs` helper is not the Next.js app's session store.
+
+Password sign-in and signup that returns a session go directly to `/home`.
+A signup without a session stays on the form with email-confirmation
+instructions. Email and OAuth redirects target `/home`; older callback links
+to `/` still restore the session. Opening `/login` while signed in returns to
+`/home`. These follow the SDK's [signup result](https://supabase.com/docs/reference/javascript/auth-signup)
+and [auth-state events](https://supabase.com/docs/reference/javascript/auth-onauthstatechange).
+
+The browser regression suite uses intercepted auth/API responses and no real
+accounts or email. From `apps/web`, start an isolated local server (POSIX shell):
+
+```sh
+NEXT_PUBLIC_SUPABASE_URL=https://auth.evimesh.test \
+NEXT_PUBLIC_SUPABASE_ANON_KEY=evimesh-browser-test-key \
+NEXT_PUBLIC_EVIMESH_API_URL=https://api.evimesh.test \
+node node_modules/next/dist/bin/next dev --hostname 127.0.0.1 --port 3107
+```
+
+In a second terminal, also inside `apps/web`, run:
+
+```sh
+node --test e2e/auth-session.mjs
+```
+
+Install Playwright Chromium first, or set `CHROME_PATH` to an existing Chrome
+executable. The suite covers password login, both signup outcomes, email and
+OAuth callbacks, reloads, token refresh/expiry, invalid credentials, mobile
+navigation, and cross-tab sign-out.
+
+GitHub Actions runs the same suite explicitly in `auth-session.yml` on PRs
+and pushes to main. The job starts its own local server with the test-only
+configuration above and installs Chromium; it needs no hosted Auth secrets.
+
 ## Hosted project setup
 
 For each Supabase environment, open the project's Auth settings:
@@ -42,6 +83,32 @@ For each Supabase environment, open the project's Auth settings:
   enable Email provider and choose the project's email-confirmation policy.
 - [URL Configuration](https://supabase.com/dashboard/project/_/auth/url-configuration):
   set the environment's Site URL and add only the required redirect URLs.
+
+### Profile saves and ORCID linking
+
+`GET /profile` and `PATCH /profile` forward the signed-in user's JWT to
+PostgREST, where `actor_owned_actor_profiles` restricts reads and writes to
+that Actor. The first save atomically inserts the profile; later saves update
+the supplied editable fields. Settings provisions a missing Actor once through
+`POST /actors/self`. Missing profiles start as an empty form. Only
+`displayName`, `bio`, and `avatarUrl` may be submitted.
+The account API fix must be deployed as well as the web app;
+`.github/workflows/api-production.yml` deploys the API Worker on relevant main
+changes, using the same Cloudflare credentials as the web deployment.
+
+The `Connect ORCID (OAuth)` action uses Supabase `linkIdentity`, which requires
+**Allow manual linking** to be enabled in the hosted project's Auth settings.
+The local `enable_manual_linking` configuration does not change a hosted
+project. Despite the setting's name, EviMesh still verifies ORCID through OAuth;
+it does not accept a manually typed iD as verified. Configure the `custom:orcid`
+OAuth provider and allow the `/settings` callback for each environment. See
+[Supabase identity linking](https://supabase.com/docs/guides/auth/auth-identity-linking).
+
+Supabase's public `/auth/v1/settings` response does not expose the manual-linking
+switch. A `manual_linking_disabled` response requires the hosted setting to be
+changed; redeploying the web app cannot enable it. Settings displays that error
+under Connected identities, and reads all linked providers from Auth's
+`user.identities` rather than editable metadata.
 
 The EviMesh hosted URL set is:
 

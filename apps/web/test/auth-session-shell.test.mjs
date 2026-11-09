@@ -94,7 +94,7 @@ test('login, callback, and shell share one explicit session lifecycle', async ()
   assert.match(shell, /Session unavailable · Sign in/);
   assert.match(shell, /Signed in/);
   assert.match(shell, /Sign out/);
-  assert.match(supabase, /if \(!browserClient\)/);
+  assert.match(supabase, /if \(browserClient\) return browserClient/);
   assert.match(supabase, /detectSessionInUrl:\s*true/);
   assert.match(supabase, /flowType:\s*'pkce'/);
 });
