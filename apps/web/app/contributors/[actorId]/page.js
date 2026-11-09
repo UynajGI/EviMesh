@@ -2,42 +2,79 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { Card, CardContent, StatusBadge } from '@/components/ui/data';
+import { StatusBadge } from '@/components/ui/data';
 import { RoleDirectory, CONTRIBUTION_ROLES } from '@/components/role-directory';
-import { Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
-import { IdChip } from '@/components/ui/idchip';
-import { PageContainer, PageHeader } from '@/components/ui/page';
+import { ErrorState, Skeleton } from '@/components/ui/feedback';
+import { Breadcrumb, SectionHeader } from '@/components/ui/page';
+import { Identifier, MarginSection, TitleBlock, formatDate, shortId } from '@/components/ui/doc';
 
 const API = process.env.NEXT_PUBLIC_EVIMESH_API_URL;
 
 /*
- * Public contributor page (M13.8 06-personal-ui-spec.md §1): identity,
- * contribution roles, and traceable activity. Roles and events only, never
- * public competition metrics or heatmaps.
+ * Public contributor page (M13.8 06-personal-ui-spec.md §1) in the
+ * research-record grammar: the name and one byline, then signed
+ * contributions and attributed objects as ref-rows. Roles and events only,
+ * never public competition metrics or heatmaps.
  */
 
 const PROJECT_HYDRATE_LIMIT = 6;
 
-/* Readable list for detail arrays: scalar rows render as hairline list
-   entries; anything richer collapses into a JSON details layer. */
+function readable(value) {
+  return String(value ?? '').replaceAll('_', ' ');
+}
+
+const EDGE_ROUTES = Object.freeze({
+  claim: '/claims', question: '/questions', project: '/projects', task: '/tasks', attempt: '/attempts', artifact: '/artifacts',
+  answer: '/answers', rebuttal: '/rebuttals', evaluation: '/evaluations', evidence: '/evidence', dataset: '/datasets', run: '/runs', tool: '/tools',
+});
+
+function edgeHref(edge) {
+  const prefix = EDGE_ROUTES[edge.objectType];
+  if (!prefix) return null;
+  const revision = Number(edge.objectRevision);
+  return `${prefix}/${encodeURIComponent(edge.objectId)}${edge.objectType === 'claim' && Number.isInteger(revision) && revision > 0 ? `?rev=${revision}` : ''}`;
+}
+
+/* Readable list for detail arrays: attribution edges and scalar rows render
+   as ruled entries; anything richer collapses into a JSON details layer. */
 function ReadableList({ value }) {
   const items = Array.isArray(value) ? value : [];
-  if (items.length === 0) return <p className="text-sm text-muted-foreground">Nothing recorded yet.</p>;
+  if (items.length === 0) return <p className="clause__none mt-3">None yet.</p>;
   const scalars = items.filter((entry) => typeof entry === 'string' || typeof entry === 'number');
   if (scalars.length === items.length) {
     return (
-      <ul className="divide-y divide-border rounded-lg border border-border">
-        {items.map((entry, index) => <li className="px-4 py-2 text-sm" key={index}>{String(entry)}</li>)}
+      <ul className="mt-1">
+        {items.map((entry, index) => <li className="border-b border-border py-1.5 text-[13px]" key={index}>{String(entry)}</li>)}
+      </ul>
+    );
+  }
+  const edges = items.filter((entry) => entry && typeof entry === 'object' && entry.objectType && entry.objectId);
+  if (edges.length === items.length) {
+    return (
+      <ul>
+        {edges.slice(0, 12).map((edge, index) => {
+          const href = edgeHref(edge);
+          const label = <>{readable(edge.objectType)} <span className="font-mono text-xs text-muted-foreground">{shortId(edge.objectId)}</span></>;
+          return (
+            <li className="ref-row" key={`${edge.objectType}-${edge.objectId}-${index}`}>
+              <p className="text-sm text-muted-foreground">{readable(edge.edgeType ?? edge.objectType)}</p>
+              <div className="min-w-0 text-sm">{href ? <Link className="hover:underline" href={href} title={edge.objectId}>{label}</Link> : <span title={edge.objectId}>{label}</span>}</div>
+              <span className="text-xs tabular-nums text-muted-foreground md:text-right">{edge.objectRevision ? `r${edge.objectRevision}` : ''}</span>
+            </li>
+          );
+        })}
+        {edges.length > 12 ? <li className="py-2 text-xs text-muted-foreground">Newest 12 of {edges.length}</li> : null}
       </ul>
     );
   }
   return (
-    <details>
-      <summary className="cursor-pointer text-xs text-muted-foreground">{items.length} entries (technical details)</summary>
-      <pre className="mt-2 overflow-x-auto rounded bg-muted p-3 text-xs">{JSON.stringify(value, null, 2)}</pre>
+    <details className="mt-3">
+      <summary className="cursor-pointer text-[13px] text-muted-foreground">{items.length} entries</summary>
+      <pre className="mt-2 overflow-x-auto border border-border bg-muted p-3 font-mono text-xs">{JSON.stringify(value, null, 2)}</pre>
     </details>
   );
 }
+
 export default function ContributorDetailPage({ params }) {
   const [actorId, setActorId] = useState(null);
   const [data, setData] = useState(null);
@@ -53,8 +90,8 @@ export default function ContributorDetailPage({ params }) {
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.message ?? 'Contributor is unavailable.');
       setData(payload);
-      /* Projects involved (mockup 参与的项目): derived from produced/used
-       * attribution edges; titles live on the project detail endpoint. */
+      /* Projects involved: derived from produced/used attribution edges;
+       * titles live on the project detail endpoint. */
       const edges = [...(payload.produced ?? []), ...(payload.used ?? [])];
       const projectIds = [...new Set(edges.filter((edge) => edge.objectType === 'project').map((edge) => edge.objectId))].slice(0, PROJECT_HYDRATE_LIMIT);
       const projectRows = await Promise.all(projectIds.map(async (projectId) => {
@@ -73,8 +110,8 @@ export default function ContributorDetailPage({ params }) {
 
   useEffect(() => { if (actorId) load(); }, [actorId]);
 
-  if (error) return <PageContainer><ErrorState message={error} onRetry={load} /></PageContainer>;
-  if (!data) return <PageContainer><Skeleton className="h-24 w-full" /><Skeleton className="mt-6 h-64 w-full" /></PageContainer>;
+  if (error) return <div className="doc-page pb-20 pt-10"><ErrorState message={error} onRetry={load} /></div>;
+  if (!data) return <div className="doc-page pb-20 pt-8"><Skeleton className="h-4 w-64" /><Skeleton className="mt-5 h-48 w-full" /><Skeleton className="mt-8 h-64 w-full" /></div>;
 
   const actor = data.actor ?? data.profile ?? data;
   const list = (value) => Array.isArray(value) ? value : [];
@@ -82,144 +119,116 @@ export default function ContributorDetailPage({ params }) {
   const produced = list(data.produced ?? actor.produced);
   const used = list(data.used ?? actor.used);
   const frontierUsage = list(data.frontierUsage ?? data.frontiers);
-  /* Signed contribution statements (mockup 公开贡献): role + description +
-   * timestamp, newest first, bounded. */
+  /* Signed contribution statements: role + description + timestamp, newest
+   * first, bounded. */
   const statements = list(data.statements ?? actor.statements)
     .slice()
     .sort((left, right) => Date.parse(right.createdAt ?? 0) - Date.parse(left.createdAt ?? 0))
     .slice(0, 12);
+  const name = actor.displayName ?? actor.handle ?? 'EviMesh contributor';
 
   return (
-    <PageContainer>
-      <nav aria-label="Breadcrumb" className="mb-4 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-        <Link className="hover:text-foreground" href="/explore">Explore</Link>
-        <span aria-hidden="true">/</span>
-        <Link className="hover:text-foreground" href="/contributions">Contributions</Link>
-        <span aria-hidden="true">/</span>
-        <span aria-current="page">{actor.displayName ?? actor.actorId ?? actorId}</span>
-      </nav>
+    <div className="doc-page pb-20 pt-5 sm:pt-6">
+      <Breadcrumb
+        trail={[
+          { label: 'Explore', href: '/explore' },
+          { label: 'Contributions', href: '/contributions' },
+          { label: actor.displayName ?? 'Contributor' },
+        ]}
+      />
 
-      <header className="flex flex-wrap items-start gap-5">
-        <span aria-hidden="true" className="grid size-16 shrink-0 place-items-center rounded-full bg-accent text-xl font-semibold text-accent-foreground">
-          {(actor.displayName ?? actor.actorId ?? actorId).slice(0, 1).toUpperCase()}
-        </span>
-        <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Contributor</p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight">{actor.displayName ?? actor.handle ?? 'EviMesh contributor'}</h1>
-          <div className="mt-3 flex flex-wrap items-center gap-3">
-            <IdChip label="actor" value={actor.actorId ?? actorId} />
-            {typeof actor.orcidId === 'string' && actor.orcidId ? (
-              <a className="inline-flex items-center gap-1.5 font-mono text-xs text-muted-foreground hover:text-foreground" href={`https://orcid.org/${actor.orcidId}`} rel="noopener">
-                {/* Hard boundary (design book 06, AGENTS.md): the official
-                    iD mark requires per-iD OAuth provenance, which the
-                    actors API does not carry yet - account-level
-                    identityStrength does not prove this iD was verified.
-                    Until that provenance exists, the iD renders as a plain
-                    identifier link and never as verified. */}
-                orcid.org/{actor.orcidId}
-              </a>
-            ) : null}
-          </div>
-        </div>
-      </header>
-      <p className="mt-4 max-w-2xl text-sm text-muted-foreground">Public contributor record: roles and traceable activity ordered by recorded time.</p>
+      <TitleBlock
+        cells={[
+          { label: 'Affiliation', bare: true, value: actor.affiliation ?? null },
+          {
+            label: 'ORCID iD',
+            /* Hard boundary (design book 06, AGENTS.md): the official iD mark
+               requires per-iD OAuth provenance, which the actors API does not
+               carry yet - account-level identityStrength does not prove this
+               iD was verified. Until that provenance exists, the iD renders
+               as a plain identifier link and never as verified. */
+            bare: true,
+            value: typeof actor.orcidId === 'string' && actor.orcidId ? (
+              <a className="break-all font-mono text-xs hover:text-primary hover:underline" href={`https://orcid.org/${actor.orcidId}`} rel="noopener">orcid.org/{actor.orcidId}</a>
+            ) : null,
+          },
+          { label: 'Since', value: formatDate(actor.createdAt) ? <span className="tabular-nums">{formatDate(actor.createdAt)}</span> : null },
+          { label: 'Identifier', bare: true, value: <Identifier value={actor.actorId ?? actorId} /> },
+        ]}
+        kind="Contributor"
+        notice={actor.bio ? <p className="max-w-[68ch] text-[15px] leading-7 text-muted-foreground">{actor.bio}</p> : null}
+        serif={false}
+        title={name}
+      />
 
-      <div className="mt-8 grid gap-4 md:grid-cols-2">
-        <Card>
-          <div className="border-b border-border px-5 py-3"><h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Roles</h2></div>
-          <CardContent>
-            {roles.length === 0 ? <p className="text-sm text-muted-foreground">No recorded roles yet.</p> : (
-              <>
-                <RoleDirectory roles={roles} />
-                <ul className="mt-4 flex flex-wrap gap-2">
-                  {roles.map((role, index) => {
-                    const name = typeof role === 'string' ? role : role.role;
-                    return <li key={`${name}-${index}`}><StatusBadge label={name} state={CONTRIBUTION_ROLES.includes(name) ? name : 'contributor'} /></li>;
-                  })}
-                </ul>
-              </>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <div className="border-b border-border px-5 py-3"><h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Frontier usage</h2></div>
-          <CardContent>
-            <ReadableList value={frontierUsage} />
-          </CardContent>
-        </Card>
-        <Card>
-          <div className="border-b border-border px-5 py-3"><h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Produced</h2></div>
-          <CardContent>
-            <ReadableList value={produced} />
-          </CardContent>
-        </Card>
-        <Card>
-          <div className="border-b border-border px-5 py-3"><h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Used</h2></div>
-          <CardContent>
-            <ReadableList value={used} />
-          </CardContent>
-        </Card>
-      </div>
-
-      <section aria-labelledby="contributions-heading" className="mt-8">
-        <div className="mb-3 flex flex-wrap items-baseline justify-between gap-3">
-          <h2 className="text-xl font-semibold tracking-tight" id="contributions-heading">Public contributions</h2>
-          <span className="text-sm text-muted-foreground">By role and recorded time</span>
-        </div>
-        {statements.length === 0 ? (
-          <Empty title="No signed contributions yet" description="Signed contribution statements appear here as this contributor records protocol events." />
-        ) : (
-          <ol className="divide-y divide-border rounded-lg border border-border bg-card">
-            {statements.map((statement) => (
-              <li className="grid grid-cols-[2rem_minmax(0,1fr)] gap-3 px-5 py-3.5" key={statement.statementId}>
-                <span aria-hidden="true" className="mt-0.5 grid size-8 place-items-center rounded-full bg-muted text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  {(statement.role ?? 'role').slice(0, 2)}
-                </span>
-                <div className="min-w-0">
-                  <p className="text-sm">{statement.description}</p>
-                  <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                    <StatusBadge label={statement.role ?? 'contributor'} state={CONTRIBUTION_ROLES.includes(statement.role) ? statement.role : 'contributor'} />
-                    <span className="font-mono tabular-nums">{statement.statementId}</span>
-                    <span className="tabular-nums">{statement.createdAt ? new Date(statement.createdAt).toISOString().slice(0, 10) : 'time unavailable'}</span>
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ol>
-        )}
-      </section>
-
-      <div className="mt-8 grid gap-4 md:grid-cols-2">
-        <Card>
-          <div className="border-b border-border px-5 py-3"><h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Projects involved</h2></div>
-          <CardContent>
-            {projects.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No project-linked attribution recorded yet.</p>
+      <div className="doc-grid mt-6">
+        <div className="doc-main grid gap-8">
+          <section aria-labelledby="contributions-heading">
+            <SectionHeader action={statements.length > 0 ? <span className="tabular-nums text-muted-foreground">{statements.length}</span> : null} id="contributions-heading" title="Signed contributions" />
+            {statements.length === 0 ? (
+              <p className="clause__none mt-3">None yet.</p>
             ) : (
-              <ul className="divide-y divide-border rounded-lg border border-border">
+              <ol>
+                {statements.map((statement) => (
+                  <li className="ref-row" key={statement.statementId}>
+                    <div><StatusBadge label={statement.role ?? 'contributor'} state={CONTRIBUTION_ROLES.includes(statement.role) ? statement.role : 'contributor'} /></div>
+                    <div className="min-w-0">
+                      <p className="text-sm leading-6">{statement.description}</p>
+                      <p className="mt-0.5 font-mono text-xs text-muted-foreground" title={statement.statementId}>{shortId(statement.statementId)}</p>
+                    </div>
+                    <span className="text-xs tabular-nums text-muted-foreground md:text-right">{formatDate(statement.createdAt) ?? ''}</span>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </section>
+
+          <section aria-labelledby="projects-heading">
+            <SectionHeader id="projects-heading" title="Projects" />
+            {projects.length === 0 ? (
+              <p className="clause__none mt-3">None yet.</p>
+            ) : (
+              <ul>
                 {projects.map((project) => (
-                  <li key={project.projectId}>
-                    <Link className="flex flex-wrap items-baseline gap-2 px-4 py-3 hover:bg-muted/50" href={`/projects/${project.projectId}`}>
-                      <span className="text-sm font-medium">{project.name ?? project.projectId}</span>
-                      {project.state ? <StatusBadge label="project" state={project.state} /> : null}
-                      <span className="ml-auto text-xs tabular-nums text-muted-foreground">{project.count} linked object{project.count === 1 ? '' : 's'}</span>
-                    </Link>
+                  <li className="ref-row" key={project.projectId}>
+                    <div>{project.state ? <StatusBadge label="project" state={project.state} /> : <p className="text-sm text-muted-foreground">Project</p>}</div>
+                    <div className="min-w-0">
+                      <Link className="text-sm font-medium hover:underline" href={`/projects/${project.projectId}`}>{project.name ?? shortId(project.projectId)}</Link>
+                    </div>
+                    <span className="text-xs tabular-nums text-muted-foreground md:text-right">{project.count} linked object{project.count === 1 ? '' : 's'}</span>
                   </li>
                 ))}
               </ul>
             )}
-          </CardContent>
-        </Card>
-        <Card>
-          <div className="border-b border-border px-5 py-3"><h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Agents acting for this contributor</h2></div>
-          <CardContent>
-            <Empty
-              description="Agents acting on this contributor's behalf appear here with their attribution chain, declared model, scope, and key fingerprint once the agent registry is exposed through the public API."
-              title="No agent registry exposed yet"
-            />
-          </CardContent>
-        </Card>
+          </section>
+
+          <section aria-labelledby="produced-heading">
+            <SectionHeader action={produced.length > 0 ? <span className="tabular-nums text-muted-foreground">{produced.length}</span> : null} id="produced-heading" title="Produced" />
+            <ReadableList value={produced} />
+          </section>
+
+          <section aria-labelledby="used-heading">
+            <SectionHeader action={used.length > 0 ? <span className="tabular-nums text-muted-foreground">{used.length}</span> : null} id="used-heading" title="Used" />
+            <ReadableList value={used} />
+          </section>
+        </div>
+
+        <aside aria-label="Contributor roles and agents" className="doc-margin">
+          <MarginSection title="Roles">
+            {roles.length === 0 ? <p className="text-[13px] text-muted-foreground">None yet</p> : <RoleDirectory roles={roles} />}
+          </MarginSection>
+
+          {frontierUsage.length > 0 ? (
+            <MarginSection title="Frontier usage">
+              <ReadableList value={frontierUsage} />
+            </MarginSection>
+          ) : null}
+
+          <MarginSection title="Record">
+            <Link className="text-[13px] text-primary hover:underline" href={`/events?actorId=${encodeURIComponent(actor.actorId ?? actorId)}`}>Event audit</Link>
+          </MarginSection>
+        </aside>
       </div>
-    </PageContainer>
+    </div>
   );
 }

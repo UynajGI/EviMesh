@@ -1,10 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Check, Copy, X } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { Alert } from '@/components/ui/feedback';
-import { IdChip } from '@/components/ui/idchip';
+import { Identifier } from '@/components/ui/doc';
 
 /*
  * Agent handoff sheet (M13.8 07-emerging-ui-spec.md §1): the default write
@@ -26,12 +24,11 @@ function CopyButton({ value, label }) {
   return (
     <button
       aria-label={copied === true ? `Copied ${label}` : `Copy ${label}`}
-      className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-background px-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+      className="inline-flex h-7 items-center text-[13px] text-primary hover:underline"
       onClick={copy}
       type="button"
     >
-      {copied === true ? <Check aria-hidden="true" size={12} /> : <Copy aria-hidden="true" size={12} />}
-      Copy
+      {copied === true ? 'Copied' : 'Copy'}
     </button>
   );
 }
@@ -63,18 +60,15 @@ export function HandoffSheet({
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent aria-describedby="handoff-description" className="max-w-xl">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Agent handoff</p>
-        <h2 className="mt-1 text-lg font-semibold">{intent}</h2>
-        <p className="mt-1 text-sm text-muted-foreground" id="handoff-description">
-          This sheet carries the intent, the exact object, and a return path. It never carries credentials.
-        </p>
+        <h2 className="border-b border-border pb-2 pr-6 text-[0.9375rem] font-semibold">{intent}</h2>
+        <p className="sr-only" id="handoff-description">Handoff for your Agent. No credentials included.</p>
 
-        <dl className="mt-5 grid gap-2 text-sm sm:grid-cols-[max-content_1fr] sm:gap-x-5">
+        <dl className="mt-3 grid gap-1.5 border-b border-border pb-3 text-sm sm:grid-cols-[max-content_1fr] sm:gap-x-5">
           <dt className="text-muted-foreground">Object</dt>
           <dd className="min-w-0">
             <span className="flex flex-wrap items-center gap-2">
-              {objectTitle ? <span className="min-w-0 max-w-[42ch] truncate font-medium" title={objectTitle}>{objectTitle}</span> : null}
-              <IdChip value={objectId} />
+              {objectTitle ? <span className="min-w-0 max-w-[42ch] truncate font-serif font-medium" title={objectTitle}>{objectTitle}</span> : null}
+              <Identifier value={objectId} />
               {revision ? <span className="font-mono text-xs text-muted-foreground">r{revision}</span> : null}
             </span>
           </dd>
@@ -91,24 +85,24 @@ export function HandoffSheet({
           <dd className="font-mono text-xs text-muted-foreground">continuation: {permalink || 'this page'}</dd>
         </dl>
 
-        <div className="mt-5 grid gap-4">
+        <div className="mt-4 grid min-w-0 gap-3 [&>div]:min-w-0">
           <div>
-            <div className="flex items-center justify-between gap-2"><span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Natural-language task</span><CopyButton label="task" value={naturalLanguage} /></div>
-            <pre className="mt-2 overflow-x-auto rounded-md border border-border bg-muted p-3 text-xs leading-5 whitespace-pre-wrap">{naturalLanguage}</pre>
+            <div className="flex items-center justify-between gap-2"><span className="text-[13px] font-medium">Task</span><CopyButton label="task" value={naturalLanguage} /></div>
+            <pre className="mt-1 overflow-x-auto rounded-[2px] border border-border bg-muted p-2.5 text-xs leading-5 whitespace-pre-wrap">{naturalLanguage}</pre>
           </div>
           <div>
-            <div className="flex items-center justify-between gap-2"><span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Suggested CLI</span><CopyButton label="CLI command" value={cli} /></div>
-            <pre className="mt-2 overflow-x-auto rounded-md border border-border bg-muted p-3 font-mono text-xs leading-5">{cli}</pre>
+            <div className="flex items-center justify-between gap-2"><span className="text-[13px] font-medium">CLI</span><CopyButton label="CLI command" value={cli} /></div>
+            <pre className="mt-1 overflow-x-auto rounded-[2px] border border-border bg-muted p-2.5 font-mono text-xs leading-5">{cli}</pre>
           </div>
           <div>
-            <div className="flex items-center justify-between gap-2"><span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Suggested MCP</span><CopyButton label="MCP call" value={mcp} /></div>
-            <pre className="mt-2 overflow-x-auto rounded-md border border-border bg-muted p-3 font-mono text-xs leading-5">{mcp}</pre>
+            <div className="flex items-center justify-between gap-2"><span className="text-[13px] font-medium">MCP</span><CopyButton label="MCP call" value={mcp} /></div>
+            <pre className="mt-1 overflow-x-auto rounded-[2px] border border-border bg-muted p-2.5 font-mono text-xs leading-5">{mcp}</pre>
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
           <button
-            className="inline-flex h-8 items-center gap-2 rounded-md border border-border bg-card px-3 text-xs font-medium hover:bg-muted"
+            className="text-[13px] text-primary hover:underline"
             onClick={() => {
               const payload = { intent, objectType, objectId, revision: revision ?? null, view: view ?? null, permalink, scopes, cli, mcp, task: naturalLanguage, continuation: permalink };
               const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
@@ -123,21 +117,16 @@ export function HandoffSheet({
           >
             Download handoff JSON
           </button>
+          {/* Primary action: one obvious way back to the page. */}
+          <button
+            className="inline-flex h-9 items-center justify-center rounded-[2px] bg-primary px-3.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            onClick={() => onOpenChange?.(false)}
+            type="button"
+          >
+            Done, back to the page
+          </button>
         </div>
-        <Alert
-          className="mt-5"
-          description="The CLI reads auth from its local config; tokens never appear in handoffs."
-          title="No credentials travel with this handoff"
-          variant="info"
-        />
-        {/* Mockup primary action: one obvious way back to the page. */}
-        <button
-          className="mt-4 inline-flex h-9 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-accent-foreground/90"
-          onClick={() => onOpenChange?.(false)}
-          type="button"
-        >
-          Done, back to the page
-        </button>
+        <p className="mt-3 text-xs text-muted-foreground">No credentials included.</p>
       </DialogContent>
     </Dialog>
   );

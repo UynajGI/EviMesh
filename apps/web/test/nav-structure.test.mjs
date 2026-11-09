@@ -23,7 +23,7 @@ test('Kinetic Journal shell uses the locked seven-destination navigation', () =>
 
 test('Work is a read-only record with an explicit Agent handoff', () => {
   assert.match(work, /Open Agent handoff/);
-  assert.match(work, /Research authoring continues through CLI or MCP/);
+  assert.doesNotMatch(work, /Research authoring continues through CLI or MCP/);
   assert.doesNotMatch(work, /\/claims\/new|\/runs\/new|Review and sign|method:\s*['"]POST/);
 });
 
@@ -31,7 +31,8 @@ test('shell exposes global search, theme toggle, and sign-in without hiding them
   assert.match(shell, /href="\/explore"/);
   assert.match(shell, /Search research/);
   assert.match(shell, /<ThemeToggle \/>/);
-  assert.match(shell, /href="\/login"/);
+  assert.match(shell, /auth\.status === 'authenticated'/);
+  assert.match(shell, /'\/login'/);
   assert.match(shell, /Sign in/);
 });
 
@@ -58,7 +59,8 @@ test('mobile navigation uses an accessible drawer and backdrop', () => {
   assert.match(shell, /bg-foreground\/40/);
   assert.match(shell, /Search research/);
   assert.match(shell, /> Notifications/);
-  assert.match(shell, /> Account/);
+  assert.match(shell, /Account settings/);
+  assert.match(shell, /<SessionActions auth=\{auth\} mobile/);
 });
 
 test('mobile drawer delegates focus management to Radix Dialog', () => {

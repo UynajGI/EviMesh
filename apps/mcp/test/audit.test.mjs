@@ -35,7 +35,7 @@ test("resource URIs and names carry no GitHub semantics", () => {
 
 test("all tools are research-network actions with output schemas", () => {
   const { tools } = listTools();
-  assert.ok(tools.length >= 13);
+  assert.ok(tools.length >= 10);
   for (const tool of tools) {
     assert.ok(tool.name.includes("_"), `tool ${tool.name} should use snake_case research verbs`);
     assert.ok(tool.outputSchema && tool.outputSchema.type === "object", `${tool.name} outputSchema must be an object schema`);

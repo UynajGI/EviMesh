@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { pgEnum, pgTable, text, uniqueIndex } from 'drizzle-orm/pg-core';
+import { check, pgEnum, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
 import { createLifecycleColumns } from './conventions.mjs';
 
 export const actorType = pgEnum('actor_type', [
@@ -45,7 +45,20 @@ export const actors = pgTable('actors', {
    * an identity to an actor row created for their own subject. Null for
    * protocol-imported and agent actors. */
   authSubject: text('auth_subject'),
+  /* Public-product onboarding is server persisted. Email verification is
+   * deliberately not copied here: Supabase auth.users remains authoritative. */
+  termsVersion: text('terms_version'),
+  termsAcceptedAt: timestamp('terms_accepted_at', { withTimezone: true }),
+  profileCompletedAt: timestamp('profile_completed_at', { withTimezone: true }),
   ...createLifecycleColumns(),
 }, (table) => [
   uniqueIndex('actors_auth_subject_unique').on(table.authSubject).where(sql`auth_subject is not null`),
+  check(
+    'actors_terms_acceptance_shape',
+    sql`(${table.termsVersion} is null and ${table.termsAcceptedAt} is null) or (${table.termsVersion} is not null and char_length(${table.termsVersion}) between 1 and 100 and ${table.termsAcceptedAt} is not null)`,
+  ),
+  check(
+    'actors_profile_completion_requires_terms',
+    sql`${table.profileCompletedAt} is null or (${table.termsVersion} is not null and ${table.termsAcceptedAt} is not null)`,
+  ),
 ]);

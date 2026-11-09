@@ -2,13 +2,13 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { Bot, Check, Share2, UserRound } from 'lucide-react';
-import { Card, CardContent, StatusBadge } from '@/components/ui/data';
-import { Alert, Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
-import { IdChip } from '@/components/ui/idchip';
-import { PageContainer } from '@/components/ui/page';
+import { Check, Link2 } from 'lucide-react';
+import { StatusBadge } from '@/components/ui/data';
+import { Button } from '@/components/ui/button';
+import { Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
+import { Breadcrumb, SectionHeader } from '@/components/ui/page';
+import { ActorName, Identifier, MarginSection, TitleBlock, formatDateTime } from '@/components/ui/doc';
 import { actorHref } from '@/components/attribution';
-import { cn } from '@/lib/utils';
 
 const API = process.env.NEXT_PUBLIC_EVIMESH_API_URL;
 
@@ -19,23 +19,15 @@ async function request(path) {
   return payload;
 }
 
-function toRelativeTime(value) {
-  return <span title={value ?? undefined}>{relativeTime(value)}</span>;
-}
-
-function relativeTime(value) {
-  const timestamp = Date.parse(value ?? '');
-  if (Number.isNaN(timestamp)) return '';
-  const minutes = Math.max(0, Math.floor((Date.now() - timestamp) / 60_000));
-  if (minutes < 60) return `${minutes || 1}m ago`;
-  if (minutes < 1440) return `${Math.floor(minutes / 60)}h ago`;
-  return `${Math.floor(minutes / 1440)}d ago`;
+function readable(value) {
+  return String(value ?? '').replaceAll('_', ' ').replaceAll('.', ' ');
 }
 
 /*
- * Attempt trail (M13.8 07-emerging-ui-spec.md §2): one attributable research
- * attempt by a human or their agent. Attribution chains are explicit; agent
- * output never impersonates a human; publishing stays a human decision.
+ * Attempt trail (M13.8 07-emerging-ui-spec.md §2) in the controlled-document
+ * grammar: one attributable research attempt by a person or their agent.
+ * Attribution chains are explicit; agent output never impersonates a person;
+ * publishing stays a human decision.
  */
 export default function AttemptDetailPage({ params }) {
   const [attemptId, setAttemptId] = useState(null);
@@ -53,9 +45,9 @@ export default function AttemptDetailPage({ params }) {
       const payload = await request(`/attempts/${attemptId}`);
       setData(payload);
       request(`/events?objectType=attempt&objectId=${attemptId}&limit=20`).then((body) => setEvents(body.items ?? [])).catch(() => setEvents([]));
-      /* Agent identity card + public output (mockup 身份卡 / 公开产出):
-       * the actors endpoint returns the identity card row; self-declared
-       * fields are null until the actor owner records them. */
+      /* Agent identity card + public output: the actors endpoint returns the
+       * identity card row; self-declared fields are null until the actor
+       * owner records them. */
       const act = payload.attempt?.actor ?? payload.attempt?.actorId ?? payload.attempt?.createdBy;
       if (typeof act === 'string' && act.trim()) {
         request(`/actors/${encodeURIComponent(act)}`).then(setAgentRecord).catch(() => setAgentRecord(null));
@@ -71,8 +63,8 @@ export default function AttemptDetailPage({ params }) {
     document.title = label ? `${String(label).slice(0, 48)} · EviMesh` : 'EviMesh';
   }, [data, attemptId]);
 
-  if (error) return <PageContainer><ErrorState message={error} onRetry={load} /></PageContainer>;
-  if (!data) return <PageContainer><Skeleton className="h-24 w-full" /><Skeleton className="mt-6 h-64 w-full" /></PageContainer>;
+  if (error) return <div className="doc-page pb-20 pt-10"><ErrorState message={error} onRetry={load} /></div>;
+  if (!data) return <div className="doc-page pb-20 pt-8"><Skeleton className="h-4 w-64" /><Skeleton className="mt-5 h-48 w-full" /><Skeleton className="mt-8 h-64 w-full" /></div>;
 
   const attempt = data.attempt ?? data;
   const actor = attempt.actor ?? attempt.actorId ?? attempt.createdBy;
@@ -84,180 +76,136 @@ export default function AttemptDetailPage({ params }) {
   const links = [
     attempt.taskId ? { label: 'Task', href: `/tasks/${attempt.taskId}`, value: attempt.taskId } : null,
     attempt.claimId ? { label: 'Claim', href: `/claims/${attempt.claimId}`, value: attempt.claimId } : null,
-    attempt.evidenceId ? { label: 'Evidence', href: null, value: attempt.evidenceId } : null,
+    attempt.evidenceId ? { label: 'Evidence', href: `/evidence/${attempt.evidenceId}`, value: attempt.evidenceId } : null,
     attempt.artifactId ? { label: 'Artifact', href: `/artifacts/${attempt.artifactId}`, value: attempt.artifactId } : null,
-    attempt.runId ? { label: 'Run', href: null, value: attempt.runId } : null,
+    attempt.runId ? { label: 'Run', href: `/runs/${attempt.runId}`, value: attempt.runId } : null,
   ].filter(Boolean);
+  const outputs = [...(agentRecord?.produced ?? []), ...(agentRecord?.used ?? [])].slice(0, 10);
+  const outputHref = (edge) => ({ claim: `/claims/${edge.objectId}`, question: `/questions/${edge.objectId}`, project: `/projects/${edge.objectId}`, task: `/tasks/${edge.objectId}` })[edge.objectType] ?? null;
 
   return (
-    <PageContainer>
-      <nav aria-label="Breadcrumb" className="mb-4 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-        {attempt.taskId ? (
-          <>
-            <Link className="hover:text-foreground" href="/work">Work</Link>
-            <span aria-hidden="true">/</span>
-            <Link className="tabular-nums hover:text-foreground" href={`/tasks/${attempt.taskId}`}>{attempt.taskId}</Link>
-          </>
-        ) : (
-          <Link className="hover:text-foreground" href="/work">Work</Link>
+    <div className="doc-page pb-24 pt-6 sm:pt-8">
+      <Breadcrumb
+        trail={[
+          { label: 'Work', href: '/work' },
+          ...(attempt.taskId ? [{ label: 'Task', href: `/tasks/${attempt.taskId}` }] : []),
+          { label: `Attempt${revision ? ` r${revision}` : ''}` },
+        ]}
+      />
+
+      <TitleBlock
+        actions={(
+          <Button
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(window.location.href);
+                setShared(true);
+                setTimeout(() => setShared(false), 2000);
+              } catch { /* unavailable */ }
+            }}
+            size="sm"
+            variant="outline"
+          >
+            {shared ? <Check aria-hidden="true" size={14} /> : <Link2 aria-hidden="true" size={14} />}
+            {shared ? 'Link copied' : 'Share trail'}
+          </Button>
         )}
-        <span aria-hidden="true">/</span>
-        <span aria-current="page" className="tabular-nums">{attempt.attemptId ?? attemptId}</span>
-      </nav>
+        cells={[
+          { label: 'Identifier', value: <Identifier value={attempt.attemptId ?? attemptId} /> },
+          { label: 'Revision', value: revision ? <span className="tabular-nums">r{revision}</span> : null },
+          { label: 'Attempted by', value: typeof actor === 'string' ? <ActorName actorId={actor} /> : null },
+          { label: 'Last activity', value: <span className="tabular-nums">{formatDateTime(data?.traceSummary?.lastEventAt) ?? 'no events yet'}</span> },
+        ]}
+        kind="Attempt trail"
+        notice={<p className="max-w-[68ch] text-base leading-7 text-muted-foreground">One attributable research attempt. Agents draft; people approve what gets signed. Attribution chains are part of the record, not metadata.</p>}
+        serif={false}
+        status={<StatusBadge state={attempt.state ?? attempt.status ?? 'active'} />}
+        title={`Attempt trail${revision ? ` r${revision}` : ''}`}
+      />
 
-      <header className="flex flex-wrap items-start justify-between gap-5">
-        <div className="flex min-w-0 items-start gap-5">
-          <span aria-hidden="true" className={cn('grid size-16 shrink-0 place-items-center rounded-full', actorIsAgent ? 'bg-muted text-muted-foreground' : 'bg-accent text-accent-foreground')}>
-            {actorIsAgent ? <Bot size={28} /> : <UserRound size={28} />}
-          </span>
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              {actorIsAgent ? <StatusBadge state="update" label="agent" /> : null}
-              <StatusBadge state="active_question" label="attributed attempt" />
-            </div>
-            <h1 className="mt-2 text-2xl font-semibold tracking-tight">Attempt trail{revision ? ' · r' + revision : ''}</h1>
-            <p className="mt-3 max-w-2xl text-sm text-muted-foreground">One attributable research attempt. Agents draft; humans approve what gets signed. Attribution chains are part of the record, not metadata.</p>
-          </div>
-        </div>
-        <button
-          className="inline-flex h-9 shrink-0 items-center gap-2 rounded-md border border-border bg-card px-3 text-sm font-medium hover:bg-muted"
-          onClick={async () => {
-            try {
-              await navigator.clipboard.writeText(window.location.href);
-              setShared(true);
-              setTimeout(() => setShared(false), 2000);
-            } catch { /* unavailable */ }
-          }}
-          type="button"
-        >
-          {shared ? <Check aria-hidden="true" size={14} /> : <Share2 aria-hidden="true" size={14} />}
-          {shared ? 'Link copied' : 'Share trail'}
-        </button>
-      </header>
-
-      <div className="mt-5 flex flex-wrap items-center gap-3">
-        <StatusBadge state={attempt.state ?? attempt.status ?? 'active'} />
-        <IdChip label="attempt" value={attempt.attemptId ?? attemptId} />
-        {actor ? (
-          <span className="flex items-center gap-2 text-sm text-muted-foreground">
-            by
-            {typeof actor === 'string' && !actorIsAgent ? (
-              <Link className="font-medium text-foreground hover:underline" href={recordHref}>{actor}</Link>
+      <div className="doc-grid mt-10">
+        <div className="doc-main grid gap-12">
+          <section aria-labelledby="trail-heading">
+            <SectionHeader action={<Link className="text-primary hover:underline" href="/events">Full event audit →</Link>} id="trail-heading" title="Trace" />
+            {events.length === 0 ? (
+              <Empty
+                className="mt-4"
+                description="Steps that change research state become signed events. Local planning stays local; when this attempt produces events, they appear here with their hashes in the audit."
+                title="No signed events for this attempt yet"
+              />
             ) : (
-              <span className="inline-flex items-center gap-1 rounded-full border border-status-accent-border bg-status-accent-bg px-2 py-0.5 text-xs font-medium text-status-accent-fg">
-                agent · {typeof actor === 'string' ? actor : JSON.stringify(actor)}
-              </span>
-            )}
-          </span>
-        ) : null}
-      </div>
-
-      <div className="mt-8 grid gap-4 lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start">
-        <section aria-labelledby="trail-heading" className="min-w-0">
-          <h2 className="mb-3 text-lg font-semibold" id="trail-heading">Trace</h2>
-          {events.length === 0 ? (
-            <Empty
-              description="Steps that change research state become signed events. Local planning stays local; when this attempt produces events, they appear here with their hashes in the audit."
-              title="No signed events for this attempt yet"
-            />
-          ) : (
-            <Card className="divide-y divide-border">
-              {events.map((event) => (
-                <div className="flex flex-wrap items-center gap-3 px-5 py-3" key={event.eventId}>
-                  <span className="font-mono text-xs text-muted-foreground">{event.eventType ?? 'event'}</span>
-                  <IdChip value={event.eventId} />
-                  <span className="ml-auto text-xs tabular-nums text-muted-foreground">{toRelativeTime(event.createdAt)}</span>
-                </div>
-              ))}
-            </Card>
-          )}
-          <Link className="mt-3 inline-block text-sm text-muted-foreground hover:text-foreground" href="/events">Full event audit →</Link>
-        </section>
-
-        {/* Mockup 这个 Agent 的公开产出: produced/used attribution edges from
-         * the actors endpoint. Only rendered when the actor resolves. */}
-        {actorIsAgent && agentRecord ? (
-          <section aria-labelledby="output-heading" className="min-w-0">
-            <h2 className="mb-3 text-lg font-semibold" id="output-heading">This agent's public output</h2>
-            {(agentRecord.produced ?? []).length === 0 && (agentRecord.used ?? []).length === 0 ? (
-              <Empty title="No public output yet" description="Objects this agent produced or used will appear here as signed attribution edges." />
-            ) : (
-              <Card className="divide-y divide-border">
-                {[...(agentRecord.produced ?? []), ...(agentRecord.used ?? [])].slice(0, 10).map((edge, index) => (
-                  <div className="flex flex-wrap items-center gap-3 px-5 py-3" key={`${edge.objectType}-${edge.objectId}-${index}`}>
-                    <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{edge.edgeType ?? 'linked'}</span>
-                    <span className="text-xs text-muted-foreground">{edge.objectType}</span>
-                    <IdChip value={edge.objectId} />
-                    {edge.objectType === 'claim' ? <Link className="text-xs text-primary hover:underline" href={`/claims/${edge.objectId}`}>open</Link> : null}
-                    {edge.objectType === 'question' ? <Link className="text-xs text-primary hover:underline" href={`/questions/${edge.objectId}`}>open</Link> : null}
-                    {edge.objectType === 'project' ? <Link className="text-xs text-primary hover:underline" href={`/projects/${edge.objectId}`}>open</Link> : null}
-                    {edge.objectType === 'task' ? <Link className="text-xs text-primary hover:underline" href={`/tasks/${edge.objectId}`}>open</Link> : null}
-                  </div>
+              <ol className="mt-4 border-t border-border">
+                {events.map((event) => (
+                  <li className="ref-row" key={event.eventId}>
+                    <p className="text-sm text-muted-foreground">{readable(event.eventType ?? 'event')}</p>
+                    <div className="min-w-0"><span className="font-mono text-xs">{event.eventId}</span></div>
+                    <time className="text-xs tabular-nums text-muted-foreground md:text-right" dateTime={event.createdAt}>{formatDateTime(event.createdAt) ?? ''}</time>
+                  </li>
                 ))}
-              </Card>
+              </ol>
             )}
           </section>
-        ) : null}
 
-        <aside aria-label="Attempt context" className="grid gap-4 content-start">
-          {/* Mockup 身份卡: what the public API can attest today, with the
-           * self-declaration boundary stated instead of faked. */}
-          {typeof actor === 'string' ? (
-            <Card>
-              <div className="border-b border-border px-5 py-3">
-                <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Identity card</h2>
-              </div>
-              <CardContent className="grid gap-2.5">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs text-muted-foreground">Actor</span>
-                  <IdChip value={actor} />
-                  <Link className="text-xs text-primary hover:underline" href={recordHref}>record</Link>
-                </div>
-                {agentRecord?.roles?.length > 0 ? (
-                  <p className="flex flex-wrap items-center gap-2 text-sm">
-                    <span className="text-xs text-muted-foreground">Roles</span>
-                    {agentRecord.roles.slice(0, 6).map((role) => <StatusBadge key={role.role} label={role.role} state="update" />)}
-                  </p>
-                ) : null}
-                <dl className="grid gap-1.5 text-sm">
-                  <div className="flex gap-2"><dt className="w-28 shrink-0 text-xs text-muted-foreground">Type</dt><dd className="text-xs">{card.actorType ?? 'not stated'}</dd></div>
-                  <div className="flex gap-2"><dt className="w-28 shrink-0 text-xs text-muted-foreground">Last activity</dt><dd className="text-xs">{data?.traceSummary?.lastEventAt ? new Date(data.traceSummary.lastEventAt).toISOString().slice(0, 16).replace('T', ' ') : 'no events yet'}</dd></div>
-                  <div className="flex gap-2"><dt className="w-28 shrink-0 text-xs text-muted-foreground">Model</dt><dd className="font-mono text-xs">{card.modelName ?? 'not stated'}</dd></div>
-                  <div className="flex gap-2"><dt className="w-28 shrink-0 text-xs text-muted-foreground">Runtime</dt><dd className="font-mono text-xs">{card.runtime ?? 'not stated'}</dd></div>
-                  <div className="flex gap-2"><dt className="w-28 shrink-0 text-xs text-muted-foreground">Scope</dt><dd className="font-mono text-xs">{card.scope ?? 'not stated'}</dd></div>
-                  <div className="flex gap-2"><dt className="w-28 shrink-0 text-xs text-muted-foreground">Signing key</dt><dd className="font-mono text-xs">{card.publicKeyFingerprint ?? 'not stated'}</dd></div>
-                  {card.ownerActorId ? (
-                    <div className="flex gap-2">
-                      <dt className="w-28 shrink-0 text-xs text-muted-foreground">Acts for</dt>
-                      <dd className="text-xs"><Link className="text-primary hover:underline" href={`/people/${encodeURIComponent(card.ownerActorId)}`}>{card.ownerActorId}</Link></dd>
-                    </div>
-                  ) : null}
-                </dl>
-                <Alert
-                  description="A self-reported model is a declaration, not a verification result."
-                  title="Self-declared, not verified"
-                  variant="info"
-                />
-              </CardContent>
-            </Card>
+          {/* Produced/used attribution edges from the actors endpoint. Only
+            * rendered when the actor resolves as an agent. */}
+          {actorIsAgent && agentRecord ? (
+            <section aria-labelledby="output-heading">
+              <SectionHeader id="output-heading" title="This agent's public output" />
+              {outputs.length === 0 ? (
+                <Empty className="mt-4" title="No public output yet" description="Objects this agent produced or used will appear here as signed attribution edges." />
+              ) : (
+                <ul className="mt-4 border-t border-border">
+                  {outputs.map((edge, index) => (
+                    <li className="ref-row" key={`${edge.objectType}-${edge.objectId}-${index}`}>
+                      <p className="text-sm text-muted-foreground">{edge.edgeType ?? 'linked'}</p>
+                      <div className="min-w-0">
+                        {outputHref(edge) ? <Link className="text-sm font-medium hover:underline" href={outputHref(edge)}>{readable(edge.objectType)} <span className="font-mono text-xs">{edge.objectId}</span></Link> : <span className="text-sm">{readable(edge.objectType)} <span className="font-mono text-xs">{edge.objectId}</span></span>}
+                      </div>
+                      <span />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
           ) : null}
-          <Card>
-            <div className="border-b border-border px-5 py-3">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Linked objects</h2>
-            </div>
-            <CardContent className="grid gap-3">
-              {links.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No linked objects recorded on this attempt yet.</p>
-              ) : links.map((link) => (
-                <div className="flex flex-wrap items-center gap-2" key={link.label}>
-                  <span className="text-xs uppercase tracking-wide text-muted-foreground">{link.label}</span>
-                  {link.href ? <span className="flex flex-wrap items-center gap-2"><IdChip value={link.value} /><Link className="text-xs text-primary hover:underline" href={link.href}>open</Link></span> : <IdChip value={link.value} />}
-                </div>
-              ))}
-            </CardContent>
-          </Card>
+        </div>
+
+        <aside aria-label="Attempt context" className="doc-margin">
+          {/* What the public API can attest today, with the self-declaration
+            * boundary stated instead of faked. */}
+          {typeof actor === 'string' ? (
+            <MarginSection title="Identity card">
+              <dl className="grid gap-3 text-sm">
+                <div><dt className="text-xs text-muted-foreground">Actor</dt><dd className="mt-0.5 flex flex-wrap items-baseline gap-x-2"><ActorName actorId={actor} showOwner={false} /><Link className="text-xs text-primary hover:underline" href={recordHref}>record</Link></dd></div>
+                {card.ownerActorId ? <div><dt className="text-xs text-muted-foreground">Acts for</dt><dd className="mt-0.5"><ActorName actorId={card.ownerActorId} showOwner={false} /></dd></div> : null}
+                {agentRecord?.roles?.length > 0 ? <div><dt className="text-xs text-muted-foreground">Roles</dt><dd className="mt-0.5">{agentRecord.roles.slice(0, 6).map((role) => role.role).join(', ')}</dd></div> : null}
+                <div><dt className="text-xs text-muted-foreground">Type</dt><dd className="mt-0.5">{card.actorType ?? 'not stated'}</dd></div>
+                <div><dt className="text-xs text-muted-foreground">Model</dt><dd className="mt-0.5 break-all font-mono text-xs">{card.modelName ?? 'not stated'}</dd></div>
+                <div><dt className="text-xs text-muted-foreground">Runtime</dt><dd className="mt-0.5 break-all font-mono text-xs">{card.runtime ?? 'not stated'}</dd></div>
+                <div><dt className="text-xs text-muted-foreground">Scope</dt><dd className="mt-0.5 break-all font-mono text-xs">{card.scope ?? 'not stated'}</dd></div>
+                <div><dt className="text-xs text-muted-foreground">Signing key</dt><dd className="mt-0.5 break-all font-mono text-xs">{card.publicKeyFingerprint ?? 'not stated'}</dd></div>
+              </dl>
+              <p className="mt-3 text-xs font-medium">Self-declared, not verified</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">A self-reported model is a declaration, not a verification result.</p>
+            </MarginSection>
+          ) : null}
+
+          <MarginSection title="Linked objects">
+            {links.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No linked objects recorded on this attempt yet.</p>
+            ) : (
+              <dl className="grid gap-3 text-sm">
+                {links.map((link) => (
+                  <div key={link.label}>
+                    <dt className="text-xs text-muted-foreground">{link.label}</dt>
+                    <dd className="mt-0.5"><Link className="break-all font-mono text-xs hover:text-primary hover:underline" href={link.href} title={link.value}>{link.value}</Link></dd>
+                  </div>
+                ))}
+              </dl>
+            )}
+          </MarginSection>
         </aside>
       </div>
-    </PageContainer>
+    </div>
   );
 }

@@ -7,6 +7,7 @@ import {
   createRebuttal,
   createTool,
 } from '../src/typed-research-node-command.mjs';
+import { createTypedResearchCanonicalPayload } from '../../protocol/src/typed-research-canonical.mjs';
 
 const ref = (kind, id, revision = 1) => ({ kind, id, revision });
 
@@ -40,6 +41,57 @@ function repositoryFixture(sourceRefs, { commitRank = 20, stableNodes = [] } = {
 const signedEvent = ({ eventType, payload }) => ({ eventId: `event-${eventType}`, eventType, payload, hash: `sha256:${'a'.repeat(64)}`, signature: { algorithm: 'ed25519', key_id: 'key-1', value: 'sig' } });
 const common = { actorId: 'actor-1', actorRole: 'contributor', projectId: 'project-1', eventFactory: signedEvent };
 
+function answerEnvelope({
+  answerId = 'answer-1',
+  title = 'A',
+  synthesis = 'B',
+  limitations = [],
+  questionRef,
+  additionalInputs = [],
+  revision = 1,
+  supersedesRevision = null,
+  producerActorId = 'agent-1',
+  draftedByActorId = producerActorId,
+  publisherActorId = 'human-1',
+  incomingEdges = null,
+} = {}) {
+  const target = ref('answer', answerId, revision);
+  const derivedEdges = [
+    ...(supersedesRevision === null ? [] : [{ type: 'supersedes', source: ref('answer', answerId, supersedesRevision), target }]),
+    { type: 'answers', source: questionRef, target },
+    ...additionalInputs.map((source) => ({ type: 'derived_from', source, target })),
+  ];
+  const payload = createTypedResearchCanonicalPayload({
+    schema: 'srp.answer.v1',
+    entityType: 'answer',
+    producerActorId,
+    draftedByActorId,
+    publisherActorId,
+    signerActorId: publisherActorId,
+    node: {
+      answerId,
+      projectId: 'project-1',
+      revision,
+      supersedesRevision,
+      state: 'draft',
+      title,
+      synthesis,
+      limitations,
+      questionRef,
+      additionalInputs,
+    },
+    incomingEdges: incomingEdges ?? derivedEdges,
+  });
+  return {
+    schema: 'srp.client-signature-envelope.v1',
+    event_type: `answer.${revision === 1 ? 'created' : 'revised'}`,
+    payload,
+    nonce: `nonce-${answerId}-${revision}-0123456789`,
+    signing_bytes_hash: `sha256:${'b'.repeat(64)}`,
+    signature: { algorithm: 'Ed25519', key_id: 'human-key', value: 'sig' },
+  };
+}
+
 test('creates an Answer revision and its complete immutable incoming edge set atomically', async () => {
   const question = ref('question', 'question-1');
   const evidence = ref('evidence', 'evidence-1');
@@ -60,8 +112,14 @@ test('appends revision 2 with a supersedes edge and never reinserts the stable n
   const question = ref('question', 'question-1');
   const stableNode = { nodeId: 'answer-1', nodeKind: 'answer', projectId: 'project-1', createdBy: 'actor-original' };
   const repository = repositoryFixture([previous, question], { commitRank: 30, stableNodes: [stableNode] });
+  const publisherSignatureEnvelope = answerEnvelope({
+    answerId: 'answer-1', revision: 2, supersedesRevision: 1,
+    title: 'Revised synthesis', synthesis: 'The relationship set changed.',
+    questionRef: question, producerActorId: 'agent-2', publisherActorId: 'human-2',
+  });
   const result = await createAnswer({
-    repository, ...common, answerId: 'answer-1', revision: 2, supersedesRevision: 1,
+    repository, ...common, actorId: 'agent-2', publisherActorId: 'human-2', publisherSignatureEnvelope,
+    answerId: 'answer-1', revision: 2, supersedesRevision: 1,
     title: 'Revised synthesis', synthesis: 'The relationship set changed.', questionRef: question,
   });
   assert.equal(result.node, stableNode);
@@ -72,6 +130,10 @@ test('appends revision 2 with a supersedes edge and never reinserts the stable n
   assert.deepEqual(result.edges.map((edge) => edge.edgeType), ['supersedes', 'answers']);
   assert.deepEqual(result.event.payload.incoming_edges.map((edge) => edge.type), ['supersedes', 'answers']);
   assert.equal(result.event.payload.supersedes_revision, 1);
+  assert.equal(result.revision.createdBy, 'agent-2');
+  assert.equal(result.edges.every((edge) => edge.createdBy === 'agent-2'), true);
+  assert.equal(result.event.payload.publisher_actor_id, 'human-2');
+  assert.equal(result.event.payload.signer_actor_id, 'human-2');
   assert.equal(repository.calls.some(([kind]) => kind === 'node'), false);
 });
 
@@ -172,18 +234,54 @@ test('fails closed for missing sources, non-forward ranks, invalid stance, and p
   );
 });
 
-test('preserves agent drafting attribution inside the human publisher event', async () => {
+test('keeps Agent authorship separate from Human publishing and signing', async () => {
   const question = ref('question', 'q1');
-  const envelope = { schema: 'srp.client-signature-envelope.v1', nonce: 'abcdefghijklmnop', signature: { key_id: 'human-key', value: 'sig' } };
+  const envelope = answerEnvelope({ questionRef: question });
+  const repository = repositoryFixture([question]);
   const result = await createAnswer({
-    repository: repositoryFixture([question]), ...common, answerId: 'answer-1', title: 'A', synthesis: 'B', questionRef: question,
-    draftedByActorId: 'agent-1', publisherSignatureEnvelope: envelope,
+    repository, ...common, actorId: 'agent-1', answerId: 'answer-1', title: 'A', synthesis: 'B', questionRef: question,
+    draftedByActorId: 'agent-1', publisherActorId: 'human-1', publisherSignatureEnvelope: envelope,
   });
+  assert.equal(result.node.createdBy, 'agent-1');
+  assert.equal(result.revision.createdBy, 'agent-1');
+  assert.equal(result.edges.every((edge) => edge.createdBy === 'agent-1'), true);
+  assert.equal(result.event.payload.actor_id, 'agent-1');
+  assert.equal(result.event.payload.producer_actor_id, 'agent-1');
   assert.equal(result.event.payload.drafted_by_actor_id, 'agent-1');
-  assert.equal(result.event.payload.signer_actor_id, 'actor-1');
+  assert.equal(result.event.payload.publisher_actor_id, 'human-1');
+  assert.equal(result.event.payload.signer_actor_id, 'human-1');
+  assert.equal(result.event.payload.signing_key_id, 'human-key');
+  assert.equal(result.event.payload.nonce, envelope.nonce);
+  assert.equal('commit_rank' in result.event.payload, false);
+  assert.equal('batch_rank' in result.event.payload, false);
   assert.deepEqual(result.event.payload.publisher_signature_envelope, envelope);
   await assert.rejects(
-    createAnswer({ repository: repositoryFixture([question]), ...common, answerId: 'answer-2', title: 'A', synthesis: 'B', questionRef: question, draftedByActorId: 'agent-1' }),
-    (error) => error.code === 'RESEARCH_DRAFTER_SIGNATURE_REQUIRED',
+    createAnswer({ repository: repositoryFixture([question]), ...common, actorId: 'agent-1', publisherActorId: 'human-1', answerId: 'answer-2', title: 'A', synthesis: 'B', questionRef: question, draftedByActorId: 'agent-1' }),
+    (error) => error.code === 'RESEARCH_PUBLISHER_SIGNATURE_REQUIRED',
+  );
+});
+
+test('rejects publisher identity and incoming-edge tampering in the Human envelope', async () => {
+  const question = ref('question', 'q1');
+  const otherQuestion = ref('question', 'q2');
+  const repository = repositoryFixture([question, otherQuestion]);
+  const wrongPublisherEnvelope = answerEnvelope({ questionRef: question, publisherActorId: 'human-other' });
+  await assert.rejects(
+    createAnswer({
+      repository, ...common, actorId: 'agent-1', publisherActorId: 'human-1', publisherSignatureEnvelope: wrongPublisherEnvelope,
+      answerId: 'answer-1', title: 'A', synthesis: 'B', questionRef: question,
+    }),
+    (error) => error.code === 'RESEARCH_PUBLISHER_SIGNATURE_PAYLOAD_MISMATCH',
+  );
+  const tamperedEdgeEnvelope = answerEnvelope({
+    questionRef: question,
+    incomingEdges: [{ type: 'answers', source: otherQuestion, target: ref('answer', 'answer-1') }],
+  });
+  await assert.rejects(
+    createAnswer({
+      repository, ...common, actorId: 'agent-1', publisherActorId: 'human-1', publisherSignatureEnvelope: tamperedEdgeEnvelope,
+      answerId: 'answer-1', title: 'A', synthesis: 'B', questionRef: question,
+    }),
+    (error) => error.code === 'RESEARCH_PUBLISHER_SIGNATURE_PAYLOAD_MISMATCH',
   );
 });

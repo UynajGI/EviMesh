@@ -6,7 +6,8 @@ import { Badge } from '@/components/ui/data';
 import { Alert, Empty } from '@/components/ui/feedback';
 import { Button } from '@/components/ui/button';
 import { Input, Label, Textarea } from '@/components/ui/form';
-import { PageContainer, PageHeader } from '@/components/ui/page';
+import { PageContainer, PageHeader, SectionHeader } from '@/components/ui/page';
+import { MarginSection } from '@/components/ui/doc';
 import { createBrowserSupabaseClient } from '@/lib/supabase-browser';
 import { ORCID_PROVIDER, ORCID_PROVIDER_CONFIGURED, isOrcidProvider } from '@/lib/orcid-provider';
 
@@ -38,7 +39,7 @@ export default function SettingsPage() {
   const [message, setMessage] = useState(null);
   const [saving, setSaving] = useState(false);
   /* ORCID connect (design book 06 §2): offered only when the Supabase
-   * project actually has the ORCID OAuth provider enabled — the button set
+   * project actually has the ORCID OAuth provider enabled; the button set
    * follows the backend, it never advertises what would fail. */
   const [orcidEnabled, setOrcidEnabled] = useState(false);
   const [connecting, setConnecting] = useState(false);
@@ -91,88 +92,91 @@ export default function SettingsPage() {
   const update = (key) => (event) => setProfile({ ...profile, [key]: event.target.value });
 
   return (
-    <PageContainer wide>
-      <PageHeader eyebrow="Account" title="Settings" description="You, your identities, and your credentials. Everything here is private; the public contributor page is separate." />
+    <PageContainer>
+      <PageHeader title="Settings" />
 
-      <div className="mt-8 grid gap-8 lg:grid-cols-[13rem_minmax(0,1fr)] lg:items-start">
-        <nav aria-label="Settings sections" className="flex flex-wrap gap-1 lg:sticky lg:top-20 lg:flex-col">
-          {SECTIONS.map((section) => (
-            <a className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground" href={`#${section.id}`} key={section.id}>{section.label}</a>
-          ))}
-        </nav>
-
-        <div className="grid min-w-0 gap-10">
+      <div className="doc-grid mt-6">
+        <div className="doc-main grid gap-8">
           <section aria-labelledby="s-profile-heading" id="s-profile">
-            <h2 className="text-lg font-semibold" id="s-profile-heading">Profile</h2>
-            <p className="mt-1 text-sm text-muted-foreground">How you appear to other researchers on the network.</p>
-            <form className="mt-5 max-w-2xl space-y-5" onSubmit={save}>
+            <SectionHeader id="s-profile-heading" title="Profile" />
+            <form className="mt-4 max-w-2xl space-y-4" onSubmit={save}>
               <div className="grid gap-2"><Label htmlFor="display-name">Display name</Label><Input id="display-name" onChange={update('displayName')} value={profile.displayName ?? ''} /></div>
               <div className="grid gap-2"><Label htmlFor="avatar-url">Avatar URL</Label><Input id="avatar-url" onChange={update('avatarUrl')} value={profile.avatarUrl ?? ''} /></div>
               <div className="grid gap-2"><Label htmlFor="bio">Bio</Label><Textarea id="bio" className="min-h-28" onChange={update('bio')} value={profile.bio ?? ''} /></div>
-              <Button type="submit" loading={saving}>Save profile</Button>
-              {message && <p role={message === 'Profile saved.' ? 'status' : 'alert'} aria-live="polite" className={`text-sm ${message === 'Profile saved.' ? 'text-success' : 'text-destructive'}`}>{message}</p>}
+              <div className="flex flex-wrap items-center gap-4">
+                <Button type="submit" loading={saving}>Save profile</Button>
+                {message && <p role={message === 'Profile saved.' ? 'status' : 'alert'} aria-live="polite" className={`text-sm ${message === 'Profile saved.' ? 'text-success' : 'text-destructive'}`}>{message}</p>}
+              </div>
             </form>
           </section>
 
           <section aria-labelledby="s-identities-heading" id="s-identities">
-            <h2 className="text-lg font-semibold" id="s-identities-heading">Connected identities</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Sign-in identities for this account. Unlinking always requires re-authentication and is written to the security audit.</p>
-            {/* Mockup identity-collision warning: an iD bound to another account
+            <SectionHeader id="s-identities-heading" title="Connected identities" />
+            {/* Identity-collision warning: an iD bound to another account
                 pauses linking rather than silently merging identities. */}
             <Alert
               className="mt-3 max-w-2xl"
-              description="If an ORCID or GitHub iD is already bound to another account, linking pauses and asks you to resolve it explicitly. Identities are never silently merged or reassigned."
+              description="An iD bound to another account pauses linking; identities are never silently merged."
               title="One iD, one account"
               variant="warning"
             />
-            <div className="mt-4 max-w-2xl divide-y divide-border rounded-lg border border-border bg-card">
-              {identities === null ? <p className="px-5 py-4 text-sm text-muted-foreground">Loading identities…</p> : identities.length === 0 ? (
-                <p className="px-5 py-4 text-sm text-muted-foreground">No external identities connected. Sign in and connect from the login page.</p>
+            <ul className="mt-3 max-w-2xl">
+              {identities === null ? <li className="border-b border-border py-3 text-sm text-muted-foreground">Loading identities…</li> : identities.length === 0 ? (
+                <li className="border-b border-border py-3 text-sm text-muted-foreground">No external identities</li>
               ) : identities.map((identity) => (
-                <div className="flex flex-wrap items-center gap-3 px-5 py-3" key={identity.kind}>
+                <li className="grid items-baseline gap-x-4 gap-y-1 border-b border-border py-3 sm:grid-cols-[7.5rem_minmax(0,1fr)_auto]" key={identity.kind}>
                   <span className="text-sm font-medium capitalize">{identity.kind}</span>
                   <span className="min-w-0 truncate text-sm text-muted-foreground">{identity.label}</span>
-                  <span className="ml-auto"><Badge variant={identity.verified ? 'success' : 'default'}>{identity.verified ? 'verified' : 'pending'}</Badge></span>
-                </div>
+                  <Badge variant={identity.verified ? 'status-success' : 'status-neutral'}>{identity.verified ? 'verified' : 'pending'}</Badge>
+                </li>
               ))}
-              <div className="flex flex-wrap items-center gap-3 px-5 py-3">
+              <li className="grid items-center gap-x-4 gap-y-2 border-b border-border py-3 sm:grid-cols-[7.5rem_minmax(0,1fr)_auto]">
                 <span className="text-sm font-medium">ORCID</span>
                 <span className="text-sm text-muted-foreground">Not connected</span>
                 {orcidEnabled ? (
-                  <Button className="ml-auto" onClick={connectOrcid} size="sm" type="button" loading={connecting}>Connect ORCID (OAuth)</Button>
+                  <Button onClick={connectOrcid} size="sm" type="button" loading={connecting}>Connect ORCID (OAuth)</Button>
                 ) : (
-                  <span className="ml-auto text-xs text-muted-foreground">OAuth only. Enable the ORCID provider to connect.</span>
+                  <span className="text-xs text-muted-foreground">ORCID sign-in is not available on this deployment yet.</span>
                 )}
-              </div>
-            </div>
+              </li>
+            </ul>
           </section>
 
           <section aria-labelledby="s-tokens-heading" id="s-tokens">
-            <h2 className="text-lg font-semibold" id="s-tokens-heading">Tokens</h2>
-            <p className="mt-1 text-sm text-muted-foreground">The advanced path for automation. Device authorization comes first for CLI and MCP clients; tokens are named, expiring, least-privilege, and shown exactly once.</p>
-            <div className="mt-4 flex flex-wrap gap-3">
-              <Link className="inline-flex h-9 items-center rounded-md border border-border bg-card px-3 text-sm font-medium hover:bg-muted" href="/settings/tokens">Manage API tokens →</Link>
-              <span className="self-center text-xs text-muted-foreground">Full table: name, scopes, created, expires, last used, status, revoke</span>
-            </div>
+            <SectionHeader id="s-tokens-heading" title="Tokens" />
+            <Link className="mt-3 inline-block text-sm text-primary hover:underline" href="/settings/tokens">Manage API tokens</Link>
           </section>
 
           <section aria-labelledby="s-security-heading" id="s-security">
-            <h2 className="text-lg font-semibold" id="s-security-heading">Security</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Signing keys rotate without breaking published history; rotation steps live in the runbook.</p>
-            <Link className="mt-4 inline-flex h-9 items-center rounded-md border border-border bg-card px-3 text-sm font-medium hover:bg-muted" href="/settings/keys">Manage signing keys →</Link>
+            <SectionHeader id="s-security-heading" title="Security" />
+            <Link className="mt-3 inline-block text-sm text-primary hover:underline" href="/settings/keys">Manage signing keys</Link>
           </section>
 
           <section aria-labelledby="s-notifications-heading" id="s-notifications">
-            <h2 className="text-lg font-semibold" id="s-notifications-heading">Notifications</h2>
-            <Alert
-              className="mt-3 max-w-2xl"
-              description="Watchlists and digest preferences arrive with the notification system. Levels will always express attention priority, never a verdict, and quiet objects never ping."
-              title="Subscription-driven, no algorithmic feed"
-              variant="info"
-            />
-            <Empty className="mt-3 max-w-2xl" description="Follow research from any question or claim page; changes will land here once watchlists ship." title="No notification preferences yet" />
+            <SectionHeader id="s-notifications-heading" title="Notifications" />
+            <Empty className="max-w-2xl border-0 py-3" title="No notification preferences yet" />
           </section>
         </div>
+
+        <aside aria-label="Settings sections and related pages" className="doc-margin">
+          <MarginSection title="On this page">
+            <nav aria-label="Settings sections">
+              <ul className="grid gap-1 text-[13px]">
+                {SECTIONS.map((section) => (
+                  <li key={section.id}><a className="text-muted-foreground hover:text-foreground hover:underline" href={`#${section.id}`}>{section.label}</a></li>
+                ))}
+              </ul>
+            </nav>
+          </MarginSection>
+          <MarginSection title="Account">
+            <ul className="grid gap-1 text-[13px]">
+              <li><Link className="text-primary hover:underline" href="/agents">My Agents</Link></li>
+              <li><Link className="text-primary hover:underline" href="/settings/keys">Signing keys</Link></li>
+              <li><Link className="text-primary hover:underline" href="/settings/tokens">API tokens</Link></li>
+              <li><Link className="text-primary hover:underline" href="/projects/mine">My projects</Link></li>
+            </ul>
+          </MarginSection>
+        </aside>
       </div>
     </PageContainer>
   );

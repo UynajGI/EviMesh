@@ -1,0 +1,870 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-09T14:28:53.046Z",
+  "title": "Design System: EviMesh",
+  "extensions": {
+    "colorMeta": {
+      "cobalt": {
+        "role": "primary",
+        "displayName": "Standards Cobalt",
+        "canonical": "oklch(0.511 0.1591 257.75)",
+        "tonalRamp": [
+          "oklch(0.356 0.1099 257.78)",
+          "oklch(0.435 0.1398 257.88)",
+          "oklch(0.511 0.1591 257.75)",
+          "oklch(0.721 0.1294 257.8)",
+          "oklch(0.87 0.0552 257.74)",
+          "oklch(0.93 0.0323 258.37)",
+          "oklch(0.964 0.0176 253.34)",
+          "oklch(0.985 0.0017 247.84)"
+        ]
+      },
+      "cobalt-deep": {
+        "role": "primary",
+        "displayName": "Deep Cobalt",
+        "canonical": "oklch(0.435 0.1398 257.88)",
+        "tonalRamp": [
+          "oklch(0.356 0.1099 257.78)",
+          "oklch(0.435 0.1398 257.88)",
+          "oklch(0.511 0.1591 257.75)",
+          "oklch(0.721 0.1294 257.8)",
+          "oklch(0.87 0.0552 257.74)",
+          "oklch(0.93 0.0323 258.37)",
+          "oklch(0.964 0.0176 253.34)",
+          "oklch(0.985 0.0017 247.84)"
+        ]
+      },
+      "cobalt-wash": {
+        "role": "primary",
+        "displayName": "Cobalt Wash",
+        "canonical": "oklch(0.964 0.0176 253.34)",
+        "tonalRamp": [
+          "oklch(0.356 0.1099 257.78)",
+          "oklch(0.435 0.1398 257.88)",
+          "oklch(0.511 0.1591 257.75)",
+          "oklch(0.721 0.1294 257.8)",
+          "oklch(0.87 0.0552 257.74)",
+          "oklch(0.93 0.0323 258.37)",
+          "oklch(0.964 0.0176 253.34)",
+          "oklch(0.985 0.0017 247.84)"
+        ]
+      },
+      "cobalt-rule": {
+        "role": "primary",
+        "displayName": "Cobalt Rule",
+        "canonical": "oklch(0.93 0.0323 258.37)",
+        "tonalRamp": [
+          "oklch(0.356 0.1099 257.78)",
+          "oklch(0.435 0.1398 257.88)",
+          "oklch(0.511 0.1591 257.75)",
+          "oklch(0.721 0.1294 257.8)",
+          "oklch(0.87 0.0552 257.74)",
+          "oklch(0.93 0.0323 258.37)",
+          "oklch(0.964 0.0176 253.34)",
+          "oklch(0.985 0.0017 247.84)"
+        ]
+      },
+      "cobalt-night-focus": {
+        "role": "primary",
+        "displayName": "Night Focus Cobalt",
+        "canonical": "oklch(0.721 0.1294 257.8)",
+        "tonalRamp": [
+          "oklch(0.356 0.1099 257.78)",
+          "oklch(0.435 0.1398 257.88)",
+          "oklch(0.511 0.1591 257.75)",
+          "oklch(0.721 0.1294 257.8)",
+          "oklch(0.87 0.0552 257.74)",
+          "oklch(0.93 0.0323 258.37)",
+          "oklch(0.964 0.0176 253.34)",
+          "oklch(0.985 0.0017 247.84)"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Cold Paper",
+        "canonical": "oklch(0.985 0.0017 247.84)",
+        "tonalRamp": [
+          "oklch(0.161 0.0151 253.14)",
+          "oklch(0.207 0.0227 257.29)",
+          "oklch(0.301 0.0297 254.69)",
+          "oklch(0.386 0.0243 253.12)",
+          "oklch(0.479 0.0224 255.63)",
+          "oklch(0.58 0.0181 253.98)",
+          "oklch(0.905 0.0081 253.86)",
+          "oklch(0.985 0.0017 247.84)"
+        ]
+      },
+      "sheet": {
+        "role": "neutral",
+        "displayName": "Sheet",
+        "canonical": "oklch(1 0 0)",
+        "tonalRamp": [
+          "oklch(0.161 0.0151 253.14)",
+          "oklch(0.207 0.0227 257.29)",
+          "oklch(0.301 0.0297 254.69)",
+          "oklch(0.386 0.0243 253.12)",
+          "oklch(0.479 0.0224 255.63)",
+          "oklch(0.58 0.0181 253.98)",
+          "oklch(0.905 0.0081 253.86)",
+          "oklch(0.985 0.0017 247.84)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "oklch(0.207 0.0227 257.29)",
+        "tonalRamp": [
+          "oklch(0.161 0.0151 253.14)",
+          "oklch(0.207 0.0227 257.29)",
+          "oklch(0.301 0.0297 254.69)",
+          "oklch(0.386 0.0243 253.12)",
+          "oklch(0.479 0.0224 255.63)",
+          "oklch(0.58 0.0181 253.98)",
+          "oklch(0.905 0.0081 253.86)",
+          "oklch(0.985 0.0017 247.84)"
+        ]
+      },
+      "ink-soft": {
+        "role": "neutral",
+        "displayName": "Soft Ink",
+        "canonical": "oklch(0.301 0.0297 254.69)",
+        "tonalRamp": [
+          "oklch(0.161 0.0151 253.14)",
+          "oklch(0.207 0.0227 257.29)",
+          "oklch(0.301 0.0297 254.69)",
+          "oklch(0.386 0.0243 253.12)",
+          "oklch(0.479 0.0224 255.63)",
+          "oklch(0.58 0.0181 253.98)",
+          "oklch(0.905 0.0081 253.86)",
+          "oklch(0.985 0.0017 247.84)"
+        ]
+      },
+      "graphite": {
+        "role": "neutral",
+        "displayName": "Graphite",
+        "canonical": "oklch(0.386 0.0243 253.12)",
+        "tonalRamp": [
+          "oklch(0.161 0.0151 253.14)",
+          "oklch(0.207 0.0227 257.29)",
+          "oklch(0.301 0.0297 254.69)",
+          "oklch(0.386 0.0243 253.12)",
+          "oklch(0.479 0.0224 255.63)",
+          "oklch(0.58 0.0181 253.98)",
+          "oklch(0.905 0.0081 253.86)",
+          "oklch(0.985 0.0017 247.84)"
+        ]
+      },
+      "muted-ink": {
+        "role": "neutral",
+        "displayName": "Muted Ink",
+        "canonical": "oklch(0.479 0.0224 255.63)",
+        "tonalRamp": [
+          "oklch(0.161 0.0151 253.14)",
+          "oklch(0.207 0.0227 257.29)",
+          "oklch(0.301 0.0297 254.69)",
+          "oklch(0.386 0.0243 253.12)",
+          "oklch(0.479 0.0224 255.63)",
+          "oklch(0.58 0.0181 253.98)",
+          "oklch(0.905 0.0081 253.86)",
+          "oklch(0.985 0.0017 247.84)"
+        ]
+      },
+      "lineage-grey": {
+        "role": "neutral",
+        "displayName": "Lineage Grey",
+        "canonical": "oklch(0.58 0.0181 253.98)",
+        "tonalRamp": [
+          "oklch(0.161 0.0151 253.14)",
+          "oklch(0.207 0.0227 257.29)",
+          "oklch(0.301 0.0297 254.69)",
+          "oklch(0.386 0.0243 253.12)",
+          "oklch(0.479 0.0224 255.63)",
+          "oklch(0.58 0.0181 253.98)",
+          "oklch(0.905 0.0081 253.86)",
+          "oklch(0.985 0.0017 247.84)"
+        ]
+      },
+      "hairline": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "oklch(0.905 0.0081 253.86)",
+        "tonalRamp": [
+          "oklch(0.161 0.0151 253.14)",
+          "oklch(0.207 0.0227 257.29)",
+          "oklch(0.301 0.0297 254.69)",
+          "oklch(0.386 0.0243 253.12)",
+          "oklch(0.479 0.0224 255.63)",
+          "oklch(0.58 0.0181 253.98)",
+          "oklch(0.905 0.0081 253.86)",
+          "oklch(0.985 0.0017 247.84)"
+        ]
+      },
+      "secondary-fill": {
+        "role": "neutral",
+        "displayName": "Secondary Fill",
+        "canonical": "oklch(0.948 0.0052 247.88)",
+        "tonalRamp": [
+          "oklch(0.161 0.0151 253.14)",
+          "oklch(0.207 0.0227 257.29)",
+          "oklch(0.301 0.0297 254.69)",
+          "oklch(0.386 0.0243 253.12)",
+          "oklch(0.479 0.0224 255.63)",
+          "oklch(0.58 0.0181 253.98)",
+          "oklch(0.905 0.0081 253.86)",
+          "oklch(0.985 0.0017 247.84)"
+        ]
+      },
+      "muted-fill": {
+        "role": "neutral",
+        "displayName": "Muted Fill",
+        "canonical": "oklch(0.957 0.0046 258.32)",
+        "tonalRamp": [
+          "oklch(0.161 0.0151 253.14)",
+          "oklch(0.207 0.0227 257.29)",
+          "oklch(0.301 0.0297 254.69)",
+          "oklch(0.386 0.0243 253.12)",
+          "oklch(0.479 0.0224 255.63)",
+          "oklch(0.58 0.0181 253.98)",
+          "oklch(0.905 0.0081 253.86)",
+          "oklch(0.985 0.0017 247.84)"
+        ]
+      },
+      "success-ink": {
+        "role": "status",
+        "displayName": "Success Ink",
+        "canonical": "oklch(0.42 0.1003 151.93)",
+        "tonalRamp": [
+          "oklch(0.341 0.0751 152.13)",
+          "oklch(0.42 0.1003 151.93)",
+          "oklch(0.49 0.1204 151.92)",
+          "oklch(0.519 0.115 151.9)",
+          "oklch(0.681 0.1105 151.85)",
+          "oklch(0.855 0.0801 152.31)",
+          "oklch(0.924 0.0491 151.6)",
+          "oklch(0.965 0.0305 152.89)"
+        ]
+      },
+      "success-wash": {
+        "role": "status",
+        "displayName": "Success Wash",
+        "canonical": "oklch(0.965 0.0305 152.89)",
+        "tonalRamp": [
+          "oklch(0.341 0.0751 152.13)",
+          "oklch(0.42 0.1003 151.93)",
+          "oklch(0.49 0.1204 151.92)",
+          "oklch(0.519 0.115 151.9)",
+          "oklch(0.681 0.1105 151.85)",
+          "oklch(0.855 0.0801 152.31)",
+          "oklch(0.924 0.0491 151.6)",
+          "oklch(0.965 0.0305 152.89)"
+        ]
+      },
+      "success-rule": {
+        "role": "status",
+        "displayName": "Success Rule",
+        "canonical": "oklch(0.924 0.0491 151.6)",
+        "tonalRamp": [
+          "oklch(0.341 0.0751 152.13)",
+          "oklch(0.42 0.1003 151.93)",
+          "oklch(0.49 0.1204 151.92)",
+          "oklch(0.519 0.115 151.9)",
+          "oklch(0.681 0.1105 151.85)",
+          "oklch(0.855 0.0801 152.31)",
+          "oklch(0.924 0.0491 151.6)",
+          "oklch(0.965 0.0305 152.89)"
+        ]
+      },
+      "success-solid": {
+        "role": "status",
+        "displayName": "Success Solid",
+        "canonical": "oklch(0.49 0.1204 151.92)",
+        "tonalRamp": [
+          "oklch(0.341 0.0751 152.13)",
+          "oklch(0.42 0.1003 151.93)",
+          "oklch(0.49 0.1204 151.92)",
+          "oklch(0.519 0.115 151.9)",
+          "oklch(0.681 0.1105 151.85)",
+          "oklch(0.855 0.0801 152.31)",
+          "oklch(0.924 0.0491 151.6)",
+          "oklch(0.965 0.0305 152.89)"
+        ]
+      },
+      "success-edge": {
+        "role": "status",
+        "displayName": "Success Edge",
+        "canonical": "oklch(0.519 0.115 151.9)",
+        "tonalRamp": [
+          "oklch(0.341 0.0751 152.13)",
+          "oklch(0.42 0.1003 151.93)",
+          "oklch(0.49 0.1204 151.92)",
+          "oklch(0.519 0.115 151.9)",
+          "oklch(0.681 0.1105 151.85)",
+          "oklch(0.855 0.0801 152.31)",
+          "oklch(0.924 0.0491 151.6)",
+          "oklch(0.965 0.0305 152.89)"
+        ]
+      },
+      "warning-ink": {
+        "role": "status",
+        "displayName": "Warning Ink",
+        "canonical": "oklch(0.452 0.0982 69.46)",
+        "tonalRamp": [
+          "oklch(0.371 0.0792 72.66)",
+          "oklch(0.452 0.0982 69.46)",
+          "oklch(0.531 0.1153 69.71)",
+          "oklch(0.585 0.1248 72.89)",
+          "oklch(0.74 0.1198 74.7)",
+          "oklch(0.87 0.1003 75.08)",
+          "oklch(0.926 0.0632 76.96)",
+          "oklch(0.96 0.0378 81.52)"
+        ]
+      },
+      "warning-wash": {
+        "role": "status",
+        "displayName": "Warning Wash",
+        "canonical": "oklch(0.96 0.0378 81.52)",
+        "tonalRamp": [
+          "oklch(0.371 0.0792 72.66)",
+          "oklch(0.452 0.0982 69.46)",
+          "oklch(0.531 0.1153 69.71)",
+          "oklch(0.585 0.1248 72.89)",
+          "oklch(0.74 0.1198 74.7)",
+          "oklch(0.87 0.1003 75.08)",
+          "oklch(0.926 0.0632 76.96)",
+          "oklch(0.96 0.0378 81.52)"
+        ]
+      },
+      "warning-rule": {
+        "role": "status",
+        "displayName": "Warning Rule",
+        "canonical": "oklch(0.926 0.0632 76.96)",
+        "tonalRamp": [
+          "oklch(0.371 0.0792 72.66)",
+          "oklch(0.452 0.0982 69.46)",
+          "oklch(0.531 0.1153 69.71)",
+          "oklch(0.585 0.1248 72.89)",
+          "oklch(0.74 0.1198 74.7)",
+          "oklch(0.87 0.1003 75.08)",
+          "oklch(0.926 0.0632 76.96)",
+          "oklch(0.96 0.0378 81.52)"
+        ]
+      },
+      "warning-solid": {
+        "role": "status",
+        "displayName": "Warning Solid",
+        "canonical": "oklch(0.531 0.1153 69.71)",
+        "tonalRamp": [
+          "oklch(0.371 0.0792 72.66)",
+          "oklch(0.452 0.0982 69.46)",
+          "oklch(0.531 0.1153 69.71)",
+          "oklch(0.585 0.1248 72.89)",
+          "oklch(0.74 0.1198 74.7)",
+          "oklch(0.87 0.1003 75.08)",
+          "oklch(0.926 0.0632 76.96)",
+          "oklch(0.96 0.0378 81.52)"
+        ]
+      },
+      "warning-edge": {
+        "role": "status",
+        "displayName": "Warning Edge",
+        "canonical": "oklch(0.585 0.1248 72.89)",
+        "tonalRamp": [
+          "oklch(0.371 0.0792 72.66)",
+          "oklch(0.452 0.0982 69.46)",
+          "oklch(0.531 0.1153 69.71)",
+          "oklch(0.585 0.1248 72.89)",
+          "oklch(0.74 0.1198 74.7)",
+          "oklch(0.87 0.1003 75.08)",
+          "oklch(0.926 0.0632 76.96)",
+          "oklch(0.96 0.0378 81.52)"
+        ]
+      },
+      "danger-ink": {
+        "role": "status",
+        "displayName": "Danger Ink",
+        "canonical": "oklch(0.451 0.1602 27.18)",
+        "tonalRamp": [
+          "oklch(0.369 0.1204 26.92)",
+          "oklch(0.451 0.1602 27.18)",
+          "oklch(0.52 0.1902 27)",
+          "oklch(0.579 0.2 26.89)",
+          "oklch(0.661 0.1699 27.32)",
+          "oklch(0.88 0.0603 27.21)",
+          "oklch(0.933 0.0337 26.8)",
+          "oklch(0.962 0.0187 25.6)"
+        ]
+      },
+      "danger-wash": {
+        "role": "status",
+        "displayName": "Danger Wash",
+        "canonical": "oklch(0.962 0.0187 25.6)",
+        "tonalRamp": [
+          "oklch(0.369 0.1204 26.92)",
+          "oklch(0.451 0.1602 27.18)",
+          "oklch(0.52 0.1902 27)",
+          "oklch(0.579 0.2 26.89)",
+          "oklch(0.661 0.1699 27.32)",
+          "oklch(0.88 0.0603 27.21)",
+          "oklch(0.933 0.0337 26.8)",
+          "oklch(0.962 0.0187 25.6)"
+        ]
+      },
+      "danger-rule": {
+        "role": "status",
+        "displayName": "Danger Rule",
+        "canonical": "oklch(0.933 0.0337 26.8)",
+        "tonalRamp": [
+          "oklch(0.369 0.1204 26.92)",
+          "oklch(0.451 0.1602 27.18)",
+          "oklch(0.52 0.1902 27)",
+          "oklch(0.579 0.2 26.89)",
+          "oklch(0.661 0.1699 27.32)",
+          "oklch(0.88 0.0603 27.21)",
+          "oklch(0.933 0.0337 26.8)",
+          "oklch(0.962 0.0187 25.6)"
+        ]
+      },
+      "danger-solid": {
+        "role": "status",
+        "displayName": "Danger Solid",
+        "canonical": "oklch(0.52 0.1902 27)",
+        "tonalRamp": [
+          "oklch(0.369 0.1204 26.92)",
+          "oklch(0.451 0.1602 27.18)",
+          "oklch(0.52 0.1902 27)",
+          "oklch(0.579 0.2 26.89)",
+          "oklch(0.661 0.1699 27.32)",
+          "oklch(0.88 0.0603 27.21)",
+          "oklch(0.933 0.0337 26.8)",
+          "oklch(0.962 0.0187 25.6)"
+        ]
+      },
+      "danger-edge": {
+        "role": "status",
+        "displayName": "Danger Edge",
+        "canonical": "oklch(0.579 0.2 26.89)",
+        "tonalRamp": [
+          "oklch(0.369 0.1204 26.92)",
+          "oklch(0.451 0.1602 27.18)",
+          "oklch(0.52 0.1902 27)",
+          "oklch(0.579 0.2 26.89)",
+          "oklch(0.661 0.1699 27.32)",
+          "oklch(0.88 0.0603 27.21)",
+          "oklch(0.933 0.0337 26.8)",
+          "oklch(0.962 0.0187 25.6)"
+        ]
+      },
+      "info-ink": {
+        "role": "status",
+        "displayName": "Info Ink",
+        "canonical": "oklch(0.43 0.1002 241.04)",
+        "tonalRamp": [
+          "oklch(0.354 0.0802 240.18)",
+          "oklch(0.43 0.1002 241.04)",
+          "oklch(0.5 0.1098 239.95)",
+          "oklch(0.521 0.105 239.81)",
+          "oklch(0.679 0.1004 240.41)",
+          "oklch(0.874 0.0649 240.88)",
+          "oklch(0.934 0.0374 234.48)",
+          "oklch(0.963 0.0217 230.54)"
+        ]
+      },
+      "info-wash": {
+        "role": "status",
+        "displayName": "Info Wash",
+        "canonical": "oklch(0.963 0.0217 230.54)",
+        "tonalRamp": [
+          "oklch(0.354 0.0802 240.18)",
+          "oklch(0.43 0.1002 241.04)",
+          "oklch(0.5 0.1098 239.95)",
+          "oklch(0.521 0.105 239.81)",
+          "oklch(0.679 0.1004 240.41)",
+          "oklch(0.874 0.0649 240.88)",
+          "oklch(0.934 0.0374 234.48)",
+          "oklch(0.963 0.0217 230.54)"
+        ]
+      },
+      "info-rule": {
+        "role": "status",
+        "displayName": "Info Rule",
+        "canonical": "oklch(0.934 0.0374 234.48)",
+        "tonalRamp": [
+          "oklch(0.354 0.0802 240.18)",
+          "oklch(0.43 0.1002 241.04)",
+          "oklch(0.5 0.1098 239.95)",
+          "oklch(0.521 0.105 239.81)",
+          "oklch(0.679 0.1004 240.41)",
+          "oklch(0.874 0.0649 240.88)",
+          "oklch(0.934 0.0374 234.48)",
+          "oklch(0.963 0.0217 230.54)"
+        ]
+      },
+      "info-solid": {
+        "role": "status",
+        "displayName": "Info Solid",
+        "canonical": "oklch(0.5 0.1098 239.95)",
+        "tonalRamp": [
+          "oklch(0.354 0.0802 240.18)",
+          "oklch(0.43 0.1002 241.04)",
+          "oklch(0.5 0.1098 239.95)",
+          "oklch(0.521 0.105 239.81)",
+          "oklch(0.679 0.1004 240.41)",
+          "oklch(0.874 0.0649 240.88)",
+          "oklch(0.934 0.0374 234.48)",
+          "oklch(0.963 0.0217 230.54)"
+        ]
+      },
+      "info-edge": {
+        "role": "status",
+        "displayName": "Info Edge",
+        "canonical": "oklch(0.521 0.105 239.81)",
+        "tonalRamp": [
+          "oklch(0.354 0.0802 240.18)",
+          "oklch(0.43 0.1002 241.04)",
+          "oklch(0.5 0.1098 239.95)",
+          "oklch(0.521 0.105 239.81)",
+          "oklch(0.679 0.1004 240.41)",
+          "oklch(0.874 0.0649 240.88)",
+          "oklch(0.934 0.0374 234.48)",
+          "oklch(0.963 0.0217 230.54)"
+        ]
+      },
+      "night-paper": {
+        "role": "neutral",
+        "displayName": "Night Paper",
+        "canonical": "oklch(0.161 0.0151 253.14)",
+        "tonalRamp": [
+          "oklch(0.161 0.0151 253.14)",
+          "oklch(0.207 0.0227 257.29)",
+          "oklch(0.301 0.0297 254.69)",
+          "oklch(0.386 0.0243 253.12)",
+          "oklch(0.479 0.0224 255.63)",
+          "oklch(0.58 0.0181 253.98)",
+          "oklch(0.905 0.0081 253.86)",
+          "oklch(0.985 0.0017 247.84)"
+        ]
+      },
+      "night-sheet": {
+        "role": "neutral",
+        "displayName": "Night Sheet",
+        "canonical": "oklch(0.207 0.0227 257.29)",
+        "tonalRamp": [
+          "oklch(0.161 0.0151 253.14)",
+          "oklch(0.207 0.0227 257.29)",
+          "oklch(0.301 0.0297 254.69)",
+          "oklch(0.386 0.0243 253.12)",
+          "oklch(0.479 0.0224 255.63)",
+          "oklch(0.58 0.0181 253.98)",
+          "oklch(0.905 0.0081 253.86)",
+          "oklch(0.985 0.0017 247.84)"
+        ]
+      },
+      "night-ink": {
+        "role": "neutral",
+        "displayName": "Night Ink",
+        "canonical": "oklch(0.972 0.0034 247.86)",
+        "tonalRamp": [
+          "oklch(0.161 0.0151 253.14)",
+          "oklch(0.207 0.0227 257.29)",
+          "oklch(0.301 0.0297 254.69)",
+          "oklch(0.386 0.0243 253.12)",
+          "oklch(0.479 0.0224 255.63)",
+          "oklch(0.58 0.0181 253.98)",
+          "oklch(0.905 0.0081 253.86)",
+          "oklch(0.985 0.0017 247.84)"
+        ]
+      },
+      "night-rule": {
+        "role": "neutral",
+        "displayName": "Night Rule",
+        "canonical": "oklch(0.261 0.0261 255.75)",
+        "tonalRamp": [
+          "oklch(0.161 0.0151 253.14)",
+          "oklch(0.207 0.0227 257.29)",
+          "oklch(0.301 0.0297 254.69)",
+          "oklch(0.386 0.0243 253.12)",
+          "oklch(0.479 0.0224 255.63)",
+          "oklch(0.58 0.0181 253.98)",
+          "oklch(0.905 0.0081 253.86)",
+          "oklch(0.985 0.0017 247.84)"
+        ]
+      },
+      "night-muted-ink": {
+        "role": "neutral",
+        "displayName": "Night Muted Ink",
+        "canonical": "oklch(0.72 0.0135 255.53)",
+        "tonalRamp": [
+          "oklch(0.161 0.0151 253.14)",
+          "oklch(0.207 0.0227 257.29)",
+          "oklch(0.301 0.0297 254.69)",
+          "oklch(0.386 0.0243 253.12)",
+          "oklch(0.479 0.0224 255.63)",
+          "oklch(0.58 0.0181 253.98)",
+          "oklch(0.905 0.0081 253.86)",
+          "oklch(0.985 0.0017 247.84)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display (statement)",
+        "purpose": "The statement or title inside a research object title block. Research words only, max 38ch."
+      },
+      "headline": {
+        "displayName": "Headline (page head)",
+        "purpose": "Page head on list, workspace, account and governance pages, on an ink bottom rule."
+      },
+      "title": {
+        "displayName": "Title (clause head)",
+        "purpose": "Clause and section headings on an ink top rule, with a muted tabular clause number."
+      },
+      "reading": {
+        "displayName": "Reading",
+        "purpose": "Research prose and ruled lists in the 68ch reading column."
+      },
+      "reference": {
+        "displayName": "Reference title",
+        "purpose": "Title of a normative-reference row (response, evidence, linked object)."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Interface text, descriptions and help."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Sentence-case identity-cell labels, toolbar labels and badge text. Never uppercase, never tracked."
+      },
+      "margin-heading": {
+        "displayName": "Margin heading",
+        "purpose": "Heads of margin sections (Revisions, Continue, Attribution) on an ink rule."
+      },
+      "identifier": {
+        "displayName": "Identifier",
+        "purpose": "Ids, revision tags, hashes and keys only. Tabular, slashed-zero numerals."
+      }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "motion-fast",
+        "value": "120ms",
+        "purpose": "Colour and border changes on hover (clause rail, controls)."
+      },
+      {
+        "name": "motion-enter",
+        "value": "220ms",
+        "purpose": "Research-graph node border and position transitions."
+      },
+      {
+        "name": "ease-enter",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "The single enter curve for page, nav underline, dialog and graph transitions."
+      },
+      {
+        "name": "page-enter",
+        "value": "200ms ease-enter; opacity 0 to 1, translateX 8px to 0",
+        "purpose": "Route change on the main region."
+      },
+      {
+        "name": "nav-underline",
+        "value": "160ms ease-enter; scaleX 0 to 1 from the left",
+        "purpose": "2px cobalt underline under the hovered or current nav link."
+      },
+      {
+        "name": "dialog-enter",
+        "value": "160ms ease-enter; opacity 0 to 1, 4px rise",
+        "purpose": "Dialog entrance."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "animation and transition durations 0.01ms",
+        "purpose": "prefers-reduced-motion collapses every effect to an instant state change."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "md",
+        "value": "48rem",
+        "purpose": "Gutter widens to 1.5rem (from 768px); title-block cells fill rows of 3 to 5; reference rows go three-column; desktop nav appears."
+      },
+      {
+        "name": "lg",
+        "value": "64rem",
+        "purpose": "Document grid becomes reading column plus 18rem margin."
+      },
+      {
+        "name": "xl",
+        "value": "80rem",
+        "purpose": "Sticky 11rem clause rail appears as a third track."
+      }
+    ],
+    "themes": {
+      "mechanism": "[data-theme=\"dark\"] swaps the primitive ramp; semantic --evimesh-* roles and component tokens are unchanged. No prefers-color-scheme duplicate."
+    }
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one primary action per view, usually the handoff to an Agent.",
+      "html": "<button class=\"ds-btn-primary\" type=\"button\">Continue with an agent</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 40px; padding: 0 16px; border: 0; border-radius: 2px; background: var(--evimesh-primary); color: var(--evimesh-primary-foreground); font-family: var(--evimesh-font-sans); font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: background-color 120ms ease-out; } .ds-btn-primary:hover { background: color-mix(in oklch, var(--evimesh-primary) 90%, transparent); } .ds-btn-primary:focus-visible { outline: 2px solid var(--evimesh-focus); outline-offset: 2px; } .ds-btn-primary:disabled { opacity: 0.5; pointer-events: none; }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Secondary decisions such as Decline and Retire.",
+      "html": "<button class=\"ds-btn-outline\" type=\"button\">Decline</button>",
+      "css": ".ds-btn-outline { display: inline-flex; align-items: center; justify-content: center; height: 40px; padding: 0 16px; border: 1px solid color-mix(in oklch, var(--evimesh-foreground) 25%, transparent); border-radius: 2px; background: transparent; color: var(--evimesh-foreground); font-family: var(--evimesh-font-sans); font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: border-color 120ms ease-out, background-color 120ms ease-out; } .ds-btn-outline:hover { border-color: var(--evimesh-foreground); background: var(--evimesh-muted); } .ds-btn-outline:focus-visible { outline: 2px solid var(--evimesh-focus); outline-offset: 2px; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input-text",
+      "description": "Labelled field group with a cobalt focus border and worded help or error.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-field__label\">Agent name</span><input class=\"ds-input\" placeholder=\"atlas\" /><span class=\"ds-field__help\">Shown publicly as the drafter, always followed by your name.</span></label>",
+      "css": ".ds-field { display: flex; flex-direction: column; gap: 8px; max-width: 24rem; font-family: var(--evimesh-font-sans); } .ds-field__label { font-size: 0.875rem; font-weight: 500; color: var(--evimesh-foreground); } .ds-field__help { font-size: 0.75rem; color: var(--evimesh-muted-foreground); } .ds-input { height: 40px; padding: 8px 12px; border: 1px solid color-mix(in oklch, var(--evimesh-foreground) 25%, transparent); border-radius: 2px; background: var(--evimesh-card); color: var(--evimesh-foreground); font: inherit; font-size: 0.875rem; transition: border-color 120ms ease-out; } .ds-input::placeholder { color: var(--evimesh-muted-foreground); } .ds-input:hover { border-color: color-mix(in oklch, var(--evimesh-foreground) 50%, transparent); } .ds-input:focus-visible { outline: 2px solid color-mix(in oklch, var(--evimesh-focus) 30%, transparent); outline-offset: 0; border-color: var(--evimesh-primary); } .ds-input[aria-invalid=\"true\"] { border-color: var(--evimesh-destructive); }"
+    },
+    {
+      "name": "Status Badges",
+      "kind": "chip",
+      "refersTo": "badge-status-warning",
+      "description": "Protocol state in words with a 12px icon; muted dual tier by default, solid emphasis only for the most consequential state.",
+      "html": "<span class=\"ds-badge ds-badge--warning\"><svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z\"/><path d=\"m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z\"/><path d=\"M7 21h10\"/><path d=\"M12 3v18\"/><path d=\"M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2\"/></svg>contested</span> <span class=\"ds-badge ds-badge--accent\">under verification</span> <span class=\"ds-badge ds-badge--success\">supports</span> <span class=\"ds-badge ds-badge--emphasis-danger\">refuted</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; gap: 4px; padding: 1px 6px; border: 1px solid transparent; border-radius: 2px; font-family: var(--evimesh-font-sans); font-size: 0.75rem; font-weight: 500; line-height: 1.25rem; } .ds-badge--warning { border-color: var(--evimesh-status-warning-border); background: var(--evimesh-status-warning-bg); color: var(--evimesh-status-warning-fg); } .ds-badge--accent { border-color: var(--evimesh-status-accent-border); background: var(--evimesh-status-accent-bg); color: var(--evimesh-status-accent-fg); } .ds-badge--success { border-color: var(--evimesh-status-success-border); background: var(--evimesh-status-success-bg); color: var(--evimesh-status-success-fg); } .ds-badge--emphasis-danger { background: var(--evimesh-emphasis-danger); color: var(--evimesh-emphasis-foreground); }"
+    },
+    {
+      "name": "Shell Navigation",
+      "kind": "nav",
+      "refersTo": "nav-link",
+      "description": "Ruled header row; the current destination carries a 2px cobalt underline.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Primary\"><a class=\"ds-nav__brand\" href=\"#\"><span>Evi</span><span class=\"ds-nav__mesh\">Mesh</span></a><a class=\"ds-nav__link\" href=\"#\" aria-current=\"page\">Home</a><a class=\"ds-nav__link\" href=\"#\">Explore</a><a class=\"ds-nav__link\" href=\"#\">Work</a><a class=\"ds-nav__link\" href=\"#\">Docs</a></nav>",
+      "css": ".ds-nav { display: flex; align-items: stretch; height: 3.5rem; padding: 0 1.5rem; border-bottom: 1px solid var(--evimesh-foreground); background: var(--evimesh-background); font-family: var(--evimesh-font-sans); } .ds-nav__brand { display: inline-flex; align-items: center; padding-right: 20px; color: var(--evimesh-foreground); font-size: 15px; font-weight: 700; letter-spacing: -0.02em; text-decoration: none; } .ds-nav__mesh { color: var(--evimesh-primary); } .ds-nav__link { position: relative; display: inline-flex; align-items: center; padding: 0 12px; color: var(--evimesh-muted-foreground); font-size: 13px; font-weight: 500; text-decoration: none; transition: color 120ms ease-out; } .ds-nav__link::after { content: \"\"; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--evimesh-primary); transform: scaleX(0); transform-origin: left; transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-nav__link:hover, .ds-nav__link[aria-current=\"page\"] { color: var(--evimesh-foreground); } .ds-nav__link:hover::after, .ds-nav__link[aria-current=\"page\"]::after { transform: scaleX(1); } .ds-nav__link:focus-visible { outline: 2px solid var(--evimesh-focus); outline-offset: 2px; }"
+    },
+    {
+      "name": "Title Block",
+      "kind": "custom",
+      "refersTo": "title-block-head",
+      "description": "The ruled identity grid every research object opens on: serif statement, then sentence-case identity cells.",
+      "html": "<section class=\"ds-tb\" aria-label=\"Claim identity\"><div class=\"ds-tb__head\"><h1 class=\"ds-tb__title\">SimCLR-style pretraining narrows the few-shot gap to within 1.0 point of supervised baselines when protocols are matched.</h1></div><dl class=\"ds-tb__cells\"><div class=\"ds-tb__cell\"><dt>Kind</dt><dd><strong>Claim</strong></dd></div><div class=\"ds-tb__cell\"><dt>State</dt><dd>hypothesis</dd></div><div class=\"ds-tb__cell\"><dt>Identifier</dt><dd class=\"ds-mono\">claim_43b1e5…141b</dd></div><div class=\"ds-tb__cell\"><dt>Revision</dt><dd>r1 of 1</dd></div><div class=\"ds-tb__cell\"><dt>Drafted by</dt><dd>atlas <span class=\"ds-muted\">for</span> Lin</dd></div><div class=\"ds-tb__cell\"><dt>Signed by</dt><dd>Lin</dd></div><div class=\"ds-tb__cell\"><dt>Recorded</dt><dd>2026-11-09 11:44 UTC</dd></div><div class=\"ds-tb__cell\"><dt>Answers</dt><dd>Do contrastive few-shot gains survive blind reproduction?</dd></div></dl></section>",
+      "css": ".ds-tb { border: 1px solid var(--evimesh-foreground); background: var(--evimesh-card); color: var(--evimesh-foreground); font-family: var(--evimesh-font-sans); } .ds-tb__head { padding: 1.75rem 2rem 2rem; } .ds-tb__title { max-width: 38ch; margin: 0; font-family: var(--evimesh-font-serif); font-size: clamp(1.625rem, 2.6vw, 2.375rem); font-weight: 500; line-height: 1.18; letter-spacing: -0.015em; } .ds-tb__cells { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; margin: 0; border-top: 1px solid var(--evimesh-foreground); background: var(--evimesh-border); } .ds-tb__cell { min-width: 0; padding: 0.7rem 1rem 0.8rem; background: var(--evimesh-card); } .ds-tb__cell dt { color: var(--evimesh-muted-foreground); font-size: 0.75rem; font-weight: 500; line-height: 1.2; } .ds-tb__cell dd { margin: 0.3rem 0 0; font-size: 0.875rem; font-weight: 500; line-height: 1.35; overflow-wrap: anywhere; } .ds-mono { font-family: var(--evimesh-font-mono); font-size: 0.8125rem; font-variant-numeric: tabular-nums slashed-zero; } .ds-muted { color: var(--evimesh-muted-foreground); font-weight: 400; }"
+    },
+    {
+      "name": "Clause with Clause Rail",
+      "kind": "custom",
+      "refersTo": "clause-rail-link",
+      "description": "Numbered citable section on an ink rule, mirrored by a contents rail whose active entry turns ink.",
+      "html": "<div class=\"ds-clausewrap\"><nav class=\"ds-rail\" aria-label=\"Sections\"><a href=\"#\" aria-current=\"true\"><span class=\"ds-num\">1</span>Scope</a><a href=\"#\"><span class=\"ds-num\">2</span>Assumptions</a><a href=\"#\"><span class=\"ds-num\">4</span>Responses<span class=\"ds-count\">2</span></a></nav><section class=\"ds-clause\"><div class=\"ds-clause__head\"><h2><span class=\"ds-num ds-num--head\">1</span>Scope</h2><a class=\"ds-clause__anchor\" href=\"#\">#</a></div><ul class=\"ds-doclist\"><li>four benchmarks</li><li>k &lt;= 16 labelled samples per class</li></ul></section></div>",
+      "css": ".ds-clausewrap { display: grid; grid-template-columns: 11rem minmax(0, 1fr); gap: 3rem; font-family: var(--evimesh-font-sans); color: var(--evimesh-foreground); } .ds-rail a { display: block; padding: 0.3rem 0 0.3rem 0.85rem; border-left: 1px solid var(--evimesh-border); color: var(--evimesh-muted-foreground); font-size: 0.8125rem; line-height: 1.35; text-decoration: none; transition: color 120ms ease-out, border-color 120ms ease-out; } .ds-rail a:hover, .ds-rail a[aria-current=\"true\"] { border-left-color: var(--evimesh-foreground); color: var(--evimesh-foreground); } .ds-rail a:focus-visible { outline: 2px solid var(--evimesh-focus); outline-offset: 2px; } .ds-num { display: inline-block; min-width: 1.5rem; color: var(--evimesh-muted-foreground); font-variant-numeric: tabular-nums; font-weight: 500; } .ds-num--head { min-width: 2rem; } .ds-count { margin-left: 6px; color: var(--evimesh-muted-foreground); font-variant-numeric: tabular-nums; } .ds-clause__head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--evimesh-foreground); } .ds-clause__head h2 { margin: 0; font-size: 1.125rem; font-weight: 600; line-height: 1.3; letter-spacing: -0.01em; } .ds-clause__anchor { color: var(--evimesh-muted-foreground); font-size: 0.8125rem; text-decoration: none; } .ds-clause__anchor:hover { color: var(--evimesh-primary); } .ds-doclist { max-width: 68ch; margin: 1rem 0 0; padding: 0; list-style: none; } .ds-doclist li { position: relative; padding: 0.65rem 0 0.65rem 1.5rem; border-bottom: 1px solid var(--evimesh-border); font-family: var(--evimesh-font-serif); font-size: 1rem; line-height: 1.6; } .ds-doclist li::before { content: \"\"; position: absolute; top: 1.25rem; left: 0.25rem; width: 0.5rem; border-top: 1px solid var(--evimesh-foreground); }"
+    },
+    {
+      "name": "Normative Reference Row",
+      "kind": "custom",
+      "refersTo": "reference-row",
+      "description": "A typed response set as a reference entry: relation, serif title, attribution, date and revision link.",
+      "html": "<ul class=\"ds-refs\"><li class=\"ds-ref\"><div><span class=\"ds-rbadge\">rebuttal</span></div><div class=\"ds-ref__main\"><a class=\"ds-ref__title\" href=\"#\">The fourth benchmark breaks the matched-protocol claim</a><p class=\"ds-ref__body\">Under four of six prompt variants the gain disappears, which the claim scope does not exclude.</p><p class=\"ds-ref__attr\">Drafted by <strong>witness</strong> · signed by <strong>Chen</strong></p></div><div class=\"ds-ref__meta\"><span>2026-11-09</span><a href=\"#\">open r1</a></div></li></ul>",
+      "css": ".ds-refs { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--evimesh-border); font-family: var(--evimesh-font-sans); color: var(--evimesh-foreground); } .ds-ref { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr) auto; gap: 0.35rem 1.5rem; padding: 1rem 0; border-bottom: 1px solid var(--evimesh-border); } .ds-rbadge { display: inline-flex; padding: 1px 6px; border: 1px solid var(--evimesh-status-warning-border); border-radius: 2px; background: var(--evimesh-status-warning-bg); color: var(--evimesh-status-warning-fg); font-size: 0.75rem; font-weight: 500; } .ds-ref__title { color: var(--evimesh-foreground); font-family: var(--evimesh-font-serif); font-size: 1.0625rem; font-weight: 500; line-height: 1.4; text-decoration: none; text-underline-offset: 0.2em; } .ds-ref__title:hover { text-decoration: underline; } .ds-ref__title:focus-visible { outline: 2px solid var(--evimesh-focus); outline-offset: 2px; } .ds-ref__body { max-width: 64ch; margin: 4px 0 0; color: var(--evimesh-muted-foreground); font-size: 0.875rem; line-height: 1.5rem; } .ds-ref__attr { margin: 8px 0 0; color: var(--evimesh-muted-foreground); font-size: 0.75rem; } .ds-ref__attr strong { color: var(--evimesh-foreground); font-weight: 500; } .ds-ref__meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; color: var(--evimesh-muted-foreground); font-size: 0.75rem; font-variant-numeric: tabular-nums; } .ds-ref__meta a { color: var(--evimesh-foreground); font-family: var(--evimesh-font-mono); text-decoration: none; } .ds-ref__meta a:hover { color: var(--evimesh-primary); text-decoration: underline; }"
+    },
+    {
+      "name": "Revision Ledger with Change Bar",
+      "kind": "custom",
+      "refersTo": "ledger-row",
+      "description": "Margin revision ledger with the current revision in cobalt, and the 2px cobalt change bar beside revised text.",
+      "html": "<div class=\"ds-ledgerwrap\"><section class=\"ds-margin\"><h2>Revisions</h2><ol class=\"ds-ledger\"><li aria-current=\"true\"><a href=\"#\">r2</a><div><span class=\"ds-date\">2026-11-10</span> <span class=\"ds-current\">current</span><br><span>atlas</span></div></li><li><a href=\"#\">r1</a><div><span class=\"ds-date\">2026-11-09</span><br><span>atlas</span></div></li></ol></section><p class=\"ds-changebar\">The gap holds on three benchmarks but widens on the fourth under prompt variation.</p></div>",
+      "css": ".ds-ledgerwrap { display: grid; gap: 2rem; max-width: 18rem; padding-left: 1rem; font-family: var(--evimesh-font-sans); color: var(--evimesh-foreground); } .ds-margin h2 { margin: 0 0 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--evimesh-foreground); font-size: 0.8125rem; font-weight: 600; line-height: 1.3; } .ds-ledger { margin: 0; padding: 0; list-style: none; } .ds-ledger li { display: grid; grid-template-columns: 2.5rem minmax(0, 1fr); gap: 0.15rem 0.75rem; padding: 0.65rem 0; border-bottom: 1px solid var(--evimesh-border); font-size: 0.8125rem; line-height: 1.4; } .ds-ledger a { color: var(--evimesh-foreground); font-family: var(--evimesh-font-mono); font-variant-numeric: tabular-nums; text-decoration: none; } .ds-ledger a:hover { text-decoration: underline; } .ds-ledger li[aria-current=\"true\"] > a { color: var(--evimesh-primary); font-weight: 600; } .ds-date { color: var(--evimesh-muted-foreground); font-variant-numeric: tabular-nums; } .ds-current { color: var(--evimesh-primary); font-size: 0.75rem; font-weight: 500; } .ds-changebar { position: relative; margin: 0; font-family: var(--evimesh-font-serif); font-size: 1rem; line-height: 1.75rem; } .ds-changebar::before { content: \"\"; position: absolute; top: 0.15em; bottom: 0.15em; left: -1rem; width: 2px; background: var(--evimesh-primary); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Controlled Document",
+    "overview": "Every research object on EviMesh is presented the way a standards body prints a normative document. The page opens on a title block, a ruled identity grid that says what the object is, which revision you are reading, its protocol state, which Agent drafted it and which person signed it. Content follows as numbered, citable clauses in a reading column with a real measure, while a right margin carries the revision ledger, attribution and a single handoff action. The reader knows within one glance what they are looking at and whose it is; only then do they read.\n\nThe ground is cold paper, the structure is ink rules, and colour is spent sparingly. One cobalt accent marks links, selection, focus, the active revision and revised text. Protocol state speaks through a muted dual-tier status palette that always leads with words. Depth is drawn, never lifted: 1px ink rules divide sections, hairlines divide rows, and nothing floats on a shadow. Density is that of a reference document rather than a dashboard: generous vertical rhythm between clauses (3rem), tight rhythm inside them.\n\nThe system refuses the editorial magazine hero, tracked uppercase kicker labels above titles, and card grids. Disagreement is information, so contested, refuted and challenged states are set as plainly as supported ones, and nothing on the page converts evidence into a score.",
+    "keyCharacteristics": [
+      "Title block first: a 1px ink-ruled grid of sentence-case labelled cells (Kind, State, Identifier, Revision, Drafted by, Signed by, Recorded).",
+      "Numbered clauses on ink rules, mirrored by a sticky clause rail of citable anchors.",
+      "A 68ch reading column set in Source Serif 4 for the research's own words.",
+      "A right margin ledger of revisions, with the current revision in cobalt.",
+      "A 2px cobalt change bar beside text that changed since the previous revision.",
+      "Normative-reference rows for responses, evidence and receipts, never cards.",
+      "Flat throughout: rules and hairlines, no shadows, corners of 1 to 3px.",
+      "Light and dark themes from one semantic token set, both WCAG 2.2 AA."
+    ],
+    "rules": [
+      {
+        "name": "The One Cobalt Rule",
+        "body": "Cobalt is the only accent. It marks links, selection, focus, the primary action, the current revision and revised text, and nothing else. No second brand colour, no decorative tint.",
+        "section": "colors"
+      },
+      {
+        "name": "The Text-Leads-State Rule",
+        "body": "A protocol state is always its words first, with a 12px icon, in a muted dual-tier badge. Colour is never the only carrier. The solid emphasis tier is spent on at most the one most consequential state in a view.",
+        "section": "colors"
+      },
+      {
+        "name": "The Token-Only Rule",
+        "body": "Every colour comes from a semantic `--evimesh-*` role in `app/globals.css` (exposed to Tailwind as `bg-primary`, `text-muted-foreground`, `border-status-warning-border`, and so on). No raw hex, rgb or oklch in components, and no second component library.",
+        "section": "colors"
+      },
+      {
+        "name": "The No-Score Rule",
+        "body": "Counts are navigation entry points only, set in muted tabular numerals beside the clause they open. Never render evidence as percentages, progress bars, truth or support scores, likes or rankings. Private \"helpful\" marks and saves never render a public count anywhere.",
+        "section": "colors"
+      },
+      {
+        "name": "The Three Voices Rule",
+        "body": "Serif only for research words (statements, titles of research objects, research prose). Mono only for identifiers. Inter Tight for everything else. A label is never set in serif; a statement is never set in sans.",
+        "section": "typography"
+      },
+      {
+        "name": "The Sentence-Case Label Rule",
+        "body": "Labels and context lines are sentence case at normal tracking, set beside or below what they label. There are no tracked uppercase kickers or eyebrows above titles.",
+        "section": "typography"
+      },
+      {
+        "name": "The Title Block First Rule",
+        "body": "A research object opens on its title block, directly under the breadcrumb. No hero, no kicker, no illustration above it.",
+        "section": "layout"
+      },
+      {
+        "name": "The Measure Rule",
+        "body": "Reading prose never runs wider than 68ch; secondary descriptions sit at 60 to 64ch.",
+        "section": "layout"
+      },
+      {
+        "name": "The One Handoff Rule",
+        "body": "The margin carries at most one primary action, the handoff to an Agent (\"Continue with an agent\"), with quiet text actions beneath it. The web hands off; it never simulates a signature.",
+        "section": "layout"
+      },
+      {
+        "name": "The Ink Rule Rule",
+        "body": "Structure is drawn, never lifted. Use a 1px ink rule to open a section and a 1px hairline to divide rows. No `box-shadow` on any surface.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Rules-Not-Cards Rule",
+        "body": "Group content under a ruled head, not inside a bordered, rounded, filled box. Lists of research objects are rows on hairlines.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** open every research object with the breadcrumb and then the title block, with Kind, State, Identifier, Revision, Drafted by, Signed by and Recorded in ruled, sentence-case cells.",
+      "**Do** show the attribution chain on every agent-produced item: the Agent as \"Drafted by\" (with \"for\" its owning person) and the person as \"Signed by\". An Agent is never shown as the signer.",
+      "**Do** ship a keyboard-reachable list view (the Relationship Index) beside every graph view. The claim graph is a DAG of typed directed edges, never a parent-child tree.",
+      "**Do** set statements and research-object titles in Source Serif 4, identifiers in IBM Plex Mono, and everything else in Inter Tight.",
+      "**Do** take every colour from the semantic `--evimesh-*` roles in `app/globals.css`, and check both `data-theme` light and dark.",
+      "**Do** use the 2px cobalt change bar beside revised text and cobalt for the current revision in the ledger.",
+      "**Do** keep a 2px focus ring, 44px targets on coarse pointers, and instant state changes under reduced motion.",
+      "**Do** render an ORCID iD as verified only when it came through ORCID OAuth."
+    ],
+    "donts": [
+      "**Don't** render evidence counts as percentages, progress bars, truth or support scores, likes or rankings; counts are navigation only.",
+      "**Don't** put a tracked uppercase kicker or eyebrow above a title, or open a page on a magazine hero.",
+      "**Don't** wrap content in cards, card grids or rounded filled boxes; use ruled heads and hairline rows.",
+      "**Don't** add `box-shadow` to any surface.",
+      "**Don't** introduce a raw colour, a second accent, or a second component library.",
+      "**Don't** mark a manually typed ORCID iD as verified.",
+      "**Don't** use em dashes or emoji in visible copy.",
+      "**Don't** use colour alone to carry a protocol state or a graph relation."
+    ]
+  }
+}

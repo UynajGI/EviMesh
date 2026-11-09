@@ -11,7 +11,8 @@ platform or a local ignored `.env` file; they must never be committed.
 - Public client configuration uses `SUPABASE_URL` and `SUPABASE_ANON_KEY`.
 - API JWT verification uses `SUPABASE_JWKS_URL`, `SUPABASE_JWT_ISSUER`, and
   `SUPABASE_JWT_AUDIENCE`.
-- Server-only credentials use `SUPABASE_SERVICE_ROLE_KEY`,
+- Server-only credentials use `SUPABASE_SECRET_KEY` (or the legacy
+  `SUPABASE_SERVICE_ROLE_KEY`), `PLATFORM_EVENT_SIGNING_PRIVATE_KEY`,
   `R2_SECRET_ACCESS_KEY`, and `CLOUDFLARE_API_TOKEN`.
 - Never place service-role, R2 secret, or Cloudflare token values in browser code.
 
@@ -33,13 +34,26 @@ platform or a local ignored `.env` file; they must never be committed.
 | `S3_SECRET_ACCESS_KEY` / `R2_SECRET_ACCESS_KEY` | server | yes | yes |
 | `SUPABASE_URL` | client/server | hosted only | no |
 | `SUPABASE_ANON_KEY` | client/server | hosted only | no |
+| `SUPABASE_PUBLISHABLE_KEY` | client/server | hosted only | no |
+| `SUPABASE_SECRET_KEY` | server | hosted only | yes |
 | `SUPABASE_SERVICE_ROLE_KEY` | server | hosted only | yes |
 | `SUPABASE_JWKS_URL` | API deployment | hosted only | no |
 | `SUPABASE_JWT_ISSUER` | API deployment | hosted only | no |
 | `SUPABASE_JWT_AUDIENCE` | API deployment | hosted only | no |
+| `PLATFORM_KEYRING` | API deployment | research submit | no (public keys only) |
+| `PLATFORM_EVENT_SIGNING_KEY_ID` | API deployment | research submit | no |
+| `PLATFORM_EVENT_SIGNING_PRIVATE_KEY` | API deployment | research submit | yes |
+| `EVIMESH_TYPED_RESEARCH_ATOMIC_RPC_READY` | API deployment | research submit | no |
 | `CLOUDFLARE_ACCOUNT_ID` | deployment | hosted only | no |
 | `CLOUDFLARE_API_TOKEN` | deployment | hosted only | yes |
 
 Copy `.env.example` to `.env` for local work, then replace only the values
 needed by the selected environment. The repository ignores `.env` and other
 `.env.*` files by default.
+
+`PLATFORM_KEYRING` must contain public verification material only. The active
+private PKCS#8 key is stored separately as a Worker secret and is never
+returned by an API, written to logs, or copied into repository configuration.
+`EVIMESH_TYPED_RESEARCH_ATOMIC_RPC_READY` is a release gate, not a migration
+mechanism: set it only after the atomic RPC is installed, PostgreSQL
+integration tests have run without skips, and Graph cutover is ready.

@@ -1,37 +1,60 @@
+import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
 /*
- * Page templates (M13.5-B11). One container + header pattern covers list,
- * detail, workspace, wizard, and settings pages. Headers lead with eyebrow,
- * title and action; descriptions are opt-in for primary object statements,
- * never ambient guidance or policy chatter.
+ * Page templates. One container and one header shape serve list, workspace
+ * and settings pages. The header is a plain line: the title at reading
+ * scale and at most one action. No subtitle paragraph unless a page opts in;
+ * the content explains itself.
  */
 
+/* One page column for every surface, aligned with the shell header and footer
+ * (.doc-page). `wide` is kept for callers but no longer widens. */
 export function PageContainer({ children, className, wide = false }) {
-  return <main className={cn('mx-auto min-w-0 px-[var(--evimesh-container-px)] py-10 text-foreground sm:py-14', wide ? 'max-w-[96rem]' : 'max-w-[88rem]', className)}>{children}</main>;
+  return <div className={cn('doc-page w-full min-w-0 pb-16 pt-6 text-foreground sm:pt-8', wide && 'is-wide', className)}>{children}</div>;
 }
 
-export function PageHeader({ eyebrow, title, description, action, className, titleClassName, showDescription = false }) {
-  const titleColumnClass = action ? 'sm:col-span-7' : 'sm:col-span-10';
-  const titleMaxClass = action ? 'max-w-[18ch]' : 'max-w-none';
+export function PageHeader({ title, description, action, className, titleClassName, showDescription = false }) {
+  const titleColumnClass = action ? 'md:col-span-8' : 'md:col-span-12';
+  const titleMaxClass = action ? 'max-w-[40ch]' : 'max-w-[56ch]';
   return (
-    <header className={cn('grid min-w-0 grid-cols-12 gap-x-3 gap-y-5 border-b border-foreground pb-8 pt-4 sm:gap-x-5 sm:pb-10', className)}>
-      {eyebrow ? <p className="col-span-12 min-w-0 font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-primary sm:col-span-2">{eyebrow}</p> : <span className="hidden sm:col-span-2 sm:block" />}
+    <header className={cn('grid min-w-0 grid-cols-12 items-center gap-x-6 gap-y-3 border-b border-border pb-4', className)}>
       <div className={cn('col-span-12 min-w-0', titleColumnClass)}>
-        <h1 className={cn(titleMaxClass, 'font-serif text-[clamp(2.75rem,6vw,6.5rem)] font-medium leading-[0.9] tracking-[-0.055em] [overflow-wrap:anywhere]', titleClassName)}>{title}</h1>
-        {showDescription && description ? <p className="mt-5 max-w-[48ch] font-serif text-base leading-7 text-muted-foreground sm:text-lg">{description}</p> : null}
+        <h1 className={cn(titleMaxClass, 'text-balance text-[1.5rem] font-semibold leading-tight tracking-[-0.01em] [overflow-wrap:anywhere]', titleClassName)}>{title}</h1>
+        {showDescription && description ? <p className="mt-1.5 max-w-[70ch] text-sm leading-6 text-muted-foreground">{description}</p> : null}
       </div>
-      {action ? <div className="col-span-12 min-w-0 border-t-2 border-primary pt-3 sm:col-span-3 sm:self-end">{action}</div> : null}
+      {action ? <div className="col-span-12 flex min-w-0 md:col-span-4 md:justify-end">{action}</div> : null}
     </header>
   );
 }
 
 /** Section heading inside a page with an optional trailing action. */
-export function SectionHeader({ title, action, className }) {
+export function SectionHeader({ title, action, className, id }) {
   return (
-    <div className={cn('flex min-w-0 items-baseline justify-between gap-4 border-t border-foreground pt-4', className)}>
-      <h2 className="min-w-0 font-serif text-2xl font-medium tracking-[-0.03em] [overflow-wrap:anywhere]">{title}</h2>
-      {action ? <div className="shrink-0">{action}</div> : null}
+    <div className={cn('flex min-w-0 items-baseline justify-between gap-4 border-b border-border pb-1.5', className)}>
+      <h2 className="min-w-0 text-[0.9375rem] font-semibold [overflow-wrap:anywhere]" id={id}>{title}</h2>
+      {action ? <div className="shrink-0 text-sm">{action}</div> : null}
     </div>
+  );
+}
+
+/** Breadcrumb line above a record head. */
+export function Breadcrumb({ trail = [], className }) {
+  if (trail.length === 0) return null;
+  return (
+    <nav aria-label="Breadcrumb" className={cn('mb-4 text-[0.8125rem] text-muted-foreground', className)}>
+      <ol className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">
+        {trail.map((entry, index) => (
+          <li className={cn('min-w-0 items-center gap-1.5', index === trail.length - 2 || trail.length === 1 ? 'flex' : 'hidden sm:flex')} key={`${entry.label}-${index}`}>
+            {index > 0 ? <span aria-hidden="true" className="hidden text-border sm:inline">/</span> : null}
+            {entry.href ? (
+              <Link className="max-w-[40ch] truncate hover:text-foreground hover:underline" href={entry.href}>{entry.label}</Link>
+            ) : (
+              <span aria-current="page" className="truncate text-foreground">{entry.label}</span>
+            )}
+          </li>
+        ))}
+      </ol>
+    </nav>
   );
 }

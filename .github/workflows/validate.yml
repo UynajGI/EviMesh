@@ -11,8 +11,33 @@ permissions:
 jobs:
   repository:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Enforce immutable action references
+        shell: bash
+        run: |
+          set -euo pipefail
+          invalid=0
+          while IFS= read -r ref; do
+            if [[ "$ref" == ./* ]]; then
+              continue
+            fi
+            if [[ "$ref" =~ ^docker://.+@sha256:[0-9a-f]{64}$ ]]; then
+              continue
+            fi
+            if [[ "$ref" =~ @[0-9a-f]{40}$ ]]; then
+              continue
+            fi
+            echo "::error::External action is not pinned to an immutable digest: $ref"
+            invalid=1
+          done < <(
+            grep -RhoE '^[[:space:]-]*uses:[[:space:]]*[^[:space:]#]+' .github/workflows \
+              | sed -E 's/^[[:space:]-]*uses:[[:space:]]*//'
+          )
+          exit "$invalid"
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
         with:
           version: 11.17.0
@@ -31,8 +56,11 @@ jobs:
 
   recommender-selftest:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
@@ -45,8 +73,28 @@ jobs:
 
   tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17.6-alpine
+        env:
+          POSTGRES_DB: evimesh_test
+          POSTGRES_USER: evimesh
+          POSTGRES_PASSWORD: evimesh_ci_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U evimesh -d evimesh_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DATABASE_URL: postgresql://evimesh:evimesh_ci_only@127.0.0.1:5432/evimesh_test
+      EVIMESH_TEST_DATABASE_URL: postgresql://evimesh:evimesh_ci_only@127.0.0.1:5432/evimesh_test
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
         with:
           version: 11.17.0
@@ -56,6 +104,30 @@ jobs:
           cache: pnpm
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Prepare Supabase-compatible database roles
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE anon NOLOGIN;
+          CREATE ROLE authenticated NOLOGIN;
+          CREATE ROLE service_role NOLOGIN;
+          CREATE SCHEMA auth;
+          CREATE TABLE auth.users (
+            id uuid PRIMARY KEY,
+            email_confirmed_at timestamp with time zone
+          );
+          CREATE FUNCTION auth.uid()
+          RETURNS uuid
+          LANGUAGE sql
+          STABLE
+          SET search_path = ''
+          AS $$
+            SELECT NULLIF(pg_catalog.current_setting('request.jwt.claim.sub', true), '')::uuid
+          $$;
+          SQL
+      - name: Apply database migrations for integration tests
+        run: pnpm --filter @evimesh/database db:migrate
       - name: Package test suites
         run: pnpm --filter '!@evimesh/web' -r test
       # AGENTS.md trap: the web app must never run tests through pnpm —

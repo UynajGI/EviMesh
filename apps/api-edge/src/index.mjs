@@ -1,3 +1,4 @@
+import { actorIdentityCard } from './contribution-query.mjs';
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { createSupabaseReadRepository } from "./supabase-read-repository.mjs";
@@ -10,9 +11,7 @@ import { ActorIdentityError, resolveActorForSupabaseClaims as resolveBoundActor 
 import { recordInteraction, removeInteraction, listMyInteractions, getMyRecommendations, provisionSelfActor } from './interaction-query.mjs';
 import { ActorProfileError } from '../../../packages/domain/src/actor-profile.mjs';
 import { ProjectAuthorizationError } from '../../../packages/domain/src/project-authorization.mjs';
-import { registerOwnSigningKey } from './signing-key-api.mjs';
-import { SigningKeyError } from '../../../packages/domain/src/signing-key.mjs';
-import { listOwnTokens, createOwnToken, revokeOwnToken } from './api-token-api.mjs';
+import { listOwnTokens, revokeOwnToken } from './api-token-api.mjs';
 import { ApiTokenError } from '../../../packages/domain/src/api-token.mjs';
 import { getQuestion, listQuestions, QuestionQueryError } from './question-query.mjs';
 import { getResearchNeighborhood, parseResearchGraphFilters, ResearchGraphQueryError } from './research-graph-query.mjs';
@@ -36,7 +35,7 @@ import { getObjectProvenance, ObjectProvenanceQueryError } from './object-proven
 import { getVerificationReceipt, listClaimVerifications, VerificationQueryError } from './verification-query.mjs';
 import { prepareVerification, VerificationPrepareError } from './verification-prepare.mjs';
 import { revisionEtag } from './etag.mjs';
-import { canonicalJson, semanticHash } from '../../../packages/protocol/src/hash.mjs';
+import { canonicalJson, rawHash, semanticHash } from '../../../packages/protocol/src/hash.mjs';
 import { verifyEd25519Payload } from '../../../packages/signatures/src/server-verification.mjs';
 import { createProject, reviseProject } from '../../../packages/domain/src/project-command.mjs';
 import { ProjectCommandError } from '../../../packages/domain/src/project-command.mjs';
@@ -51,10 +50,12 @@ import { createChallenge, transitionChallenge, ChallengeCommandError } from '../
 import { createAnswer, createDataset, createEvaluation, createRebuttal, createTool, TypedResearchNodeCommandError } from '../../../packages/domain/src/typed-research-node-command.mjs';
 import { submitVerification, VerificationSubmitError } from '../../../packages/domain/src/verification-submit-command.mjs';
 import { createSingleUploadPlan, UploadSessionError } from '../../../packages/artifact/src/upload-session.mjs';
-import { createActorApiToken, ApiTokenError as DeviceTokenError } from '../../../packages/domain/src/api-token.mjs';
-import { approveDeviceAuthorization, CLI_DEVICE_SCOPES, createMemoryDeviceCodeStore, DeviceAuthError, exchangeDeviceToken, startDeviceAuthorization } from './device-auth.mjs';
+import { approveDeviceAuthorization, denyDeviceAuthorization, DeviceAuthError, exchangeDeviceToken, getDeviceAuthorizationForApproval, listManagedAgents, startDeviceAuthorization } from './device-auth.mjs';
+import { createSupabaseDeviceAuthorizationStore } from './supabase-device-authorization-store.mjs';
 import { verifyClientSignatureEnvelope } from './client-signature.mjs';
 import { API_TOKEN_PREFIX, authenticateApiToken } from './api-token-auth.mjs';
+import { ApiTokenAuthorizationError, apiTokenRoutePolicy, assertApiTokenScope, isLegacyResearchMutationRoute, isTypedResearchPrepareRoute, isTypedResearchSubmitRoute } from './api-token-scope.mjs';
+import { probePublicDependencies } from './dependency-health.mjs';
 import { importWitnessReceipt, WitnessError } from '../../../packages/frontier-bundle/src/witness.mjs';
 import { createRateLimiter, rateLimitSettings } from './rate-limit.mjs';
 import { createDurableObjectRateLimiter } from './rate-limit-binding.mjs';
@@ -62,6 +63,13 @@ import { createSupabaseNonceStore } from './supabase-nonce-store.mjs';
 import { canonicalTypedResearchSubmission, prepareTypedResearchSubmission, TypedResearchPrepareError } from './typed-research-prepare.mjs';
 import { createApiResearchGraphRollout, createResearchGraphRolloutFromEnv, isResearchGraphRolloutError } from './research-graph-rollout-api.mjs';
 import { createResearchGraphEventVerifier } from './research-graph-event-verifier.mjs';
+import { resolvePublicCapabilities } from './public-capabilities.mjs';
+import { createSupabasePublicAdmissionRepository, registerPublicAdmissionApi } from './public-admission-api.mjs';
+import { createSupabaseActorBootstrap } from './actor-bootstrap.mjs';
+import { createSupabaseApiTokenRepository } from './supabase-api-token-repository.mjs';
+import { createSupabaseTypedResearchSubmitFromEnv } from './supabase-typed-research-submit.mjs';
+import { createHostedTypedResearchSubmitter } from './typed-research-hosted.mjs';
+import { createPlatformResearchEventFactoryFromEnv } from './platform-research-event-factory.mjs';
 
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
@@ -238,8 +246,9 @@ async function verifyRunDocumentSignature({ body, actorId, publicKey }) {
   }
 }
 
-export function createApp({ repository = null, signatureNonceStore = null, projectEventFactory = null, questionEventFactory = null, questionRoleResolver = null, questionRiskResolver = null, attemptEventFactory = null, attemptRoleResolver = null, leaseEventFactory = null, leaseRoleResolver = null, taskEventFactory = null, taskRoleResolver = null, claimEventFactory = null, claimRoleResolver = null, evidenceEventFactory = null, evidenceRoleResolver = null, runEventFactory = null, runRoleResolver = null, artifactEventFactory = null, artifactRoleResolver = null, challengeEventFactory = null, challengeRoleResolver = null, verificationEventFactory = null, verificationRoleResolver = null, typedResearchEventFactory = null, typedResearchRoleResolver = null, researchGraphRollout = null, uploadSigner = null, deviceCodeStore = createMemoryDeviceCodeStore(), authenticate = authenticateSupabaseRequest, rateLimiter = createRateLimiter() } = {}) {
+export function createApp({ repository = null, publicAdmissionRepository = repository, signatureNonceStore = null, projectEventFactory = null, questionEventFactory = null, questionRoleResolver = null, questionRiskResolver = null, attemptEventFactory = null, attemptRoleResolver = null, leaseEventFactory = null, leaseRoleResolver = null, taskEventFactory = null, taskRoleResolver = null, claimEventFactory = null, claimRoleResolver = null, evidenceEventFactory = null, evidenceRoleResolver = null, runEventFactory = null, runRoleResolver = null, artifactEventFactory = null, artifactRoleResolver = null, challengeEventFactory = null, challengeRoleResolver = null, verificationEventFactory = null, verificationRoleResolver = null, typedResearchEventFactory = null, typedResearchRoleResolver = null, typedResearchSubmitter = null, actorBootstrap = null, apiTokenRepository = null, researchGraphRollout = null, uploadSigner = null, deviceCodeStore = null, capabilityReadiness = null, dependencyProbe = probePublicDependencies, authenticate = authenticateSupabaseRequest, rateLimiter = createRateLimiter() } = {}) {
 const app = new Hono();
+const publicProductMode = capabilityReadiness !== null;
 const graphRollout = researchGraphRollout?.readCompatibility
   ? researchGraphRollout
   : createApiResearchGraphRollout({
@@ -258,6 +267,34 @@ function nonceStoreFor(context) {
   if (typeof signatureNonceStore?.claimSignatureNonce === 'function') return signatureNonceStore;
   if (typeof repository?.claimSignatureNonce === 'function') return repository;
   return createSupabaseNonceStore({ env: context.env });
+}
+
+function runtimeCapabilitiesFor(context) {
+  return resolvePublicCapabilities({
+    env: context.env,
+    deviceAuthorizationAvailable: capabilityReadiness?.deviceAuthorization === true,
+    researchPrepareAvailable: capabilityReadiness?.researchPrepare === true,
+    researchSubmitAvailable: capabilityReadiness?.researchSubmit === true
+      && typedResearchSubmitter?.ready === true,
+  });
+}
+
+async function requireAgentApiTokenCaller(context, requiredScope, {
+  action = 'operation',
+  tokenRequiredCode = 'AGENT_TOKEN_REQUIRED',
+  actorRequiredCode = 'AGENT_ACTOR_REQUIRED',
+} = {}) {
+  const claims = await authenticateRequest(context.req.raw, context.env);
+  if (claims?.kind !== 'api_token') {
+    throw new ApiTokenAuthorizationError(`${action} requires an Agent API token`, tokenRequiredCode);
+  }
+  assertApiTokenScope(claims, requiredScope);
+  const actorId = await resolveActorForSupabaseClaims({ repository, claims });
+  const actor = await repository?.getActor?.(actorId);
+  if (!actor || actor.actorType !== 'agent') {
+    throw new ApiTokenAuthorizationError(`${action} requires a token bound to an Agent Actor`, actorRequiredCode);
+  }
+  return { claims, actorId, actor };
 }
 
 function revisionEtagFor(objectId, revision) {
@@ -283,7 +320,7 @@ async function authenticateRequest(request, env) {
   const match = /^Bearer\s+(.+)$/i.exec(header);
   let claims;
   if (match && match[1].startsWith(API_TOKEN_PREFIX)) {
-    claims = await authenticateApiToken({ repository, token: match[1] });
+    claims = await authenticateApiToken({ repository: apiTokenRepository ?? repository, token: match[1] });
   } else {
     claims = await authenticate(request, env);
   }
@@ -304,6 +341,52 @@ app.use("*", async (context, next) => {
   context.set("requestId", requestId);
   context.header("x-request-id", requestId);
   await next();
+});
+
+app.use("*", async (context, next) => {
+  const startedAt = Date.now();
+  try {
+    await next();
+  } finally {
+    console.log(JSON.stringify({
+      event: "api.request",
+      method: context.req.method,
+      path: new URL(context.req.url).pathname,
+      status: context.res.status,
+      request_id: context.get("requestId"),
+      duration_ms: Date.now() - startedAt,
+    }));
+  }
+});
+
+app.use("*", cors({
+  origin: (origin, context) => configuredCorsOrigins(context.env).includes(origin) ? origin : null,
+  exposeHeaders: ["ETag", "Location", "X-Request-ID"],
+  maxAge: 600,
+}));
+
+app.use('*', async (context, next) => {
+  if (!publicProductMode) return next();
+  const method = context.req.method;
+  const pathname = new URL(context.req.url).pathname;
+
+  // Product capability gates run before authentication, rate limiting, body
+  // parsing, nonce claims, signature verification, or repository mutations.
+  if (isLegacyResearchMutationRoute(method, pathname)) {
+    return context.json(errorBody(
+      'LEGACY_RESEARCH_WRITE_UNAVAILABLE',
+      'legacy direct research mutation is unavailable; use a typed prepare and submit flow',
+      context.get('requestId'),
+    ), 503);
+  }
+  const capabilities = runtimeCapabilitiesFor(context);
+  if (isTypedResearchPrepareRoute(method, pathname) && !capabilities.research.prepare) {
+    return context.json(errorBody('RESEARCH_PREPARE_UNAVAILABLE', 'research prepare is unavailable', context.get('requestId')), 503);
+  }
+  if (isTypedResearchSubmitRoute(method, pathname) && !capabilities.research.submit) {
+    return context.json(errorBody('RESEARCH_SUBMIT_UNAVAILABLE', 'research submit is unavailable', context.get('requestId')), 503);
+  }
+  return next();
 });
 
 app.use("*", async (context, next) => {
@@ -342,33 +425,28 @@ app.use("*", async (context, next) => {
   return next();
 });
 
-app.use("*", async (context, next) => {
-  const startedAt = Date.now();
-  try {
-    await next();
-  } finally {
-    console.log(JSON.stringify({
-      event: "api.request",
-      method: context.req.method,
-      path: new URL(context.req.url).pathname,
-      status: context.res.status,
-      request_id: context.get("requestId"),
-      duration_ms: Date.now() - startedAt,
-    }));
-  }
+app.use('*', async (context, next) => {
+  const bearer = bearerTokenOf(context.req.raw);
+  if (!bearer?.startsWith(API_TOKEN_PREFIX)) return next();
+  const claims = await authenticateRequest(context.req.raw, context.env);
+  const policy = apiTokenRoutePolicy(context.req.method, new URL(context.req.url).pathname);
+  if (policy.deny) throw new ApiTokenAuthorizationError(policy.message, policy.code);
+  if (policy.scope) assertApiTokenScope(claims, policy.scope);
+  return next();
 });
-
-app.use("*", cors({
-  origin: (origin, context) => configuredCorsOrigins(context.env).includes(origin) ? origin : null,
-  exposeHeaders: ["ETag", "Location", "X-Request-ID"],
-  maxAge: 600,
-}));
 
 app.get("/health", (context) => context.json({
   service: "evimesh-api-edge",
   status: "ok",
   environment: context.env.EVIMESH_ENV ?? "development",
 }));
+
+app.get('/health/dependencies', async (context) => {
+  const health = await dependencyProbe({ env: context.env });
+  return context.json(health, health.status === 'operational' ? 200 : 503);
+});
+
+app.get('/meta/capabilities', (context) => context.json(runtimeCapabilitiesFor(context)));
 
 app.get('/platform/keys', (context) => {
   try {
@@ -408,21 +486,88 @@ function deviceFailure(error, context) {
   return null;
 }
 
+async function requireHumanDeviceApprover(context) {
+  const claims = await authenticateRequest(context.req.raw, context.env);
+  const actorId = await resolveActorForSupabaseClaims({ repository, claims });
+  const actor = typeof repository?.getActor === "function" ? await repository.getActor(actorId) : null;
+  if (!actor || actor.actorType !== "human") {
+    throw new DeviceAuthError("device authorization approval requires a human Actor", "DEVICE_AUTH_HUMAN_REQUIRED", 403);
+  }
+  return actorId;
+}
+
+function deviceVerificationUri(context) {
+  const webBase = typeof context.env?.EVIMESH_WEB_URL === "string" ? context.env.EVIMESH_WEB_URL.trim() : "";
+  return webBase ? new URL("/device", webBase).toString() : "/device";
+}
+
 app.post("/auth/device", async (context) => {
   try {
     const body = await context.req.json().catch(() => ({}));
-    return context.json(await startDeviceAuthorization({ store: deviceCodeStore, clientId: body.client_id }));
+    return context.json(await startDeviceAuthorization({
+      store: deviceCodeStore,
+      clientId: body.client_id,
+      scopes: body.scope ?? body.scopes,
+      verificationUri: deviceVerificationUri(context),
+    }));
   } catch (error) {
     return deviceFailure(error, context) ?? deviceFailure(new DeviceAuthError(error.message, "INVALID_REQUEST"), context);
   }
 });
 
+app.get("/auth/device/grants/:userCode", async (context) => {
+  try {
+    await requireHumanDeviceApprover(context);
+    return context.json(await getDeviceAuthorizationForApproval({ store: deviceCodeStore, userCode: context.req.param("userCode") }));
+  } catch (error) {
+    const device = deviceFailure(error, context);
+    if (device) return device;
+    const response = knownFailure(error, context);
+    if (response) return response;
+    throw error;
+  }
+});
+
+app.get("/actors/managed", async (context) => {
+  try {
+    if ((context.req.query("actor_type") ?? "agent") !== "agent") {
+      throw new DeviceAuthError("actor_type must be agent", "INVALID_REQUEST");
+    }
+    const actorId = await requireHumanDeviceApprover(context);
+    return context.json({ items: await listManagedAgents({ store: deviceCodeStore, actorId }) });
+  } catch (error) {
+    const device = deviceFailure(error, context);
+    if (device) return device;
+    const response = knownFailure(error, context);
+    if (response) return response;
+    throw error;
+  }
+});
+
 app.post("/auth/device/approve", async (context) => {
   try {
-    const claims = await authenticateRequest(context.req.raw, context.env);
-    const actorId = await resolveActorForSupabaseClaims({ repository, claims });
+    const actorId = await requireHumanDeviceApprover(context);
     const body = await context.req.json().catch(() => ({}));
-    return context.json(await approveDeviceAuthorization({ store: deviceCodeStore, actorId, userCode: body.user_code }));
+    return context.json(await approveDeviceAuthorization({
+      store: deviceCodeStore,
+      approvedByActorId: actorId,
+      agentActorId: body.agent_actor_id,
+      userCode: body.user_code,
+    }));
+  } catch (error) {
+    const device = deviceFailure(error, context);
+    if (device) return device;
+    const response = knownFailure(error, context);
+    if (response) return response;
+    throw error;
+  }
+});
+
+app.post("/auth/device/deny", async (context) => {
+  try {
+    const actorId = await requireHumanDeviceApprover(context);
+    const body = await context.req.json().catch(() => ({}));
+    return context.json(await denyDeviceAuthorization({ store: deviceCodeStore, deniedByActorId: actorId, userCode: body.user_code }));
   } catch (error) {
     const device = deviceFailure(error, context);
     if (device) return device;
@@ -435,19 +580,7 @@ app.post("/auth/device/approve", async (context) => {
 app.post("/auth/device/token", async (context) => {
   try {
     const body = await context.req.json().catch(() => ({}));
-    const issueToken = async (actorId) => {
-      if (!repository || typeof repository.insertApiToken !== "function") {
-        throw new DeviceAuthError("device token issuance is not configured", "DEVICE_AUTH_TOKEN_UNAVAILABLE", 503);
-      }
-      try {
-        const { token, record } = await createActorApiToken({ repository, actorId, scopes: [...CLI_DEVICE_SCOPES] });
-        return { access_token: token, scopes: [...CLI_DEVICE_SCOPES], token_id: record?.tokenId ?? null };
-      } catch (error) {
-        if (error instanceof DeviceTokenError) throw new DeviceAuthError(error.message, "DEVICE_AUTH_TOKEN_UNAVAILABLE", 503);
-        throw error;
-      }
-    };
-    return context.json(await exchangeDeviceToken({ store: deviceCodeStore, deviceCode: body.device_code, issueToken }));
+    return context.json(await exchangeDeviceToken({ store: deviceCodeStore, deviceCode: body.device_code }));
   } catch (error) {
     return deviceFailure(error, context) ?? deviceFailure(new DeviceAuthError(error.message, "INVALID_REQUEST"), context);
   }
@@ -582,18 +715,45 @@ for (const { kind, plural, idParam, command } of [
   });
   app.post(`/${plural}/prepare`, async (context) => {
     try {
-      const claims = await authenticateRequest(context.req.raw, context.env);
-      const preparingActorId = await resolveActorForSupabaseClaims({ repository, claims });
-      const preparingActor = await repository?.getActor?.(preparingActorId);
+      let preparingActorId;
+      let preparingActor;
+      if (publicProductMode) {
+        ({ actorId: preparingActorId, actor: preparingActor } = await requireAgentApiTokenCaller(context, 'research:prepare', {
+          action: 'research writes',
+          tokenRequiredCode: 'RESEARCH_AGENT_TOKEN_REQUIRED',
+          actorRequiredCode: 'RESEARCH_AGENT_ACTOR_REQUIRED',
+        }));
+      } else {
+        const claims = await authenticateRequest(context.req.raw, context.env);
+        preparingActorId = await resolveActorForSupabaseClaims({ repository, claims });
+        preparingActor = await repository?.getActor?.(preparingActorId);
+      }
       if (!preparingActor) throw new TypedResearchPrepareError('preparing actor not found', 'RESEARCH_DRAFTER_NOT_FOUND', 404);
       const body = await context.req.json();
-      const publisherActorId = body.publisherActorId ?? (preparingActor.actorType === 'human' ? preparingActorId : null);
+      let publisherActorId;
+      if (publicProductMode) {
+        publisherActorId = preparingActor.ownerActorId ?? null;
+        if (!publisherActorId) {
+          throw new TypedResearchPrepareError('Agent actor is not bound to a human owner', 'RESEARCH_AGENT_OWNER_REQUIRED', 403);
+        }
+        if (body.publisherActorId !== undefined && body.publisherActorId !== publisherActorId) {
+          throw new TypedResearchPrepareError('publisherActorId must match the Agent owner', 'RESEARCH_PUBLISHER_OWNERSHIP_MISMATCH', 403);
+        }
+      } else {
+        publisherActorId = body.publisherActorId ?? (preparingActor.actorType === 'human' ? preparingActorId : null);
+      }
       if (!publisherActorId) throw new TypedResearchPrepareError('agent prepare requires publisherActorId for the human signer', 'RESEARCH_PUBLISHER_REQUIRED');
       const publisher = await repository?.getActor?.(publisherActorId);
       if (!publisher) throw new TypedResearchPrepareError('publishing actor not found', 'RESEARCH_PUBLISHER_NOT_FOUND', 404);
       if (publisher.actorType !== 'human') throw new TypedResearchPrepareError('publishing actor must be human', 'RESEARCH_PUBLISHER_TYPE_INVALID', 403);
       const input = preparingActor.actorType === 'human' ? body : { ...body, draftedByActorId: preparingActorId };
-      return context.json(prepareTypedResearchSubmission({ kind, input, publisherActorId, nonce: body.nonce }));
+      return context.json(prepareTypedResearchSubmission({
+        kind,
+        input,
+        producerActorId: preparingActorId,
+        publisherActorId,
+        nonce: body.nonce,
+      }));
     } catch (error) {
       const response = knownFailure(error, context);
       if (response || error instanceof TypedResearchPrepareError) return response ?? context.json(errorBody(error.code, error.message, context.get('requestId')), error.status);
@@ -603,9 +763,20 @@ for (const { kind, plural, idParam, command } of [
   app.post(`/${plural}`, async (context) => {
     try {
       graphRollout.assertTypedKernelWrite();
-      if (typeof typedResearchEventFactory !== 'function' || typeof typedResearchRoleResolver !== 'function') return context.json(errorBody('TYPED_RESEARCH_SUBMIT_UNAVAILABLE', 'typed research submission is not configured', context.get('requestId')), 503);
-      const claims = await authenticateRequest(context.req.raw, context.env);
-      await resolveActorForSupabaseClaims({ repository, claims });
+      if (publicProductMode && typedResearchSubmitter?.ready !== true) return context.json(errorBody('TYPED_RESEARCH_SUBMIT_UNAVAILABLE', 'typed research submission is not configured', context.get('requestId')), 503);
+      if (!publicProductMode && (typeof typedResearchEventFactory !== 'function' || typeof typedResearchRoleResolver !== 'function')) return context.json(errorBody('TYPED_RESEARCH_SUBMIT_UNAVAILABLE', 'typed research submission is not configured', context.get('requestId')), 503);
+      let relayActorId = null;
+      let relayActor = null;
+      if (publicProductMode) {
+        ({ actorId: relayActorId, actor: relayActor } = await requireAgentApiTokenCaller(context, 'research:submit', {
+          action: 'research writes',
+          tokenRequiredCode: 'RESEARCH_AGENT_TOKEN_REQUIRED',
+          actorRequiredCode: 'RESEARCH_AGENT_ACTOR_REQUIRED',
+        }));
+      } else {
+        const claims = await authenticateRequest(context.req.raw, context.env);
+        await resolveActorForSupabaseClaims({ repository, claims });
+      }
       const body = await context.req.json();
       if (!body.signatureEnvelope) throw new TypedResearchPrepareError('an external human signature envelope is required', 'RESEARCH_PUBLISHER_SIGNATURE_REQUIRED');
       const publisherActorId = body.signatureEnvelope?.payload?.publisherActorId;
@@ -613,7 +784,32 @@ for (const { kind, plural, idParam, command } of [
       const publisher = await repository?.getActor?.(publisherActorId);
       if (!publisher) throw new TypedResearchPrepareError('publishing actor not found', 'RESEARCH_PUBLISHER_NOT_FOUND', 404);
       if (publisher.actorType !== 'human') throw new TypedResearchPrepareError('publishing actor must be human', 'RESEARCH_PUBLISHER_TYPE_INVALID', 403);
-      const canonical = canonicalTypedResearchSubmission({ kind, input: { ...body, draftedByActorId: body.draftedByActorId ?? body.signatureEnvelope?.payload?.draftedByActorId }, publisherActorId });
+      if (publicProductMode && relayActor?.ownerActorId !== publisherActorId) {
+        throw new TypedResearchPrepareError('signature publisher must be the relaying Agent owner', 'RESEARCH_PUBLISHER_OWNERSHIP_MISMATCH', 403);
+      }
+      if (publicProductMode) {
+        return context.json(await typedResearchSubmitter.submit({
+          kind,
+          input: { ...body, draftedByActorId: relayActorId },
+          agentActorId: relayActorId,
+          publisherActorId,
+          signatureEnvelope: body.signatureEnvelope,
+        }), 201);
+      }
+      const canonical = canonicalTypedResearchSubmission({
+        kind,
+        input: {
+          ...body,
+          draftedByActorId: publicProductMode
+            ? relayActorId
+            : body.draftedByActorId ?? body.signatureEnvelope?.payload?.draftedByActorId,
+        },
+        producerActorId: body.producerActorId
+          ?? body.signatureEnvelope?.payload?.producerActorId
+          ?? body.draftedByActorId
+          ?? body.signatureEnvelope?.payload?.draftedByActorId,
+        publisherActorId,
+      });
       await verifyClientSignatureEnvelope({
         repository,
         signatureNonceStore: nonceStoreFor(context),
@@ -623,19 +819,98 @@ for (const { kind, plural, idParam, command } of [
         expectedEventType: canonical.definition.eventType,
       });
       const publisherSignatureEnvelope = persistedClientSignatureEnvelope(body.signatureEnvelope, canonical.payload);
-      const actorRole = await typedResearchRoleResolver({ repository, actorId: publisherActorId, projectId: canonical.command.projectId, kind });
+      const producerActorId = canonical.payload.producerActorId;
+      const actorRole = await typedResearchRoleResolver({
+        repository,
+        actorId: producerActorId,
+        publisherActorId,
+        projectId: canonical.command.projectId,
+        kind,
+      });
       return context.json(await command({
         repository,
         eventFactory: typedResearchEventFactory,
-        actorId: publisherActorId,
+        actorId: producerActorId,
         actorRole,
         draftedByActorId: canonical.payload.draftedByActorId,
+        publisherActorId,
         publisherSignatureEnvelope,
         ...canonical.command,
       }), 201);
     } catch (error) {
       const response = knownFailure(error, context);
       if (response || error instanceof TypedResearchPrepareError || error instanceof TypedResearchNodeCommandError) return response ?? context.json(errorBody(error.code, error.message, context.get('requestId')), error.status ?? 400);
+      throw error;
+    }
+  });
+}
+
+/*
+ * Signed Question and Claim submission (migration 0090). Same contract as the
+ * typed routes above: an Agent token prepares canonical bytes, the Human
+ * signs locally, the Agent relays the signature. Separate paths keep the
+ * legacy POST /questions and POST /claims routes untouched.
+ */
+for (const kind of ['question', 'claim']) {
+  const plural = `${kind}s`;
+  app.post(`/research/${plural}/prepare`, async (context) => {
+    try {
+      if (!publicProductMode) return context.json(errorBody('TYPED_RESEARCH_PREPARE_UNAVAILABLE', 'signed research submission requires the hosted product mode', context.get('requestId')), 503);
+      const { actorId: agentActorId, actor: agent } = await requireAgentApiTokenCaller(context, 'research:prepare', {
+        action: 'research writes',
+        tokenRequiredCode: 'RESEARCH_AGENT_TOKEN_REQUIRED',
+        actorRequiredCode: 'RESEARCH_AGENT_ACTOR_REQUIRED',
+      });
+      const body = await context.req.json();
+      const publisherActorId = agent.ownerActorId ?? null;
+      if (!publisherActorId) throw new TypedResearchPrepareError('Agent actor is not bound to a human owner', 'RESEARCH_AGENT_OWNER_REQUIRED', 403);
+      if (body.publisherActorId !== undefined && body.publisherActorId !== publisherActorId) {
+        throw new TypedResearchPrepareError('publisherActorId must match the Agent owner', 'RESEARCH_PUBLISHER_OWNERSHIP_MISMATCH', 403);
+      }
+      const publisher = await repository?.getActor?.(publisherActorId);
+      if (!publisher || !['human', 'maintainer'].includes(publisher.actorType)) {
+        throw new TypedResearchPrepareError('publishing actor must be an active human', 'RESEARCH_PUBLISHER_TYPE_INVALID', 403);
+      }
+      return context.json(prepareTypedResearchSubmission({
+        kind,
+        input: { ...body, draftedByActorId: agentActorId },
+        producerActorId: agentActorId,
+        publisherActorId,
+        nonce: body.nonce,
+      }));
+    } catch (error) {
+      const response = knownFailure(error, context);
+      if (response || error instanceof TypedResearchPrepareError) return response ?? context.json(errorBody(error.code, error.message, context.get('requestId')), error.status);
+      throw error;
+    }
+  });
+  app.post(`/research/${plural}`, async (context) => {
+    try {
+      if (!publicProductMode || typedResearchSubmitter?.ready !== true) {
+        return context.json(errorBody('TYPED_RESEARCH_SUBMIT_UNAVAILABLE', 'typed research submission is not configured', context.get('requestId')), 503);
+      }
+      const { actorId: agentActorId, actor: agent } = await requireAgentApiTokenCaller(context, 'research:submit', {
+        action: 'research writes',
+        tokenRequiredCode: 'RESEARCH_AGENT_TOKEN_REQUIRED',
+        actorRequiredCode: 'RESEARCH_AGENT_ACTOR_REQUIRED',
+      });
+      const body = await context.req.json();
+      if (!body.signatureEnvelope) throw new TypedResearchPrepareError('an external human signature envelope is required', 'RESEARCH_PUBLISHER_SIGNATURE_REQUIRED');
+      const publisherActorId = body.signatureEnvelope?.payload?.publisherActorId;
+      if (typeof publisherActorId !== 'string' || !publisherActorId) throw new TypedResearchPrepareError('signature envelope must bind publisherActorId', 'RESEARCH_PUBLISHER_SIGNATURE_INVALID');
+      if (agent.ownerActorId !== publisherActorId) {
+        throw new TypedResearchPrepareError('signature publisher must be the relaying Agent owner', 'RESEARCH_PUBLISHER_OWNERSHIP_MISMATCH', 403);
+      }
+      return context.json(await typedResearchSubmitter.submit({
+        kind,
+        input: { ...body, draftedByActorId: agentActorId },
+        agentActorId,
+        publisherActorId,
+        signatureEnvelope: body.signatureEnvelope,
+      }), 201);
+    } catch (error) {
+      const response = knownFailure(error, context);
+      if (response || error instanceof TypedResearchPrepareError) return response ?? context.json(errorBody(error.code, error.message, context.get('requestId')), error.status ?? 400);
       throw error;
     }
   });
@@ -930,7 +1205,16 @@ async function authedActorFor(context) {
 app.post('/actors/self', async (context) => {
   try {
     const claims = await authenticateRequest(context.req.raw, context.env);
-    return context.json(await provisionSelfActor({ repository, claims, accessToken: bearerTokenOf(context.req.raw) }), 201);
+    const accessToken = bearerTokenOf(context.req.raw);
+    if (actorBootstrap) {
+      // 0089: Actor and identity rows are created only by the service-only
+      // RPC from the Auth server's own user record, never from the browser.
+      if (claims?.kind === 'api_token') return context.json(errorBody('ACTOR_BOOTSTRAP_HUMAN_SESSION_REQUIRED', 'a human session is required', context.get('requestId')), 403);
+      const result = await actorBootstrap.bootstrap({ accessToken, claims });
+      const actor = typeof repository?.getActor === 'function' ? await repository.getActor(result.actorId) : null;
+      return context.json({ actor: actorIdentityCard(actor ?? { actorId: result.actorId, actorType: result.actorType, identityStrength: result.identityStrength }), created: result.created === true }, result.created === true ? 201 : 200);
+    }
+    return context.json(await provisionSelfActor({ repository, claims, accessToken }), 201);
   } catch (error) { const response = knownFailure(error, context); if (response) return response; throw error; }
 });
 
@@ -966,24 +1250,37 @@ app.get('/recommendations', async (context) => {
   } catch (error) { const response = knownFailure(error, context); if (response) return response; throw error; }
 });
 
-app.post('/signing-keys', async (context) => {
-  try {
-    const claims = await authenticateRequest(context.req.raw, context.env);
-    const actorId = await resolveActorForSupabaseClaims({ repository, claims });
-    const { keyId, publicKey } = await context.req.json();
-    return context.json(await registerOwnSigningKey({ repository, actorId, keyId, publicKey }), 201);
-  } catch (error) {
-    const status = error instanceof JwtVerificationError ? 401 : error instanceof ActorIdentityError ? error.status : error instanceof SigningKeyError ? 400 : error.status;
-    if (status) return context.json(errorBody(error.code ?? 'signing_key_unavailable', error.message, context.get('requestId')), status);
-    throw error;
+async function publicAdmissionActorFor(context) {
+  const claims = await authenticateRequest(context.req.raw, context.env);
+  if (claims?.kind === 'api_token') {
+    throw new ApiTokenAuthorizationError('account and project governance requires a human Supabase session', 'HUMAN_SESSION_REQUIRED');
   }
+  const accessToken = bearerTokenOf(context.req.raw);
+  const actorId = await resolveActorForSupabaseClaims({ repository, claims, accessToken });
+  const actor = await repository?.getActor?.(actorId);
+  if (!actor || !['human', 'maintainer'].includes(actor.actorType)) {
+    throw new ApiTokenAuthorizationError('account and project governance requires a human Actor', 'HUMAN_ACTOR_REQUIRED');
+  }
+  return { actorId, actor, claims, accessToken };
+}
+
+async function humanSessionActorFor(context) {
+  return (await publicAdmissionActorFor(context)).actorId;
+}
+
+registerPublicAdmissionApi(app, {
+  admissionRepository: publicAdmissionRepository,
+  authenticateHuman: publicAdmissionActorFor,
 });
 
-async function actorFor(context) { return resolveActorForSupabaseClaims({ repository, claims: await authenticateRequest(context.req.raw, context.env) }); }
-function tokenFailure(error, context) { const status = error instanceof JwtVerificationError ? 401 : error instanceof ActorIdentityError ? error.status : error instanceof ApiTokenError ? 400 : error.status; return status ? context.json(errorBody(error.code ?? 'api_token_unavailable', error.message, context.get('requestId')), status) : null; }
-app.get('/api-tokens', async (context) => { try { return context.json(await listOwnTokens({ repository, actorId: await actorFor(context) })); } catch (error) { const response = tokenFailure(error, context); if (response) return response; throw error; } });
-app.post('/api-tokens', async (context) => { try { const { scopes = [], expiresAt = null } = await context.req.json(); return context.json(await createOwnToken({ repository, actorId: await actorFor(context), scopes, expiresAt }), 201); } catch (error) { const response = tokenFailure(error, context); if (response) return response; throw error; } });
-app.delete('/api-tokens/:tokenId', async (context) => { try { return context.json(await revokeOwnToken({ repository, actorId: await actorFor(context), tokenId: context.req.param('tokenId') })); } catch (error) { const response = tokenFailure(error, context); if (response) return response; throw error; } });
+function tokenFailure(error, context) { const status = error instanceof JwtVerificationError ? 401 : error instanceof ActorIdentityError ? error.status : error instanceof ApiTokenError ? (error.status ?? 400) : error.status; return status ? context.json(errorBody(error.code ?? 'api_token_unavailable', error.message, context.get('requestId')), status) : null; }
+app.get('/api-tokens', async (context) => { try { return context.json(await listOwnTokens({ repository: apiTokenRepository ?? repository, actorId: await humanSessionActorFor(context) })); } catch (error) { const response = tokenFailure(error, context); if (response) return response; throw error; } });
+app.post('/api-tokens', (context) => context.json(errorBody(
+  'API_TOKEN_ISSUANCE_UNAVAILABLE',
+  'manual API token issuance is unavailable; approve an Agent through Device Authorization',
+  context.get('requestId'),
+), 503));
+app.delete('/api-tokens/:tokenId', async (context) => { try { const actorId = await humanSessionActorFor(context); const body = await context.req.json().catch(() => ({})); return context.json(await revokeOwnToken({ repository: apiTokenRepository ?? repository, actorId, tokenId: context.req.param('tokenId'), reason: typeof body?.reason === 'string' && body.reason.trim() ? body.reason.trim() : 'revoked by owner' })); } catch (error) { const response = tokenFailure(error, context); if (response) return response; throw error; } });
 
 app.get("/tasks/:taskId/context", async (context) => {
   try {
@@ -1659,6 +1956,13 @@ app.post('/runs', async (context) => {
 app.post('/artifacts/upload-plan', async (context) => {
   try {
     if (typeof uploadSigner !== 'function') return context.json(errorBody('UPLOAD_UNAVAILABLE', 'artifact upload is not configured', context.get('requestId')), 503);
+    if (publicProductMode) {
+      await requireAgentApiTokenCaller(context, 'artifact:upload', {
+        action: 'artifact upload planning',
+        tokenRequiredCode: 'ARTIFACT_AGENT_TOKEN_REQUIRED',
+        actorRequiredCode: 'ARTIFACT_AGENT_ACTOR_REQUIRED',
+      });
+    }
     const body = await context.req.json();
     const plan = await createSingleUploadPlan({
       artifactId: body.artifactId,
@@ -1864,6 +2168,9 @@ app.post('/challenges/:challengeId/transitions', async (context) => {
 app.notFound((context) => context.json(errorBody("not_found", "route not found", context.get("requestId")), 404));
 
 app.onError((error, context) => {
+  if (error instanceof JwtVerificationError) {
+    return context.json(errorBody('unauthorized', 'authentication required', context.get('requestId')), 401);
+  }
   if (error instanceof RequestValidationError) {
     return context.json({
       ...errorBody(error.code, error.message, context.get("requestId")),
@@ -1910,6 +2217,22 @@ export function createWorker({ fetchImpl = fetch } = {}) {
       }
       let rollout;
       const repository = createSupabaseReadRepository({ url: env.SUPABASE_URL, publishableKey, serviceRoleKey, fetchImpl });
+      const platformEventFactory = createPlatformResearchEventFactoryFromEnv({ env });
+      const publicAdmissionRepository = serviceRoleKey
+        ? createSupabasePublicAdmissionRepository({
+          url: env.SUPABASE_URL,
+          publishableKey,
+          serviceRoleKey,
+          fetchImpl,
+          platformEventFactory,
+        })
+        : null;
+      const actorBootstrap = createSupabaseActorBootstrap({ url: env.SUPABASE_URL, publishableKey, serviceRoleKey, fetchImpl });
+      const apiTokenRepository = createSupabaseApiTokenRepository({ url: env.SUPABASE_URL, serviceRoleKey, fetchImpl });
+      const deviceAuthorizationEnabled = env.EVIMESH_DEVICE_AUTH_ENABLED === 'true';
+      const deviceCodeStore = serviceRoleKey && deviceAuthorizationEnabled
+        ? createSupabaseDeviceAuthorizationStore({ url: env.SUPABASE_URL, serviceRoleKey, fetchImpl })
+        : null;
       try {
         rollout = createResearchGraphRolloutFromEnv(env, {
           onParity: observeResearchGraphParity,
@@ -1925,10 +2248,43 @@ export function createWorker({ fetchImpl = fetch } = {}) {
         }
         throw error;
       }
-      const key = `${env.SUPABASE_URL}\u0000${publishableKey}\u0000${serviceRoleKey ?? ''}\u0000${rollout.readMode}\u0000${rollout.writeMode}\u0000${rollout.cutoverReady}`;
+      let platformKeys = [];
+      try {
+        platformKeys = JSON.parse(env.PLATFORM_KEYRING ?? '');
+      } catch {
+        platformKeys = [];
+      }
+      const typedResearchDependenciesReady = env.EVIMESH_TYPED_RESEARCH_ATOMIC_RPC_READY === 'true'
+        && rollout.writeMode === 'kernel'
+        && rollout.cutoverReady === true;
+      const typedResearchAdapter = createSupabaseTypedResearchSubmitFromEnv(env, {
+        fetchImpl,
+        dependenciesReady: typedResearchDependenciesReady,
+        platformKeys,
+      });
+      const typedResearchSubmitter = createHostedTypedResearchSubmitter({
+        adapter: typedResearchAdapter,
+        platformEventFactory,
+      });
+      const activePlatformKeyId = platformKeys?.activeKey?.keyId ?? '';
+      const serviceCredentialVersion = serviceRoleKey ? rawHash(serviceRoleKey) : '';
+      const platformSignerVersion = env.PLATFORM_EVENT_SIGNING_PRIVATE_KEY
+        ? rawHash(env.PLATFORM_EVENT_SIGNING_PRIVATE_KEY)
+        : '';
+      const key = `${env.SUPABASE_URL}\u0000${publishableKey}\u0000${serviceCredentialVersion}\u0000${rollout.readMode}\u0000${rollout.writeMode}\u0000${rollout.cutoverReady}\u0000${deviceAuthorizationEnabled}\u0000${typedResearchSubmitter.ready}\u0000${activePlatformKeyId}\u0000${platformSignerVersion}`;
       if (!hostedApps.has(key)) hostedApps.set(key, createApp({
         repository,
+        publicAdmissionRepository,
         researchGraphRollout: rollout,
+        deviceCodeStore,
+        typedResearchSubmitter,
+        actorBootstrap,
+        apiTokenRepository,
+        capabilityReadiness: {
+          deviceAuthorization: deviceCodeStore?.persistent === true,
+          researchPrepare: deviceCodeStore?.persistent === true && serviceRoleKey !== null,
+          researchSubmit: typedResearchSubmitter.ready,
+        },
       }));
       return hostedApps.get(key).fetch(request, env, executionContext);
     },

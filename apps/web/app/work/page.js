@@ -1,6 +1,8 @@
 import Link from 'next/link';
-import { ArrowUpRight, Bot, History, Network } from 'lucide-react';
-import { PageContainer, PageHeader } from '@/components/ui/page';
+import { buttonLinkVariants } from '@/components/ui/button';
+import { StatusBadge } from '@/components/ui/data';
+import { ActorName, MarginSection } from '@/components/ui/doc';
+import { PageContainer, PageHeader, SectionHeader } from '@/components/ui/page';
 
 const API = process.env.NEXT_PUBLIC_EVIMESH_API_URL;
 
@@ -16,51 +18,195 @@ async function readList(path) {
   }
 }
 
-function readable(value, fallback = 'not stated') {
-  return String(value ?? fallback).replaceAll('_', ' ');
-}
-
 function dateLabel(value) {
-  if (!value || Number.isNaN(Date.parse(value))) return 'date not stated';
-  return new Intl.DateTimeFormat('en', { dateStyle: 'medium' }).format(new Date(value));
+  if (!value || Number.isNaN(Date.parse(value))) return null;
+  return new Date(value).toISOString().slice(0, 10);
 }
 
-function TaskRow({ task, index }) {
-  return <li className="grid min-w-0 grid-cols-12 gap-y-3 border-b border-border py-5"><span className="col-span-2 font-mono text-[10px] text-primary sm:col-span-1">{String(index + 1).padStart(2, '0')}</span><div className="col-span-10 min-w-0 sm:col-span-7"><p className="font-mono text-[10px] uppercase text-muted-foreground">{readable(task.state, 'open')} / {task.projectId ?? 'project not stated'}</p><Link className="mt-1 block font-serif text-xl leading-tight [overflow-wrap:anywhere] hover:text-primary" href={`/tasks/${task.taskId}`}>{task.title ?? task.taskId}</Link></div><div className="col-span-10 col-start-3 min-w-0 font-mono text-[10px] text-muted-foreground sm:col-span-4 sm:col-start-auto sm:text-right"><code className="[overflow-wrap:anywhere]">{task.taskId}</code><p className="mt-1">{dateLabel(task.createdAt)}</p></div></li>;
+/* Same shape as shortId in components/ui/doc.js (a client module). */
+function shortId(value) {
+  if (!value) return '';
+  const underscore = value.indexOf('_');
+  const head = underscore > 0 ? value.slice(0, underscore + 7) : value.slice(0, 7);
+  return value.length > head.length + 4 ? `${head}…${value.slice(-4)}` : value;
+}
+
+function text(...values) {
+  return values.find((value) => typeof value === 'string' && value.trim())?.trim() ?? null;
+}
+
+/* List endpoints carry no titles or statements. Read the words of the rows
+ * this page renders from their detail endpoints; failures keep the row. */
+async function readDetail(path) {
+  if (!API) return null;
+  try {
+    const response = await fetch(`${API}${path}`, { cache: 'no-store' });
+    return response.ok ? await response.json() : null;
+  } catch {
+    return null;
+  }
+}
+
+async function hydrateTask(task) {
+  if (task.title || !task.taskId) return task;
+  const detail = await readDetail(`/tasks/${encodeURIComponent(task.taskId)}`);
+  const title = text(detail?.currentRevision?.title, detail?.task?.title);
+  return title ? { ...task, title, projectId: task.projectId ?? detail?.task?.projectId ?? null } : task;
+}
+
+async function hydrateClaim(claim) {
+  if (claim.statement || claim.title || !claim.claimId) return claim;
+  const detail = await readDetail(`/claims/${encodeURIComponent(claim.claimId)}`);
+  const statement = text(detail?.currentRevision?.statement);
+  return statement ? { ...claim, statement } : claim;
+}
+
+const OBJECT_PATHS = Object.freeze({
+  question: '/questions', answer: '/answers', claim: '/claims', rebuttal: '/rebuttals', evaluation: '/evaluations',
+  evidence: '/evidence', dataset: '/datasets', tool: '/tools', run: '/runs', task: '/tasks', project: '/projects',
+});
+
+function sentenceCase(value) {
+  const words = String(value ?? '').replaceAll('_', ' ').trim();
+  return words ? words[0].toUpperCase() + words.slice(1) : '';
+}
+
+/* "claim.created" reads "Claim created"; "governance.project_application_decided"
+ * reads "Project application decided". */
+function eventWords(eventType) {
+  const parts = String(eventType ?? '').split('.').filter(Boolean);
+  if (parts.length === 0) return 'Event recorded';
+  if (parts[0] === 'governance') return sentenceCase(parts.slice(1).join(' ')) || 'Governance decision';
+  return sentenceCase(parts.join(' '));
+}
+
+/* Each event payload names the object it changed and carries its typed words. */
+function describeEvent(event) {
+  const payload = event.payload ?? {};
+  const doc = payload.typed_document ?? {};
+  const entityType = text(payload.entity_type, event.objectType) ?? (payload.project_id && !payload.entity_id ? 'project' : null);
+  const entityId = text(payload.entity_id, event.objectId) ?? (entityType === 'project' ? text(payload.project_id) : null);
+  const words = text(doc.title, doc.statement, doc.name, doc.argument, doc.synthesis, doc.rationale, entityType === 'project' ? payload.project_name : null);
+  const prefix = entityType ? OBJECT_PATHS[entityType] : null;
+  const drafter = text(payload.drafted_by_actor_id, payload.producer_actor_id);
+  const signer = text(payload.publisher_actor_id, payload.signer_actor_id);
+  const recorder = text(event.actorId, event.createdBy, event.signedBy, payload.actor_id);
+  return {
+    action: eventWords(event.eventType),
+    entityType,
+    entityId,
+    words,
+    href: prefix && entityId ? `${prefix}/${encodeURIComponent(entityId)}` : null,
+    drafter: drafter && drafter !== signer ? drafter : null,
+    signer,
+    recorder: signer || drafter ? null : recorder,
+  };
+}
+
+function EventRow({ event }) {
+  const item = describeEvent(event);
+  const label = item.words ?? (item.entityId ? shortId(item.entityId) : null);
+  const titleClass = item.words ? 'ref-row__title [overflow-wrap:anywhere]' : 'block font-mono text-sm text-muted-foreground [overflow-wrap:anywhere]';
+  return (
+    <li className="ref-row">
+      <p className="text-sm text-muted-foreground">{item.action}</p>
+      <div className="min-w-0">
+        {label && item.href ? (
+          <Link className={`${titleClass} hover:underline`} href={item.href}>{label}</Link>
+        ) : label ? (
+          <p className={titleClass}>{label}</p>
+        ) : (
+          <p className="text-sm text-muted-foreground">No object named</p>
+        )}
+        <p className="mt-1 flex flex-wrap items-baseline gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
+          {item.entityType ? <span>{sentenceCase(item.entityType)}</span> : null}
+          {item.drafter ? <><span aria-hidden="true">·</span><span>Drafted by</span><ActorName actorId={item.drafter} showOwner={false} /></> : null}
+          {item.signer ? <><span aria-hidden="true">·</span><span>signed by</span><ActorName actorId={item.signer} showOwner={false} /></> : null}
+          {item.recorder ? <><span aria-hidden="true">·</span><span>recorded by</span><ActorName actorId={item.recorder} showOwner={false} /></> : null}
+        </p>
+      </div>
+      <time className="text-xs tabular-nums text-muted-foreground md:text-right" dateTime={event.createdAt}>{dateLabel(event.createdAt)}</time>
+    </li>
+  );
+}
+
+function TaskRow({ task }) {
+  return (
+    <li className="ref-row">
+      <div><StatusBadge state={task.state ?? 'open'} /></div>
+      <div className="min-w-0">
+        {task.title ? (
+          <Link className="ref-row__title [overflow-wrap:anywhere] hover:underline" href={`/tasks/${task.taskId}`}>{task.title}</Link>
+        ) : (
+          <Link className="block font-mono text-sm text-muted-foreground hover:text-foreground hover:underline" href={`/tasks/${task.taskId}`} title={task.taskId}>{shortId(task.taskId)}</Link>
+        )}
+        <p className="mt-1 flex flex-wrap items-baseline gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
+          {task.title ? <span className="font-mono" title={task.taskId}>{shortId(task.taskId)}</span> : null}
+          {task.projectId ? <>{task.title ? <span aria-hidden="true">·</span> : null}<Link className="font-mono hover:text-foreground hover:underline" href={`/projects/${encodeURIComponent(task.projectId)}`} title={task.projectId}>{shortId(task.projectId)}</Link></> : null}
+          {task.createdBy ? <><span aria-hidden="true">·</span><span>Drafted by</span><ActorName actorId={task.createdBy} showOwner={false} /></> : null}
+        </p>
+      </div>
+      <time className="text-xs tabular-nums text-muted-foreground md:text-right" dateTime={task.createdAt}>{dateLabel(task.createdAt)}</time>
+    </li>
+  );
 }
 
 export default async function WorkPage() {
-  const [tasks, claims, events] = await Promise.all([
+  const [taskRows, claimRows, events] = await Promise.all([
     readList('/tasks?status=open&limit=12'),
     readList('/claims?status=under_verification&limit=8'),
     readList('/events?limit=12&order=desc'),
   ]);
+  const [tasks, claims] = await Promise.all([
+    Promise.all(taskRows.map(hydrateTask)),
+    Promise.all(claimRows.map(hydrateClaim)),
+  ]);
   return (
     <PageContainer wide>
       <PageHeader
-        action={<Link className="inline-flex min-h-11 items-center gap-2 border border-foreground px-4 font-mono text-[10px] font-bold uppercase text-primary hover:bg-foreground hover:text-background" href="/agent"><Bot aria-hidden="true" size={14} />Open Agent handoff</Link>}
-        description="Read the current assignment, verification and event record. Research authoring continues through CLI or MCP."
-        eyebrow="Work"
-        title="The working record"
+        action={<Link className={buttonLinkVariants({ variant: 'outline', size: 'sm' })} href="/agent">Open Agent handoff</Link>}
+        title="Work"
       />
-      <section className="grid min-w-0 grid-cols-12 border-y border-foreground py-5"><p className="col-span-12 font-mono text-[10px] font-bold uppercase text-primary sm:col-span-2">DISPATCH</p><p className="col-span-12 mt-3 max-w-[64ch] font-serif text-lg leading-7 text-muted-foreground sm:col-span-7 sm:mt-0">Trace active work by stable object, date and state. The website remains a reading surface; local tools hold drafts and signatures.</p><Link className="col-span-12 mt-5 inline-flex min-h-11 items-center justify-between border-l border-foreground pl-4 font-mono text-[10px] font-bold uppercase text-primary sm:col-span-3 sm:mt-0" href="/docs"><span>Read operating docs</span><ArrowUpRight aria-hidden="true" size={14} /></Link></section>
 
-      <div className="grid min-w-0 grid-cols-12 gap-y-12 py-12 lg:gap-x-8">
-        <section className="col-span-12 min-w-0 lg:col-span-8" aria-labelledby="open-work-heading">
-          <header className="flex items-end justify-between border-b border-foreground pb-3"><div><p className="font-mono text-[10px] font-bold uppercase text-primary">OPEN ASSIGNMENTS</p><h2 className="mt-2 font-serif text-4xl font-medium tracking-[-0.04em]" id="open-work-heading">Research ready to continue</h2></div><Link className="hidden font-mono text-[10px] font-bold uppercase text-primary sm:block" href="/tasks">All tasks →</Link></header>
-          {tasks.length > 0 ? <ol className="m-0 list-none p-0">{tasks.map((task, index) => <TaskRow index={index} key={task.taskId} task={task} />)}</ol> : <p className="border-b border-border py-8 font-serif text-xl text-muted-foreground">No open assignments are visible in this view.</p>}
+      <div className="doc-grid mt-8">
+        <section aria-labelledby="open-work-heading" className="doc-main">
+          <SectionHeader action={<Link className="text-primary hover:underline" href="/tasks">All tasks</Link>} id="open-work-heading" title="Open tasks" />
+          {tasks.length > 0 ? (
+            <ul>{tasks.map((task) => <TaskRow key={task.taskId} task={task} />)}</ul>
+          ) : <p className="border-b border-border py-5 text-sm font-medium">No open tasks</p>}
         </section>
 
-        <aside className="col-span-12 min-w-0 border-t border-foreground pt-5 lg:col-span-4 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0" aria-labelledby="verification-heading">
-          <p className="font-mono text-[10px] font-bold uppercase text-primary">VERIFICATION</p><h2 className="mt-2 font-serif text-3xl font-medium tracking-[-0.035em]" id="verification-heading">Claims in review</h2>
-          {claims.length > 0 ? <ol className="mt-5 m-0 list-none border-t border-border p-0">{claims.map((claim) => <li className="border-b border-border py-4" key={claim.claimId}><p className="font-mono text-[10px] uppercase text-muted-foreground">{readable(claim.state)}</p><Link className="mt-1 block font-serif text-lg leading-tight hover:text-primary" href={`/claims/${claim.claimId}`}>{claim.title ?? claim.statement ?? claim.claimId}</Link><code className="mt-2 block font-mono text-[9px] text-muted-foreground [overflow-wrap:anywhere]">{claim.claimId}</code></li>)}</ol> : <p className="mt-5 border-y border-border py-6 text-sm text-muted-foreground">No claims are visible in this review state.</p>}
-          <Link className="mt-5 inline-flex min-h-11 w-full items-center justify-between border border-foreground px-4 font-mono text-[10px] font-bold uppercase text-primary" href="/verification"><span>Open verification record</span><Network aria-hidden="true" size={14} /></Link>
+        <aside aria-label="Verification" className="doc-margin">
+          <MarginSection title="Claims in review">
+            {claims.length > 0 ? (
+              <ul>
+                {claims.map((claim) => (
+                  <li className="border-b border-border py-3" key={claim.claimId}>
+                    <StatusBadge state={claim.state} />
+                    {claim.title ?? claim.statement ? (
+                      <>
+                        <Link className="mt-1.5 block font-serif text-[0.9375rem] leading-snug [overflow-wrap:anywhere] hover:underline" href={`/claims/${claim.claimId}`}>{claim.title ?? claim.statement}</Link>
+                        <p className="mt-1 font-mono text-xs text-muted-foreground" title={claim.claimId}>{shortId(claim.claimId)}</p>
+                      </>
+                    ) : (
+                      <Link className="mt-1.5 block font-mono text-xs text-muted-foreground hover:text-foreground hover:underline" href={`/claims/${claim.claimId}`} title={claim.claimId}>{shortId(claim.claimId)}</Link>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            ) : <p className="text-sm text-muted-foreground">None in review</p>}
+            <Link className="mt-3 inline-block text-sm text-primary hover:underline" href="/verification">Verification</Link>
+          </MarginSection>
         </aside>
       </div>
 
-      <section className="border-t border-foreground py-10" aria-labelledby="event-record-heading">
-        <header className="grid min-w-0 grid-cols-12"><p className="col-span-12 font-mono text-[10px] font-bold uppercase text-primary sm:col-span-2">EVENT RECORD</p><h2 className="col-span-12 mt-2 font-serif text-4xl font-medium tracking-[-0.04em] sm:col-span-7 sm:mt-0" id="event-record-heading">Recent attributable changes</h2><Link className="col-span-12 mt-4 inline-flex items-center gap-2 font-mono text-[10px] font-bold uppercase text-primary sm:col-span-3 sm:mt-0 sm:justify-end" href="/events"><History aria-hidden="true" size={14} />Full event audit</Link></header>
-        {events.length > 0 ? <ol className="mt-6 m-0 list-none border-t border-foreground p-0">{events.map((event) => <li className="grid min-w-0 grid-cols-12 gap-y-2 border-b border-border py-4" key={event.eventId}><p className="col-span-12 font-mono text-[10px] font-bold uppercase text-primary sm:col-span-3">{readable(event.eventType, 'event')}</p><code className="col-span-12 min-w-0 font-mono text-[10px] [overflow-wrap:anywhere] sm:col-span-6">{event.eventId}</code><time className="col-span-12 font-mono text-[10px] text-muted-foreground sm:col-span-3 sm:text-right" dateTime={event.createdAt}>{dateLabel(event.createdAt)}</time></li>)}</ol> : <p className="mt-6 border-y border-border py-8 font-serif text-xl text-muted-foreground">No recent events are visible.</p>}
+      <section aria-labelledby="event-record-heading" className="mt-8">
+        <SectionHeader action={<Link className="text-primary hover:underline" href="/events">Event audit</Link>} id="event-record-heading" title="Recent attributable changes" />
+        {events.length > 0 ? (
+          <ul>
+            {events.map((event) => <EventRow event={event} key={event.eventId} />)}
+          </ul>
+        ) : <p className="border-b border-border py-5 text-sm font-medium">No recent events</p>}
       </section>
     </PageContainer>
   );

@@ -18,10 +18,23 @@ test('every docs page has whitelisted frontmatter and a unique slug', async () =
 
 test('the manifest groups pages into fixed sections in IA order', async () => {
   const { sections } = await loadDocsManifest();
-  assert.deepEqual(sections.map((section) => section.id), ['getting-started', 'concepts', 'reference', 'operations']);
+  assert.deepEqual(sections.map((section) => section.id), ['getting-started', 'concepts', 'reference', 'policies', 'operations']);
   for (const section of sections) {
     for (const page of section.pages) assert.ok(section.slugs.includes(page.slug));
   }
+});
+
+test('public policy sources are routable through the docs manifest', async () => {
+  const expected = [
+    'policies/acceptable-use', 'policies/copyright-illegal-content',
+    'policies/governance', 'policies/privacy', 'policies/research-content',
+    'policies/security', 'policies/support', 'policies/terms',
+  ];
+  const { sections } = await loadDocsManifest();
+  const policySection = sections.find((section) => section.id === 'policies');
+  assert.ok(policySection, 'policy section must be visible in docs navigation');
+  assert.deepEqual(policySection.slugs, expected);
+  for (const slug of expected) assert.ok(await loadDocsPage(slug), `${slug} must resolve instead of producing a sitemap 404`);
 });
 
 test('loadDocsPage resolves one page with prev/next neighbors', async () => {

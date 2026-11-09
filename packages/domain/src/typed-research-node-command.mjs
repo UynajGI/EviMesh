@@ -7,12 +7,24 @@ import {
   normalizeNodeRevisionRef,
   normalizeResearchRevisionLineage,
 } from '../../protocol/src/research-graph.mjs';
+import {
+  createTypedResearchCanonicalPayload,
+  TYPED_RESEARCH_GRAPH_VERSION,
+} from '../../protocol/src/typed-research-canonical.mjs';
 import { assertProjectRoleForAction } from './project-authorization.mjs';
 
 const DOCUMENT_STATE_SET = new Set(RESEARCH_DOCUMENT_STATES);
 const EVALUATION_STANCE_SET = new Set(EVALUATION_STANCES);
 const TOOL_KIND_SET = new Set(TOOL_KINDS);
-const GRAPH_VERSION = 'research-graph.v1';
+const GRAPH_VERSION = TYPED_RESEARCH_GRAPH_VERSION;
+const TYPE_ID_FIELDS = Object.freeze({
+  answer: 'answerId',
+  rebuttal: 'rebuttalId',
+  evaluation: 'evaluationId',
+  dataset: 'datasetId',
+  tool: 'toolId',
+});
+const NONCE_PATTERN = /^[A-Za-z0-9_-]{16,128}$/;
 
 export class TypedResearchNodeCommandError extends Error {
   constructor(message, code = 'RESEARCH_NODE_INVALID', status = 400) {
@@ -96,13 +108,48 @@ function edgeId(type, source, target) {
   return `edge_${semanticHash({ schema: 'evimesh.research-edge.v1', type, source, target })}`;
 }
 
-function contentHash({ kind, nodeId, projectId, revision, supersedesRevision, state, typedContent, incomingEdges, commitRank, batchRank }) {
+function contentHash({ kind, nodeId, projectId, revision, supersedesRevision, state, typedContent, incomingEdges }) {
   return `sha256:${semanticHash({
     schema: 'evimesh.research-node-revision.v1', graphVersion: GRAPH_VERSION,
     kind, nodeId, projectId, revision, supersedesRevision, state, typedContent,
     incomingEdges: incomingEdges.map(({ type, source, target }) => ({ type, source, target })),
-    commitRank, batchRank,
   })}`;
+}
+
+function canonicalTypedNode({ kind, nodeId, projectId, revision, supersedesRevision, state, typedContent }) {
+  const idField = TYPE_ID_FIELDS[kind];
+  if (!idField) throw new TypedResearchNodeCommandError(`unsupported typed research node: ${kind}`);
+  const { schema: _schema, ...content } = typedContent;
+  return Object.freeze({
+    [idField]: nodeId,
+    projectId,
+    revision,
+    supersedesRevision,
+    state,
+    ...content,
+  });
+}
+
+function assertPublisherEnvelopeBinds({ envelope, expectedEventType, canonicalPayload }) {
+  if (envelope === null) return null;
+  if (envelope.schema !== 'srp.client-signature-envelope.v1'
+    || envelope.event_type !== expectedEventType
+    || typeof envelope.nonce !== 'string'
+    || !NONCE_PATTERN.test(envelope.nonce)
+    || !envelope.signature
+    || typeof envelope.signature !== 'object'
+    || Array.isArray(envelope.signature)
+    || envelope.signature.algorithm !== 'Ed25519'
+    || typeof envelope.signature.key_id !== 'string'
+    || envelope.signature.key_id.trim().length === 0
+    || typeof envelope.signature.value !== 'string'
+    || envelope.signature.value.length === 0) {
+    throw new TypedResearchNodeCommandError('publisher signature envelope is structurally invalid', 'RESEARCH_PUBLISHER_SIGNATURE_INVALID');
+  }
+  if (canonicalJson(envelope.payload ?? null) !== canonicalJson(canonicalPayload)) {
+    throw new TypedResearchNodeCommandError('publisher signature envelope does not bind the complete typed revision and incoming edges', 'RESEARCH_PUBLISHER_SIGNATURE_PAYLOAD_MISMATCH');
+  }
+  return envelope.nonce;
 }
 
 function assertRepository(repository, typedInsertMethod, { evaluation = false } = {}) {
@@ -181,11 +228,13 @@ async function createTypedResearchNode({
   repository, eventFactory, actorId, actorRole, projectId, kind, nodeId, state,
   label, typedContent, typedInsertMethod, typedRevision, incomingPlans,
   revision = 1, supersedesRevision = null,
-  evaluationBases = null, draftedByActorId = null, publisherSignatureEnvelope = null,
+  evaluationBases = null, draftedByActorId = null, publisherActorId = null,
+  publisherSignatureEnvelope = null,
 }) {
   assertRepository(repository, typedInsertMethod, { evaluation: evaluationBases !== null });
   actorId = requiredText(actorId, 'actor id');
   draftedByActorId = draftedByActorId === null ? actorId : requiredText(draftedByActorId, 'drafting actor id');
+  publisherActorId = publisherActorId === null ? actorId : requiredText(publisherActorId, 'publisher actor id');
   publisherSignatureEnvelope = publisherEnvelope(publisherSignatureEnvelope);
   projectId = requiredText(projectId, 'project id');
   nodeId = requiredText(nodeId, `${kind} id`);
@@ -194,8 +243,8 @@ async function createTypedResearchNode({
   ({ revision, supersedesRevision } = revisionLineage(revision, supersedesRevision));
   if (typeof eventFactory !== 'function') throw new TypedResearchNodeCommandError('eventFactory is required');
   assertProjectRoleForAction({ actorRole, requiredRole: 'contributor' });
-  if (draftedByActorId !== actorId && publisherSignatureEnvelope === null) {
-    throw new TypedResearchNodeCommandError('publisher signature envelope is required for agent-drafted research content', 'RESEARCH_DRAFTER_SIGNATURE_REQUIRED');
+  if ((publisherActorId !== actorId || draftedByActorId !== actorId) && publisherSignatureEnvelope === null) {
+    throw new TypedResearchNodeCommandError('an external human publisher signature envelope is required', 'RESEARCH_PUBLISHER_SIGNATURE_REQUIRED');
   }
 
   const target = Object.freeze({ kind, id: nodeId, revision });
@@ -229,7 +278,28 @@ async function createTypedResearchNode({
       source: Object.freeze({ kind: edge.sourceKind, id: edge.sourceId, revision: edge.sourceRevision }),
       target,
     }));
-    const canonicalContentHash = contentHash({ kind, nodeId, projectId, revision, supersedesRevision, state, typedContent, incomingEdges, commitRank, batchRank: 1 });
+    const canonicalContentHash = contentHash({ kind, nodeId, projectId, revision, supersedesRevision, state, typedContent, incomingEdges });
+    const eventType = `${kind}.${revision === 1 ? 'created' : 'revised'}`;
+    let canonicalSubmissionPayload;
+    try {
+      canonicalSubmissionPayload = createTypedResearchCanonicalPayload({
+        schema: typedContent.schema,
+        entityType: kind,
+        producerActorId: actorId,
+        draftedByActorId,
+        publisherActorId,
+        signerActorId: publisherActorId,
+        node: canonicalTypedNode({ kind, nodeId, projectId, revision, supersedesRevision, state, typedContent }),
+        incomingEdges,
+      });
+    } catch (error) {
+      throw new TypedResearchNodeCommandError(error.message);
+    }
+    const signatureNonce = assertPublisherEnvelopeBinds({
+      envelope: publisherSignatureEnvelope,
+      expectedEventType: eventType,
+      canonicalPayload: canonicalSubmissionPayload,
+    });
     const payload = Object.freeze({
       entity_type: kind,
       entity_id: nodeId,
@@ -237,17 +307,18 @@ async function createTypedResearchNode({
       revision,
       supersedes_revision: supersedesRevision,
       actor_id: actorId,
-      signer_actor_id: actorId,
+      producer_actor_id: actorId,
       drafted_by_actor_id: draftedByActorId,
+      publisher_actor_id: publisherActorId,
+      signer_actor_id: publisherActorId,
+      signing_key_id: publisherSignatureEnvelope?.signature?.key_id?.trim() ?? null,
+      nonce: signatureNonce,
       publisher_signature_envelope: publisherSignatureEnvelope,
       graph_version: GRAPH_VERSION,
-      commit_rank: commitRank,
-      batch_rank: 1,
       canonical_content_hash: canonicalContentHash,
       typed_document: typedContent,
       incoming_edges: incomingEdges,
     });
-    const eventType = `${kind}.${revision === 1 ? 'created' : 'revised'}`;
     const event = assertEventBindsPayload(await eventFactory({ eventType, payload }), payload);
     const eventId = normalizedEventId(event);
     const edgeRows = provisionalEdges.map((edge) => Object.freeze({ ...edge, edgeId: edgeId(edge.edgeType, { kind: edge.sourceKind, id: edge.sourceId, revision: edge.sourceRevision }, target), provenanceEventId: eventId }));
@@ -282,7 +353,7 @@ async function createTypedResearchNode({
 
 export async function createAnswer({
   repository, eventFactory, actorId, actorRole, answerId, projectId,
-  draftedByActorId = actorId, publisherSignatureEnvelope = null,
+  draftedByActorId = actorId, publisherActorId = actorId, publisherSignatureEnvelope = null,
   revision = 1, supersedesRevision = null,
   state = 'draft', title, synthesis, limitations = [], questionRef, additionalInputs = [],
 } = {}) {
@@ -297,7 +368,7 @@ export async function createAnswer({
   const typedContent = Object.freeze({ schema: 'srp.answer.v1', title, synthesis, limitations, questionRef, additionalInputs });
   return createTypedResearchNode({
     repository, eventFactory, actorId, actorRole, projectId, kind: 'answer', nodeId: answerId, revision, supersedesRevision, state,
-    label: title, typedContent, typedInsertMethod: 'insertAnswerRevision', draftedByActorId, publisherSignatureEnvelope,
+    label: title, typedContent, typedInsertMethod: 'insertAnswerRevision', draftedByActorId, publisherActorId, publisherSignatureEnvelope,
     typedRevision: Object.freeze({ answerId, revision, nodeKind: 'answer', title, synthesis, limitations }),
     incomingPlans: [{ type: 'answers', source: questionRef }, ...additionalInputs.map((source) => ({ type: 'derived_from', source }))],
   });
@@ -305,7 +376,7 @@ export async function createAnswer({
 
 export async function createRebuttal({
   repository, eventFactory, actorId, actorRole, rebuttalId, projectId,
-  draftedByActorId = actorId, publisherSignatureEnvelope = null,
+  draftedByActorId = actorId, publisherActorId = actorId, publisherSignatureEnvelope = null,
   revision = 1, supersedesRevision = null,
   state = 'draft', title, argument, scope = [], targetRef, basisRefs = [],
 } = {}) {
@@ -318,7 +389,7 @@ export async function createRebuttal({
   const typedContent = Object.freeze({ schema: 'srp.rebuttal.v1', title, argument, scope, targetRef, basisRefs });
   return createTypedResearchNode({
     repository, eventFactory, actorId, actorRole, projectId, kind: 'rebuttal', nodeId: rebuttalId, revision, supersedesRevision, state,
-    label: title, typedContent, typedInsertMethod: 'insertRebuttalRevision', draftedByActorId, publisherSignatureEnvelope,
+    label: title, typedContent, typedInsertMethod: 'insertRebuttalRevision', draftedByActorId, publisherActorId, publisherSignatureEnvelope,
     typedRevision: Object.freeze({ rebuttalId, revision, nodeKind: 'rebuttal', title, argument, scope }),
     incomingPlans: [{ type: 'rebuts', source: targetRef }, ...basisRefs.map((source) => ({ type: 'grounds_rebuttal', source }))],
   });
@@ -326,7 +397,7 @@ export async function createRebuttal({
 
 export async function createEvaluation({
   repository, eventFactory, actorId, actorRole, evaluationId, projectId,
-  draftedByActorId = actorId, publisherSignatureEnvelope = null,
+  draftedByActorId = actorId, publisherActorId = actorId, publisherSignatureEnvelope = null,
   revision = 1, supersedesRevision = null,
   state = 'draft', subjectRef, basisRefs, stance, rationale, method = null,
 } = {}) {
@@ -341,7 +412,7 @@ export async function createEvaluation({
   const typedContent = Object.freeze({ schema: 'srp.evaluation.v1', subjectRef, basisRefs, stance, rationale, method });
   return createTypedResearchNode({
     repository, eventFactory, actorId, actorRole, projectId, kind: 'evaluation', nodeId: evaluationId, revision, supersedesRevision, state,
-    label: `${stance}: ${subjectRef.id}`, typedContent, typedInsertMethod: 'insertEvaluationRevision', draftedByActorId, publisherSignatureEnvelope,
+    label: `${stance}: ${subjectRef.id}`, typedContent, typedInsertMethod: 'insertEvaluationRevision', draftedByActorId, publisherActorId, publisherSignatureEnvelope,
     typedRevision: Object.freeze({ evaluationId, revision, nodeKind: 'evaluation', subjectKind: subjectRef.kind, subjectId: subjectRef.id, subjectRevision: subjectRef.revision, stance, rationale, method }),
     evaluationBases: basisRefs.map((basis) => Object.freeze({ evaluationId, evaluationRevision: revision, basisKind: basis.kind, basisId: basis.id, basisRevision: basis.revision })),
     incomingPlans: [{ type: 'evaluates', source: subjectRef }, ...basisRefs.map((source) => ({ type: 'evaluation_basis', source }))],
@@ -350,7 +421,7 @@ export async function createEvaluation({
 
 export async function createDataset({
   repository, eventFactory, actorId, actorRole, datasetId, projectId,
-  draftedByActorId = actorId, publisherSignatureEnvelope = null,
+  draftedByActorId = actorId, publisherActorId = actorId, publisherSignatureEnvelope = null,
   revision = 1, supersedesRevision = null,
   state = 'draft', name, description, version, license, schemaUri = null, provenance, artifactRef,
 } = {}) {
@@ -365,7 +436,7 @@ export async function createDataset({
   const typedContent = Object.freeze({ schema: 'srp.dataset.v1', name, description, version, license, schemaUri, provenance, artifactRef });
   return createTypedResearchNode({
     repository, eventFactory, actorId, actorRole, projectId, kind: 'dataset', nodeId: datasetId, revision, supersedesRevision, state,
-    label: name, typedContent, typedInsertMethod: 'insertDatasetRevision', draftedByActorId, publisherSignatureEnvelope,
+    label: name, typedContent, typedInsertMethod: 'insertDatasetRevision', draftedByActorId, publisherActorId, publisherSignatureEnvelope,
     typedRevision: Object.freeze({ datasetId, revision, nodeKind: 'dataset', name, description, version, license, schemaUri, provenance, artifactKind: 'artifact', artifactId: artifactRef.id, artifactRevision: artifactRef.revision }),
     incomingPlans: [{ type: 'materializes_dataset', source: artifactRef }],
   });
@@ -373,7 +444,7 @@ export async function createDataset({
 
 export async function createTool({
   repository, eventFactory, actorId, actorRole, toolId, projectId,
-  draftedByActorId = actorId, publisherSignatureEnvelope = null,
+  draftedByActorId = actorId, publisherActorId = actorId, publisherSignatureEnvelope = null,
   revision = 1, supersedesRevision = null,
   state = 'draft', name, description, toolKind, version, runtime,
   inputSchemaUri = null, outputSchemaUri = null, license, provenance, artifactRef = null,
@@ -393,7 +464,7 @@ export async function createTool({
   const typedContent = Object.freeze({ schema: 'srp.tool.v1', name, description, toolKind, version, runtime, inputSchemaUri, outputSchemaUri, license, provenance, artifactRef });
   return createTypedResearchNode({
     repository, eventFactory, actorId, actorRole, projectId, kind: 'tool', nodeId: toolId, revision, supersedesRevision, state,
-    label: name, typedContent, typedInsertMethod: 'insertToolRevision', draftedByActorId, publisherSignatureEnvelope,
+    label: name, typedContent, typedInsertMethod: 'insertToolRevision', draftedByActorId, publisherActorId, publisherSignatureEnvelope,
     typedRevision: Object.freeze({
       toolId, revision, nodeKind: 'tool', name, description, toolKind, version, runtime,
       inputSchemaUri, outputSchemaUri, license, provenance,

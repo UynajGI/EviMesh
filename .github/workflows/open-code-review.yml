@@ -1,0 +1,43 @@
+# Integration: https://github.com/alibaba/open-code-review/tree/v1.11.9/examples/github_actions
+# Configure Settings > Secrets and variables > Actions:
+#   Secret DEEPSEEK_API_KEY: your real DeepSeek API key (never commit it here).
+#   Optional variable DEEPSEEK_MODEL: override the model ID if needed.
+# Live reviews require the DEEPSEEK_API_KEY repository secret.
+name: OpenCodeReview
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: open-code-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    name: DeepSeek code review
+    # Fork PRs do not receive repository secrets or a writable review token.
+    if: >-
+      !github.event.pull_request.draft &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Review PR with DeepSeek
+        uses: alibaba/open-code-review@7f8f254d8407b26edff06f2e3a5940906f1f28ae # v1.11.9
+        with:
+          ocr_version: '1.11.9'
+          llm_url: https://api.deepseek.com/chat/completions
+          llm_auth_token: ${{ secrets.DEEPSEEK_API_KEY }}
+          llm_model: ${{ vars.DEEPSEEK_MODEL || 'deepseek-flash' }}
+          llm_use_anthropic: 'false'
+          language: Chinese
+          sticky_summary: 'true'
+          incremental: 'true'

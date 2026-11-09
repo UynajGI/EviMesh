@@ -1,7 +1,7 @@
 import { RpcError, JSON_RPC_METHOD_NOT_FOUND, JSON_RPC_INVALID_PARAMS } from "./protocol.mjs";
 import { SERVER_INFO, SUPPORTED_PROTOCOL_VERSIONS } from "./config.mjs";
 import { listResources, readResource, McpResourceError } from "./resources.mjs";
-import { listTools, callTool, McpToolError } from "./tools.mjs";
+import { listTools, callTool, loadToolCapabilities, McpToolError } from "./tools.mjs";
 
 /**
  * Create the MCP method dispatcher. `client` is the EviMesh SDK client;
@@ -20,7 +20,7 @@ export function createMcpServer({ client, env = process.env } = {}) {
           protocolVersion,
           capabilities: { resources: { listChanged: false }, tools: { listChanged: false } },
           serverInfo: { ...SERVER_INFO },
-          instructions: "EviMesh research network: read resources for context; write tools require confirm: true.",
+          instructions: "EviMesh research network: read resources for context; live capabilities determine which prepare and submit tools are exposed. Human signing is local CLI only.",
         };
       }
       case "notifications/initialized":
@@ -41,7 +41,7 @@ export function createMcpServer({ client, env = process.env } = {}) {
         }
       }
       case "tools/list":
-        return listTools();
+        return listTools({ capabilities: await loadToolCapabilities(client) });
       case "tools/call": {
         if (typeof params.name !== "string") throw new RpcError(JSON_RPC_INVALID_PARAMS, "tool name is required");
         try {

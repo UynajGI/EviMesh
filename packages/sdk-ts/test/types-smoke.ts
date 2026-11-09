@@ -12,12 +12,27 @@ import type {
   EviMeshOperations,
   HealthResponse,
   PagedResponse,
+  PublicCapabilities,
   SubmitVerificationRequest,
   UploadPlanResponse,
   UploadPlanRequest,
 } from "../src/generated/types.d.ts";
 
 const health: HealthResponse = { service: "evimesh-api-edge", status: "ok", environment: "test" };
+
+const capabilities: PublicCapabilities = {
+  schemaVersion: "public-capabilities.v1",
+  releaseChannel: "preview",
+  apiVersion: "0.3.0",
+  graphSchemaVersion: "research-neighborhood.v1",
+  deviceAuthorization: { enabled: false },
+  research: { read: true, prepare: false, submit: false, signing: "human-local-only" },
+  clients: {
+    sdk: { available: false, minimumVersion: null },
+    cli: { available: false, minimumVersion: null },
+    mcp: { available: false, minimumVersion: null },
+  },
+};
 
 const uploadPlanRequest: UploadPlanRequest = { artifactId: "artifact-1", revision: 1, rawHash: `sha256:${"a".repeat(64)}`, sizeBytes: 10, mediaType: "text/plain", fileName: "evidence.txt" };
 
@@ -104,4 +119,4 @@ const plan: UploadPlanResponse = {
 const operation: EviMeshOperationId = "getTaskContext";
 const route: EviMeshOperations[typeof operation] = { method: "GET", path: "/tasks/{taskId}/context" };
 
-export { health, me, error, page, bundle, claimRequest, runRequest, verificationRequest, plan, operation, route };
+export { health, capabilities, me, error, page, bundle, claimRequest, runRequest, verificationRequest, plan, operation, route };

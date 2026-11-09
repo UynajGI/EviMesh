@@ -24,7 +24,7 @@ const SAFE_HREF = (href) => {
 function Inline({ segments }) {
   return segments.map((segment, index) => {
     if (segment.type === 'code') {
-      return <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-[0.85em] text-foreground" key={index}>{segment.value}</code>;
+      return <code className="rounded-[2px] bg-muted px-1.5 py-0.5 font-mono text-[0.85em] text-foreground" key={index}>{segment.value}</code>;
     }
     if (segment.type === 'bold') {
       return <strong className="font-semibold text-foreground" key={index}>{segment.value}</strong>;
@@ -59,7 +59,7 @@ export function DocsBlocks({ blocks }) {
         const slug = headingSlug(block.text);
         const Tag = `h${Math.min(block.level + 1, 6)}`;
         return (
-          <Tag className={cn('scroll-mt-24 font-semibold text-foreground', block.level <= 2 ? 'mt-10 text-xl' : 'mt-8 text-base')} id={slug} key={index}>
+          <Tag className={cn('scroll-mt-24 font-semibold text-foreground', block.level <= 2 ? 'mt-10 border-b border-border pb-1.5 text-[1.0625rem]' : 'mt-8 text-base')} id={slug} key={index}>
             <a className="sr-only focus:not-sr-only" href={`#${slug}`}>link to this section</a>
             {block.text}
           </Tag>
@@ -79,9 +79,9 @@ export function DocsBlocks({ blocks }) {
         );
       case 'code':
         return (
-          <div className="mt-5 overflow-hidden rounded-lg border border-border bg-card" key={index}>
+          <div className="mt-5 overflow-hidden rounded-[2px] border border-border bg-card" key={index}>
             <div className="flex items-center justify-between border-b border-border bg-muted/40 px-4 py-1.5">
-              <span className="font-mono text-[11px] uppercase tracking-wide text-muted-foreground">{block.language}</span>
+              <span className="font-mono text-xs text-muted-foreground">{block.language}</span>
               <DocsCopyButton code={block.lines.join('\n')} />
             </div>
             <pre className="overflow-x-auto px-4 py-3 font-mono text-xs leading-6 text-foreground"><code>{block.lines.join('\n')}</code></pre>
@@ -89,16 +89,16 @@ export function DocsBlocks({ blocks }) {
         );
       case 'quote':
         return (
-          <blockquote className="mt-5 max-w-[72ch] border-l-2 border-primary pl-4 text-sm leading-7 text-muted-foreground" key={index}>
+          <blockquote className="mt-5 max-w-[72ch] border-y border-border py-3 text-sm leading-7 text-muted-foreground" key={index}>
             <Inline segments={block.inline} />
           </blockquote>
         );
       case 'table':
         return (
-          <div className="mt-5 overflow-x-auto rounded-lg border border-border" key={index}>
+          <div className="mt-5 overflow-x-auto border-y border-border" key={index}>
             <table className="w-full border-collapse text-sm">
               <thead>
-                <tr className="border-b border-border bg-muted/40 text-left">
+                <tr className="border-b border-border text-left">
                   {block.header.map((cell) => <th className="px-4 py-2 font-semibold text-foreground" key={cell}><Inline segments={parseInline(cell)} /></th>)}
                 </tr>
               </thead>

@@ -1,7 +1,11 @@
 import { loadDocsManifest } from '@/lib/docs-content.mjs';
 
 const BASE = 'https://evimesh.com';
-const STATIC_ROUTES = ['', '/explore', '/work', '/agent', '/docs', '/events', '/contributions'];
+const STATIC_ROUTES = [
+  '', '/explore', '/work', '/agent', '/docs', '/events', '/contributions',
+  '/privacy', '/terms', '/acceptable-use', '/research-content-policy',
+  '/copyright', '/support', '/security', '/governance',
+];
 
 export default async function sitemap() {
   const { pages } = await loadDocsManifest();

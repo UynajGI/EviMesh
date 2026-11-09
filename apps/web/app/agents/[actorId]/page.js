@@ -2,13 +2,11 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { Bot, Clock3, FileCheck2, UserRound } from 'lucide-react';
-import { Card, CardContent, StatusBadge } from '@/components/ui/data';
-import { Alert, Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
-import { IdChip } from '@/components/ui/idchip';
-import { PageContainer, PageHeader } from '@/components/ui/page';
+import { StatusBadge } from '@/components/ui/data';
+import { Alert, ErrorState, Skeleton } from '@/components/ui/feedback';
+import { Breadcrumb, SectionHeader } from '@/components/ui/page';
+import { ActorName, Identifier, MarginSection, TitleBlock, formatDate, formatDateTime, shortId, useActorCard } from '@/components/ui/doc';
 import { Button } from '@/components/ui/button';
-import { Attribution } from '@/components/attribution';
 
 const API = process.env.NEXT_PUBLIC_EVIMESH_API_URL;
 const OUTPUT_PAGE_SIZE = 20;
@@ -28,6 +26,10 @@ function display(value, fallback = 'not stated') {
   return value === null || value === undefined || value === '' ? fallback : String(value);
 }
 
+function readable(value) {
+  return String(value ?? '').replaceAll('_', ' ').replaceAll('.', ' ');
+}
+
 function objectHref(edge) {
   const encodedId = encodeURIComponent(edge.objectId);
   const revision = Number(edge.objectRevision);
@@ -37,7 +39,8 @@ function objectHref(edge) {
   if (edge.objectType === 'task') return `/tasks/${encodedId}`;
   if (edge.objectType === 'attempt') return `/attempts/${encodedId}`;
   if (edge.objectType === 'artifact') return `/artifacts/${encodedId}`;
-  return null;
+  const typed = { answer: 'answers', rebuttal: 'rebuttals', evaluation: 'evaluations', evidence: 'evidence', dataset: 'datasets', run: 'runs', tool: 'tools' }[edge.objectType];
+  return typed ? `/${typed}/${encodedId}` : null;
 }
 
 function objectReference(edge) {
@@ -50,9 +53,16 @@ function eventPath(actorId, cursor = null) {
   return cursor ? `${base}&cursor=${encodeURIComponent(cursor)}` : base;
 }
 
+/* Human signer on an attribution edge, named from the public identity card. */
+function SignerName({ actorId }) {
+  const card = useActorCard(actorId);
+  return card?.displayName ?? shortId(actorId);
+}
+
 /* Agent activity is a public actor view, not a second task system. It reads
  * the actor directory and formal ResearchEvents; local planning is only shown
- * when the protocol has emitted an event for it. */
+ * when the protocol has emitted an event for it. The owning person is named
+ * on every view: an agent drafts for that person and never signs. */
 export default function AgentActivityPage({ params }) {
   const [actorId, setActorId] = useState(null);
   const [data, setData] = useState(null);
@@ -110,8 +120,8 @@ export default function AgentActivityPage({ params }) {
 
   useEffect(() => { load(); }, [actorId]);
 
-  if (error) return <PageContainer><ErrorState message={error.message} onRetry={load} requestId={error.requestId ?? undefined} /></PageContainer>;
-  if (!data) return <PageContainer><Skeleton className="h-28 w-full" /><Skeleton className="mt-6 h-96 w-full" /></PageContainer>;
+  if (error) return <div className="doc-page pb-20 pt-10"><ErrorState message={error.message} onRetry={load} requestId={error.requestId ?? undefined} /></div>;
+  if (!data) return <div className="doc-page pb-20 pt-8"><Skeleton className="h-4 w-64" /><Skeleton className="mt-5 h-48 w-full" /><Skeleton className="mt-8 h-96 w-full" /></div>;
 
   const actor = data.actor ?? data;
   const produced = Array.isArray(data.produced) ? data.produced : [];
@@ -133,70 +143,87 @@ export default function AgentActivityPage({ params }) {
   const owner = actor.ownerActorId;
 
   return (
-    <PageContainer wide>
-      <nav aria-label="Breadcrumb" className="mb-4 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-        <Link className="hover:text-foreground" href="/explore">Explore</Link>
-        <span aria-hidden="true">/</span>
-        <span>Agents</span>
-        <span aria-hidden="true">/</span>
-        <span aria-current="page" className="tabular-nums">{display(actor.actorId, actorId)}</span>
-      </nav>
+    <div className="doc-page pb-20 pt-5 sm:pt-6">
+      <Breadcrumb
+        trail={[
+          { label: 'Explore', href: '/explore' },
+          { label: display(actor.displayName, 'Agent') },
+        ]}
+      />
 
-      <PageHeader
-        description="A public activity record for an agent. Formal events and attribution edges are shown as the protocol exposes them."
-        eyebrow="Agent activity"
+      <TitleBlock
+        cells={[
+          { label: 'Acts for', bare: true, value: owner ? <span className="inline-flex flex-wrap items-baseline gap-x-1.5 text-muted-foreground">Drafts for <ActorName actorId={owner} showOwner={false} /><span aria-hidden="true">·</span>never signs</span> : <span className="text-muted-foreground">Owner not stated; never signs</span> },
+          { label: 'Last activity', value: formatDate(lastEvent) ? <span className="tabular-nums">{formatDate(lastEvent)}</span> : null },
+          { label: 'Identifier', bare: true, value: <Identifier value={display(actor.actorId, actorId)} /> },
+        ]}
+        kind={actor.actorType === 'service' ? 'Service' : 'Agent'}
+        serif={false}
+        status={<StatusBadge label={display(actor.identityStrength, 'identity unknown')} state={actor.identityStrength === 'verified' ? 'accepted' : 'quiet'} />}
         title={display(actor.displayName, actor.actorId ?? actorId)}
       />
 
-      <div className="mt-8 grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
-        <div className="min-w-0">
-          <Card>
-              <div className="flex min-w-0 items-start gap-4 border-b border-border px-5 py-4">
-              <span aria-hidden="true" className="grid size-12 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground"><Bot size={24} /></span>
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <StatusBadge label={actor.actorType} state="update" />
-                  <StatusBadge label={display(actor.identityStrength, 'identity unknown')} state={actor.identityStrength === 'verified' ? 'accepted' : 'quiet'} />
-                </div>
-                <Attribution actorId={actor.actorId ?? actorId} actorType={actor.actorType} className="mt-2 text-sm" label="Attribution" ownerActorId={owner} />
-                <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2"><IdChip label="actor" value={display(actor.actorId, actorId)} /><span className="min-w-0 break-words text-xs text-muted-foreground">last activity {lastEvent ? new Date(lastEvent).toISOString().slice(0, 16).replace('T', ' ') : 'not stated'}</span></div>
-              </div>
-            </div>
-            <CardContent>
-              <div className="flex items-center gap-2"><Clock3 aria-hidden="true" className="text-muted-foreground" size={16} /><h2 className="text-sm font-semibold">Attempt trail</h2></div>
-              {eventError ? <Alert className="mt-4" description={`${eventError.message}${eventError.requestId ? ` · request ${eventError.requestId}` : ''}`} title="Activity events are temporarily unavailable" variant="warning" /> : null}
-              {events.length === 0 && !eventError ? (
-                <Empty className="mt-4" action={<Link className="rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground" href="/agent">Open agent center</Link>} description="Formal ResearchEvents for this agent will appear here when the protocol records them. Local planning is not silently presented as network activity." title="No formal events yet" />
-              ) : (
-                <ol aria-label="Agent attempt events" className="mt-4 divide-y divide-border rounded-lg border border-border">
-                  {events.map((event) => {
-                    const attemptId = event.payload?.attempt_id ?? event.payload?.attemptId ?? (event.objectType === 'attempt' ? event.objectId : null);
-                    return <li className="flex min-w-0 flex-wrap items-center gap-3 px-4 py-3" key={event.eventId ?? `${event.eventType}-${event.createdAt}`}>
-                      <FileCheck2 aria-hidden="true" className="shrink-0 text-muted-foreground" size={16} />
-                      <span className="min-w-0 break-words text-sm font-medium">{display(event.eventType, 'research event')}</span>
-                      <IdChip value={display(event.eventId)} />
-                      {attemptId ? <Link className="text-xs text-primary hover:underline" href={`/attempts/${encodeURIComponent(attemptId)}`}>attempt {attemptId}</Link> : null}
-                      <time className="w-full text-xs tabular-nums text-muted-foreground sm:ml-auto sm:w-auto" dateTime={event.createdAt}>{event.createdAt ? new Date(event.createdAt).toISOString().slice(0, 16).replace('T', ' ') : 'time unavailable'}</time>
-                    </li>;
-                  })}
-                </ol>
-              )}
-              {(eventCursorHistory.length > 0 || eventNextCursor) ? (
-                <nav aria-label="Attempt trail pages" className="mt-4 flex justify-end gap-2">
-                  <Button disabled={eventPending || eventCursorHistory.length === 0} onClick={() => loadEventPage(eventCursorHistory.at(-1) ?? null, eventCursorHistory.slice(0, -1))} size="sm" type="button" variant="outline">Previous activity</Button>
-                  <Button disabled={eventPending || !eventNextCursor} onClick={() => loadEventPage(eventNextCursor, [...eventCursorHistory, eventCursor])} size="sm" type="button" variant="outline">Next activity</Button>
-                </nav>
-              ) : null}
-            </CardContent>
-          </Card>
+      <div className="doc-grid mt-6">
+        <div className="doc-main grid gap-8">
+          <section aria-labelledby="trail-heading">
+            <SectionHeader action={events.length > 0 ? <span className="tabular-nums text-muted-foreground">{events.length}</span> : null} id="trail-heading" title="Attempt trail" />
+            {eventError ? <Alert className="mt-3" description={`${eventError.message}${eventError.requestId ? ` · request ${eventError.requestId}` : ''}`} title="Activity events are temporarily unavailable" variant="warning" /> : null}
+            {events.length === 0 && !eventError ? (
+              <p className="clause__none mt-3">None yet.</p>
+            ) : (
+              <ol aria-label="Agent attempt events">
+                {events.map((event) => {
+                  const attemptId = event.payload?.attempt_id ?? event.payload?.attemptId ?? (event.objectType === 'attempt' ? event.objectId : null);
+                  const entityId = event.payload?.entity_id ?? null;
+                  const entityType = event.payload?.entity_type ?? null;
+                  const entityHref = entityId && entityType ? objectHref({ objectType: entityType, objectId: entityId, objectRevision: event.payload?.revision }) : null;
+                  const doc = event.payload?.typed_document ?? {};
+                  const words = doc.title ?? doc.statement ?? doc.rationale ?? doc.synthesis ?? null;
+                  return (
+                    <li className="ref-row" key={event.eventId ?? `${event.eventType}-${event.createdAt}`}>
+                      <p className="text-sm text-muted-foreground">{readable(display(event.eventType, 'research event'))}</p>
+                      <div className="min-w-0">
+                        {entityHref ? <Link className={words ? 'ref-row__title hover:underline' : 'text-sm hover:underline'} href={entityHref} title={entityId}>{words ?? <>{readable(entityType)} <span className="font-mono text-xs text-muted-foreground">{shortId(entityId)}</span></>}</Link> : <span className="font-mono text-xs text-muted-foreground" title={event.eventId}>{shortId(display(event.eventId))}</span>}
+                        <p className="mt-0.5 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                          {attemptId ? <Link className="hover:text-primary hover:underline" href={`/attempts/${encodeURIComponent(attemptId)}`} title={attemptId}>attempt <span className="font-mono">{shortId(attemptId)}</span></Link> : null}
+                          {event.payload?.publisher_actor_id ? <span className="inline-flex flex-wrap items-baseline gap-x-1.5">signed by <ActorName actorId={event.payload.publisher_actor_id} showOwner={false} /></span> : null}
+                        </p>
+                      </div>
+                      <time className="text-xs tabular-nums text-muted-foreground md:text-right" dateTime={event.createdAt} title={formatDateTime(event.createdAt) ?? undefined}>{formatDate(event.createdAt) ?? ''}</time>
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
+            {(eventCursorHistory.length > 0 || eventNextCursor) ? (
+              <nav aria-label="Attempt trail pages" className="mt-3 flex justify-end gap-2">
+                <Button disabled={eventPending || eventCursorHistory.length === 0} onClick={() => loadEventPage(eventCursorHistory.at(-1) ?? null, eventCursorHistory.slice(0, -1))} size="sm" type="button" variant="outline">Previous activity</Button>
+                <Button disabled={eventPending || !eventNextCursor} onClick={() => loadEventPage(eventNextCursor, [...eventCursorHistory, eventCursor])} size="sm" type="button" variant="outline">Next activity</Button>
+              </nav>
+            ) : null}
+          </section>
 
-          <section aria-labelledby="output-heading" className="mt-8">
-            <div className="mb-3 flex flex-wrap items-baseline justify-between gap-3"><h2 className="text-xl font-semibold tracking-tight" id="output-heading">Public output</h2><span className="text-sm text-muted-foreground">Produced and used attribution edges</span></div>
-            {allOutputs.length === 0 ? <Empty description="Objects this agent produced or used will appear here with their attribution edge." title="No public output yet" /> : (
+          <section aria-labelledby="output-heading">
+            <SectionHeader action={allOutputs.length > 0 ? <span className="tabular-nums text-muted-foreground">{allOutputs.length}</span> : null} id="output-heading" title="Public output" />
+            {allOutputs.length === 0 ? <p className="clause__none mt-3">None yet.</p> : (
               <>
-                <ul className="divide-y divide-border rounded-lg border border-border bg-card">{outputs.map((edge, index) => { const href = objectHref(edge); return <li className="flex flex-wrap items-center gap-3 px-5 py-3.5" key={`${edge.objectType}-${edge.objectId}-${outputStart + index}`}><StatusBadge label={edge.edgeType ?? (producedSet.has(edge) ? 'produced' : 'used')} state="update" /><span className="text-xs text-muted-foreground">{edge.objectType}</span><IdChip value={objectReference(edge)} />{href ? <Link className="text-xs text-primary hover:underline" href={href}>open</Link> : null}<span className="ml-auto text-xs text-muted-foreground">{edge.signedBy ? <>signed by <Link className="text-primary hover:underline" href={`/people/${encodeURIComponent(edge.signedBy)}`}>{edge.signedBy}</Link></> : 'signature not stated'}</span></li>; })}</ul>
+                <ul>
+                  {outputs.map((edge, index) => {
+                    const href = objectHref(edge);
+                    return (
+                      <li className="ref-row" key={`${edge.objectType}-${edge.objectId}-${outputStart + index}`}>
+                        <p className="text-sm text-muted-foreground">{edge.edgeType ?? (producedSet.has(edge) ? 'produced' : 'used')}</p>
+                        <div className="min-w-0">
+                          {href ? <Link className="text-sm hover:underline" href={href} title={objectReference(edge)}>{readable(edge.objectType)} <span className="font-mono text-xs text-muted-foreground">{shortId(edge.objectId)}</span></Link> : <span className="text-sm" title={objectReference(edge)}>{readable(edge.objectType)} <span className="font-mono text-xs text-muted-foreground">{shortId(edge.objectId)}</span></span>}
+                          <p className="mt-0.5 text-xs text-muted-foreground">{edge.signedBy ? <>signed by <Link className="font-medium text-foreground hover:underline" href={`/people/${encodeURIComponent(edge.signedBy)}`} title={edge.signedBy}><SignerName actorId={edge.signedBy} /></Link></> : 'signature not stated'}</p>
+                        </div>
+                        <span className="text-xs tabular-nums text-muted-foreground">{edge.objectRevision ? `r${edge.objectRevision}` : ''}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
                 {(hasPreviousOutputs || hasNextOutputs) ? (
-                  <nav aria-label="Public output pages" className="mt-4 flex justify-end gap-2">
+                  <nav aria-label="Public output pages" className="mt-3 flex justify-end gap-2">
                     <Button disabled={!hasPreviousOutputs} onClick={() => setOutputPage((page) => Math.max(0, page - 1))} size="sm" type="button" variant="outline">Previous outputs</Button>
                     <Button disabled={!hasNextOutputs} onClick={() => setOutputPage((page) => page + 1)} size="sm" type="button" variant="outline">Next outputs</Button>
                   </nav>
@@ -204,31 +231,26 @@ export default function AgentActivityPage({ params }) {
               </>
             )}
           </section>
-
-          <section aria-labelledby="review-heading" className="mt-8">
-            <h2 className="mb-3 text-xl font-semibold tracking-tight" id="review-heading">Human-in-the-loop boundary</h2>
-            <Alert description="Agents can draft and prepare work; publication remains a human signing decision. The current public event API does not expose unresolved checkpoint state, so this page does not infer pending approval from historical event names." title="Checkpoint state not exposed" variant="info" />
-          </section>
         </div>
 
-        <aside aria-label="Agent identity card" className="grid gap-4">
-          <Card className="min-w-0">
-            <div className="border-b border-border px-5 py-3"><h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Identity card</h2></div>
-            <CardContent>
-              <dl className="grid gap-3 text-sm">
-                <div className="flex min-w-0 gap-3"><dt className="w-28 shrink-0 text-xs text-muted-foreground">Type</dt><dd className="min-w-0 break-words">{display(actor.actorType, 'not stated')}</dd></div>
-                <div className="flex min-w-0 gap-3"><dt className="w-28 shrink-0 text-xs text-muted-foreground">Model</dt><dd className="min-w-0 break-all font-mono text-xs">{display(actor.modelName)}</dd></div>
-                <div className="flex min-w-0 gap-3"><dt className="w-28 shrink-0 text-xs text-muted-foreground">Runtime</dt><dd className="min-w-0 break-all font-mono text-xs">{display(actor.runtime)}</dd></div>
-                <div className="flex min-w-0 gap-3"><dt className="w-28 shrink-0 text-xs text-muted-foreground">Scope</dt><dd className="min-w-0 break-all font-mono text-xs">{display(actor.scope)}</dd></div>
-                <div className="flex min-w-0 gap-3"><dt className="w-28 shrink-0 text-xs text-muted-foreground">Signing key</dt><dd className="min-w-0 break-all font-mono text-xs">{display(actor.publicKeyFingerprint)}</dd></div>
-                <div className="flex min-w-0 gap-3"><dt className="w-28 shrink-0 text-xs text-muted-foreground">Connection</dt><dd className="min-w-0 break-words">{display(actor.connectionMethod)}</dd></div>
-              </dl>
-              <Alert className="mt-4" description="Self-declared model and runtime fields are declarations, not verification findings. The agent never impersonates a human." title="Self-declared, not verified" variant="info" />
-              {owner ? <Link className="mt-4 inline-flex items-center gap-2 text-xs text-primary hover:underline" href={`/people/${encodeURIComponent(owner)}`}><UserRound aria-hidden="true" size={14} />View owning human actor</Link> : null}
-            </CardContent>
-          </Card>
+        <aside aria-label="Agent identity card" className="doc-margin">
+          <MarginSection title="Identity card">
+            <p className="mb-2 text-xs text-muted-foreground">Self-declared, not verified</p>
+            <dl className="grid gap-2 text-[13px]">
+              <div><dt className="text-xs text-muted-foreground">Acts for</dt><dd className="mt-0.5">{owner ? <ActorName actorId={owner} showOwner={false} /> : <span className="text-muted-foreground">not stated</span>}</dd></div>
+              <div><dt className="text-xs text-muted-foreground">Type</dt><dd className="mt-0.5">{display(actor.actorType, 'not stated')}</dd></div>
+              <div><dt className="text-xs text-muted-foreground">Model</dt><dd className="mt-0.5 break-all font-mono text-xs">{display(actor.modelName)}</dd></div>
+              <div><dt className="text-xs text-muted-foreground">Runtime</dt><dd className="mt-0.5 break-all font-mono text-xs">{display(actor.runtime)}</dd></div>
+              <div><dt className="text-xs text-muted-foreground">Scope</dt><dd className="mt-0.5 break-all font-mono text-xs">{display(actor.scope)}</dd></div>
+              <div><dt className="text-xs text-muted-foreground">Signing key</dt><dd className="mt-0.5 break-all font-mono text-xs">{display(actor.publicKeyFingerprint)}</dd></div>
+              <div><dt className="text-xs text-muted-foreground">Connection</dt><dd className="mt-0.5 break-words">{display(actor.connectionMethod)}</dd></div>
+            </dl>
+          </MarginSection>
+          <MarginSection title="Record">
+            <Link className="text-[13px] text-primary hover:underline" href={`/events?actorId=${encodeURIComponent(actor.actorId ?? actorId)}`}>Event audit</Link>
+          </MarginSection>
         </aside>
       </div>
-    </PageContainer>
+    </div>
   );
 }

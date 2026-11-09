@@ -13,6 +13,8 @@ import { createEventClient } from "./resources/events.mjs";
 import { createContributionClient } from "./resources/contributions.mjs";
 import { createResearchGraphClient } from "./resources/research-graph.mjs";
 import { createTypedResearchClients } from "./resources/typed-research.mjs";
+import { createPublicCapabilitiesClient } from "./resources/public-capabilities.mjs";
+import { createAdmissionClients } from "./resources/admission.mjs";
 import { verifyMerkleInclusionProof } from "../../merkle/src/verify-inclusion-proof.mjs";
 import { hashResearchEventLeaf } from "../../merkle/src/research-event-leaf.mjs";
 
@@ -20,14 +22,17 @@ export { createEviMeshClient } from "./client.mjs";
 export * from "./errors.mjs";
 export { generateIdempotencyKey } from "./idempotency.mjs";
 export { iterateItems, collectItems } from "./pagination.mjs";
+export { FALLBACK_PUBLIC_CAPABILITIES, normalizePublicCapabilities } from "./resources/public-capabilities.mjs";
 
 /** Assemble the full typed EviMesh SDK surface over one HTTP transport. */
 export function createClient(options = {}) {
   const http = createEviMeshClient(options);
   const fetchImpl = options.fetchImpl ?? fetch;
   const typedResearch = createTypedResearchClients(http);
+  const admission = createAdmissionClients(http);
   return Object.freeze({
     http,
+    capabilities: createPublicCapabilitiesClient(http),
     projects: createProjectClient(http),
     questions: createQuestionClient(http),
     tasks: createTaskClient(http),
@@ -54,6 +59,7 @@ export function createClient(options = {}) {
     events: createEventClient(http),
     contributions: createContributionClient(http),
     researchGraph: createResearchGraphClient(http),
+    ...admission,
     ...typedResearch,
     verifyEventProof: ({ proof, event = null } = {}) => {
       if (!verifyMerkleInclusionProof(proof)) return { valid: false, reason: "proof does not reconstruct its root" };

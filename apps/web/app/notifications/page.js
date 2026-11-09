@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { Alert, Empty } from '@/components/ui/feedback';
+import { Empty } from '@/components/ui/feedback';
 import { PageContainer, PageHeader } from '@/components/ui/page';
 
 const TABS = [['inbox', 'Inbox'], ['done', 'Processed']];
@@ -16,11 +16,7 @@ export default function NotificationsPage() {
   const [tab, setTab] = useState('inbox');
   return (
     <PageContainer>
-      <PageHeader
-        description="Notifications will explain why you received them: what you follow, what changed. Levels express attention priority, never a verdict."
-        eyebrow="Notifications"
-        title="Inbox"
-      />
+      <PageHeader title="Inbox" />
       <div className="mt-4 flex gap-1 border-b border-border" role="tablist" aria-label="Notification views">
         {TABS.map(([id, label]) => (
           <button
@@ -39,33 +35,20 @@ export default function NotificationsPage() {
       </div>
       <section
         aria-labelledby={`notifications-tab-${tab}`}
-        className="mt-8"
+        className="mt-6"
         id={`notifications-panel-${tab}`}
         role="tabpanel"
         tabIndex={0}
       >
         {tab === 'inbox' ? (
           <Empty
-            action={<Link className="rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground" href="/explore">Discover research to follow</Link>}
-            description="Watchlists and per-object subscriptions arrive with the notification system. Quiet objects will never ping; critical changes will always surface here and by email."
+            action={<Link className="text-primary hover:underline" href="/explore">Explore</Link>}
             title="No notifications yet"
           />
         ) : (
-          <Empty
-            description="Processed notifications stay here for 30 days; the underlying events remain reachable from each object's activity view."
-            title="Processed notifications appear here"
-          />
+          <Empty title="Nothing processed" />
         )}
       </section>
-      <Alert
-        className="mt-5"
-        description="Quiet objects never ping. Digest preferences will be available from Settings when subscriptions are enabled."
-        title="Subscription-driven, not algorithmic"
-        variant="info"
-      />
-      <p className="mt-4 text-sm text-muted-foreground">
-        Until then, the Home page shows live activity across open research, and every object page links its signed event history.
-      </p>
     </PageContainer>
   );
 }

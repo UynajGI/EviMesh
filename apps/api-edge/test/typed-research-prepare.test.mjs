@@ -10,12 +10,54 @@ const answerInput = () => ({ answerId: "answer-1", projectId, title: "Synthesis"
 
 test("prepares an Answer with question and additional input edges in the signed payload", () => {
   const input = { answerId: "answer-1", projectId, title: "Synthesis", synthesis: "The combined answer.", limitations: [], questionRef: ref("question"), additionalInputs: [ref("dataset")], draftedByActorId: "agent-1" };
-  const result = prepareTypedResearchSubmission({ kind: "answer", input, publisherActorId, nonce });
+  const result = prepareTypedResearchSubmission({ kind: "answer", input, producerActorId: "agent-1", publisherActorId, nonce });
   assert.equal(result.eventType, "answer.created");
+  assert.equal(result.payload.producerActorId, "agent-1");
   assert.equal(result.payload.publisherActorId, publisherActorId);
+  assert.equal(result.payload.signerActorId, publisherActorId);
   assert.equal(result.payload.draftedByActorId, "agent-1");
   assert.deepEqual(result.payload.incomingEdges.map((edge) => edge.type), ["answers", "derived_from"]);
+  assert.equal("commitRank" in result.payload, false);
+  assert.equal("batchRank" in result.payload, false);
   assert.match(result.signingBytesHash, /^sha256:[0-9a-f]{64}$/);
+});
+
+test("produces a stable golden canonical contract for Agent-produced, Human-signed research", () => {
+  const result = canonicalTypedResearchSubmission({
+    kind: "answer",
+    producerActorId: "agent-1",
+    publisherActorId,
+    input: {
+      ...answerInput(),
+      draftedByActorId: "agent-1",
+      additionalInputs: [ref("dataset", "dataset-2", 3)],
+    },
+  });
+  assert.deepEqual(result.payload, {
+    schema: "srp.answer.v1",
+    entityType: "answer",
+    graphVersion: "research-graph.v1",
+    producerActorId: "agent-1",
+    draftedByActorId: "agent-1",
+    publisherActorId: "human-1",
+    signerActorId: "human-1",
+    node: {
+      answerId: "answer-1",
+      projectId: "project-1",
+      revision: 1,
+      supersedesRevision: null,
+      state: "draft",
+      title: "Synthesis",
+      synthesis: "The combined answer.",
+      limitations: [],
+      questionRef: ref("question"),
+      additionalInputs: [ref("dataset", "dataset-2", 3)],
+    },
+    incomingEdges: [
+      { type: "answers", source: ref("question"), target: ref("answer") },
+      { type: "derived_from", source: ref("dataset", "dataset-2", 3), target: ref("answer") },
+    ],
+  });
 });
 
 test("canonicalizes all five typed node command shapes through one boundary", () => {

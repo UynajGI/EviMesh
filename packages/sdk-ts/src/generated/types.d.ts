@@ -81,19 +81,39 @@ export type CreateToolRequest = { toolId: string; projectId: string; revision?: 
 
 export type HealthResponse = { service: "evimesh-api-edge"; status: "ok"; environment: string; };
 
+export type DependencyComponentHealth = { status: "operational" | "unavailable"; checkedAt: string; latencyMs: number; };
+
+export type DependencyHealthResponse = { status: "operational" | "degraded"; checkedAt: string; components: { authentication: DependencyComponentHealth; database: DependencyComponentHealth; objectStorage: DependencyComponentHealth; }; };
+
+export type PublicCapabilities = { schemaVersion: "public-capabilities.v1"; releaseChannel: "preview" | "beta" | "ga"; apiVersion: string; graphSchemaVersion: "research-neighborhood.v1"; deviceAuthorization: { enabled: boolean; }; research: { read: true; prepare: boolean; submit: boolean; signing: "human-local-only"; }; clients: { sdk: PublicClientCapability; cli: PublicClientCapability; mcp: PublicClientCapability; }; };
+
+export type PublicClientCapability = { available: boolean; minimumVersion: string | null; };
+
 export type AuthMeResponse = { subject: string; email: string | null; actorId: string; actorType?: "human" | "agent" | "organization" | "service" | "maintainer" | "witness" | null; signingKey: { keyId: string; algorithm: "Ed25519"; publicKey: string; } | null; };
 
-export type DeviceAuthorizationRequest = { client_id: string; };
+export type DeviceScope = "profile:read" | "project:read" | "research:prepare" | "research:submit" | "artifact:upload";
 
-export type DeviceAuthorizationResponse = { device_code: string; user_code: string; verification_uri: string; interval: number; expires_in: number; };
+export type DeviceAuthorizationRequest = { client_id: string; scope?: string; scopes?: DeviceScope[]; };
 
-export type DeviceApprovalRequest = { user_code: string; };
+export type DeviceAuthorizationResponse = { device_code: string; user_code: string; verification_uri: string; verification_uri_complete: string; interval: number; expires_in: number; };
 
-export type DeviceApprovalResponse = { status: "approved"; device_code?: string | null; };
+export type DeviceGrantPreview = { status: "pending"; client_id: string; requested_scopes: DeviceScope[]; expires_at: string; };
+
+export type DeviceApprovalRequest = { user_code: string; agent_actor_id: string; };
+
+export type DeviceApprovalResponse = { status: "approved"; agent_actor_id: string; expires_at: string; };
+
+export type DeviceDenialRequest = { user_code: string; };
+
+export type DeviceDenialResponse = { status: "denied"; };
+
+export type ManagedAgent = { actorId: string; actorType: "agent"; modelName: string | null; runtime: string | null; scope: string | null; publicKeyFingerprint: string | null; };
+
+export type ManagedAgentsResponse = { items: ManagedAgent[]; };
 
 export type DeviceTokenRequest = { device_code: string; };
 
-export type DeviceTokenResponse = { access_token: string; scopes: string[]; token_id?: string | null; };
+export type DeviceTokenResponse = { access_token: string; token_type: "Bearer"; expires_in: number; scope: string; scopes: DeviceScope[]; token_id: string; agent_actor_id: string; approved_by_actor_id: string; };
 
 export type DeviceAuthErrorResponse = { error: string; error_description?: string; };
 
@@ -121,7 +141,27 @@ export type EtagObjectResponse = { etag: string; };
 
 export type TransitionRequest = { toState: string; };
 
-export type RegisterSigningKeyRequest = { keyId: string; publicKey: string; };
+export type RegisterSigningKeyRequest = { keyId: string; publicKey: string; label?: string; };
+
+export type SigningKeyPublicRecord = { keyId: string; actorId: string; algorithm: "Ed25519"; publicKey: string; fingerprint: string; label: string; createdAt: string; revokedAt?: string | null; revocationReason?: string | null; };
+
+export type SigningKeyListResponse = { items: SigningKeyPublicRecord[]; };
+
+export type RevokeSigningKeyRequest = { reason: string; };
+
+export type CompleteOnboardingRequest = { termsVersion: string; displayName: string; bio?: string | null; avatarUrl?: string | null; };
+
+export type SubmitProjectApplicationRequest = { proposedProjectId: string; name: string; summary: string; license: string; };
+
+export type DecideProjectApplicationRequest = { decision: "approved" | "rejected"; reason: string; };
+
+export type CreateProjectInvitationRequest = { invitedActorId: string; role: "maintainer" | "contributor" | "viewer"; expiresAt: string; };
+
+export type RespondProjectInvitationRequest = { response: "accepted" | "declined"; };
+
+export type ReasonRequest = { reason: string; };
+
+export type ChangeProjectMembershipRoleRequest = { role: "owner" | "maintainer" | "contributor" | "viewer"; reason: string; };
 
 export type CreateApiTokenRequest = { scopes?: string[]; expiresAt?: string | null; };
 
@@ -168,6 +208,10 @@ export type InteractionRecord = { objectType: "question" | "claim" | "task" | "p
 export interface EviMeshOperations {
   /** GET /health */
   getHealth: { method: "GET"; path: "/health" };
+  /** GET /health/dependencies */
+  getDependencyHealth: { method: "GET"; path: "/health/dependencies" };
+  /** GET /meta/capabilities */
+  getPublicCapabilities: { method: "GET"; path: "/meta/capabilities" };
   /** GET /platform/keys */
   getPlatformPublicKeys: { method: "GET"; path: "/platform/keys" };
   /** POST /witness-receipts */
@@ -176,22 +220,50 @@ export interface EviMeshOperations {
   getAuthenticatedActor: { method: "GET"; path: "/auth/me" };
   /** POST /auth/device */
   startDeviceAuthorization: { method: "POST"; path: "/auth/device" };
+  /** GET /auth/device/grants/{userCode} (bearer auth) */
+  previewDeviceAuthorization: { method: "GET"; path: "/auth/device/grants/{userCode}" };
+  /** GET /actors/managed (bearer auth) */
+  listManagedAgentActors: { method: "GET"; path: "/actors/managed" };
   /** POST /auth/device/approve (bearer auth) */
   approveDeviceAuthorization: { method: "POST"; path: "/auth/device/approve" };
+  /** POST /auth/device/deny (bearer auth) */
+  denyDeviceAuthorization: { method: "POST"; path: "/auth/device/deny" };
   /** POST /auth/device/token */
   exchangeDeviceToken: { method: "POST"; path: "/auth/device/token" };
   /** GET /profile (bearer auth) */
   getOwnProfile: { method: "GET"; path: "/profile" };
   /** PATCH /profile (bearer auth) */
   updateOwnProfile: { method: "PATCH"; path: "/profile" };
+  /** POST /onboarding/complete (bearer auth) */
+  completeOnboarding: { method: "POST"; path: "/onboarding/complete" };
+  /** GET /signing-keys (bearer auth) */
+  listSigningKeys: { method: "GET"; path: "/signing-keys" };
   /** POST /signing-keys (bearer auth) */
   registerSigningKey: { method: "POST"; path: "/signing-keys" };
+  /** DELETE /signing-keys/{keyId} (bearer auth) */
+  revokeSigningKey: { method: "DELETE"; path: "/signing-keys/{keyId}" };
   /** GET /api-tokens (bearer auth) */
   listApiTokens: { method: "GET"; path: "/api-tokens" };
   /** POST /api-tokens (bearer auth) */
   createApiToken: { method: "POST"; path: "/api-tokens" };
   /** DELETE /api-tokens/{tokenId} (bearer auth) */
   revokeApiToken: { method: "DELETE"; path: "/api-tokens/{tokenId}" };
+  /** POST /project-applications (bearer auth) */
+  submitProjectApplication: { method: "POST"; path: "/project-applications" };
+  /** POST /project-applications/{applicationId}/withdraw (bearer auth) */
+  withdrawProjectApplication: { method: "POST"; path: "/project-applications/{applicationId}/withdraw" };
+  /** POST /project-applications/{applicationId}/decision (bearer auth) */
+  decideProjectApplication: { method: "POST"; path: "/project-applications/{applicationId}/decision" };
+  /** POST /projects/{projectId}/invitations (bearer auth) */
+  createProjectInvitation: { method: "POST"; path: "/projects/{projectId}/invitations" };
+  /** POST /project-invitations/{invitationId}/respond (bearer auth) */
+  respondToProjectInvitation: { method: "POST"; path: "/project-invitations/{invitationId}/respond" };
+  /** POST /projects/{projectId}/invitations/{invitationId}/revoke (bearer auth) */
+  revokeProjectInvitation: { method: "POST"; path: "/projects/{projectId}/invitations/{invitationId}/revoke" };
+  /** PATCH /projects/{projectId}/members/{actorId} (bearer auth) */
+  changeProjectMembershipRole: { method: "PATCH"; path: "/projects/{projectId}/members/{actorId}" };
+  /** DELETE /projects/{projectId}/members/{actorId} (bearer auth) */
+  removeProjectMembership: { method: "DELETE"; path: "/projects/{projectId}/members/{actorId}" };
   /** GET /projects */
   listProjects: { method: "GET"; path: "/projects" };
   /** POST /projects (bearer auth) */
@@ -254,7 +326,7 @@ export interface EviMeshOperations {
   listArtifacts: { method: "GET"; path: "/artifacts" };
   /** POST /artifacts (bearer auth) */
   createArtifact: { method: "POST"; path: "/artifacts" };
-  /** POST /artifacts/upload-plan */
+  /** POST /artifacts/upload-plan (bearer auth) */
   planArtifactUpload: { method: "POST"; path: "/artifacts/upload-plan" };
   /** GET /artifacts/{artifactId} */
   getArtifact: { method: "GET"; path: "/artifacts/{artifactId}" };

@@ -23,7 +23,7 @@ export function Radio({ className, ...props }) {
 /** Styled native select: keyboard and screen-reader support are native. */
 export function Select({ className, children, ...props }) {
   return (
-    <select className={cn('h-10 w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:cursor-not-allowed disabled:opacity-50', className)} {...props}>
+    <select className={cn('h-10 w-full rounded-[2px] border border-foreground/25 bg-card px-3 py-2 text-sm text-foreground transition-colors hover:border-foreground/50 focus-visible:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus/30 disabled:cursor-not-allowed disabled:opacity-50', className)} {...props}>
       {children}
     </select>
   );

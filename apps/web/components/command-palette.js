@@ -161,10 +161,10 @@ export function CommandPalette() {
       <DialogContent aria-label="Command palette" className="top-24 max-w-lg translate-y-0 p-0">
         <input
           aria-label="Search commands or research"
-          className="w-full border-b border-border bg-transparent px-4 py-3.5 text-base outline-none placeholder:text-muted-foreground"
+          className="w-full border-b border-border bg-transparent px-4 py-3 text-[0.9375rem] outline-none placeholder:text-muted-foreground"
           onChange={(event) => { setQuery(event.target.value); setActive(0); }}
           onKeyDown={onKeyDown}
-          placeholder="Type a command, or search objects by stable id…"
+          placeholder="Command or stable id"
           ref={inputRef}
           type="text"
           value={query}
@@ -172,20 +172,18 @@ export function CommandPalette() {
         {notice ? <p className="border-b border-border px-4 py-2 text-xs text-muted-foreground" role="status">{notice}</p> : null}
         <ul aria-label="Results" className="max-h-80 overflow-y-auto p-2" role="listbox">
           {results.length === 0 ? (
-            <li className="px-3 py-6 text-center text-sm text-muted-foreground">
-              No matching row. Press Enter to search objects on Explore.
-            </li>
+            <li className="px-3 py-4 text-sm text-muted-foreground">No match. Enter searches Explore.</li>
           ) : results.map((command, index) => {
             const header = command.group !== lastGroup ? command.group : null;
             lastGroup = command.group;
             return (
               <li key={(command.href ?? command.action ?? '') + command.label}>
-                {header ? <p aria-hidden="true" className="px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{header}</p> : null}
+                {header ? <p aria-hidden="true" className="mx-3 mb-0.5 mt-2.5 text-xs font-medium text-muted-foreground">{header}</p> : null}
                 <button
                   aria-selected={index === active}
                   className={cn(
-                    'flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm',
-                    index === active ? 'bg-accent text-accent-foreground' : 'text-foreground hover:bg-muted',
+                    'flex w-full items-center gap-3 rounded-[2px] px-3 py-1.5 text-left text-sm',
+                    index === active ? 'bg-muted text-foreground' : 'text-foreground hover:bg-muted',
                   )}
                   onClick={() => run(command)}
                   onMouseEnter={() => setActive(index)}
@@ -193,22 +191,21 @@ export function CommandPalette() {
                   type="button"
                 >
                   {command.sub ? (
-                    <span className="shrink-0 rounded-full border border-border bg-muted px-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{command.sub}</span>
+                    <span className="w-16 shrink-0 text-xs text-muted-foreground">{command.sub}</span>
                   ) : null}
-                  <span className="min-w-0 flex-1 truncate font-mono text-xs">{command.label}</span>
+                  <span className={cn('min-w-0 flex-1 truncate', command.group === 'Objects' && 'font-mono text-xs')}>{command.label}</span>
                   {command.hint ? (
-                    <kbd className="rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">{command.hint}</kbd>
+                    <kbd className="rounded-[2px] border border-border bg-background px-1.5 py-0.5 font-mono text-xs text-muted-foreground">{command.hint}</kbd>
                   ) : null}
                 </button>
               </li>
             );
           })}
         </ul>
-        <p className="flex items-center gap-3 border-t border-border px-4 py-2 text-[11px] text-muted-foreground">
-          <span><kbd className="rounded border border-border bg-background px-1 font-mono">↑↓</kbd> navigate</span>
-          <span><kbd className="rounded border border-border bg-background px-1 font-mono">↵</kbd> run</span>
-          <span><kbd className="rounded border border-border bg-background px-1 font-mono">Esc</kbd> close</span>
-          <span className="ml-auto">Object search also runs on Explore.</span>
+        <p className="flex items-center gap-3 border-t border-border px-4 py-2 text-xs text-muted-foreground">
+          <span><kbd className="rounded-[2px] border border-border bg-background px-1 font-mono">↑↓</kbd> navigate</span>
+          <span><kbd className="rounded-[2px] border border-border bg-background px-1 font-mono">↵</kbd> run</span>
+          <span><kbd className="rounded-[2px] border border-border bg-background px-1 font-mono">Esc</kbd> close</span>
         </p>
       </DialogContent>
     </Dialog>

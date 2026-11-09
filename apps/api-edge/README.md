@@ -106,16 +106,22 @@ Kernel compatibility reads require a Cloudflare secret named
 read the service-only crosswalk. The caller's own JWT or anonymous RLS scope is
 still used for graph nodes, edges, and content; the service secret is never
 forwarded to the browser or used to broaden the returned research objects.
-The public hosted Worker remains a read-only browser surface because it does
-not construct research event factories. It does compose the production
-ResearchEvent verifier by default: signed routes atomically consume the client
-nonce, then the pre-RPC boundary recomputes the envelope signing bytes and
-hash, resolves the actor's active public key, verifies Ed25519, and binds the
-same publisher envelope to the immutable event. Dependency injection is only
-an explicit test or deployment replacement for that default. The event hash
-remains the event factory's full-record hash; it is not confused with the
-client envelope hash. The RPC receives completed verified events and cannot
-substitute `confirm: true` for a signature.
+The browser remains read-only. Hosted research writes are available only to an
+Agent API token and only when every release gate is true. The Worker derives a
+rank-free platform ResearchEvent from the exact Human-signed document, signs
+it with the private key stored in `PLATFORM_EVENT_SIGNING_PRIVATE_KEY`, and
+re-verifies both Human and platform Ed25519 signatures before calling the
+single `execute_typed_research_submit` RPC. Nonce consumption, Event, stable
+Node, revision, all incoming edges, subtype rows, crosswalk, and receipt are
+committed by that one PostgreSQL transaction. No API path preclaims a nonce,
+adds an edge after signing, or treats `confirm: true` as authorization.
+
+`PLATFORM_KEYRING` contains public keys only. Its active key id must match
+`PLATFORM_EVENT_SIGNING_KEY_ID`; the private PKCS#8 value is a separate
+Cloudflare secret. `EVIMESH_TYPED_RESEARCH_ATOMIC_RPC_READY=true` is required
+in addition to the normal prepare/submit flags and Graph kernel cutover. Keep
+all of these gates false until the migration has run and real PostgreSQL E2E
+has completed without skips.
 
 Configure `SUPABASE_JWKS_URL`, `SUPABASE_JWT_ISSUER`, and optionally
 `SUPABASE_JWT_AUDIENCE` as Worker variables. Do not commit a JWKS, API token,

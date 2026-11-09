@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { Bookmark } from 'lucide-react';
+import { buttonLinkVariants } from '@/components/ui/button';
 import { DeniedState, Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
 import { EngagementActions } from '@/components/engagement-actions';
+import { shortId } from '@/components/ui/doc';
 import { PageContainer, PageHeader } from '@/components/ui/page';
 import { fetchMyInteractions, useMyInteractions } from '@/lib/interactions';
 
@@ -66,39 +67,36 @@ export default function SavedPage() {
 
   return (
     <PageContainer>
-      <PageHeader
-        description="Your personal bookmarks. Private to you — never shown as public counts."
-        eyebrow="Personal"
-        title="Saved for later"
-      />
-      {error ? <ErrorState className="mt-10" message={error} requestId={requestId ?? undefined} onRetry={load} /> : null}
+      <PageHeader title="Saved" />
+      {error ? <ErrorState className="mt-8" message={error} requestId={requestId ?? undefined} onRetry={load} /> : null}
       {needsAuth ? (
         <DeniedState
-          className="mt-10"
-          description="Your saves live in a signed-in scope. Sign in to see them here."
+          className="mt-8"
+          description="Saves are private to your account."
           scope="signed-in saves"
-          title="Signed-out scope"
-          action={<Link className="rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground" href="/login">Sign in</Link>}
+          title="Sign in to see your saves"
+          action={<Link className={buttonLinkVariants({ variant: 'default', size: 'sm' })} href="/login">Sign in</Link>}
           actionLabel="Sign in"
         />
       ) : loading ? (
-        <div className="mt-2 grid gap-3">{[0, 1, 2, 3].map((key) => <Skeleton className="h-16 w-full" key={key} />)}</div>
+        <div className="mt-6 grid gap-3">{[0, 1, 2, 3].map((key) => <Skeleton className="h-12 w-full" key={key} />)}</div>
       ) : !rows?.length ? (
         <Empty
-          action={<Link className="rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground" href="/home">Browse the feed</Link>}
-          description="Save questions and claims with the bookmark action to keep them here."
+          action={<Link className="text-primary hover:underline" href="/explore">Explore</Link>}
+          className="mt-6"
           title="Nothing saved yet"
         />
       ) : (
-        <ul className="mt-2 grid gap-3">
+        <ul className="mt-6">
           {rows.map((row) => (
-            <li className="flex items-start gap-3 rounded-lg border border-border bg-card p-4" key={`${row.objectType}-${row.objectId}`}>
-              <Bookmark aria-hidden="true" className="mt-0.5 shrink-0 text-primary" fill="currentColor" size={16} />
+            <li className="flex items-start gap-3 border-b border-border py-3" key={`${row.objectType}-${row.objectId}`}>
               <div className="min-w-0 flex-1">
-                <Link className="block truncate font-medium hover:underline" href={hrefFor(row)}>
-                  {titles.get(`${row.objectType}:${row.objectId}`) ?? row.objectId}
-                </Link>
-                <p className="mt-0.5 text-xs text-muted-foreground">{row.objectType} · saved {new Date(row.createdAt).toLocaleDateString()}</p>
+                {titles.get(`${row.objectType}:${row.objectId}`) ? (
+                  <Link className="block truncate font-serif hover:underline" href={hrefFor(row)}>{titles.get(`${row.objectType}:${row.objectId}`)}</Link>
+                ) : (
+                  <Link className="block truncate font-mono text-sm hover:underline" href={hrefFor(row)} title={row.objectId}>{shortId(row.objectId)}</Link>
+                )}
+                <p className="mt-1 text-xs text-muted-foreground first-letter:uppercase">{row.objectType} · saved {new Date(row.createdAt).toLocaleDateString()}</p>
               </div>
               <EngagementActions has={has} objectId={row.objectId} objectType={row.objectType} onToggle={toggle} />
             </li>

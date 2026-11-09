@@ -2,14 +2,12 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Bot, CircleDashed, Clock, FileCheck2, ListTodo } from 'lucide-react';
-import { ChangeGroup, ChangeItem } from '@/components/change-item';
+import { buttonLinkVariants } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/data';
+import { ActorName, Identifier, MarginSection, shortId } from '@/components/ui/doc';
 import { Alert, DeniedState, Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
-import { IdChip } from '@/components/ui/idchip';
-import { PageContainer, PageHeader } from '@/components/ui/page';
+import { PageContainer, PageHeader, SectionHeader } from '@/components/ui/page';
 import { fetchMyInteractions } from '@/lib/interactions';
-import { Rail } from '@/components/ui/rail';
 import { createBrowserSupabaseClient } from '@/lib/supabase-browser';
 import { readVisitHistory } from '@/lib/visit-history';
 
@@ -22,9 +20,9 @@ const MAX_CLASSIFICATION_DETAILS = 48;
 const EMPTY_PARTIAL = { omittedObjects: 0, failedObjects: 0, truncatedObjects: 0, invalidEvents: 0, failedDetails: 0, omittedDetails: 0 };
 
 const GROUPS = [
-  { level: 'critical', title: 'Needs prompt review', meta: 'critical' },
-  { level: 'attention', title: 'Worth attention', meta: 'attention' },
-  { level: 'update', title: 'Routine updates', meta: 'update' },
+  { level: 'critical', title: 'Needs prompt review' },
+  { level: 'attention', title: 'Worth attention' },
+  { level: 'update', title: 'Routine updates' },
 ];
 
 function createObservationWindow() {
@@ -314,29 +312,28 @@ function whatHappened(event) {
   const facts = eventFacts(event);
   const scope = event.watchedScopes[0];
   if (event.eventType.startsWith('claim.') && ['refuted', 'retracted'].includes(facts.claimState)) {
-    return `Claim revision ${facts.claimRevision ?? scope.objectId} entered ${facts.claimState}.`;
+    return `Claim revision ${shortId(String(facts.claimRevision ?? scope.objectId))} entered ${facts.claimState}.`;
   }
   if (facts.findingSeverity && (event.eventType.includes('finding') || event.eventType.startsWith('verification.'))) {
-    const receipt = facts.receiptId ? ` on receipt ${facts.receiptId}` : '';
+    const receipt = facts.receiptId ? ` on receipt ${shortId(String(facts.receiptId))}` : '';
     return `Verification${receipt} recorded a ${facts.findingSeverity} finding.`;
   }
   if (facts.relationType === 'refutes' && event.eventType.includes('evidence')) {
-    const target = facts.claimRevision ? ` targeting claim revision ${facts.claimRevision}` : '';
-    return `Evidence ${facts.evidenceId ?? event.eventId} was recorded as refutes${target}.`;
+    const target = facts.claimRevision ? ` on claim revision ${shortId(String(facts.claimRevision))}` : '';
+    return `Evidence ${shortId(String(facts.evidenceId ?? event.eventId))} refutes${target}.`;
   }
   if (facts.challengeState && event.eventType.includes('challenge')) {
-    return `Challenge ${facts.challengeId ?? event.eventId} entered ${facts.challengeState}.`;
+    return `Challenge ${shortId(String(facts.challengeId ?? event.eventId))} entered ${facts.challengeState}.`;
   }
   if (facts.snapshotId && event.eventType.includes('frontier')) {
-    return `Frontier event ${facts.type} was recorded for snapshot ${facts.snapshotId}.`;
+    return `${facts.type} on frontier snapshot ${shortId(String(facts.snapshotId))}`;
   }
-  return `Formal event ${facts.type} was recorded for watched ${scope.objectType} ${scope.objectId}.`;
+  return `${facts.type} on ${scope.objectType} ${shortId(scope.objectId)}`;
 }
 
-function whyItMatters(level) {
-  if (level === 'critical') return 'Research state or an explicitly recorded usage assumption changed with high impact. Review the formal event before relying on this object.';
-  if (level === 'attention') return 'The event records a dispute, limitation, or context change that deserves review before this object is reused.';
-  return 'This is a formal change in the watched object record. It does not by itself establish truth, acceptance, or research value.';
+function eventActor(event) {
+  const actorId = event.actorId ?? payloadValue(event.payload, 'actor_id', 'actorId');
+  return typeof actorId === 'string' && actorId ? actorId : null;
 }
 
 function payloadIdentifiers(payload) {
@@ -391,24 +388,47 @@ function eventAuditHref(event, observationWindow) {
 function ChangeEvent({ event, level, observationWindow }) {
   const href = eventAuditHref(event, observationWindow);
   const exactTime = formatDateTime(event.createdAt, observationWindow.timeZone);
+  const identifiers = payloadIdentifiers(event.payload);
   return (
-    <ChangeItem
-      href={href}
-      id={event.eventId}
-      idLabel="event"
-      level={level}
-      meta={(
-        <>
-          <StatusBadge label={event.eventType} state={level} />
-          {event.watchedScopes.map((scope) => <IdChip key={`${scope.objectType}:${scope.objectId}`} label={scope.objectType} value={scope.objectId} />)}
-          {payloadIdentifiers(event.payload).map((identifier) => <IdChip key={`${identifier.label}:${identifier.value}`} label={identifier.label} value={identifier.value} />)}
-          <Link className="text-xs font-medium text-primary hover:underline" href={href}>View ResearchEvent</Link>
-        </>
-      )}
-      time={<time dateTime={event.createdAt} title={exactTime}>{toRelativeTime(event.createdAt)} ({exactTime})</time>}
-      what={whatHappened(event)}
-      why={whyItMatters(level)}
-    />
+    <li className="ref-row" id={`change-${event.eventId}`}>
+      <div>
+        <StatusBadge label={level} state={level} />
+      </div>
+      <div className="min-w-0">
+        <p className="text-[0.9375rem] font-medium leading-snug">
+          <Link className="hover:underline" href={href}>{whatHappened(event)}</Link>
+        </p>
+        <p className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs text-muted-foreground">
+          <span className="font-mono text-foreground">{event.eventType}</span>
+          {event.watchedScopes.map((scope) => (
+            <span className="inline-flex items-baseline gap-1" key={`${scope.objectType}:${scope.objectId}`}>
+              <span>on {scope.objectType}</span>
+              <Identifier value={scope.objectId} />
+            </span>
+          ))}
+          {eventActor(event) ? <span className="inline-flex items-baseline gap-1">recorded by <ActorName actorId={eventActor(event)} /></span> : null}
+        </p>
+        {identifiers.length > 0 ? (
+          <details className="mt-2 text-xs">
+            <summary className="cursor-pointer text-muted-foreground hover:text-foreground">Identifiers in this event</summary>
+            <dl className="mt-2 grid gap-x-4 gap-y-1 sm:grid-cols-[max-content_minmax(0,1fr)]">
+              {identifiers.map((identifier) => (
+                <div className="contents" key={`${identifier.label}:${identifier.value}`}>
+                  <dt className="font-mono text-muted-foreground">{identifier.label}</dt>
+                  <dd><Identifier value={identifier.value} /></dd>
+                </div>
+              ))}
+            </dl>
+          </details>
+        ) : null}
+        <p className="mt-1 text-xs text-muted-foreground">
+          <span className="inline-flex items-baseline gap-1">Event <Identifier value={event.eventId} /></span>
+        </p>
+      </div>
+      <time className="text-xs tabular-nums text-muted-foreground md:text-right" dateTime={event.createdAt} title={exactTime}>
+        {toRelativeTime(event.createdAt)}
+      </time>
+    </li>
   );
 }
 
@@ -420,7 +440,7 @@ function partialDescription(partial) {
   if (partial.invalidEvents) notes.push('Some event records lacked required provenance fields');
   if (partial.failedDetails) notes.push('Some verification or Challenge details needed for change classification were unavailable');
   if (partial.omittedDetails) notes.push('Some classification details were omitted from this bounded view');
-  return `${notes.join('. ')}. Displayed events remain in newest protocol order; this partial result cannot support a quiet conclusion.`;
+  return `${notes.join('. ')}. Events are shown newest first; some changes may be missing from this view.`;
 }
 
 export default function HomePage() {
@@ -536,29 +556,25 @@ export default function HomePage() {
   const isPartial = Object.values(partial).some(Boolean);
 
   return (
-    <PageContainer wide>
+    <PageContainer>
       <PageHeader
         action={(
-          <Link className="inline-flex h-11 items-center gap-2 rounded-md border border-border bg-card px-3 text-sm font-medium hover:bg-muted" href="/events">
-            <FileCheck2 aria-hidden="true" size={15} />
-            Open event audit
-          </Link>
+          <Link className={buttonLinkVariants({ variant: 'outline', size: 'sm' })} href="/events">Event audit</Link>
         )}
-        eyebrow="Home"
-        title="What changed in the research you watch"
+        title="Home"
       />
 
-      <div className="mt-8 grid gap-12 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
-        <div className="min-w-0">
+      <div className="doc-grid mt-8">
+        <div className="doc-main">
           {status === 'loading' ? (
             <div aria-label="Loading watched research changes" className="grid gap-4">
-              {[0, 1, 2].map((key) => <Skeleton className="h-32 w-full" key={key} />)}
+              {[0, 1, 2].map((key) => <Skeleton className="h-24 w-full" key={key} />)}
             </div>
           ) : status === 'signed-out' ? (
             <DeniedState
-              action={<Link className="rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground" href="/login">Sign in</Link>}
+              action={<Link className={buttonLinkVariants({ size: 'sm' })} href="/login">Sign in</Link>}
               actionLabel="Sign in"
-              description="Your watch interactions are private and require a signed-in scope. Home does not substitute a public feed."
+              description="Watches are private to your account."
               scope="signed-in watch interactions"
               title="Sign in to load watched research"
             />
@@ -568,7 +584,7 @@ export default function HomePage() {
             <>
               {isPartial ? (
                 <Alert
-                  className="mb-6"
+                  className="mb-8"
                   description={partialDescription(partial)}
                   title="Partial watch coverage"
                   variant="warning"
@@ -577,100 +593,68 @@ export default function HomePage() {
 
               {watchCount === 0 ? (
                 <Empty
-                  action={<Link className="rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground" href="/explore">Explore research</Link>}
-                  description="No private watch interactions were returned for this account. Home does not fill the space with network-wide claims."
+                  action={<Link className="text-primary hover:underline" href="/explore">Explore</Link>}
                   title="No watched research yet"
                 />
               ) : events.length === 0 ? (
                 <Empty
-                  action={<Link className="rounded-md border border-border bg-card px-3.5 py-2 text-sm font-medium" href="/events">Open event audit</Link>}
-                  description="No formal events were returned by the bounded object queries. This is not a quiet conclusion."
-                  title="No formal changes loaded for this window"
+                  title="No changes in the last seven days"
                 />
               ) : (
-                GROUPS.map((group) => grouped[group.level].length > 0 ? (
-                  <ChangeGroup key={group.level} level={group.level} meta={group.meta} title={group.title}>
-                    <div className="divide-y divide-border rounded-lg border border-border bg-card">
-                      {grouped[group.level].map((event) => (
-                        <ChangeEvent event={event} key={event.eventId} level={group.level} observationWindow={observationWindow} />
-                      ))}
-                    </div>
-                  </ChangeGroup>
-                ) : null)
-              )}
-
-              <section aria-labelledby="quiet-unavailable-heading" className="mt-10 border-t border-border pt-5">
-                <div className="flex gap-3">
-                  <span aria-hidden="true" className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-full bg-status-neutral-bg text-status-neutral-fg">
-                    <CircleDashed size={15} />
-                  </span>
-                  <div>
-                    <h2 className="text-lg font-semibold tracking-tight" id="quiet-unavailable-heading">Quiet is not asserted</h2>
-                    <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                      Completeness and carried-active-impact evidence are not exposed by the current API. Home therefore does not claim that any watched object was quiet, even when an event query returned no rows.
-                    </p>
-                  </div>
+                <div className="grid gap-8">
+                  {GROUPS.map((group) => grouped[group.level].length > 0 ? (
+                    <section aria-labelledby={`changes-${group.level}-heading`} key={group.level}>
+                      <SectionHeader
+                        action={<span className="tabular-nums text-muted-foreground">{grouped[group.level].length}</span>}
+                        id={`changes-${group.level}-heading`}
+                        title={group.title}
+                      />
+                      <ul>
+                        {grouped[group.level].map((event) => (
+                          <ChangeEvent event={event} key={event.eventId} level={group.level} observationWindow={observationWindow} />
+                        ))}
+                      </ul>
+                    </section>
+                  ) : null)}
                 </div>
-              </section>
+              )}
             </>
           )}
         </div>
 
-        <Rail className="gap-7" label="Home context">
-          <section aria-labelledby="my-work-heading" className="border-t border-border pt-4">
-            <div className="flex items-center gap-2">
-              <ListTodo aria-hidden="true" className="text-muted-foreground" size={16} />
-              <h2 className="text-sm font-semibold" id="my-work-heading">My work</h2>
-            </div>
-            <p className="mt-2 text-xs leading-5 text-muted-foreground">
-              The API does not expose a viewer-assignment total, so Home does not infer one from network-wide tasks, claims, or events.
-            </p>
-            <Link className="mt-2 inline-flex min-h-11 items-center text-xs font-medium text-primary hover:underline" href="/work">Open My work</Link>
-          </section>
+        <aside aria-label="Home context" className="doc-margin">
+          <MarginSection title="Work">
+            <Link className="text-sm text-primary hover:underline" href="/work">My work</Link>
+          </MarginSection>
 
-          <section aria-labelledby="agent-connection-heading" className="border-t border-border pt-4">
-            <div className="flex items-center gap-2">
-              <Bot aria-hidden="true" className="text-muted-foreground" size={16} />
-              <h2 className="text-sm font-semibold" id="agent-connection-heading">Agent connection</h2>
-            </div>
+          <MarginSection title="Agent">
             {agentConnection.state === 'checking' ? (
-              <Skeleton className="mt-3 h-14 w-full" />
+              <Skeleton className="h-5 w-full" />
             ) : agentConnection.state === 'available' ? (
-              <>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  {agentConnection.activeGrantCount > 0 ? 'Active API grants are configured.' : 'No active API grants are configured.'}
-                </p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">Human confirmation is enforced by each write flow. Pending approval totals are not exposed by the API.</p>
-              </>
-            ) : agentConnection.state === 'signed-out' ? (
-              <p className="mt-2 text-xs leading-5 text-muted-foreground">Sign in to inspect active API grants. No connection is inferred.</p>
-            ) : (
-              <p className="mt-2 text-xs leading-5 text-muted-foreground">Connection status is unavailable. No active grant or pending approval state is inferred.</p>
-            )}
-            <Link className="mt-2 inline-flex min-h-11 items-center text-xs font-medium text-primary hover:underline" href="/agent">Open connection center</Link>
-          </section>
+              <p className="text-sm">{agentConnection.activeGrantCount > 0 ? 'Connected' : 'Not connected'}</p>
+            ) : agentConnection.state === 'unavailable' ? (
+              <p className="text-sm text-muted-foreground">Status unavailable</p>
+            ) : null}
+            <Link className="mt-1 inline-block text-sm text-primary hover:underline" href="/agent">Connection center</Link>
+          </MarginSection>
 
-          <section aria-labelledby="recently-visited-heading" className="border-t border-border pt-4">
-            <div className="flex items-center gap-2">
-              <Clock aria-hidden="true" className="text-muted-foreground" size={16} />
-              <h2 className="text-sm font-semibold" id="recently-visited-heading">Recently visited</h2>
-            </div>
+          <MarginSection title="Recently visited">
             {visits.length > 0 ? (
-              <ul className="mt-2 grid gap-1">
+              <ul>
                 {visits.map((visit) => (
                   <li key={visit.href}>
-                    <Link className="flex min-h-11 min-w-0 items-center gap-2 text-xs hover:text-primary" href={visit.href}>
-                      <span className="shrink-0 rounded-full border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{visit.kind}</span>
+                    <Link className="flex min-w-0 items-baseline gap-2 py-1 text-sm hover:text-primary" href={visit.href}>
+                      <span className="w-16 shrink-0 text-xs text-muted-foreground">{visit.kind}</span>
                       <span className="min-w-0 truncate">{visit.label}</span>
                     </Link>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="mt-2 text-xs leading-5 text-muted-foreground">No recent local visits are stored in this browser.</p>
+              <p className="text-sm text-muted-foreground">No recent visits</p>
             )}
-          </section>
-        </Rail>
+          </MarginSection>
+        </aside>
       </div>
     </PageContainer>
   );

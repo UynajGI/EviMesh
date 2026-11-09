@@ -3,9 +3,10 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/data';
+import { ActorName, Identifier, shortId } from '@/components/ui/doc';
 import { Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
 import { Input, Label } from '@/components/ui/form';
-import { PageContainer, PageHeader } from '@/components/ui/page';
+import { PageContainer, PageHeader, SectionHeader } from '@/components/ui/page';
 import { Select } from '@/components/ui/selection';
 
 const API = process.env.NEXT_PUBLIC_EVIMESH_API_URL;
@@ -13,15 +14,15 @@ const PROJECT_STATES = ['draft', 'active', 'archived'];
 
 function stateVariant(state) {
   switch (state) {
-    case 'active': return 'success';
-    case 'archived': return 'default';
-    default: return 'default';
+    case 'active': return 'status-success';
+    case 'archived': return 'status-neutral';
+    default: return 'status-neutral';
   }
 }
 
 function relativeTime(value) {
   const timestamp = Date.parse(value ?? '');
-  if (Number.isNaN(timestamp)) return 'Activity time unavailable';
+  if (Number.isNaN(timestamp)) return null;
   const minutes = Math.max(0, Math.floor((Date.now() - timestamp) / 60_000));
   if (minutes < 60) return `${minutes || 1}m ago`;
   const hours = Math.floor(minutes / 60);
@@ -59,18 +60,38 @@ export default function ProjectsPage() {
   const visible = query ? projects.filter((project) => (project.projectId ?? '').toLowerCase().includes(query)) : projects;
 
   if (error) {
-    return <PageContainer><PageHeader eyebrow="Research spaces" title="Projects" description="Browse the attributable project record." /><ErrorState className="mt-8" message={error} onRetry={load} /></PageContainer>;
+    return <PageContainer><PageHeader title="Projects" /><ErrorState className="mt-8" message={error} onRetry={load} /></PageContainer>;
   }
 
   return (
     <PageContainer wide>
-      <PageHeader eyebrow="Research spaces" title="Projects" description="Browse the attributable project record by state and stable ID." />
-      <section className="mt-8 grid min-w-0 grid-cols-12 border-y border-foreground py-5"><p className="col-span-12 font-mono text-[10px] font-bold uppercase text-primary sm:col-span-3">READ-ONLY WEB</p><p className="col-span-12 mt-3 max-w-[60ch] text-sm leading-6 text-muted-foreground sm:col-span-6 sm:mt-0">Project creation and research transitions happen through CLI or MCP. Human-controlled signing remains local.</p><Link className="col-span-12 mt-4 inline-flex min-h-11 items-center justify-center border border-foreground px-4 font-mono text-[10px] font-bold uppercase text-primary sm:col-span-3 sm:mt-0" href="/agent">Open Agent connection</Link></section>
-      <div className="mt-8 grid gap-4 rounded-lg border border-border bg-card p-4 sm:grid-cols-2">
+      <PageHeader action={<Link className="text-sm text-primary hover:underline" href="/agent">Open Agent connection</Link>} title="Projects" />
+
+      <div className="mt-4 grid gap-4 border-b border-border pb-4 sm:grid-cols-2">
         <div className="grid gap-2"><Label htmlFor="project-state">Status</Label><Select id="project-state" value={filters.state} onChange={updateFilter('state')}><option value="">All statuses</option>{PROJECT_STATES.map((state) => <option key={state} value={state}>{state.replaceAll('_', ' ')}</option>)}</Select></div>
         <div className="grid gap-2"><Label htmlFor="project-search">Search</Label><Input id="project-search" value={filters.search} onChange={updateFilter('search')} placeholder="Filter by project ID" /></div>
       </div>
-      {loading ? <Skeleton className="mt-10 h-96 w-full" /> : visible.length === 0 ? <Empty className="mt-10" title={query ? 'No projects match your search' : 'No projects yet'} description="Projects will appear here once research spaces are opened." /> : <div className="mt-10 grid gap-4 md:grid-cols-2">{visible.map((project) => <Link className="rounded-lg border border-border bg-card p-5 transition hover:border-primary" href={`/projects/${project.projectId}`} key={project.projectId}><div className="flex items-center justify-between gap-3"><h2 className="font-medium tabular-nums">{project.projectId}</h2><Badge variant={stateVariant(project.state)}>{project.state.replaceAll('_', ' ')}</Badge></div><div className="mt-4 flex items-center justify-between gap-3"><p className="text-sm text-muted-foreground">Open project details</p><time className="text-xs tabular-nums text-muted-foreground" dateTime={project.createdAt}>{relativeTime(project.createdAt)}</time></div></Link>)}</div>}
+
+      <section aria-labelledby="projects-heading" className="mt-8">
+        <SectionHeader action={!loading ? <span className="tabular-nums text-muted-foreground">{visible.length}</span> : null} id="projects-heading" title="Research spaces" />
+        {loading ? <Skeleton className="mt-4 h-96 w-full" /> : visible.length === 0 ? <Empty className="border-t-0" title={query ? 'No matching projects' : 'No projects yet'} /> : (
+          <ul>
+            {visible.map((project) => (
+              <li className="ref-row" key={project.projectId}>
+                <div><Badge variant={stateVariant(project.state)}>{project.state.replaceAll('_', ' ')}</Badge></div>
+                <div className="min-w-0">
+                  <Link className={project.title || project.name ? 'text-[0.9375rem] font-medium [overflow-wrap:anywhere] hover:underline' : 'font-mono text-sm tabular-nums hover:underline'} href={`/projects/${project.projectId}`} title={project.projectId}>{project.title ?? project.name ?? shortId(project.projectId)}</Link>
+                  <p className="mt-1 flex flex-wrap items-baseline gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
+                    {project.title || project.name ? <><Identifier value={project.projectId} />{project.createdBy ? <span aria-hidden="true">·</span> : null}</> : null}
+                    {project.createdBy ? <><span>Opened by</span><ActorName actorId={project.createdBy} showOwner={false} /></> : null}
+                  </p>
+                </div>
+                <time className="text-xs tabular-nums text-muted-foreground md:text-right" dateTime={project.createdAt} title={project.createdAt}>{relativeTime(project.createdAt)}</time>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </PageContainer>
   );
 }

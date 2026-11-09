@@ -14,7 +14,7 @@ export function Tooltip({ label, children, className }) {
     <span className={cn('group/tooltip relative inline-flex', className)}>
       <span aria-describedby={id}>{children}</span>
       <span
-        className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1.5 w-max max-w-60 -translate-x-1/2 rounded-md border border-border bg-card px-2 py-1 text-xs text-foreground opacity-0 shadow-sm transition-opacity group-hover/tooltip:opacity-100 group-focus-within/tooltip:opacity-100"
+        className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1.5 w-max max-w-60 -translate-x-1/2 rounded-[2px] border border-border bg-card px-2 py-1 text-xs text-foreground opacity-0 shadow-[0_8px_24px_-12px_color-mix(in_oklch,var(--evimesh-foreground)_25%,transparent)] transition-opacity group-hover/tooltip:opacity-100 group-focus-within/tooltip:opacity-100"
         id={id}
         role="tooltip"
       >

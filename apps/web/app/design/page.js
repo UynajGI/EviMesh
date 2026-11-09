@@ -24,7 +24,7 @@ function Showcase({ title, description, children }) {
 
 export default function DesignCatalogPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
-  return <PageContainer wide><PageHeader eyebrow="Design system" title="Component catalog" description="Every primitive and its states, rendered on semantic tokens. Screenshots of this page are the visual regression baseline." />
+  return <PageContainer wide><PageHeader title="Component catalog" description="Every primitive and its states, rendered on semantic tokens. Screenshots of this page are the visual regression baseline." />
     <div className="mt-12 space-y-12">
       <Showcase title="Buttons" description="Six variants plus loading and disabled states.">
         <Button>Primary</Button>

@@ -58,16 +58,17 @@ test("active signing-key lookup is available on the hosted repository", async ()
     publishableKey: "anon",
     fetchImpl: async (endpoint) => {
       seen = new URL(endpoint);
-      return Response.json([{ key_id: "key-1", actor_id: "agent-1", algorithm: "Ed25519", public_key: "public-key", revoked_at: null, deleted_at: null }]);
+      return Response.json([{ key_id: "key-1", actor_id: "agent-1", algorithm: "Ed25519", public_key: "public-key", revoked_at: null }]);
     },
   });
   assert.deepEqual(await repository.findActiveSigningKey("agent-1"), {
-    keyId: "key-1", actorId: "agent-1", algorithm: "Ed25519", publicKey: "public-key", revokedAt: null, deletedAt: null,
+    keyId: "key-1", actorId: "agent-1", algorithm: "Ed25519", publicKey: "public-key", revokedAt: null,
   });
-  assert.equal(seen.pathname, "/rest/v1/signing_keys");
+  // 0086 revokes browser roles from the base table; the projection already excludes deleted keys.
+  assert.equal(seen.pathname, "/rest/v1/signing_key_verification_keys");
   assert.equal(seen.searchParams.get("actor_id"), "eq.agent-1");
   assert.equal(seen.searchParams.get("revoked_at"), "is.null");
-  assert.equal(seen.searchParams.get("deleted_at"), "is.null");
+  assert.equal(seen.searchParams.get("deleted_at"), null);
   assert.equal(seen.searchParams.get("limit"), "1");
 });
 

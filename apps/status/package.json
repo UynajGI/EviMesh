@@ -1,0 +1,16 @@
+{
+  "name": "@evimesh/status",
+  "private": true,
+  "version": "0.3.0",
+  "type": "module",
+  "scripts": {
+    "lint": "node ../../scripts/check-package.mjs",
+    "test": "node --test test/*.test.mjs",
+    "dev": "wrangler dev --test-scheduled",
+    "deploy:workers-dev": "wrangler deploy --config wrangler.workers-dev.jsonc",
+    "deploy:production": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "4.124.0"
+  }
+}

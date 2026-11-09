@@ -2,11 +2,19 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { Badge } from '@/components/ui/data';
+import { Identifier, MarginSection, formatDateTime, shortId } from '@/components/ui/doc';
+import { ErrorState, Skeleton } from '@/components/ui/feedback';
+import { Breadcrumb, PageContainer, PageHeader, SectionHeader } from '@/components/ui/page';
 
 const API = process.env.NEXT_PUBLIC_EVIMESH_API_URL;
 
 function memberMap(snapshot) {
   return new Map((snapshot?.members ?? []).map((member) => [member.claimId, member]));
+}
+
+function readable(value) {
+  return String(value ?? '').replaceAll('_', ' ');
 }
 
 export default function FrontierDetailPage({ params }) {
@@ -22,14 +30,71 @@ export default function FrontierDetailPage({ params }) {
       setHistory(payload.items ?? []);
     }).catch((reason) => setError(reason.message));
   }, [route]);
-  if (error) return <main className="mx-auto max-w-5xl px-6 py-16"><p role="alert" className="text-sm text-destructive">{error}</p></main>;
-  if (!route || !history.length) return <main className="mx-auto max-w-5xl px-6 py-16" aria-busy="true">Loading Frontier…</main>;
+  if (error) return <PageContainer><ErrorState message={error} /></PageContainer>;
+  if (!route || !history.length) return <PageContainer><div aria-busy="true"><span className="sr-only">Loading Frontier…</span><Skeleton className="h-24 w-full" /><Skeleton className="mt-6 h-64 w-full" /></div></PageContainer>;
   const snapshot = history.find((item) => item.snapshotId === route.snapshotId);
-  if (!snapshot) return <main className="mx-auto max-w-5xl px-6 py-16"><p role="alert" className="text-sm text-destructive">Frontier snapshot not found.</p></main>;
+  if (!snapshot) return <PageContainer><ErrorState message="Frontier snapshot not found." title="Snapshot not found" /></PageContainer>;
   const previous = history.filter((item) => item.sequence < snapshot.sequence).sort((left, right) => right.sequence - left.sequence)[0];
   const current = memberMap(snapshot); const prior = memberMap(previous);
   const added = [...current.keys()].filter((claimId) => !prior.has(claimId));
   const removed = [...prior.keys()].filter((claimId) => !current.has(claimId));
   const changed = [...current.keys()].filter((claimId) => prior.has(claimId) && JSON.stringify(current.get(claimId)) !== JSON.stringify(prior.get(claimId)));
-  return <main className="mx-auto max-w-5xl px-6 py-16"><Link className="text-sm text-primary hover:underline" href={`/projects/${route.projectId}`}>← Back to project</Link><p className="mt-10 text-sm font-bold uppercase tracking-[0.18em] text-primary">Immutable Frontier</p><h1 className="mt-3 font-mono text-3xl font-semibold">{snapshot.snapshotId}</h1><div className="mt-8 grid gap-4 sm:grid-cols-4"><section className="rounded-xl border border-border bg-card p-4"><p className="text-xs text-muted-foreground">Sequence</p><p className="mt-2 text-2xl font-semibold">{snapshot.sequence}</p></section><section className="rounded-xl border border-border bg-card p-4"><p className="text-xs text-muted-foreground">Members</p><p className="mt-2 text-2xl font-semibold">{snapshot.members?.length ?? 0}</p></section><section className="rounded-xl border border-border bg-card p-4"><p className="text-xs text-muted-foreground">Policy</p><p className="mt-2 text-sm">{snapshot.policy ?? snapshot.policyId ?? 'Not specified'}</p></section><section className="rounded-xl border border-border bg-card p-4"><p className="text-xs text-muted-foreground">Checkpoint</p><p className="mt-2 break-all font-mono text-xs">{snapshot.checkpointId ?? snapshot.checkpoint?.checkpointId ?? 'Not attached'}</p></section></div><section className="mt-8 rounded-xl border border-border bg-card p-5"><h2 className="text-xl font-semibold">Member diff</h2><p className="mt-2 text-sm text-muted-foreground">Compared with the previous Frontier snapshot.</p><div className="mt-4 grid gap-3 sm:grid-cols-3"><p className="rounded border border-status-success-border bg-status-success-bg p-3 text-sm text-status-success-fg">Added: {added.length}</p><p className="rounded border border-status-danger-border bg-status-danger-bg p-3 text-sm text-status-danger-fg">Removed: {removed.length}</p><p className="rounded border border-status-warning-border bg-status-warning-bg p-3 text-sm text-status-warning-fg">Changed: {changed.length}</p></div></section><section className="mt-8 rounded-xl border border-border bg-card p-5"><h2 className="text-xl font-semibold">Members</h2>{snapshot.members?.length ? <ul className="mt-4 space-y-2">{snapshot.members.map((member) => <li className="rounded border border-border p-3 font-mono text-sm" key={`${member.claimId}@${member.claimRevision}`}>{member.claimId}@{member.claimRevision} · {member.membershipType ?? member.status ?? 'member'}</li>)}</ul> : <p className="mt-3 text-sm text-muted-foreground">No members.</p>}</section></main>;
+  const addedSet = new Set(added); const changedSet = new Set(changed);
+  const members = snapshot.members ?? [];
+  return (
+    <PageContainer>
+      <Breadcrumb trail={[{ label: 'Projects', href: '/projects' }, { label: shortId(route.projectId), href: `/projects/${route.projectId}` }, { label: `Frontier snapshot #${snapshot.sequence}` }]} />
+      <PageHeader title={<span className="tabular-nums">Snapshot #{snapshot.sequence}</span>} />
+
+      <div className="doc-grid mt-8">
+        <div className="doc-main grid gap-8">
+          <section aria-labelledby="diff-heading">
+            <SectionHeader action={<span className="text-muted-foreground">{previous ? `vs #${previous.sequence}` : 'first snapshot'}</span>} id="diff-heading" title="Member diff" />
+            <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm">
+              <li className="flex items-baseline gap-2"><Badge variant="status-success">Added</Badge><span className="tabular-nums">{added.length}</span></li>
+              <li className="flex items-baseline gap-2"><Badge variant="status-danger">Removed</Badge><span className="tabular-nums">{removed.length}</span></li>
+              <li className="flex items-baseline gap-2"><Badge variant="status-warning">Changed</Badge><span className="tabular-nums">{changed.length}</span></li>
+            </ul>
+            {removed.length ? (
+              <p className="mt-3 text-xs text-muted-foreground">Removed: {removed.map((claimId, index) => <span key={claimId}>{index > 0 ? ', ' : ''}<Link className="font-mono hover:text-primary hover:underline" href={`/claims/${claimId}`} title={claimId}>{shortId(claimId)}</Link></span>)}</p>
+            ) : null}
+          </section>
+
+          <section aria-labelledby="members-heading">
+            <SectionHeader action={<span className="tabular-nums text-muted-foreground">{members.length}</span>} id="members-heading" title="Members" />
+            {members.length ? (
+              <ul>
+                {members.map((member) => (
+                  <li className="ref-row" key={`${member.claimId}@${member.claimRevision}`}>
+                    <p className="text-sm text-muted-foreground">{readable(member.membershipType ?? member.status ?? 'member')}</p>
+                    <div className="min-w-0">
+                      <Link className="font-mono text-sm hover:text-primary hover:underline" href={`/claims/${member.claimId}?rev=${member.claimRevision}`} title={`${member.claimId}@${member.claimRevision}`}>{shortId(member.claimId)}@{member.claimRevision}</Link>
+                    </div>
+                    <div className="md:text-right">
+                      {addedSet.has(member.claimId) ? <Badge variant="status-success">added</Badge> : changedSet.has(member.claimId) ? <Badge variant="status-warning">changed</Badge> : null}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : <p className="py-3 text-sm text-muted-foreground">No members</p>}
+          </section>
+        </div>
+
+        <aside aria-label="Snapshot record" className="doc-margin">
+          <MarginSection title="Record">
+            <dl className="grid gap-3 text-sm">
+              <div><dt className="text-xs text-muted-foreground">Snapshot</dt><dd className="mt-0.5"><Identifier value={snapshot.snapshotId} /></dd></div>
+              <div><dt className="text-xs text-muted-foreground">Sequence</dt><dd className="mt-0.5 tabular-nums">{snapshot.sequence}</dd></div>
+              <div><dt className="text-xs text-muted-foreground">Policy</dt><dd className="mt-0.5">{snapshot.policy ?? snapshot.policyId ?? 'Not specified'}</dd></div>
+              <div><dt className="text-xs text-muted-foreground">Checkpoint</dt><dd className="mt-0.5 break-all font-mono text-xs">{snapshot.checkpointId ?? snapshot.checkpoint?.checkpointId ?? 'Not attached'}</dd></div>
+              {snapshot.createdAt ? <div><dt className="text-xs text-muted-foreground">Recorded</dt><dd className="mt-0.5 tabular-nums">{formatDateTime(snapshot.createdAt)}</dd></div> : null}
+            </dl>
+          </MarginSection>
+          <MarginSection title="Project">
+            <Link className="text-sm text-primary hover:underline" href={`/projects/${route.projectId}`}>Back to project</Link>
+          </MarginSection>
+        </aside>
+      </div>
+    </PageContainer>
+  );
 }

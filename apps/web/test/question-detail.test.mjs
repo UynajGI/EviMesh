@@ -12,13 +12,23 @@ test("question detail shows contract, revision, and frontier relationship", () =
   assert.match(source, /Frontier #/);
 });
 
-test("question detail keeps the page template and full recovery states", () => {
-  assert.match(source, /PageContainer/);
-  assert.match(source, /PageHeader/);
+test("question detail uses the controlled-document template and full recovery states", () => {
+  /* Controlled-document grammar (same as the Claim page): breadcrumb, ruled
+   * title block with attribution, numbered clauses, margin ledger. */
+  assert.match(source, /<Breadcrumb/);
+  assert.match(source, /<TitleBlock/);
+  assert.match(source, /kind="Question"/);
+  assert.match(source, /<ClauseRail clauses=\{clauses\}/);
+  assert.match(source, /className="doc-margin"/);
+  assert.match(source, /className="ref-row"/);
+  assert.match(source, /label: 'Signed by'/);
+  assert.match(source, /publisher_actor_id/);
+  assert.doesNotMatch(source, /PageContainer|PageHeader|TabNav/);
   assert.match(source, /Skeleton/);
   assert.match(source, /ErrorState/);
   assert.match(source, /onRetry=\{load\}/);
-  assert.match(source, /Empty/);
+  assert.match(source, /None yet\./);
+  assert.doesNotMatch(source, /lucide-react/);
 });
 
 test("question detail links tasks and the project in context", () => {

@@ -238,7 +238,14 @@ export function challengeDocToApi(document) {
   };
 }
 
+/*
+ * Signed research documents. Question and Claim reuse the protocol's
+ * srp.question.v1 / srp.claim.v1 schemas and travel through
+ * /research/{questions,claims}; the rest use their own collection paths.
+ */
 const TYPED_DOCUMENTS = Object.freeze({
+  "srp.question.v1": Object.freeze({ kind: "question", plural: "questions", idField: "question_id", signedPath: "/research/questions" }),
+  "srp.claim.v1": Object.freeze({ kind: "claim", plural: "claims", idField: "claim_id", signedPath: "/research/claims" }),
   "srp.answer.v1": Object.freeze({ kind: "answer", plural: "answers", idField: "answer_id" }),
   "srp.rebuttal.v1": Object.freeze({ kind: "rebuttal", plural: "rebuttals", idField: "rebuttal_id" }),
   "srp.evaluation.v1": Object.freeze({ kind: "evaluation", plural: "evaluations", idField: "evaluation_id" }),
@@ -250,9 +257,59 @@ export function typedDocumentDefinition(document) {
   return TYPED_DOCUMENTS[document?.schema] ?? null;
 }
 
+function requiredProjectId(document) {
+  if (typeof document.project_id !== "string" || !document.project_id) {
+    throw new CliDocumentError("signed submission needs project_id (the project this research belongs to)", "CLI_DOCUMENT_PROJECT_REQUIRED");
+  }
+  return document.project_id;
+}
+
 export function typedDocToApi(document) {
   const definition = typedDocumentDefinition(document);
   if (!definition) throw new CliDocumentError(`expected a typed research document, got ${document?.schema ?? "unknown"}`, "CLI_TYPED_DOCUMENT_EXPECTED");
+  if (definition.kind === "question") {
+    const contract = document.research_contract ?? {};
+    return {
+      questionId: document.question_id,
+      projectId: requiredProjectId(document),
+      revision: document.revision,
+      supersedesRevision: document.supersedes_revision ?? (document.revision > 1 ? document.revision - 1 : null),
+      state: document.state,
+      title: document.title,
+      statement: document.statement,
+      topics: document.topics ?? [],
+      researchContract: Object.fromEntries(Object.entries({
+        problem: contract.problem,
+        background: contract.background,
+        scope: contract.scope,
+        exclusions: contract.exclusions,
+        falsification: contract.falsification,
+        progress_criteria: contract.progress_criteria,
+        acceptable_evidence: contract.acceptable_evidence,
+        definitions: contract.definitions,
+        license: contract.license,
+      }).filter(([, value]) => value !== undefined && value !== null)),
+      extendsRefs: document.extends_refs ?? [],
+      draftedByActorId: document.created_by,
+    };
+  }
+  if (definition.kind === "claim") {
+    return {
+      claimId: document.claim_id,
+      projectId: requiredProjectId(document),
+      revision: document.revision,
+      supersedesRevision: document.supersedes_revision ?? (document.revision > 1 ? document.revision - 1 : null),
+      state: document.state,
+      questionId: document.question_id ?? null,
+      statement: document.statement,
+      scope: document.scope,
+      assumptions: document.assumptions ?? [],
+      falsification: document.falsification,
+      answerRef: document.answer_ref ?? null,
+      relations: document.relations ?? [],
+      draftedByActorId: document.created_by,
+    };
+  }
   const common = {
     [`${definition.kind}Id`]: document[definition.idField],
     projectId: document.project_id,
@@ -274,7 +331,8 @@ export function typedDocToApi(document) {
 export function typedSubmissionRoute(document) {
   const definition = typedDocumentDefinition(document);
   if (!definition) return null;
-  return Object.freeze({ kind: definition.kind, path: `/${definition.plural}`, preparePath: `/${definition.plural}/prepare`, eventType: `${definition.kind}.${document.revision === 1 ? "created" : "revised"}` });
+  const path = definition.signedPath ?? `/${definition.plural}`;
+  return Object.freeze({ kind: definition.kind, signed: Boolean(definition.signedPath), path, preparePath: `${path}/prepare`, eventType: `${definition.kind}.${document.revision === 1 ? "created" : "revised"}` });
 }
 
 function todoRef(kind) {
@@ -284,6 +342,36 @@ function todoRef(kind) {
 export function typedResearchTemplate({ kind, id, projectId = "project_TODO", createdBy = "TODO: drafting actor id" } = {}) {
   const common = { schema: `srp.${kind}.v1`, [`${kind}_id`]: id, project_id: projectId, revision: 1, supersedes_revision: null, state: "draft", created_at: new Date().toISOString(), created_by: createdBy };
   switch (kind) {
+    case "question": return {
+      schema: "srp.question.v1", question_id: id, project_id: projectId, revision: 1, state: "active",
+      title: "TODO: the research question, phrased as a question",
+      statement: "TODO: what is being asked and why it matters",
+      topics: [],
+      research_contract: {
+        problem: "TODO: the gap this question addresses",
+        definitions: { "TODO term": "TODO definition" },
+        background: "TODO: what is already known",
+        scope: ["TODO: what is in scope"],
+        exclusions: [],
+        progress_criteria: ["TODO: what counts as progress"],
+        acceptable_evidence: ["TODO: what evidence is acceptable"],
+        falsification: ["TODO: what would show the premise is wrong"],
+        license: "CC-BY-4.0",
+        risk_level: "open",
+        maintainer_ids: [createdBy],
+      },
+      extends_refs: [],
+      created_at: new Date().toISOString(), created_by: createdBy,
+    };
+    case "claim": return {
+      schema: "srp.claim.v1", claim_id: id, project_id: projectId, revision: 1, state: "hypothesis",
+      statement: "TODO: one falsifiable statement",
+      scope: ["TODO: the boundary this claim covers"],
+      assumptions: [],
+      falsification: ["TODO: an observation that would refute this claim"],
+      relations: [],
+      created_at: new Date().toISOString(), created_by: createdBy,
+    };
     case "answer": return { ...common, title: "TODO: answer title", synthesis: "TODO: synthesize the answer", limitations: [], question_ref: todoRef("question"), additional_inputs: [] };
     case "rebuttal": return { ...common, title: "TODO: rebuttal title", argument: "TODO: state the counterargument", scope: [], target_ref: todoRef("claim"), basis_refs: [] };
     case "evaluation": return { ...common, subject_ref: todoRef("claim"), basis_refs: [todoRef("evidence")], stance: "supports", rationale: "TODO: explain the evaluation", method: null };

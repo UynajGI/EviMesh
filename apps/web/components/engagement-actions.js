@@ -10,23 +10,23 @@ import { cn } from '@/lib/utils';
  */
 
 const ACTIONS = [
-  { kind: 'helpful', label: 'Useful', Icon: Heart, title: 'Mark useful — a private note, never a public count' },
-  { kind: 'favorite', label: 'Save', Icon: Bookmark, title: 'Save to your personal list' },
+  { kind: 'helpful', label: 'Useful', activeLabel: 'Marked useful', Icon: Heart, title: 'Mark useful. A private note, never a public count' },
+  { kind: 'favorite', label: 'Save', activeLabel: 'Saved', Icon: Bookmark, title: 'Save to your personal list' },
 ];
 
 export function EngagementActions({ objectType, objectId, has, onToggle, compact = false }) {
   return (
-    <div className={cn('flex items-center gap-1', compact ? '' : 'gap-2')} data-engagement={objectType}>
-      {ACTIONS.map(({ kind, label, Icon, title }) => {
+    <div className={cn('flex items-center', compact ? 'gap-1' : 'gap-3')} data-engagement={objectType}>
+      {ACTIONS.map(({ kind, label, activeLabel, Icon, title }) => {
         const active = Boolean(has(objectType, objectId, kind));
         return (
           <button
-            aria-label={`${active ? 'Remove' : 'Add'} ${label.toLowerCase()}${active ? '' : ' — private'}`}
+            aria-label={`${active ? 'Remove' : 'Add'} ${label.toLowerCase()}${active ? '' : ', private'}`}
             aria-pressed={active}
             className={cn(
-              'inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-medium transition-colors',
-              active ? 'border-primary bg-accent text-accent-foreground' : 'border-border bg-card text-muted-foreground hover:text-foreground',
-              compact && 'px-1.5',
+              'inline-flex items-center text-xs transition-colors hover:underline',
+              active ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
+              compact && 'size-6 justify-center rounded-[2px] hover:bg-muted hover:no-underline',
             )}
             key={kind}
             onClick={(event) => {
@@ -37,8 +37,7 @@ export function EngagementActions({ objectType, objectId, has, onToggle, compact
             title={title}
             type="button"
           >
-            <Icon aria-hidden="true" fill={active ? 'currentColor' : 'none'} size={13} />
-            {compact ? null : label}
+            {compact ? <Icon aria-hidden="true" fill={active ? 'currentColor' : 'none'} size={13} /> : (active ? activeLabel : label)}
           </button>
         );
       })}

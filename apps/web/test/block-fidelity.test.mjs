@@ -52,7 +52,10 @@ test('shell wires notifications, account, and the g-key chords', async () => {
   const shell = await read('../components/template-shell.js');
   assert.match(shell, /aria-label="Notifications"/);
   assert.match(shell, /href="\/notifications"/);
-  assert.match(shell, />\n?\s*Account\n?\s*<\/Link>/);
+  assert.match(shell, /href="\/settings"/);
+  assert.match(shell, /Account settings/);
+  assert.match(shell, /auth\.status === 'authenticated'/);
+  assert.match(shell, /Sign out/);
   assert.match(shell, /const G_CHORDS = \{ h: '\/home', e: '\/explore', w: '\/work', t: '\/tools', c: '\/contributions', a: '\/agent', d: '\/docs' \}/);
   assert.match(shell, /function useGChords/);
   assert.match(shell, /pendingG/);
@@ -97,7 +100,7 @@ test('claim page defaults to a bidirectional heterogeneous neighborhood and keep
   assert.match(page, /depth: node\.depth/);
   assert.match(page, /claimLayoutEndpoints/);
   assert.match(page, /setRevisionList/);
-  assert.match(page, /Compare any two revisions field by field/);
+  assert.match(page, /Compare revisions/);
   assert.match(page, /href=\{\`\/claims\/\$\{claim\.claimId\}\/diff\`\}/);
   assert.match(page, /<ClaimDag direction=\{direction\} focusId=\{claim\.claimId\} graph=\{dagGraph\}/);
   assert.match(page, /Evidence by relation/);
@@ -125,10 +128,13 @@ test('workspace hydrates argument statements, task titles, richer evidence, fiel
 
 test('work ships an editorial read-only record and Agent handoff', async () => {
   const work = await read('../app/work/page.js');
-  assert.match(work, /The working record/);
-  assert.match(work, /OPEN ASSIGNMENTS/);
-  assert.match(work, /VERIFICATION/);
-  assert.match(work, /EVENT RECORD/);
+  assert.match(work, /title="Work"/);
+  // Controlled-document grammar: ruled sans section heads replace the old
+  // ALL-CAPS kickers (OPEN ASSIGNMENTS / VERIFICATION / EVENT RECORD).
+  assert.match(work, /id="open-work-heading" title="Open tasks"/);
+  assert.match(work, /title="Claims in review"/);
+  assert.match(work, /id="event-record-heading" title="Recent attributable changes"/);
+  assert.doesNotMatch(work, /OPEN ASSIGNMENTS|EVENT RECORD|DISPATCH/);
   assert.match(work, /Open Agent handoff/);
   assert.doesNotMatch(work, /Review and sign|\/claims\/new|method:\s*['"]POST/);
 });
@@ -139,7 +145,7 @@ test('explore carries unified object facets, summaries, and bounded ordering', a
   assert.match(page, /Research object facets/);
   assert.match(page, /Filter by research object type/);
   assert.match(page, /item\.summary/);
-  assert.match(page, /bounded responses returned by each object endpoint/);
+  assert.doesNotMatch(page, /bounded responses returned by each object endpoint/);
 });
 
 test('home keeps signed-out, empty, partial, error, and honest rail states', async () => {
@@ -150,9 +156,11 @@ test('home keeps signed-out, empty, partial, error, and honest rail states', asy
   assert.match(home, /Partial watch coverage/);
   assert.match(home, /Some classification details were omitted from this bounded view/);
   assert.match(home, /No watched research yet/);
-  assert.match(home, /viewer-assignment total/);
-  assert.match(home, /Pending approval totals are not exposed by the API/);
-  assert.match(home, /No recent local visits are stored in this browser/);
+  // Research-record pass: the margin keeps links only; no explanatory lines.
+  assert.doesNotMatch(home, /Tasks you lease appear in Work/);
+  assert.doesNotMatch(home, /A quiet week here means/);
+  assert.doesNotMatch(home, /not exposed by the|The API does not/);
+  assert.match(home, /No recent visits/);
 });
 
 test('attempt page ships the identity card, self-declaration boundary, and public output', async () => {
@@ -199,7 +207,7 @@ test('settings wire collision warning, token table status, rotation note, and au
   assert.match(tokens, /Connect an agent first/);
   assert.match(tokens, /DeniedState/);
   assert.match(tokens, /Re-authentication needed/);
-  assert.match(keys, /Rotation keeps old keys until revoked/);
+  assert.match(keys, /<MarginSection title="Rotation">/);
   assert.match(keys, /old keys stay valid until revoked/);
 });
 
@@ -210,6 +218,9 @@ test('agent center anchors its sections and marks the recommended path', async (
   assert.match(page, /id="ac-read"/);
   assert.match(page, /id="ac-security"/);
   assert.match(page, /recommended path/);
+  assert.match(page, /fetchPublicCapabilities/);
+  assert.match(page, /Public research remains readable/);
+  assert.match(page, /not enabled/);
   assert.match(page, /Review or revoke tokens and scopes in Settings/);
 });
 
@@ -224,8 +235,8 @@ test('explore is a unified research-object index with protocol type facets', asy
     assert.ok(page.includes(`type: '${type}'`), `missing ${type} source`);
   }
   assert.match(page, /Filter by research object type/);
-  assert.match(page, /Browse the attributable record across reasoning, resources and execution/);
-  assert.match(page, /Ordered by recorded time/);
+  assert.match(page, /title="Explore"/);
+  assert.doesNotMatch(page, /Browse the attributable record across reasoning, resources and execution|Ordered by recorded time/);
   assert.doesNotMatch(page, /Topics|Researchers|\/actors\?limit=/);
 });
 
@@ -234,7 +245,7 @@ test('explore keeps datasets discoverable and links the Tool facet to its dedica
   assert.match(page, /path: '\/datasets\?limit=40'/);
   assert.match(page, /path: '\/tools\?limit=40'/);
   assert.match(page, /selectedType === 'tool'/);
-  assert.match(page, /href="\/tools">Open Tool directory/);
+  assert.match(page, /href="\/tools">Tool directory/);
 });
 
 test('agent page lists live grants from the signed-in session', async () => {
@@ -287,7 +298,7 @@ test('settings offer the ORCID OAuth connect only when the provider is enabled',
   assert.match(settings, /Object\.keys\(external\)\.some/);
   assert.match(settings, /linkIdentity\(\{ provider: ORCID_PROVIDER/);
   assert.match(settings, /Connect ORCID \(OAuth\)/);
-  assert.match(settings, /Enable the ORCID provider to connect/);
+  assert.match(settings, /ORCID sign-in is not available on this deployment yet/);
 });
 
 test('brand marks carry the official provider marks', async () => {

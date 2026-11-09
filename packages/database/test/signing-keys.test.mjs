@@ -15,6 +15,10 @@ test('signing_keys stores public Ed25519 verification material only', () => {
   assert.equal(columns.algorithm.default, 'Ed25519');
   assert.equal(columns.publicKey.name, 'public_key');
   assert.equal(columns.publicKey.notNull, true);
+  assert.equal(columns.fingerprint.notNull, true);
+  assert.equal(columns.label.notNull, true);
   assert.equal(columns.revokedAt.name, 'revoked_at');
   assert.equal(columns.revokedAt.notNull, false);
+  assert.equal(columns.revocationReason.name, 'revocation_reason');
+  assert.equal('privateKey' in columns, false);
 });

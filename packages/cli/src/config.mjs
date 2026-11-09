@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
+import { chmodSync, mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -26,8 +26,14 @@ function configPath(dir) {
 }
 
 export function ensureConfigDir(dir) {
-  mkdirSync(dir, { recursive: true });
+  mkdirSync(dir, { recursive: true, mode: 0o700 });
+  try { chmodSync(dir, 0o700); } catch { /* Windows uses ACLs rather than POSIX mode bits. */ }
   return dir;
+}
+
+function writePrivateJson(path, value) {
+  writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
+  try { chmodSync(path, 0o600); } catch { /* Windows uses ACLs rather than POSIX mode bits. */ }
 }
 
 export function loadConfig(env = process.env) {
@@ -46,7 +52,7 @@ export function saveConfig(patch, env = process.env) {
   const dir = ensureConfigDir(configDir(env));
   const current = loadConfig(env) ?? {};
   const merged = { ...current, ...patch };
-  writeFileSync(configPath(dir), `${JSON.stringify(merged, null, 2)}\n`, "utf8");
+  writePrivateJson(configPath(dir), merged);
   return merged;
 }
 
@@ -79,12 +85,12 @@ export function createFileStorage(env = process.env) {
     setItem(key, value) {
       const store = read();
       store[key] = value;
-      writeFileSync(path, `${JSON.stringify(store, null, 2)}\n`, "utf8");
+      writePrivateJson(path, store);
     },
     removeItem(key) {
       const store = read();
       delete store[key];
-      writeFileSync(path, `${JSON.stringify(store, null, 2)}\n`, "utf8");
+      writePrivateJson(path, store);
     },
   };
 }

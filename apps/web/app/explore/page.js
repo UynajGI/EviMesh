@@ -1,6 +1,9 @@
 import Link from 'next/link';
-import { ArrowUpRight, Search } from 'lucide-react';
-import { PageContainer, PageHeader } from '@/components/ui/page';
+import { buttonVariants } from '@/components/ui/button';
+import { StatusBadge } from '@/components/ui/data';
+import { Input } from '@/components/ui/form';
+import { PageContainer, PageHeader, SectionHeader } from '@/components/ui/page';
+import { cn } from '@/lib/utils';
 
 const API = process.env.NEXT_PUBLIC_EVIMESH_API_URL;
 
@@ -20,6 +23,37 @@ function text(...values) {
   return values.find((value) => typeof value === 'string' && value.trim())?.trim() ?? null;
 }
 
+/* A label is research words only when it is not a bare identifier, and not a
+ * generated "stance: <id>" line (evaluation list labels). */
+function words(...values) {
+  const value = text(...values);
+  if (!value) return null;
+  if (/^[a-z]+_[0-9a-f-]{8,}$/i.test(value) || /^[a-z_ ]+: [a-z]+_[0-9a-f-]{8,}$/i.test(value)) return null;
+  return value;
+}
+
+const HYDRATE_LIMIT = 30;
+
+/* List endpoints carry no statements or titles. Read the words of the rows
+ * that will render from their detail endpoints, bounded and in parallel;
+ * any failure keeps the list row as it was. */
+async function hydrateItem(item) {
+  const source = SOURCES.find(({ type }) => type === item.type);
+  if (!API || !source || item.label) return item;
+  try {
+    const response = await fetch(`${API}${source.hrefPrefix}/${encodeURIComponent(item.id)}`, { cache: 'no-store' });
+    if (!response.ok) return item;
+    const body = await response.json();
+    const revision = body.currentRevision ?? {};
+    const record = body[item.type] ?? {};
+    const label = words(revision.title, revision.statement, revision.name, record.title, record.statement, record.name, revision.rationale, revision.argument, revision.synthesis, record.summary, record.description, revision.label, record.label);
+    const summary = text(item.summary, label === revision.title ? revision.statement : null, revision.synthesis, revision.argument, label === revision.rationale ? revision.method : revision.rationale, revision.description, record.description);
+    return { ...item, label, summary: summary && summary !== label ? summary : null, revision: item.revision ?? revision.revision ?? null };
+  } catch {
+    return item;
+  }
+}
+
 async function readSource(source) {
   if (!API) return [];
   try {
@@ -34,7 +68,7 @@ async function readSource(source) {
       return {
         id,
         type: source.type,
-        label: text(row.label, row.title, row.statement, row.name, revision.label, revision.title, revision.statement, revision.name, id),
+        label: words(row.label, row.title, row.statement, row.name, revision.label, revision.title, revision.statement, revision.name),
         summary: text(row.summary, row.description, revision.summary, revision.description, revision.synthesis, revision.rationale),
         state: text(row.state, row.status, revision.state, 'not stated'),
         projectId: text(row.projectId, revision.projectId),
@@ -46,6 +80,14 @@ async function readSource(source) {
   } catch {
     return [];
   }
+}
+
+/* Same shape as shortId in components/ui/doc.js (a client module). */
+function shortId(value) {
+  if (!value) return '';
+  const underscore = value.indexOf('_');
+  const head = underscore > 0 ? value.slice(0, underscore + 7) : value.slice(0, 7);
+  return value.length > head.length + 4 ? `${head}…${value.slice(-4)}` : value;
 }
 
 function readable(value) {
@@ -60,6 +102,8 @@ function facetHref(type, query) {
   return suffix ? `/explore?${suffix}` : '/explore';
 }
 
+const FACET_CLASS = 'inline-flex min-h-11 shrink-0 items-baseline gap-1.5 border-b-2 border-transparent px-1 pt-3 pb-2 text-sm font-medium capitalize text-muted-foreground hover:text-foreground aria-[current=page]:border-foreground aria-[current=page]:text-foreground';
+
 export default async function ExplorePage({ searchParams }) {
   const params = await searchParams;
   const selectedType = SOURCES.some(({ type }) => type === params?.type) ? params.type : 'all';
@@ -67,31 +111,72 @@ export default async function ExplorePage({ searchParams }) {
   const groups = await Promise.all(SOURCES.map(readSource));
   const counts = new Map(SOURCES.map((source, index) => [source.type, groups[index].length]));
   const allItems = groups.flat().sort((left, right) => Date.parse(right.createdAt ?? 0) - Date.parse(left.createdAt ?? 0));
-  const visible = allItems
-    .filter((item) => selectedType === 'all' || item.type === selectedType)
-    .filter((item) => !query || `${item.label} ${item.summary ?? ''} ${item.id} ${item.projectId ?? ''}`.toLowerCase().includes(query));
+  const typed = allItems.filter((item) => selectedType === 'all' || item.type === selectedType);
+  const hydrated = await Promise.all(typed.slice(0, HYDRATE_LIMIT).map(hydrateItem));
+  const visible = [...hydrated, ...typed.slice(HYDRATE_LIMIT)]
+    .filter((item) => !query || `${item.label ?? ''} ${item.summary ?? ''} ${item.id} ${item.projectId ?? ''}`.toLowerCase().includes(query));
 
   return (
     <PageContainer wide>
-      <PageHeader description="Browse the attributable record across reasoning, resources and execution. Every row opens one stable research object." eyebrow="Explore" title="Follow the research, object by object." titleClassName="lg:max-w-none lg:whitespace-nowrap lg:text-[clamp(2.75rem,5vw,5.25rem)]" />
-      <section className="grid min-w-0 grid-cols-12 border-y border-foreground" aria-label="Research object facets">
-        <p className="col-span-12 border-b border-border px-3 py-3 font-mono text-[10px] font-bold uppercase text-primary lg:col-span-2 lg:border-r lg:border-b-0">OBJECT TYPE</p>
-        <nav className="col-span-12 flex min-w-0 overflow-x-auto lg:col-span-10" aria-label="Filter by research object type">
-          <Link aria-current={selectedType === 'all' ? 'page' : undefined} className="inline-flex min-h-11 shrink-0 items-center border-r border-border px-3 font-mono text-[10px] font-bold uppercase aria-[current=page]:bg-foreground aria-[current=page]:text-background" href={facetHref('all', query)}>All <span className="ml-2 text-primary">{allItems.length}</span></Link>
-          {SOURCES.map(({ type }) => <Link aria-current={selectedType === type ? 'page' : undefined} className="inline-flex min-h-11 shrink-0 items-center border-r border-border px-3 font-mono text-[10px] font-bold uppercase aria-[current=page]:bg-foreground aria-[current=page]:text-background" href={facetHref(type, query)} key={type}>{readable(type)} <span className="ml-2 text-primary">{counts.get(type)}</span></Link>)}
+      <PageHeader title="Explore" />
+
+      <section aria-label="Research object facets" className="mt-2 border-b border-border">
+        <nav aria-label="Filter by research object type" className="flex min-w-0 gap-5 overflow-x-auto">
+          <Link aria-current={selectedType === 'all' ? 'page' : undefined} className={FACET_CLASS} href={facetHref('all', query)}>All <span className="font-normal tabular-nums text-muted-foreground">{allItems.length}</span></Link>
+          {SOURCES.map(({ type }) => <Link aria-current={selectedType === type ? 'page' : undefined} className={FACET_CLASS} href={facetHref(type, query)} key={type}>{readable(type)} <span className="font-normal tabular-nums text-muted-foreground">{counts.get(type)}</span></Link>)}
         </nav>
       </section>
-      <form action="/explore" className="grid min-w-0 grid-cols-12 border-b border-foreground" method="get" role="search">
+
+      <form action="/explore" className="mt-4 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center" method="get" role="search">
         {selectedType !== 'all' ? <input name="type" type="hidden" value={selectedType} /> : null}
-        <label className="col-span-12 flex min-w-0 items-center gap-3 px-3 sm:col-span-9"><Search aria-hidden="true" className="shrink-0 text-primary" size={15} /><span className="sr-only">Search research objects</span><input className="min-h-12 min-w-0 flex-1 bg-transparent font-serif text-base outline-none placeholder:text-muted-foreground" defaultValue={params?.q ?? ''} name="q" placeholder="Search title, stable ID, project or statement" /></label>
-        <button className="col-span-12 min-h-12 border-t border-foreground px-4 font-mono text-[10px] font-bold uppercase text-primary hover:bg-foreground hover:text-background sm:col-span-3 sm:border-l sm:border-t-0" type="submit">Search the record</button>
+        <label className="min-w-0 flex-1">
+          <span className="sr-only">Search research objects</span>
+          <Input defaultValue={params?.q ?? ''} name="q" placeholder="Search title, stable ID, project or statement" type="search" />
+        </label>
+        <button className={cn(buttonVariants({ variant: 'outline' }), 'shrink-0')} type="submit">Search</button>
       </form>
 
-      <section className="grid min-w-0 grid-cols-12 gap-y-8 py-10 lg:gap-x-8" aria-label="Research objects">
-        <aside className="col-span-12 min-w-0 border-b border-foreground pb-6 lg:col-span-3 lg:border-r lg:border-b-0 lg:pr-6"><p className="font-mono text-[10px] font-bold uppercase text-primary">VISIBLE SCOPE</p><h2 className="mt-3 font-serif text-3xl font-medium tracking-[-0.035em]">{selectedType === 'all' ? 'All research objects' : readable(selectedType)}</h2><p className="mt-4 max-w-[30ch] text-sm leading-6 text-muted-foreground">Ordered by recorded time within the bounded responses returned by each object endpoint.</p>{selectedType === 'tool' ? <Link className="mt-6 inline-flex min-h-11 w-full items-center justify-between border border-foreground px-4 font-mono text-[10px] font-bold uppercase text-primary" href="/tools">Open Tool directory <ArrowUpRight aria-hidden="true" size={14} /></Link> : null}</aside>
-        <div className="col-span-12 min-w-0 lg:col-span-9">
-          {visible.length === 0 ? <div className="border-y border-foreground py-14"><h2 className="font-serif text-3xl font-medium">No visible objects match this scope.</h2><p className="mt-3 text-sm text-muted-foreground">Try a different type or a broader text query.</p></div> : <ol className="m-0 list-none border-t border-foreground p-0">{visible.map((item, index) => <li className="grid min-w-0 grid-cols-12 gap-y-3 border-b border-border py-6" key={`${item.type}:${item.id}`}><span className="col-span-2 font-mono text-[10px] text-primary sm:col-span-1">{String(index + 1).padStart(2, '0')}</span><div className="col-span-10 min-w-0 sm:col-span-7"><p className="font-mono text-[10px] font-bold uppercase text-muted-foreground">{readable(item.type)} / {readable(item.state)}</p><Link className="mt-2 block font-serif text-2xl font-medium leading-tight tracking-[-0.025em] [overflow-wrap:anywhere] hover:text-primary" href={item.href}>{item.label}</Link>{item.summary ? <p className="mt-2 max-w-[62ch] font-serif text-sm leading-6 text-muted-foreground">{item.summary}</p> : null}</div><div className="col-span-10 col-start-3 min-w-0 font-mono text-[9px] leading-5 text-muted-foreground sm:col-span-4 sm:col-start-auto sm:text-right"><code className="[overflow-wrap:anywhere]">{item.id}{item.revision ? `@r${item.revision}` : ''}</code><p>{item.projectId ?? 'project not stated'}</p><time dateTime={item.createdAt ?? undefined}>{item.createdAt ? new Date(item.createdAt).toISOString().slice(0, 10) : 'date not stated'}</time></div></li>)}</ol>}
-        </div>
+      <section aria-labelledby="results-heading" className="mt-8">
+        <SectionHeader
+          action={(
+            <span className="flex flex-wrap items-baseline gap-x-4 text-muted-foreground">
+              <span className="tabular-nums">{visible.length} shown</span>
+              {selectedType === 'tool' ? <Link className="text-primary hover:underline" href="/tools">Tool directory</Link> : null}
+            </span>
+          )}
+          id="results-heading"
+          title={selectedType === 'all' ? 'All objects' : <span className="capitalize">{readable(selectedType)}</span>}
+        />
+
+        {visible.length === 0 ? (
+          <p className="border-b border-border py-5 text-sm font-medium">Nothing matches</p>
+        ) : (
+          <ul>
+            {visible.map((item) => (
+              <li className="ref-row" key={`${item.type}:${item.id}`}>
+                <div className="flex flex-wrap items-baseline gap-x-2 md:block">
+                  <p className="text-sm capitalize text-muted-foreground">{readable(item.type)}</p>
+                  {item.state !== 'not stated' ? <StatusBadge className="md:mt-1" state={item.state} /> : null}
+                </div>
+                <div className="min-w-0">
+                  {item.label ? (
+                    <Link className="ref-row__title [overflow-wrap:anywhere] hover:underline" href={item.href}>{item.label}</Link>
+                  ) : (
+                    <Link className="block font-mono text-sm text-muted-foreground hover:text-foreground hover:underline" href={item.href} title={item.id}>{shortId(item.id)}{item.revision ? `@r${item.revision}` : ''}</Link>
+                  )}
+                  {item.summary ? <p className="mt-1 line-clamp-2 max-w-[64ch] font-serif text-sm leading-6 text-muted-foreground">{item.summary}</p> : null}
+                  {item.label || item.projectId ? (
+                    <p className="mt-1 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+                      {item.label ? <span className="font-mono" title={item.id}>{shortId(item.id)}{item.revision ? `@r${item.revision}` : ''}</span> : null}
+                      {item.projectId ? <Link className="hover:text-foreground hover:underline" href={`/projects/${encodeURIComponent(item.projectId)}`} title={item.projectId}><span className="font-mono">{shortId(item.projectId)}</span></Link> : null}
+                    </p>
+                  ) : null}
+                </div>
+                <time className="text-xs tabular-nums text-muted-foreground md:text-right" dateTime={item.createdAt ?? undefined}>{item.createdAt ? new Date(item.createdAt).toISOString().slice(0, 10) : null}</time>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
     </PageContainer>
   );

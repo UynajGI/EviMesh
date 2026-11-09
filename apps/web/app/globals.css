@@ -411,18 +411,12 @@ html {
 }
 
 .kinetic-page-enter {
-  animation: kinetic-page-enter 200ms var(--evimesh-ease-enter) both;
+  animation: kinetic-page-enter 160ms var(--evimesh-ease-enter) both;
 }
 
 @keyframes kinetic-page-enter {
-  from {
-    opacity: 0;
-    transform: translateX(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+  from { opacity: 0.6; }
+  to { opacity: 1; }
 }
 
 .kinetic-nav-link::after {
@@ -446,6 +440,277 @@ html {
 ::selection {
   background: var(--evimesh-primary);
   color: var(--evimesh-primary-foreground);
+}
+
+/*
+ * Research record system. A research object reads like a journal record:
+ * its own words first, one byline of identity (kind, state, identifier,
+ * revision, drafted by, signed by, date), an inline section index, then
+ * sections set on hairlines. Pages are dense and quiet; colour marks links,
+ * the active revision and protocol state only.
+ */
+:root {
+  --evimesh-measure: 70ch;
+  --evimesh-margin-w: 17rem;
+  --evimesh-page-max: 76rem;
+  caret-color: var(--evimesh-primary);
+  accent-color: var(--evimesh-primary);
+  scrollbar-color: color-mix(in oklch, var(--evimesh-muted-foreground) 45%, transparent) transparent;
+}
+
+a {
+  text-underline-offset: 0.2em;
+  text-decoration-thickness: 1px;
+}
+
+body {
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  font-feature-settings: "ss01", "cv11";
+}
+
+:where(code, kbd, samp, .font-mono) {
+  font-variant-numeric: tabular-nums slashed-zero;
+}
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--evimesh-muted-foreground) 40%, transparent) padding-box;
+}
+::-webkit-scrollbar-track { background: transparent; }
+
+.doc-page {
+  width: 100%;
+  max-width: var(--evimesh-page-max);
+  margin-inline: auto;
+  padding-inline: var(--evimesh-container-px);
+}
+
+/* Two-track record grid: reading column and margin. */
+.doc-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2rem;
+  align-items: start;
+}
+
+@media (min-width: 64rem) {
+  .doc-grid {
+    grid-template-columns: minmax(0, 1fr) var(--evimesh-margin-w);
+    gap: 3.5rem;
+  }
+}
+
+.doc-grid > * { min-width: 0; }
+
+@media (min-width: 64rem) {
+  .doc-grid > .doc-main { grid-column: 1; grid-row: 1; }
+  .doc-grid > .doc-margin { grid-column: 2; grid-row: 1; }
+  .doc-grid > .doc-span { grid-column: 1 / -1; grid-row: 2; }
+  .doc-grid > .doc-after { grid-column: 1; grid-row: 3; }
+  .doc-margin { position: sticky; top: 4.5rem; }
+}
+
+/* Section index: one inline row of anchors under the byline. */
+.clause-rail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.25rem;
+  border-bottom: 1px solid var(--evimesh-border);
+  padding: 0.6rem 0;
+  font-size: 0.8125rem;
+}
+
+.clause-rail a {
+  color: var(--evimesh-muted-foreground);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color var(--evimesh-motion-fast) ease-out;
+}
+
+.clause-rail a:hover,
+.clause-rail a[aria-current="true"] { color: var(--evimesh-foreground); }
+
+.clause-rail__count {
+  margin-left: 0.3rem;
+  color: var(--evimesh-muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Record head: the object's words, then one byline. */
+.title-block {
+  border-bottom: 1px solid var(--evimesh-border);
+  padding-bottom: 1rem;
+}
+
+.title-block__head { display: grid; gap: 0.75rem; }
+
+.title-block__cells {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 1.25rem;
+  margin: 1rem 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.title-block__cell {
+  display: inline-flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.title-block__cell dt { color: var(--evimesh-muted-foreground); }
+
+.title-block__cell dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Section: a heading on a hairline. */
+.clause { scroll-margin-top: 4.5rem; }
+
+.clause + .clause { margin-top: 2.25rem; }
+
+.clause__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  border-bottom: 1px solid var(--evimesh-border);
+  padding-bottom: 0.4rem;
+}
+
+.clause__head h2 {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.clause__head a.clause__anchor {
+  color: var(--evimesh-muted-foreground);
+  font-size: 0.8125rem;
+  text-decoration: none;
+  opacity: 0;
+  transition: opacity var(--evimesh-motion-fast) ease-out;
+}
+
+.clause:hover a.clause__anchor,
+.clause__head a.clause__anchor:focus-visible { opacity: 1; }
+
+.clause__head a.clause__anchor:hover { color: var(--evimesh-primary); }
+
+.clause__body {
+  margin-top: 0.75rem;
+  max-width: var(--evimesh-measure);
+}
+
+.clause--wide .clause__body { max-width: none; }
+
+.clause__none {
+  margin: 0;
+  color: var(--evimesh-muted-foreground);
+  font-size: 0.875rem;
+}
+
+.clause__group + .clause__group { margin-top: 1.25rem; }
+
+.clause__group > h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  padding-bottom: 0.25rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+/* Reading prose in the column. */
+.doc-prose {
+  max-width: var(--evimesh-measure);
+  font-family: var(--evimesh-font-serif);
+  font-size: 1.0625rem;
+  line-height: 1.65;
+}
+
+.doc-list {
+  margin: 0;
+  padding: 0 0 0 1.1rem;
+  list-style: disc;
+}
+
+.doc-list > li {
+  padding: 0.2rem 0;
+  font-family: var(--evimesh-font-serif);
+  font-size: 1.0625rem;
+  line-height: 1.6;
+}
+
+.doc-list > li::marker { color: var(--evimesh-muted-foreground); }
+
+/* Record row: state, words with one metadata line, date. */
+.ref-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.25rem 1.25rem;
+  border-bottom: 1px solid var(--evimesh-border);
+  padding: 0.75rem 0;
+}
+
+@media (min-width: 48rem) {
+  .ref-row { grid-template-columns: 7rem minmax(0, 1fr) auto; }
+}
+
+.ref-row__title {
+  font-family: var(--evimesh-font-serif);
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.4;
+  text-wrap: pretty;
+}
+
+/* Change bar beside revised text. */
+.change-bar { position: relative; }
+
+.change-bar::before {
+  position: absolute;
+  top: 0.15em;
+  bottom: 0.15em;
+  left: -0.85rem;
+  width: 2px;
+  background: var(--evimesh-primary);
+  content: "";
+}
+
+/* Margin ledger rows (revisions, provenance). */
+.ledger { margin: 0; padding: 0; list-style: none; }
+
+.ledger > li {
+  display: grid;
+  grid-template-columns: 2.25rem minmax(0, 1fr);
+  gap: 0.1rem 0.6rem;
+  padding: 0.3rem 0;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.ledger > li[aria-current="true"] > :first-child { color: var(--evimesh-primary); font-weight: 600; }
+
+.margin-section + .margin-section { margin-top: 1.75rem; }
+
+.margin-section > h2 {
+  margin: 0 0 0.5rem;
+  color: var(--evimesh-muted-foreground);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.3;
 }
 
 /* Focus visibility: a 2px ring that works on any surface. */
@@ -506,59 +771,42 @@ html {
   min-width: 0;
   max-width: 100%;
   isolation: isolate;
+  margin: 0;
   overflow: hidden;
-  border: 1px solid var(--evimesh-border);
-  border-radius: var(--evimesh-radius-surface);
-  background: var(--evimesh-card);
+  border-bottom: 1px solid var(--evimesh-border);
+  background: transparent;
 }
 
 .dag-heading {
-  display: grid;
-  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
-  gap: 2rem;
-  align-items: end;
-  border-bottom: 1px solid var(--evimesh-foreground);
-  padding: 1.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.5rem;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 0 0 0.5rem;
 }
 
 .dag-heading > * {
   min-width: 0;
 }
 
-.dag-heading p {
+.dag-heading h2 {
   margin: 0;
   color: var(--evimesh-muted-foreground);
   font-size: 0.75rem;
-  line-height: 1.5;
-}
-
-.dag-heading > div > p {
-  color: var(--evimesh-primary);
-  font-family: var(--evimesh-font-mono);
-  font-size: 0.625rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-}
-
-.dag-heading h2 {
-  margin: 0.4rem 0 0;
-  font-family: var(--evimesh-font-serif);
-  font-size: clamp(1.75rem, 3vw, 3rem);
   font-weight: 500;
-  letter-spacing: -0.04em;
-  line-height: 1;
-  overflow-wrap: anywhere;
+  line-height: 1.4;
 }
 
 .dag-toolbar {
   display: flex;
-  min-height: 4rem;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.5rem 1rem;
+  border-top: 1px solid var(--evimesh-border);
   border-bottom: 1px solid var(--evimesh-border);
-  background: var(--evimesh-background);
-  padding: 0.5rem 0.75rem;
+  background: transparent;
+  padding: 0.4rem 0;
 }
 
 .dag-toolbar > * {
@@ -567,19 +815,20 @@ html {
 }
 
 .dag-toolbar label {
-  display: grid;
-  min-width: 7.5rem;
-  gap: 0.3rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
   color: var(--evimesh-muted-foreground);
-  font-family: var(--evimesh-font-mono);
-  font-size: 0.625rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: 0.75rem;
+  font-weight: 400;
 }
 
 .dag-toolbar label select {
-  min-height: 2.5rem;
+  height: 1.875rem;
+  min-height: 1.875rem;
+  padding-block: 0;
+  padding-inline: 0.5rem 1.75rem;
+  min-width: 6.5rem;
   border-radius: var(--evimesh-radius-control);
   font-family: var(--evimesh-font-sans);
   font-size: 0.75rem;
@@ -597,22 +846,22 @@ html {
 
 .dag-toolbar__actions button {
   display: inline-flex;
-  min-height: 2.5rem;
+  min-height: 1.875rem;
   align-items: center;
   gap: 0.4rem;
   border: 1px solid var(--evimesh-border);
   border-radius: var(--evimesh-radius-control);
   background: transparent;
   color: var(--evimesh-muted-foreground);
-  padding: 0 0.7rem;
+  padding: 0 0.6rem;
   font-size: 0.75rem;
-  font-weight: 650;
+  font-weight: 500;
 }
 
 .dag-toolbar__actions button:hover:not(:disabled) {
-  border-color: var(--evimesh-primary);
-  background: var(--evimesh-primary);
-  color: var(--evimesh-primary-foreground);
+  border-color: var(--evimesh-foreground);
+  background: var(--evimesh-muted);
+  color: var(--evimesh-foreground);
 }
 
 .dag-toolbar__actions button:disabled {
@@ -632,8 +881,8 @@ html {
 
 .dag-canvas {
   position: relative;
-  height: clamp(32rem, 62vh, 44rem);
-  min-height: 28rem;
+  height: clamp(26rem, 56vh, 40rem);
+  min-height: 24rem;
   overflow: hidden;
   background: var(--evimesh-card);
   contain: inline-size layout paint;
@@ -758,12 +1007,10 @@ html {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  color: var(--evimesh-primary);
-  font-family: var(--evimesh-font-mono);
-  font-size: 0.5625rem;
-  font-weight: 750;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  color: var(--evimesh-muted-foreground);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: capitalize;
 }
 
 .dag-node__label {
@@ -831,68 +1078,50 @@ html {
 }
 
 .dag-legend {
-  display: grid;
-  gap: 1rem;
-  border-top: 1px solid var(--evimesh-border);
-  background: var(--evimesh-background);
-  padding: 1rem;
-}
-
-.dag-legend > div {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.6rem 1rem;
+  gap: 0.25rem 0.85rem;
 }
 
 .dag-legend span {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.3rem;
   color: var(--evimesh-muted-foreground);
-  font-family: var(--evimesh-font-mono);
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
 }
 
 .dag-legend i {
-  width: 1.4rem;
+  width: 1rem;
   border-top: 1px solid var(--evimesh-muted-foreground);
 }
 
-.dag-legend p {
-  margin: 0;
-  color: var(--evimesh-muted-foreground);
-  font-size: 0.6875rem;
-  line-height: 1.5;
-}
-
 .relationship-index {
-  height: clamp(32rem, 62vh, 44rem);
+  height: clamp(26rem, 56vh, 40rem);
   min-width: 0;
   overflow: auto;
-  border-left: 1px solid var(--evimesh-foreground);
+  border-left: 1px solid var(--evimesh-border);
   background: var(--evimesh-background);
 }
 
 .relationship-index__selected {
-  border-bottom: 2px solid var(--evimesh-primary);
-  padding: 1rem;
+  border-bottom: 1px solid var(--evimesh-border);
+  padding: 0.75rem 1rem;
 }
 
 .relationship-index__selected > span {
-  color: var(--evimesh-primary);
-  font-family: var(--evimesh-font-mono);
-  font-size: 0.5625rem;
-  font-weight: 750;
-  letter-spacing: 0.08em;
+  color: var(--evimesh-muted-foreground);
+  font-size: 0.75rem;
+  font-weight: 500;
 }
 
 .relationship-index__selected > strong {
   display: block;
-  margin-top: 0.4rem;
+  margin-top: 0.25rem;
   font-family: var(--evimesh-font-serif);
-  font-size: 1.25rem;
+  font-size: 1rem;
   font-weight: 500;
-  line-height: 1.15;
+  line-height: 1.3;
   overflow-wrap: anywhere;
 }
 
@@ -902,55 +1131,51 @@ html {
   gap: 0.35rem 0.75rem;
   margin: 0.6rem 0 0;
   color: var(--evimesh-muted-foreground);
+  font-size: 0.75rem;
+}
+
+.relationship-index__selected p code {
   font-family: var(--evimesh-font-mono);
-  font-size: 0.5625rem;
+  font-size: 0.6875rem;
+  overflow-wrap: anywhere;
 }
 
 .relationship-index__detail {
-  display: flex;
-  min-height: 2.75rem;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 0.8rem;
-  border-top: 1px solid var(--evimesh-border);
+  display: inline-block;
+  margin-top: 0.5rem;
   color: var(--evimesh-primary);
-  font-family: var(--evimesh-font-mono);
-  font-size: 0.625rem;
-  font-weight: 700;
-  text-transform: uppercase;
+  font-size: 0.8125rem;
+  font-weight: 400;
   transition: padding-left 160ms var(--evimesh-ease-enter);
 }
 
 .relationship-index__detail:hover {
-  padding-left: 2px;
+  text-decoration: underline;
 }
 
 .relationship-group > h3 {
   display: flex;
   justify-content: space-between;
   margin: 0;
-  border-bottom: 1px solid var(--evimesh-foreground);
-  padding: 0.65rem 1rem;
-  font-family: var(--evimesh-font-mono);
-  font-size: 0.625rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  border-bottom: 1px solid var(--evimesh-border);
+  padding: 0.5rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
 }
 
 .relationship-group > h3 span,
 .relationship-type > h4 {
-  color: var(--evimesh-primary);
+  color: var(--evimesh-muted-foreground);
+  font-weight: 500;
 }
 
 .relationship-type > h4,
 .relationship-relation > h5 {
   margin: 0;
   padding-inline: 1rem;
-  font-family: var(--evimesh-font-mono);
-  font-size: 0.5625rem;
-  font-weight: 750;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: capitalize;
 }
 
 .relationship-type > h4 {
@@ -984,7 +1209,7 @@ html {
   border: 0;
   border-radius: 0;
   background: transparent;
-  padding: 0.8rem 1rem;
+  padding: 0.55rem 1rem;
   color: var(--evimesh-foreground);
   text-align: left;
   transition: background-color 160ms var(--evimesh-ease-enter), color 160ms var(--evimesh-ease-enter);
@@ -992,16 +1217,15 @@ html {
 
 .relationship-relation button:hover,
 .relationship-relation button[aria-pressed="true"] {
-  background: var(--evimesh-primary);
-  color: var(--evimesh-primary-foreground);
+  background: var(--evimesh-accent);
+  color: var(--evimesh-accent-foreground);
 }
 
 .relationship-row__type,
 .relationship-row__relation {
-  font-family: var(--evimesh-font-mono);
-  font-size: 0.5625rem;
-  font-weight: 700;
-  text-transform: uppercase;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: capitalize;
 }
 
 .relationship-relation button > strong {
@@ -1024,19 +1248,19 @@ html {
   flex-wrap: wrap;
   gap: 0.25rem 0.55rem;
   color: currentColor;
-  font-family: var(--evimesh-font-mono);
-  font-size: 0.5rem;
-  opacity: 0.7;
+  font-size: 0.6875rem;
+  opacity: 0.75;
 }
 
 .relationship-row__meta code {
+  font-family: var(--evimesh-font-mono);
   overflow-wrap: anywhere;
 }
 
 .relationship-empty {
   margin: 0;
   border-bottom: 1px solid var(--evimesh-border);
-  padding: 0.8rem 1rem;
+  padding: 0.5rem 1rem;
   color: var(--evimesh-muted-foreground);
   font-size: 0.75rem;
 }
@@ -1045,12 +1269,10 @@ html {
   display: flex;
   cursor: pointer;
   justify-content: space-between;
-  border-bottom: 1px solid var(--evimesh-foreground);
-  padding: 0.75rem 1rem;
-  font-family: var(--evimesh-font-mono);
-  font-size: 0.625rem;
-  font-weight: 700;
-  text-transform: uppercase;
+  border-bottom: 1px solid var(--evimesh-border);
+  padding: 0.5rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
 }
 
 .relationship-all button {
@@ -1060,7 +1282,7 @@ html {
   gap: 0.25rem 0.75rem;
   border: 0;
   background: transparent;
-  padding: 0.75rem 1rem;
+  padding: 0.55rem 1rem;
   color: var(--evimesh-foreground);
   text-align: left;
 }
@@ -1070,15 +1292,24 @@ html {
   color: var(--evimesh-primary);
 }
 
-.relationship-all button span,
-.relationship-all button code {
-  font-family: var(--evimesh-font-mono);
-  font-size: 0.5625rem;
+.relationship-all button span {
+  font-family: var(--evimesh-font-sans);
+  color: var(--evimesh-muted-foreground);
+  font-size: 0.75rem;
+  text-transform: capitalize;
+}
+
+.relationship-all button strong {
+  font-family: var(--evimesh-font-serif);
+  font-size: 0.875rem;
+  font-weight: 500;
 }
 
 .relationship-all button code {
   grid-column: 2;
   color: var(--evimesh-muted-foreground);
+  font-family: var(--evimesh-font-mono);
+  font-size: 0.6875rem;
 }
 
 .dag-workspace:fullscreen {
@@ -1098,20 +1329,9 @@ html {
   .dag-minimap.react-flow__minimap {
     display: block;
   }
-
-  .dag-legend {
-    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
-    padding: 1rem 1.25rem;
-  }
 }
 
 @media (max-width: 40rem) {
-  .dag-heading {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 1rem;
-    padding: 1rem;
-  }
-
   .dag-toolbar {
     align-items: stretch;
     overflow: hidden;
@@ -1147,7 +1367,7 @@ html {
     max-width: 100%;
     height: auto;
     max-height: none;
-    border-top: 1px solid var(--evimesh-foreground);
+    border-top: 1px solid var(--evimesh-border);
     border-left: 0;
   }
 

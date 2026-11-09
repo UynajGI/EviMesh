@@ -12,9 +12,12 @@ test("design route map has canonical public people and agent activity routes", a
     read("../components/attribution.js"),
   ]);
   assert.match(people, /contributors\/\[actorId\]/);
-  for (const wording of ["Agent activity", "Attempt trail", "Public output", "Human-in-the-loop boundary", "Identity card"]) {
+  for (const wording of ["Agent activity", "Attempt trail", "Public output", "Identity card"]) {
     assert.match(agent, new RegExp(wording));
   }
+  /* Research-record pass: the explanatory boundary section is gone; the
+   * byline says "Drafts for <owner>, never signs" instead. */
+  assert.doesNotMatch(agent, /Human-in-the-loop boundary/);
   assert.match(agent, /\/actors\//);
   assert.match(agent, /\/events\?actorId=/);
   assert.match(agent, /Self-declared, not verified/);
@@ -56,6 +59,9 @@ test("agent activity keeps public output attributable and avoids scoring languag
   assert.doesNotMatch(source, /\.slice\(0, 20\)/);
   assert.match(source, /signature not stated/);
   assert.match(source, /ownerActorId/);
+  /* The owning person is named on the profile: an agent drafts, never signs. */
+  assert.match(source, /Drafts for <ActorName actorId=\{owner\}/);
+  assert.match(source, /never signs/);
   assert.doesNotMatch(source, /score|rating|ranking|percentage/i);
 });
 

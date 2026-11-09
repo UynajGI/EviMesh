@@ -217,7 +217,7 @@ function ClaimScene({ hidden }) {
               </ol>
             </CardContent>
           </Card>
-          <div className="border-l-2 border-primary pl-4">
+          <div className="border-y border-border py-3">
             <h3 className="text-sm font-medium">Latest event</h3>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">{claim.latestEvent}</p>
           </div>
@@ -287,9 +287,8 @@ export default function M136AgentFirstPrototypePage() {
   return (
     <PageContainer wide className="min-h-[100dvh] py-10 sm:py-14">
       <PageHeader
-        eyebrow="Illustrative prototype"
         title="Research record, ready for a careful handoff"
-        description="A fixture-only reader for following a question through claim evidence, change provenance, and handoff context."
+        description="Illustrative prototype. A fixture-only reader for following a question through claim evidence, change provenance, and handoff context."
         action={<Button onClick={() => setScene('Handoff')} variant="outline">Preview handoff</Button>}
       />
       <SceneTabs scene={scene} onChange={setScene} />

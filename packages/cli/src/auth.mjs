@@ -1,5 +1,11 @@
 const DEFAULT_INTERVAL_SECONDS = 5;
-const LIMITED_SCOPES = new Set(["profile:read", "project:read"]);
+const LIMITED_SCOPES = new Set([
+  "profile:read",
+  "project:read",
+  "research:prepare",
+  "research:submit",
+  "artifact:upload",
+]);
 
 function requiredText(value, field) {
   if (typeof value !== "string" || value.trim().length === 0) throw new TypeError(`${field} is required`);

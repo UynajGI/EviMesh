@@ -1,55 +1,49 @@
-import { CircleAlert, Inbox, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /*
- * Feedback primitives (M13.5-B06, M13.8 08 §1). Quiet by default: status
- * colors appear as a hairline border and an accent label, not as loud fills.
- * Blank-family states carry an icon circle (20px icon on a muted disc),
- * a 18px/600 title, a <=42ch description, and at least one next action.
+ * Feedback primitives. A short note inside the page, not a tile: one line
+ * saying what is missing or wrong, and the next action. Error and denied
+ * states keep their request id or missing scope for traceability.
  */
 
-function BlankShell({ icon: Icon, tone, title, description, action, footer, role, className }) {
-  const disc = tone === 'error'
-    ? 'bg-status-danger-bg text-status-danger-fg'
+function BlankShell({ tone, title, description, action, footer, role, className }) {
+  const rule = tone === 'error'
+    ? 'border-status-danger-border'
     : tone === 'denied'
-      ? 'bg-status-neutral-bg text-status-neutral-fg'
-      : 'bg-muted text-muted-foreground';
+      ? 'border-foreground/40'
+      : 'border-border';
   return (
-    <div className={cn('blank rounded-lg border border-dashed border-border px-6 py-12 text-center', tone === 'error' && 'blank--error border-solid border-status-danger-border', tone === 'denied' && 'blank--denied', className)} role={role}>
-      {Icon ? (
-        <span aria-hidden="true" className={cn('mx-auto grid size-10 place-items-center rounded-full', disc)}>
-          <Icon size={20} />
-        </span>
-      ) : null}
-      <p className="mt-3 text-lg font-semibold text-foreground">{title}</p>
-      {description ? <p className="mx-auto mt-2 max-w-[42ch] text-sm text-muted-foreground">{description}</p> : null}
+    <div className={cn('blank border-y py-5', rule, tone === 'error' && 'blank--error', tone === 'denied' && 'blank--denied', className)} role={role}>
+      <p className={cn('text-sm font-medium', tone === 'error' ? 'text-status-danger-fg' : 'text-foreground')}>{title}</p>
+      {description && tone ? <p className="mt-1 max-w-[70ch] text-sm leading-6 text-muted-foreground">{description}</p> : null}
       {footer}
-      {action ? <div className="mt-4 flex justify-center">{action}</div> : null}
+      {action ? <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">{action}</div> : null}
     </div>
   );
 }
 
 const alertStyles = {
-  info: 'border-info text-info',
-  success: 'border-success text-success',
-  warning: 'border-warning text-warning',
-  destructive: 'border-destructive text-destructive',
+  info: 'border-status-info-border bg-status-info-bg text-status-info-fg',
+  success: 'border-status-success-border bg-status-success-bg text-status-success-fg',
+  warning: 'border-status-warning-border bg-status-warning-bg text-status-warning-fg',
+  destructive: 'border-status-danger-border bg-status-danger-bg text-status-danger-fg',
 };
 
-/** Status banner: title + optional description, variant-coded by border/label. */
+/** Status banner: title + optional description, variant-coded by tier. */
 export function Alert({ variant = 'info', title, description, className, ...props }) {
   return (
-    <div className={cn('alert rounded-md border bg-card px-4 py-3', `alert--${variant}`, alertStyles[variant] ?? alertStyles.info, className)} role="alert" {...props}>
-      <p className="text-sm font-medium">{title}</p>
-      {description ? <p className="mt-1 text-sm text-muted-foreground">{description}</p> : null}
+    <div className={cn('alert rounded-[2px] border px-4 py-3', `alert--${variant}`, alertStyles[variant] ?? alertStyles.info, className)} role="alert" {...props}>
+      <p className="text-sm font-semibold">{title}</p>
+      {description ? <p className="mt-1 text-sm leading-6 opacity-90">{description}</p> : null}
     </div>
   );
 }
 
-/** Empty state with an optional action (design book 08 §1.1). */
+/** Empty state: one line and an optional action. The description is kept
+ * for callers but not shown; an empty list does not need a paragraph. */
 export function Empty({ title, description, action, className }) {
   return (
-    <BlankShell action={action} className={className} description={description} icon={Inbox} title={title} />
+    <BlankShell action={action} className={className} description={description} title={title} />
   );
 }
 
@@ -59,13 +53,12 @@ export function ErrorState({ title = 'Something went wrong', message, requestId,
     <BlankShell
       className={className}
       description={message}
-      footer={requestId ? <p className="mx-auto mt-3 font-mono text-xs tabular-nums text-muted-foreground">request id: {requestId}</p> : null}
-      icon={CircleAlert}
+      footer={requestId ? <p className="mt-2 font-mono text-xs tabular-nums text-muted-foreground">request id: {requestId}</p> : null}
       role="alert"
       title={title}
       tone="error"
       action={onRetry ? (
-        <button className="rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90" onClick={onRetry} type="button">
+        <button className="inline-flex h-9 items-center rounded-[2px] bg-primary px-3.5 text-sm font-medium text-primary-foreground hover:bg-primary/90" onClick={onRetry} type="button">
           {retryLabel}
         </button>
       ) : null}
@@ -78,14 +71,13 @@ export function DeniedState({ title = 'Permission needed', description, scope, a
   return (
     <BlankShell
       action={onRequest ? (
-        <button className="rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90" onClick={onRequest} type="button">
+        <button className="inline-flex h-9 items-center rounded-[2px] bg-primary px-3.5 text-sm font-medium text-primary-foreground hover:bg-primary/90" onClick={onRequest} type="button">
           {actionLabel}
         </button>
       ) : action}
       className={className}
       description={description ?? 'This object is private. The missing permission or visibility level is explained below.'}
-      footer={scope ? <p className="mx-auto mt-3 font-mono text-xs text-muted-foreground">missing scope: {scope}</p> : null}
-      icon={Lock}
+      footer={scope ? <p className="mt-2 font-mono text-xs text-muted-foreground">missing scope: {scope}</p> : null}
       title={title}
       tone="denied"
     />
@@ -94,5 +86,5 @@ export function DeniedState({ title = 'Permission needed', description, scope, a
 
 /** Skeleton block; combine widths for a loading layout. */
 export function Skeleton({ className }) {
-  return <div aria-hidden="true" className={cn('skeleton animate-pulse rounded bg-muted', className)} />;
+  return <div aria-hidden="true" className={cn("skeleton animate-pulse rounded-[2px] bg-muted", className)} />;
 }

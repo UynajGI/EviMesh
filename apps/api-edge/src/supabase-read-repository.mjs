@@ -43,7 +43,8 @@ const TABLES = Object.freeze({
   researchEvaluationBases: "research_evaluation_bases",
   researchDatasets: "research_datasets",
   researchTools: "research_tools",
-  signingKeys: "signing_keys",
+  // 0086: anon/authenticated read only the public verification projection.
+  signingKeys: "signing_key_verification_keys",
   runInputs: "run_inputs",
   runOutputs: "run_outputs",
   runs: "runs",
@@ -252,6 +253,9 @@ function eventObjectPredicate(objectType, objectId, descendantClaimIds = []) {
     `and(or(payload->>object_type.eq.${typeLiteral},payload->>entity_type.eq.${typeLiteral}),payload->>object_id.eq.${idLiteral})`,
   ];
   predicates.unshift(...typedKeys.map((key) => `payload->>${key}.eq.${idLiteral}`));
+  // Typed research events (evaluation, rebuttal, answer, ...) name the object
+  // they respond to only as an incoming-edge source.
+  predicates.push(`payload->incoming_edges.cs.${postgrestLogicLiteral(JSON.stringify([{ source: { kind: objectType, id: objectId } }]))}`);
   if (objectType === "question") {
     predicates.unshift(`payload->projection->state->claim->>questionId.eq.${idLiteral}`);
     if (descendantClaimIds.length > 0) {
@@ -280,12 +284,14 @@ function eventReferencesObject(payload, objectType, objectId, descendantClaimIds
       }));
   const genericReference = (payloadTextEquals(payload.object_type, objectType) || payloadTextEquals(payload.entity_type, objectType))
     && payloadTextEquals(payload.object_id, objectId);
-  return typedReference || descendantReference || genericReference;
+  const incomingEdgeReference = Array.isArray(payload.incoming_edges)
+    && payload.incoming_edges.some((edge) => edge?.source?.kind === objectType && edge?.source?.id === objectId);
+  return typedReference || descendantReference || genericReference || incomingEdgeReference;
 }
 
 /* Only mutable-projection tables carry lifecycle columns; the soft-delete
  * filter must not be applied to revision, event, or junction fact tables. */
-const SOFT_DELETE_TABLES = new Set(["actors", "actorProfiles", "artifacts", "attempts", "challenges", "claimRelations", "claims", "identities", "projectMembers", "projects", "questions", "signingKeys"]);
+const SOFT_DELETE_TABLES = new Set(["actors", "actorProfiles", "artifacts", "attempts", "challenges", "claimRelations", "claims", "identities", "projectMembers", "projects", "questions"]);
 
 /* Interaction target tables: id columns differ per object type. */
 const INTERACTION_TARGET_SPECS = Object.freeze({

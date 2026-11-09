@@ -15,6 +15,9 @@ test('project_members provides a composite project/actor permission projection',
   assert.equal(columns.role.name, 'role');
   assert.equal(columns.role.notNull, true);
   assert.equal(columns.role.hasDefault, true);
+  assert.equal(columns.status.default, 'active');
+  assert.equal(columns.joinedAt.notNull, true);
+  assert.equal(columns.removedAt.notNull, false);
   assert.equal(columns.createdAt.name, 'created_at');
   assert.equal(columns.updatedAt.name, 'updated_at');
   assert.equal(columns.deletedAt.name, 'deleted_at');

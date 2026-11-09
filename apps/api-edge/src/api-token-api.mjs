@@ -2,4 +2,4 @@ import { createActorApiToken, revokeActorApiToken } from '../../../packages/doma
 import { listOwnApiTokens } from './api-token-query.mjs';
 export const listOwnTokens = listOwnApiTokens;
 export async function createOwnToken({ repository, actorId, scopes, expiresAt } = {}) { return createActorApiToken({ repository, actorId, scopes, expiresAt }); }
-export async function revokeOwnToken({ repository, actorId, tokenId } = {}) { return revokeActorApiToken({ repository, actorId, tokenId }); }
+export async function revokeOwnToken({ repository, actorId, tokenId, reason = 'revoked by owner' } = {}) { return revokeActorApiToken({ repository, actorId, tokenId, reason }); }

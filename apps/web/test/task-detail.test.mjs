@@ -9,7 +9,7 @@ test("task detail keeps all read-only sections on one screen", () => {
   for (const section of ['Inputs', 'Outputs', 'Acceptance', 'Dependencies', 'Leases']) {
     assert.match(source, new RegExp(section), `missing ${section}`);
   }
-  assert.match(source, /Attempts begin outside the reading surface/);
+  assert.doesNotMatch(source, /Attempts begin outside the reading surface/);
   assert.match(source, /Open Agent handoff/);
   assert.doesNotMatch(source, /method:\s*['"]POST|Acquire lease|Release my lease|startAttempt/);
 });

@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 
 /** M13.5-B11: page templates provide a consistent header and rhythm. */
 const source = await readFile(new URL("../components/ui/page.js", import.meta.url), "utf8");
+const globals = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
 
 test("page templates export PageContainer, PageHeader, and SectionHeader", () => {
   for (const name of ["PageContainer", "PageHeader", "SectionHeader"]) {
@@ -11,8 +12,8 @@ test("page templates export PageContainer, PageHeader, and SectionHeader", () =>
   }
 });
 
-test("PageHeader supports eyebrow, title, description, and an action slot", () => {
-  assert.match(source, /eyebrow/);
+test("PageHeader supports title, description, and an action slot, with nothing above the title", () => {
+  assert.doesNotMatch(source, /eyebrow/, "labels above headings are banned");
   assert.match(source, /title/);
   assert.match(source, /description/);
   assert.match(source, /action/);
@@ -21,7 +22,7 @@ test("PageHeader supports eyebrow, title, description, and an action slot", () =
   assert.match(source, /titleColumnClass/);
   assert.match(source, /titleMaxClass/);
   assert.match(source, /grid-cols-12/);
-  assert.match(source, /tracking-\[-0\.055em\]/);
+  assert.match(source, /tracking-\[-0\.0\d+em\]/);
 });
 
 test('generic page guidance is not rendered as a subtitle by default', async () => {
@@ -31,7 +32,7 @@ test('generic page guidance is not rendered as a subtitle by default', async () 
 });
 
 test("PageContainer and SectionHeader keep the quiet rhythm", () => {
-  assert.match(source, /max-w-\[96rem\]/);
-  assert.match(source, /--evimesh-container-px/);
+  assert.match(source, /doc-page/, 'pages share the shell column');
+  assert.match(globals, /--evimesh-container-px/);
   assert.match(source, /items-baseline justify-between/);
 });

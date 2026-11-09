@@ -6,6 +6,7 @@ import { verifyMerkleInclusionProof } from "../../../packages/merkle/src/verify-
 import { hashResearchEventLeaf } from "../../../packages/merkle/src/research-event-leaf.mjs";
 import { canonicalJson, rawHash } from "../../../packages/protocol/src/hash.mjs";
 import { CONTEXT_MODES } from "./resources.mjs";
+import { FALLBACK_PUBLIC_CAPABILITIES, normalizePublicCapabilities } from "../../../packages/sdk-ts/src/resources/public-capabilities.mjs";
 
 export class McpToolError extends Error {
   constructor(message, code = "MCP_TOOL_INVALID") {
@@ -19,11 +20,23 @@ const STRING = { type: "string" };
 const BOOLEAN = { type: "boolean" };
 const OBJECT = { type: "object" };
 const TYPED_RESEARCH_KINDS = Object.freeze({
-  answer: Object.freeze({ schema: "srp.answer.v1", resource: "answers" }),
-  rebuttal: Object.freeze({ schema: "srp.rebuttal.v1", resource: "rebuttals" }),
-  evaluation: Object.freeze({ schema: "srp.evaluation.v1", resource: "evaluations" }),
-  dataset: Object.freeze({ schema: "srp.dataset.v1", resource: "datasets" }),
-  tool: Object.freeze({ schema: "srp.tool.v1", resource: "tools" }),
+  // Question/Claim go through the Agent-token signed path (/research/*).
+  question: Object.freeze({ schema: "srp.question.v1", resource: "questions", prepare: "prepareSigned", submit: "submitSigned" }),
+  claim: Object.freeze({ schema: "srp.claim.v1", resource: "claims", prepare: "prepareSigned", submit: "submitSigned" }),
+  answer: Object.freeze({ schema: "srp.answer.v1", resource: "answers", prepare: "prepare", submit: "submit" }),
+  rebuttal: Object.freeze({ schema: "srp.rebuttal.v1", resource: "rebuttals", prepare: "prepare", submit: "submit" }),
+  evaluation: Object.freeze({ schema: "srp.evaluation.v1", resource: "evaluations", prepare: "prepare", submit: "submit" }),
+  dataset: Object.freeze({ schema: "srp.dataset.v1", resource: "datasets", prepare: "prepare", submit: "submit" }),
+  tool: Object.freeze({ schema: "srp.tool.v1", resource: "tools", prepare: "prepare", submit: "submit" }),
+});
+// Question/Claim reads have their own dedicated tools; list/get here stays
+// scoped to the typed collections.
+const BROWSABLE_TYPED_KINDS = Object.freeze(["answer", "rebuttal", "evaluation", "dataset", "tool"]);
+const TOOL_AVAILABILITY = Object.freeze({
+  ALWAYS: "always",
+  PREPARE: "research.prepare",
+  SUBMIT: "research.submit",
+  NEVER: "never",
 });
 
 export const MAX_EVIDENCE_BYTES = 16 * 1024 * 1024;
@@ -141,6 +154,34 @@ function failClosedMutation(name) {
   );
 }
 
+function toolIsAvailable(definition, capabilities) {
+  const availability = definition.availability ?? TOOL_AVAILABILITY.ALWAYS;
+  if (availability === TOOL_AVAILABILITY.ALWAYS) return true;
+  if (availability === TOOL_AVAILABILITY.PREPARE) return capabilities.research.prepare === true;
+  if (availability === TOOL_AVAILABILITY.SUBMIT) return capabilities.research.submit === true;
+  return false;
+}
+
+function assertToolAvailable(definition, capabilities) {
+  if (toolIsAvailable(definition, capabilities)) return;
+  if ((definition.availability ?? TOOL_AVAILABILITY.ALWAYS) === TOOL_AVAILABILITY.NEVER) {
+    return failClosedMutation(definition.name);
+  }
+  throw new McpToolError(
+    `${definition.name} is not advertised by the live EviMesh capability manifest`,
+    "MCP_CAPABILITY_UNAVAILABLE",
+  );
+}
+
+export async function loadToolCapabilities(client) {
+  try {
+    if (typeof client?.capabilities?.get !== "function") return FALLBACK_PUBLIC_CAPABILITIES;
+    return normalizePublicCapabilities(await client.capabilities.get());
+  } catch {
+    return FALLBACK_PUBLIC_CAPABILITIES;
+  }
+}
+
 function legacySubmissionPlan(document, options = {}) {
   validateToolDocument(document);
   if (document.schema === "srp.run.v1") assertCanonicalRunDocument(document);
@@ -213,7 +254,7 @@ const TOOL_DEFINITIONS = [
       type: "object",
       required: ["kind"],
       properties: {
-        kind: { type: "string", enum: Object.keys(TYPED_RESEARCH_KINDS) },
+        kind: { type: "string", enum: BROWSABLE_TYPED_KINDS },
         projectId: STRING,
         state: STRING,
         stance: STRING,
@@ -240,7 +281,7 @@ const TOOL_DEFINITIONS = [
     name: "inspect_typed_research_node",
     description: "Read one typed research node and its immutable current revision.",
     write: false,
-    inputSchema: { type: "object", required: ["kind", "id"], properties: { kind: { type: "string", enum: Object.keys(TYPED_RESEARCH_KINDS) }, id: STRING } },
+    inputSchema: { type: "object", required: ["kind", "id"], properties: { kind: { type: "string", enum: BROWSABLE_TYPED_KINDS }, id: STRING } },
     outputSchema: { type: "object", required: ["detail"], properties: { detail: OBJECT } },
     run: async ({ client, args }) => {
       const definition = typedResearchKind(requiredArg(args.kind, "kind"));
@@ -262,17 +303,18 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: "prepare_typed_research_submission",
-    description: "Prepare canonical signing bytes for a named human publisher. The Agent receives no private key and cannot sign the result.",
+    availability: TOOL_AVAILABILITY.PREPARE,
+    description: "Prepare canonical signing bytes for the human publisher (in public mode the server binds the Agent's owner; publisherActorId is optional and must match). The Agent receives no private key and cannot sign the result.",
     write: false,
-    inputSchema: { type: "object", required: ["kind", "document", "publisherActorId"], properties: { kind: { type: "string", enum: Object.keys(TYPED_RESEARCH_KINDS) }, document: OBJECT, publisherActorId: STRING, nonce: STRING } },
+    inputSchema: { type: "object", required: ["kind", "document"], properties: { kind: { type: "string", enum: Object.keys(TYPED_RESEARCH_KINDS) }, document: OBJECT, publisherActorId: STRING, nonce: STRING } },
     outputSchema: { type: "object", required: ["prepared"], properties: { prepared: OBJECT } },
     run: async ({ client, args }) => {
       const kind = requiredArg(args.kind, "kind");
       const definition = validateTypedResearchDocument(kind, requiredObject(args.document, "document"));
       const route = typedSubmissionRoute(args.document);
-      const prepared = await client[definition.resource].prepare({
+      const prepared = await client[definition.resource][definition.prepare]({
         ...typedDocToApi(args.document),
-        publisherActorId: requiredArg(args.publisherActorId, "publisherActorId"),
+        ...(args.publisherActorId ? { publisherActorId: args.publisherActorId } : {}),
         nonce: args.nonce ?? createNonce(),
       });
       return ok({ kind: route.kind, prepared });
@@ -280,6 +322,7 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: "submit_typed_research_submission",
+    availability: TOOL_AVAILABILITY.SUBMIT,
     description: "Relay an externally human-signed typed research submission. confirm:true gates the network write but can never replace signatureEnvelope.",
     write: true,
     inputSchema: { type: "object", required: ["kind", "document", "signatureEnvelope"], properties: { kind: { type: "string", enum: Object.keys(TYPED_RESEARCH_KINDS) }, document: OBJECT, signatureEnvelope: OBJECT, confirm: BOOLEAN } },
@@ -295,7 +338,7 @@ const TOOL_DEFINITIONS = [
       const route = typedSubmissionRoute(args.document);
       const summary = { action: "relay an externally signed typed research submission", kind, route: route.path, signingBytesHash: signatureEnvelope.signing_bytes_hash ?? null };
       if (args.confirm !== true) return consentResult("submit_typed_research_submission", summary);
-      const response = await client[definition.resource].submit({ ...typedDocToApi(args.document), signatureEnvelope });
+      const response = await client[definition.resource][definition.submit]({ ...typedDocToApi(args.document), signatureEnvelope });
       return ok({ submitted: true, response });
     },
   },
@@ -347,6 +390,7 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: "start_attempt",
+    availability: TOOL_AVAILABILITY.NEVER,
     description: "Compatibility placeholder. Attempt mutation is fail-closed until a canonical external-envelope API flow exists.",
     write: true,
     inputSchema: {
@@ -369,6 +413,7 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: "record_trace",
+    availability: TOOL_AVAILABILITY.NEVER,
     description: "Compatibility placeholder. Trace mutation is fail-closed until a canonical external-envelope API flow exists.",
     write: true,
     inputSchema: {
@@ -432,6 +477,7 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: "attach_evidence",
+    availability: TOOL_AVAILABILITY.NEVER,
     description: "Validate and hash provided content locally. Evidence publication is fail-closed until a canonical external-envelope API flow exists.",
     write: true,
     inputSchema: {
@@ -466,6 +512,7 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: "record_run",
+    availability: TOOL_AVAILABILITY.NEVER,
     description: "Compatibility placeholder. Run production requires an external producer signature and is fail-closed in MCP.",
     write: true,
     inputSchema: {
@@ -520,6 +567,7 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: "prepare_submission",
+    availability: TOOL_AVAILABILITY.NEVER,
     description: "Prepare canonical signing bytes for a Claim, Run, Challenge, or VerificationReceipt. This is local and never signs the payload.",
     write: false,
     inputSchema: {
@@ -542,6 +590,7 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: "publish_submission",
+    availability: TOOL_AVAILABILITY.NEVER,
     description: "Relay one externally human-signed Claim, Run, or Challenge. confirm:true gates the write but never signs the payload.",
     write: true,
     inputSchema: { type: "object", required: ["document", "signatureEnvelope"], properties: { document: OBJECT, signatureEnvelope: OBJECT, confirm: BOOLEAN } },
@@ -558,6 +607,7 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: "submit_verification",
+    availability: TOOL_AVAILABILITY.NEVER,
     description: "Relay one externally human-signed VerificationReceipt. confirm:true gates the write but never signs the payload.",
     write: true,
     inputSchema: { type: "object", required: ["document", "runId", "signatureEnvelope"], properties: { document: OBJECT, runId: STRING, signatureEnvelope: OBJECT, confirm: BOOLEAN } },
@@ -583,6 +633,7 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: "submit_challenge",
+    availability: TOOL_AVAILABILITY.NEVER,
     description: "Relay one externally human-signed Challenge against a fixed ClaimRevision. confirm:true never signs the payload.",
     write: true,
     inputSchema: { type: "object", required: ["document", "signatureEnvelope"], properties: { document: OBJECT, signatureEnvelope: OBJECT, confirm: BOOLEAN } },
@@ -638,16 +689,23 @@ const TOOL_DEFINITIONS = [
   },
 ];
 
-export function listTools() {
+export function listTools({ capabilities = FALLBACK_PUBLIC_CAPABILITIES } = {}) {
+  const manifest = normalizePublicCapabilities(capabilities);
   return {
-    tools: TOOL_DEFINITIONS.map(({ name, description, inputSchema, outputSchema }) => ({ name, description, inputSchema, outputSchema })),
+    tools: TOOL_DEFINITIONS
+      .filter((definition) => toolIsAvailable(definition, manifest))
+      .map(({ name, description, inputSchema, outputSchema }) => ({ name, description, inputSchema, outputSchema })),
   };
 }
 
-export async function callTool({ client, name, args = {}, env = process.env }) {
+export async function callTool({ client, name, args = {}, env = process.env, capabilities = null }) {
   const definition = TOOL_DEFINITIONS.find((tool) => tool.name === name);
   if (!definition) throw new McpToolError(`unknown tool: ${name}`, "MCP_TOOL_NOT_FOUND");
   try {
+    const manifest = capabilities === null
+      ? await loadToolCapabilities(client)
+      : normalizePublicCapabilities(capabilities);
+    assertToolAvailable(definition, manifest);
     const result = await definition.run({ client, args, env });
     return { ...result, content: result.content ?? jsonContent(result.structuredContent) };
   } catch (error) {
@@ -659,10 +717,12 @@ export async function callTool({ client, name, args = {}, env = process.env }) {
   }
 }
 
-export function toolNames() {
-  return TOOL_DEFINITIONS.map((tool) => tool.name);
+export function toolNames(capabilities = FALLBACK_PUBLIC_CAPABILITIES) {
+  const manifest = normalizePublicCapabilities(capabilities);
+  return TOOL_DEFINITIONS.filter((tool) => toolIsAvailable(tool, manifest)).map((tool) => tool.name);
 }
 
-export function writeToolNames() {
-  return TOOL_DEFINITIONS.filter((tool) => tool.write).map((tool) => tool.name);
+export function writeToolNames(capabilities = FALLBACK_PUBLIC_CAPABILITIES) {
+  const manifest = normalizePublicCapabilities(capabilities);
+  return TOOL_DEFINITIONS.filter((tool) => tool.write && toolIsAvailable(tool, manifest)).map((tool) => tool.name);
 }

@@ -42,12 +42,12 @@ test("contributions renders on the server page template", () => {
   assert.match(contributions, /titleClassName="sm:max-w-none sm:whitespace-nowrap"/);
 });
 
-test("tools keeps the instrument index title on one desktop line", () => {
-  assert.match(tools, /title="Methods you can inspect\."/);
-  assert.match(tools, /titleClassName="sm:max-w-none sm:whitespace-nowrap"/);
+test("tools uses a plain noun title", () => {
+  assert.match(tools, /title="Tools"/);
+  assert.doesNotMatch(tools, /Methods you can inspect/);
 });
 
-test("explore keeps the long index title fitted on desktop", () => {
-  assert.match(explore, /title="Follow the research, object by object\."/);
-  assert.match(explore, /titleClassName="lg:max-w-none lg:whitespace-nowrap lg:text-\[clamp\(2\.75rem,5vw,5\.25rem\)\]"/);
+test("explore uses a plain noun title", () => {
+  assert.match(explore, /title="Explore"/);
+  assert.doesNotMatch(explore, /Follow the research, object by object/);
 });

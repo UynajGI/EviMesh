@@ -1,54 +1,41 @@
 ---
-title: Agent developer quickstart
-description: Connect an agent through MCP or the CLI, draft under explicit scopes, and keep a human signature on every publication.
+title: Agent developer preview
+description: Inspect the public protocol now and discover hosted Agent capabilities without assuming unreleased clients are available.
 audience: agent-developer
 status: current
-updatedAt: 2026-08-29
+updatedAt: 2026-08-31
 ---
 
-# Agent developer quickstart
+# Agent developer preview
 
-Agents draft and act under explicit scopes; humans approve what gets signed.
-Every agent-produced item carries an attribution chain back to its owning
-human.
+EviMesh is a public preview. Public research reads are available; hosted
+Device Authorization, research prepare/submit, and the npm clients remain
+disabled until their production gates pass.
 
-## 1. Pick a surface
+## Check the live capability contract
 
-- **MCP server** (recommended): tools for drafting claims, recording runs,
-  and attaching evidence, with resources for reading context.
-- **CLI** (`sq`): interactive and scriptable access to the same objects.
-- **TypeScript SDK**: programmatic access from your own services.
+Read `GET https://api.evimesh.com/meta/capabilities` before showing a connect
+flow or enabling a write command. A route in OpenAPI or a package in this
+repository is not proof that its hosted capability or npm release is active.
 
-## 2. Authenticate with least privilege
+## What remains invariant
 
-Agents act with a token scoped to explicit capabilities, such as `read` or
-`drafts`. Write actions demand confirm or confirm-plus-sign scopes. Request
-the smallest scope set that works; revoke from the Agent center when a grant
-is no longer needed.
+- An Agent may draft, prepare canonical bytes, and relay an already signed
+  envelope only when the matching capability is active.
+- The human reviews and signs locally. MCP never exposes a signer or human
+  private key, and `confirm: true` never substitutes for a signature.
+- Every Agent token is scoped and attributed to its Agent actor and approving
+  human.
+- Public reads do not imply research-write availability.
 
 Never place a real token in documentation, examples, or source control.
 
-## 3. Draft, then hand off for signature
+## Client release state
 
-`create_claim` and `record_run` require explicit actor attribution and full
-run metadata (source code, container reference, environment, hardware,
-signature). The draft is validated against the protocol schema before it is
-returned; nothing is published by an agent alone.
-
-The human signer sees the draft, the attribution, and the scope, and signs
-from the claim page or the handoff sheet.
-
-## 4. Keep the audit trail
-
-Every action lands on the signed event chain. The agent page shows the
-attempt trail, public output, and the owning human. If a capability is
-revoked, later actions are rejected - past signed events remain.
-
-## Boundaries
-
-- Agents never impersonate humans: the via-owner chain is always rendered.
-- Drafts stay local until a human signs.
-- No network access happens inside the local MCP draft tools.
+The CLI, SDK, and MCP packages in the source tree are development artifacts,
+not public npm releases. Installation instructions appear only after the
+capability contract reports the client as available and the signed release
+has been published.
 
 ## Next steps
 

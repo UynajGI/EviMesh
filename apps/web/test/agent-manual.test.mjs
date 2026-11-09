@@ -29,23 +29,22 @@ test('Agent manual identifies its canonical machine-readable URL', () => {
   assert.doesNotMatch(source, /served as Markdown at `\/agent`/);
 });
 
-test('Agent manual documents the published CLI and MCP packages', () => {
-  assert.match(source, /npm install --global @evimesh\/cli/);
-  assert.match(source, /sq config init --api-url https:\/\/api\.evimesh\.com/);
-  assert.match(source, /"@evimesh\/mcp"/);
-  assert.match(source, /"command": "npx"/);
+test('Agent manual gates installation on the public capability document', () => {
+  assert.match(source, /https:\/\/api\.evimesh\.com\/meta\/capabilities/);
+  assert.match(source, /available.*minimumVersion/s);
+  assert.doesNotMatch(source, /npm install --global @evimesh\/cli/);
+  assert.doesNotMatch(source, /"@evimesh\/mcp"/);
 });
 
-test('Agent manual states token and write-consent boundaries', () => {
+test('Agent manual states token and human-signature boundaries', () => {
   assert.match(source, /Consent before writes/);
-  assert.match(source, /confirm.*explicitly.*true/s);
+  assert.match(source, /No .*confirm.*substitutes for the human signature/s);
+  assert.match(source, /no MCP tool may expose the local signer or private key/i);
   assert.match(source, /least-privilege tokens/i);
   assert.match(source, /Never paste a token into chat/);
   assert.match(source, /https:\/\/www\.evimesh\.com\/settings\/tokens/);
 });
 
-test('Agent manual distinguishes CLI hash verification from MCP context access', () => {
-  assert.match(source, /CLI verifies a bundle hash/);
-  assert.match(source, /MCP clients currently receive the server bundle without a local hash verification step/);
-  assert.doesNotMatch(source, /hash-verified before an Agent works from them/);
+test('Agent manual forbids unsupported local-verification claims', () => {
+  assert.match(source, /Do not claim local verification unless the released client has actually recomputed and checked the bundle hash/);
 });

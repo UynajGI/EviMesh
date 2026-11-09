@@ -1,25 +1,31 @@
 import { parseArgs } from "./args.mjs";
 import * as output from "./output.mjs";
-import { configInit, authLogin, identityGenerate } from "./commands-setup.mjs";
+import { authLogin, configInit, identityGenerate, keyCreate, keyExportPublic, keyList, keyRevokeLocal } from "./commands-setup.mjs";
 import { projectList, questionList, taskList, taskInspect, graphInspect, provenance } from "./commands-read.mjs";
 import { contextPull, attemptStart } from "./commands-context.mjs";
 import { claimCreate, runRecord, evidenceAdd, validate, submit, challengeCreate } from "./commands-write.mjs";
 import { verifyCheckout, verifySubmit, bundleVerify } from "./commands-verify.mjs";
 import { researchDraft, researchPrepare, researchSign, researchSubmit } from "./commands-research.mjs";
+import { capabilitiesCommand } from "./capabilities.mjs";
 
 const COMMANDS = Object.freeze({
   "config init": { run: configInit, summary: "Write the CLI configuration file" },
-  "auth login": { run: authLogin, summary: "Authenticate and store a limited API token" },
-  "identity generate": { run: identityGenerate, summary: "Generate an Ed25519 signing identity" },
+  capabilities: { run: capabilitiesCommand, summary: "Show the live public capability manifest (use --json for machines)" },
+  "auth login": { run: authLogin, summary: "Capability-gated Device Auth, or store an existing token with --token" },
+  "key create": { run: keyCreate, summary: "Create a passphrase-encrypted local Ed25519 key" },
+  "key list": { run: keyList, summary: "List public metadata for local signing keys" },
+  "key export-public": { run: keyExportPublic, summary: "Export public key material for account registration" },
+  "key revoke-local": { run: keyRevokeLocal, summary: "Remove this machine's encrypted copy of one key" },
+  "identity generate": { run: identityGenerate, summary: "Compatibility alias for key create" },
   "project list": { run: projectList, summary: "List projects" },
   "question list": { run: questionList, summary: "List open questions (supports --field/--state/--project)" },
   "task list": { run: taskList, summary: "List tasks (supports --status/--tag/--type)" },
   "task inspect": { run: taskInspect, summary: "Show one task with dependencies and leases" },
   "graph inspect": { run: graphInspect, summary: "Inspect a typed research neighborhood (supports --direction/--depth/--kinds/--edge-types)" },
-  "research draft": { run: researchDraft, summary: "Write an Answer/Rebuttal/Evaluation/Dataset/Tool draft" },
-  "research prepare": { run: researchPrepare, summary: "Resolve and prepare canonical typed research signing bytes" },
+  "research draft": { run: researchDraft, summary: "Write a Question/Claim/Answer/Rebuttal/Evaluation/Dataset/Tool draft" },
+  "research prepare": { run: researchPrepare, summary: "Capability-gated canonical typed research prepare" },
   "research sign": { run: researchSign, summary: "Human-local signing step for a prepared typed submission" },
-  "research submit": { run: researchSubmit, summary: "Submit an already externally signed typed research object" },
+  "research submit": { run: researchSubmit, summary: "Capability-gated relay of an externally signed typed research object" },
   "context pull": { run: contextPull, summary: "Download and hash-verify one Task ContextBundle" },
   "attempt start": { run: attemptStart, summary: "Attempt mutation disabled until external-envelope flow is available" },
   "claim create": { run: claimCreate, summary: "Write a Claim draft template" },
@@ -49,7 +55,9 @@ Global flags:
   --help               Show this help
 
 Configuration lives in ~/.evimesh (override with EVIMESH_CONFIG_DIR).
-Run \`sq config init\` first, then \`sq auth login\` or \`sq identity generate\`.
+Private signing keys never leave this machine. Run \`sq key create\`, then register
+the exported public key in your EviMesh account.
+Server-dependent commands fail closed unless \`sq capabilities\` advertises them.
 `;
 
 function resolveCommand(command, positionals) {
@@ -61,7 +69,7 @@ function resolveCommand(command, positionals) {
   return { name: null, rest: positionals };
 }
 
-export async function runCli(argv, { env = process.env, fetchImpl } = {}) {
+export async function runCli(argv, { env = process.env, fetchImpl, testInteraction = null, testKeyStoreOptions = {} } = {}) {
   const io = {
     emit: (options, data, human) => output.emit(options, data, human),
   };
@@ -78,7 +86,7 @@ export async function runCli(argv, { env = process.env, fetchImpl } = {}) {
   }
   const entry = COMMANDS[resolved.name];
   try {
-    return await entry.run({ flags, positionals: resolved.rest, output: io, env, fetchImpl }) ?? 0;
+    return await entry.run({ flags, positionals: resolved.rest, output: io, env, fetchImpl, testInteraction, testKeyStoreOptions }) ?? 0;
   } catch (error) {
     output.fail({ json: flags.json === true }, error);
     return 1;

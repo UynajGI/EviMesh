@@ -45,7 +45,8 @@ test('login offers magic link, password, and account creation', () => {
   assert.match(login, /auth\.signUp/);
   assert.match(login, /Create account/);
   assert.match(login, /New to EviMesh?/);
-  assert.match(login, /Create an account →/);
+  assert.match(login, /'Create an account'/);
+  assert.doesNotMatch(login, /→/);
   assert.match(login, /disabled=\{pending !== null\}/);
 });
 

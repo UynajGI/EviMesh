@@ -13,14 +13,14 @@ test("feedback primitives export Alert, Empty, ErrorState, and Skeleton", () => 
 
 test("feedback primitives use semantic tokens, not hardcoded colors", () => {
   assert.doesNotMatch(source, /\b(indigo|slate)\b|#[0-9a-f]{6}/i, "feedback primitives must not hardcode colors");
-  for (const token of ["border-info", "border-success", "border-warning", "border-destructive", "bg-primary", "bg-muted"]) {
+  for (const token of ["border-status-info-border", "border-status-success-border", "border-status-warning-border", "border-status-danger-border", "bg-primary", "bg-muted"]) {
     assert.match(source, new RegExp(token), `missing ${token}`);
   }
 });
 
 test("Alert covers all four status variants", () => {
   for (const variant of ["info", "success", "warning", "destructive"]) {
-    assert.match(source, new RegExp(`${variant}: 'border-${variant} text-${variant}'`), `missing ${variant} alert variant`);
+    assert.match(source, new RegExp(`${variant}: 'border-status-`), `missing ${variant} alert variant`);
   }
   assert.match(source, /role="alert"/);
 });
@@ -28,7 +28,9 @@ test("Alert covers all four status variants", () => {
 test("ErrorState and Empty expose recovery and empty patterns", () => {
   assert.match(source, /onRetry/);
   assert.match(source, /retryLabel = 'Try again'/);
-  assert.match(source, /border-dashed border-border/);
+  // Empty and error states read as document notes: a ruled block, not a dashed tile.
+  assert.match(source, /border-y py-5/);
+  assert.doesNotMatch(source, /border-dashed/);
 });
 
 test("feedback primitives omit competitive meter patterns", () => {

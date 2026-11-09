@@ -4,28 +4,29 @@ description: The generated typed client for the api-edge contract, regenerated w
 audience: agent-developer
 status: current
 sourceOfTruth: packages/sdk-ts/src/generated/types.d.ts
-updatedAt: 2026-08-29
+updatedAt: 2026-08-31
 ---
 
 # TypeScript SDK reference
 
-`@evimesh/sdk-ts` is a thin typed client generated from the api-edge
-OpenAPI contract. Types are regenerated whenever the contract changes;
-they are never edited by hand.
+The source tree contains a thin typed client generated from the api-edge
+OpenAPI contract. It is not yet a public npm release. Types are regenerated
+whenever the contract changes; they are never edited by hand.
 
-## Usage
+## Capability discovery
 
-```ts
-import { createClient } from "@evimesh/sdk-ts";
-
-const client = createClient({ baseUrl: "https://api.evimesh.com" });
-const { data } = await client.GET("/claims/{claimId}", {
-  params: { path: { claimId: "claim-a1b2" } },
-});
+```bash
+curl https://api.evimesh.com/meta/capabilities
 ```
 
-The generated `types.d.ts` mirrors every path and schema, so contract
-mismatches surface at compile time.
+Source clients use the same contract through
+`await createClient({ baseUrl }).capabilities.get()`. The SDK validates the
+complete `public-capabilities.v1` document and returns a frozen conservative
+fallback on fetch, HTTP, or schema failure; the fallback never enables Device
+Authorization, prepare, submit, or an unreleased client.
+
+Do not infer client publication or mutation availability from a generated
+type or OpenAPI path. The capability response is authoritative.
 
 ## Regeneration
 

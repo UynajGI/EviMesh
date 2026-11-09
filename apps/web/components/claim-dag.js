@@ -12,8 +12,8 @@ import {
   ReactFlowProvider, SelectionMode, useNodesState,
 } from '@xyflow/react';
 import {
-  BookOpen, Database, Focus, GitBranch, Hand, Maximize2, Minimize2,
-  MousePointer2, Play, Scan, ShieldCheck,
+  BookOpen, Database, GitBranch, Hand, Maximize2, Minimize2,
+  MousePointer2, Play, ShieldCheck,
 } from 'lucide-react';
 import '@xyflow/react/dist/style.css';
 import { Select } from '@/components/ui/selection';
@@ -265,7 +265,7 @@ function GraphCanvas({ edges, nodes, onFlowReady, onSelect, reducedMotion, selec
       >
         <Background color="var(--evimesh-border)" gap={32} size={1} />
         <Controls aria-label="Graph viewport controls" className="dag-controls" fitViewOptions={{ duration: reducedMotion ? 0 : 280, padding: 0.2 }} orientation="horizontal" showInteractive={false} />
-        <MiniMap ariaLabel="Research graph overview" className="dag-minimap" maskColor="var(--evimesh-background)" nodeColor="var(--evimesh-primary)" pannable zoomable />
+        {nodes.length > 8 ? <MiniMap ariaLabel="Research graph overview" className="dag-minimap" maskColor="var(--evimesh-background)" nodeColor="var(--evimesh-muted-foreground)" pannable zoomable /> : null}
       </ReactFlow>
     </div>
   );
@@ -286,8 +286,8 @@ function RelationshipGroup({ heading, items, onSelect, selectedNodeKey }) {
   }, [items]);
   return (
     <section className="relationship-group">
-      <h3>{heading}<span className="tabular-nums">{String(items.length).padStart(2, '0')}</span></h3>
-      {items.length === 0 ? <p className="relationship-empty">No direct {heading.toLowerCase()} relations in this filtered view.</p> : (
+      <h3>{heading}<span className="tabular-nums">{items.length}</span></h3>
+      {items.length === 0 ? <p className="relationship-empty">None.</p> : (
         grouped.map(([type, byRelation]) => <div className="relationship-type" key={type}>
           <h4>{readable(type)}</h4>
           {[...byRelation.entries()].sort(([left], [right]) => left.localeCompare(right)).map(([relation, rows]) => <div className="relationship-relation" key={relation}>
@@ -307,10 +307,11 @@ function RelationshipGroup({ heading, items, onSelect, selectedNodeKey }) {
   );
 }
 
-function RelationshipIndex({ complete, edges, nodes, onSelect, selectedNode }) {
+function RelationshipIndex({ complete, edges, nodes, onSelect, selectedNode, rootKey }) {
+  const isRoot = Boolean(selectedNode && rootKey && selectedNode.key === rootKey);
   const relations = useMemo(() => relationshipsForSelection(nodes, edges, selectedNode?.key), [edges, nodes, selectedNode?.key]);
   const topology = !complete
-    ? 'Topology unknown / bounded view'
+    ? 'Bounded view'
     : relations.upstream.length === 0
       ? 'Root'
       : relations.downstream.length === 0
@@ -319,14 +320,14 @@ function RelationshipIndex({ complete, edges, nodes, onSelect, selectedNode }) {
   return (
     <aside aria-label="Relationship Index" className="relationship-index">
       <header className="relationship-index__selected">
-        <span>SELECTED NODE REVISION</span>
-        <strong>{selectedNode?.label ?? 'Select an object'}</strong>
-        {selectedNode ? <p><span>{readable(selectedNode.type)}</span><code>{selectedNode.id}@r{selectedNode.revision}</code><span>{topology}</span></p> : <p>Graph and index share selection.</p>}
-        {selectedNode?.canonicalHref ? <Link className="relationship-index__detail" href={selectedNode.canonicalHref}>Open full detail <span aria-hidden="true">→</span></Link> : null}
+        <span>Selected</span>
+        <strong>{isRoot ? `This ${readable(selectedNode.type)}` : (selectedNode?.label ?? 'Select an object')}</strong>
+        {selectedNode ? <p><span>{readable(selectedNode.type)}</span><code>{selectedNode.id}@r{selectedNode.revision}</code><span>{topology}</span></p> : <p>Nothing selected.</p>}
+        {selectedNode?.canonicalHref && !isRoot ? <Link className="relationship-index__detail" href={selectedNode.canonicalHref}>Open full detail</Link> : null}
       </header>
       {selectedNode ? <><RelationshipGroup heading="Upstream" items={relations.upstream} onSelect={onSelect} selectedNodeKey={selectedNode.key} /><RelationshipGroup heading="Downstream" items={relations.downstream} onSelect={onSelect} selectedNodeKey={selectedNode.key} /></> : null}
       <details className="relationship-all">
-        <summary>All visible objects <span className="tabular-nums">{String(nodes.length).padStart(2, '0')}</span></summary>
+        <summary>All visible objects <span className="tabular-nums">{nodes.length}</span></summary>
         <ul>{nodes.map((node) => <li key={node.key}><button aria-pressed={selectedNode?.key === node.key} onClick={() => onSelect(node.key)} type="button"><span>{readable(node.type)}</span><strong>{node.label}</strong><code>{node.id}@r{node.revision}</code></button></li>)}</ul>
       </details>
     </aside>
@@ -369,21 +370,20 @@ export function ResearchNeighborhood({ direction: controlledDirection, elements,
   };
 
   return (
-    <section aria-label="Interactive research neighborhood" className="dag-workspace">
-      <header className="dag-heading"><div><p>LOCAL RESEARCH NEIGHBORHOOD</p><h2>Graph + Relationship Index</h2></div><p>One normalized node and edge model. Selection and filters stay synchronized across both surfaces.</p></header>
+    <figure aria-label="Interactive research neighborhood" className="dag-workspace">
+      <figcaption className="dag-heading"><h2>Graph + Relationship Index</h2><div aria-label="Edge families" className="dag-legend">{Object.entries(EDGE_FAMILY_STYLES).map(([family, style]) => <span key={family}><i style={{ borderTopColor: relationColor(family), borderTopStyle: style.dash === 'none' ? 'solid' : 'dashed', borderTopWidth: style.width }}></i>{style.label}</span>)}</div></figcaption>
       <div className="dag-toolbar">
         <label><span>Direction</span><Select onChange={(event) => updateDirection(event.target.value)} value={direction}><option value="both">Both</option><option value="upstream">Upstream</option><option value="downstream">Downstream</option></Select></label>
         <label><span>Depth</span><Select onChange={(event) => setMaxDepth(Number(event.target.value))} value={maxDepth}>{[1, 2, 3].map((depth) => <option key={depth} value={depth}>{depth}</option>)}</Select></label>
         <label><span>Type</span><Select onChange={(event) => setTypeFilter(event.target.value)} value={typeFilter}><option value="">All types</option>{types.map((type) => <option key={type} value={type}>{readable(type)}</option>)}</Select></label>
         <label><span>State</span><Select onChange={(event) => setStateFilter(event.target.value)} value={stateFilter}><option value="">All states</option>{states.map((state) => <option key={state} value={state}>{readable(state)}</option>)}</Select></label>
-        <div className="dag-toolbar__actions"><button onClick={() => flowApi?.fitView({ duration: reducedMotion ? 0 : 260, padding: 0.2 })} type="button"><Scan aria-hidden="true" size={14} />Fit</button><button disabled={!selectedNode} onClick={focusSelected} type="button"><Focus aria-hidden="true" size={14} />Focus</button></div>
+        <div className="dag-toolbar__actions"><button onClick={() => flowApi?.fitView({ duration: reducedMotion ? 0 : 260, padding: 0.2 })} type="button">Fit</button><button disabled={!selectedNode} onClick={focusSelected} type="button">Focus</button></div>
       </div>
       <div className="dag-split">
         <ReactFlowProvider><GraphCanvas edges={filtered.edges} nodes={filtered.nodes} onFlowReady={setFlowApi} onSelect={setSelectedKey} reducedMotion={reducedMotion} selectedNodeKey={selectedNode?.key} /></ReactFlowProvider>
-        <RelationshipIndex complete={filtered.complete} edges={filtered.edges} nodes={filtered.nodes} onSelect={setSelectedKey} selectedNode={selectedNode} />
+        <RelationshipIndex complete={filtered.complete} edges={filtered.edges} nodes={filtered.nodes} onSelect={setSelectedKey} rootKey={rootKey} selectedNode={selectedNode} />
       </div>
-      <footer className="dag-legend"><div>{Object.entries(EDGE_FAMILY_STYLES).map(([family, style]) => <span key={family}><i style={{ borderTopColor: relationColor(family), borderTopStyle: style.dash === 'none' ? 'solid' : 'dashed', borderTopWidth: style.width }}></i>{style.label}</span>)}</div><p>Local movement changes only this viewport. Research relations remain read-only.</p></footer>
-    </section>
+    </figure>
   );
 }
 

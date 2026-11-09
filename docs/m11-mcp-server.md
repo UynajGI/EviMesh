@@ -34,18 +34,33 @@ non-terminal states; frontier sequence reads resolve through the history page.
 Read-only: `search_open_tasks`, `get_task_context`, `validate_submission`,
 `inspect_provenance`, `verify_inclusion_proof`.
 
-Write tools, all gated by explicit consent: `start_attempt`, `record_trace`,
-`create_claim`, `attach_evidence`, `record_run`, `publish_submission`,
-`submit_verification`, `submit_challenge`. Draft producers (`create_claim`,
-`record_run`) never touch the network. `attach_evidence` hashes the content and
-uploads via the signed plan. The three publishing tools validate the document,
-sign it with the shared `~/.evimesh` Ed25519 identity as a
-`srp.client-signature-envelope.v1` envelope, then submit through the SDK.
+The current server always exposes typed graph inspection plus local draft and
+validation tools. It discovers `GET /meta/capabilities` through the SDK before
+each tool listing. Typed prepare appears only with `research.prepare=true` and
+returns server-issued canonical signing bytes/hash for human review; it does
+not sign. Typed submit appears only with `research.submit=true`, accepts only an
+externally supplied `srp.client-signature-envelope.v1`, and relays it after
+explicit network consent. Fetch or schema failure uses the conservative
+fallback and advertises neither operation; `tools/call` repeats the same check.
+
+`start_attempt`, `record_trace`, `attach_evidence`, `record_run`, and the legacy
+prepare/publish/verification/challenge relay tools remain unadvertised and
+fail-closed on direct calls until their types expose canonical server prepare
+plus externally signed submit flows. `create_claim` creates an attributed
+local Agent draft only.
 
 ## Safety (M11-23..25)
 
-- Every write tool returns a `consent_required` structured error with a planned-
-  action summary unless called with `confirm: true` (M11-23).
+- Every advertised network-write tool returns a `consent_required` structured
+  error with a planned-action summary unless called with `confirm: true`
+  (M11-23). Hidden legacy tools fail before consent and never reach a network
+  mutation.
+- `confirm: true` only authorizes the described network mutation. It cannot
+  create, replace, or bypass a human signature envelope.
+- MCP contains no signer, no human private-key access or storage, no
+  `research:sign` scope, and no general shell/command-execution tool. Human
+  signing is exclusively the interactive local CLI command `sq research sign`;
+  the private key never enters the MCP process.
 - Every tool declares an `inputSchema` and `outputSchema` and returns
   `structuredContent`, so outputs are machine-checkable (M11-24).
 - `test/audit.test.mjs` asserts tool names, argument keys, and resource URIs
