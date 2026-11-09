@@ -19,10 +19,10 @@ export function AdmissionSessionBoundary({ children, returnTo = '/settings' }) {
     return <div aria-busy="true" aria-label="Loading account session" className="mt-8 grid gap-3"><Skeleton className="h-11 w-full max-w-xl" /><Skeleton className="h-40 w-full" /></div>;
   }
   if (auth.status === 'expired') {
-    return <DeniedState className="mt-8" title="Session expired" description="Sign in again before changing account or project access." scope="authenticated human session" action={<SignInLink returnTo={returnTo} />} />;
+    return <DeniedState className="mt-8" title="Session expired" description="Sign in again to continue." action={<SignInLink returnTo={returnTo} />} />;
   }
   if (auth.status === 'anonymous') {
-    return <DeniedState className="mt-8" title="Sign in required" description="Account and project access settings belong to your authenticated profile." scope="authenticated human session" action={<SignInLink returnTo={returnTo} />} />;
+    return <DeniedState className="mt-8" title="Sign in required" description="" action={<SignInLink returnTo={returnTo} />} />;
   }
   if (auth.status === 'error') {
     return <ErrorState className="mt-8" title="Session unavailable" message={auth.error} onRetry={() => window.location.reload()} />;
@@ -34,7 +34,7 @@ export function AdmissionSessionBoundary({ children, returnTo = '/settings' }) {
 export function AdmissionFault({ error, onRetry, className = 'mt-6' }) {
   if (!error) return null;
   if (error.status === 401) {
-    return <DeniedState className={className} title="Session expired" description={error.message} scope="authenticated human session" action={<SignInLink returnTo={typeof window === 'undefined' ? '/settings' : window.location.pathname} />} />;
+    return <DeniedState className={className} title="Session expired" description="Sign in again to continue." action={<SignInLink returnTo={typeof window === 'undefined' ? '/settings' : window.location.pathname} />} />;
   }
   if (error.status === 403) {
     return <DeniedState className={className} title="Permission needed" description={error.message} scope="project role or verified account" />;
