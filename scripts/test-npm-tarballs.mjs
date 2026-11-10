@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -54,15 +54,49 @@ function runInstalled({ directory, label, command, args, input, expected }) {
   if (!output.includes(expected)) throw new Error(`${label} probe did not contain ${JSON.stringify(expected)}\n${output}`);
 }
 
+function auditInstalledMcp(directory) {
+  const distribution = readFileSync(join(directory, "node_modules", "@evimesh", "mcp", "dist", "evimesh-mcp.mjs"), "utf8");
+  for (const forbidden of [
+    "loadIdentity",
+    "privateKey",
+    "signSubmission",
+    "signEd25519",
+    "research:sign",
+    "node:child_process",
+    "execFile",
+    "spawnSync",
+  ]) {
+    if (distribution.includes(forbidden)) throw new Error(`mcp packed distribution contains forbidden signing or shell capability: ${forbidden}`);
+  }
+  for (const required of ["prepare_typed_research_submission", "submit_typed_research_submission", "signatureEnvelope"]) {
+    if (!distribution.includes(required)) throw new Error(`mcp packed distribution is missing the relay-only contract: ${required}`);
+  }
+}
+
+function auditInstalledCli(directory) {
+  const distribution = readFileSync(join(directory, "node_modules", "@evimesh", "cli", "dist", "sq.mjs"), "utf8");
+  for (const required of [
+    "legacy_plaintext_exposure",
+    "human publisher/signing actor",
+    "signingDigest.slice(0, 12)",
+    "updatePlaintext?.fill(0)",
+    "finalPlaintext?.fill(0)",
+  ]) {
+    if (!distribution.includes(required)) throw new Error(`cli packed distribution is missing a local-signing safety invariant: ${required}`);
+  }
+}
+
 try {
   const cliTarball = pack(resolve(repoRoot, "packages/cli"), "cli");
   const mcpTarball = pack(resolve(repoRoot, "apps/mcp"), "mcp");
   const cliDirectory = installPackage({ label: "cli", tarball: cliTarball });
+  auditInstalledCli(cliDirectory);
   runInstalled({ directory: cliDirectory, label: "cli", command: "sq", args: ["--help"], expected: "EviMesh research network CLI" });
   const documentPath = join(cliDirectory, "claim.json");
   run(npx, ["--no-install", "sq", "claim", "create", "--out", documentPath], { cwd: cliDirectory });
   runInstalled({ directory: cliDirectory, label: "cli schema", command: "sq", args: ["validate", documentPath, "--json"], expected: '"valid": true' });
   const mcpDirectory = installPackage({ label: "mcp", tarball: mcpTarball });
+  auditInstalledMcp(mcpDirectory);
   runInstalled({
     directory: mcpDirectory,
     label: "mcp",

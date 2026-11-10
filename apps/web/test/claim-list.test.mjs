@@ -5,19 +5,22 @@ import { readFile } from "node:fs/promises";
 /** M13.5-C08: the Claim list is scannable without relying on color alone. */
 const source = await readFile(new URL("../app/claims/page.js", import.meta.url), "utf8");
 
-test("claim list renders status as text badges, not color alone", () => {
-  assert.match(source, /Badge/);
+test("claim list renders status as text badges, not color alone", async () => {
+  // Controlled-document migration: the page-local stateVariant map gave way to
+  // the shared StatusBadge, whose protocol map lives in components/ui/data.js.
+  const data = await readFile(new URL("../components/ui/data.js", import.meta.url), "utf8");
+  assert.match(source, /StatusBadge/);
   assert.match(source, /claimState\(claim\)\.replaceAll\('_', ' '\)/);
-  assert.match(source, /stateVariant/);
+  assert.match(source, /'under_verification'/);
   for (const [state, variant] of [
-    ["accepted", "success"],
-    ["refuted", "destructive"],
-    ["under_verification", "warning"],
-    ["candidate", "info"],
+    ["accepted", "status-success"],
+    ["refuted", "emphasis-danger"],
+    ["under_verification", "status-accent"],
+    ["candidate", "status-info"],
   ]) {
-    assert.match(source, new RegExp(`'${state}'`), `missing ${state} in state map`);
-    assert.match(source, new RegExp(`return '${variant}'`), `missing ${variant} variant`);
+    assert.match(data, new RegExp(`${state}: '${variant}'`), `missing ${state} in shared state map`);
   }
+  assert.doesNotMatch(source, /rounded-(lg|md|full)/, "claim list uses ruled rows, not cards or pills");
 });
 
 test("claim list keeps the page template and recovery states", () => {

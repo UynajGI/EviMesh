@@ -106,12 +106,11 @@ test("tools/list exposes every research tool with schemas", async () => {
   const [response] = await roundtrip(handle, [rpc(1, "tools/list")]);
   const names = response.result.tools.map((tool) => tool.name).sort();
   assert.deepEqual(names, [
-    "attach_evidence", "browse_typed_research_nodes", "create_claim",
+    "browse_typed_research_nodes", "create_claim",
     "draft_typed_research_node", "get_task_context", "inspect_provenance",
     "inspect_research_neighborhood", "inspect_typed_research_node",
-    "prepare_submission", "prepare_typed_research_submission", "publish_submission", "record_run",
-    "record_trace", "search_open_tasks", "start_attempt", "submit_challenge",
-    "submit_typed_research_submission", "submit_verification",
+    "prepare_typed_research_submission", "search_open_tasks",
+    "submit_typed_research_submission",
     "validate_submission", "verify_inclusion_proof",
   ]);
   for (const tool of response.result.tools) {
@@ -119,6 +118,25 @@ test("tools/list exposes every research tool with schemas", async () => {
     assert.ok(tool.outputSchema, `${tool.name} needs an outputSchema`);
     assert.ok(tool.description.length > 0);
   }
+});
+
+test("tools/list and tools/call fail closed when capability discovery fails", async () => {
+  let prepareCalls = 0;
+  const client = createFakeClient({
+    capabilities: { get: async () => { throw new Error("offline"); } },
+    answers: { prepare: async () => { prepareCalls += 1; return {}; } },
+  });
+  const handle = createMcpServer({ client });
+  const [listed, called] = await roundtrip(handle, [
+    rpc(1, "tools/list"),
+    rpc(2, "tools/call", { name: "prepare_typed_research_submission", arguments: {} }),
+  ]);
+  const names = listed.result.tools.map((tool) => tool.name);
+  assert.equal(names.includes("prepare_typed_research_submission"), false);
+  assert.equal(names.includes("submit_typed_research_submission"), false);
+  assert.equal(called.result.isError, true);
+  assert.equal(called.result.structuredContent.error, "MCP_CAPABILITY_UNAVAILABLE");
+  assert.equal(prepareCalls, 0);
 });
 
 test("tools/call rejects unknown tools with a protocol error", async () => {

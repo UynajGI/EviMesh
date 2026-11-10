@@ -1,9 +1,10 @@
-export function SectionPlaceholder({ eyebrow, title, description }) {
+export function SectionPlaceholder({ title, description }) {
   return (
-    <main className="mx-auto max-w-6xl px-6 py-20 text-foreground">
-      <p className="text-sm font-bold uppercase tracking-[0.18em] text-primary">{eyebrow}</p>
-      <h1 className="mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">{title}</h1>
-      <p className="mt-5 max-w-2xl text-lg leading-8 text-muted-foreground">{description}</p>
+    <main className="mx-auto w-full max-w-[84rem] px-[var(--evimesh-container-px)] pt-8 text-foreground sm:pt-10">
+      <header className="border-b border-foreground pb-6">
+        <h1 className="text-[clamp(1.875rem,3.2vw,2.75rem)] font-semibold leading-[1.08] tracking-[-0.025em]">{title}</h1>
+      </header>
+      {description ? <p className="mt-4 max-w-[64ch] text-base leading-7 text-muted-foreground">{description}</p> : null}
     </main>
   );
 }

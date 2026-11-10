@@ -2,6 +2,9 @@
 
 EviMesh TypeScript SDK。为任意 Agent Harness 或开发者提供不依赖 Web 的科研语义客户端（M10）。
 
+当前 npm 包尚未公开发布。源码中的方法和 OpenAPI path 不代表生产能力已开启；客户端必须
+先读取 capability manifest。
+
 ## 用法
 
 ```js
@@ -14,6 +17,9 @@ const client = createClient({
   // 或使用异步 provider：tokenProvider: async () => session.access_token
 });
 
+const capabilities = await client.capabilities.get();
+// fetch / HTTP / schema 失败时返回保守清单；不得据此启用 Device Auth、prepare 或 submit
+
 for await (const task of client.tasks.listAll({ status: "open", tag: "cpu-only" })) {
   console.log(task.taskId);
 }
@@ -24,7 +30,10 @@ await client.claims.transition("claim_...", "under_verification", { ifMatch: det
 
 ## 能力
 
+- `capabilities.get()` 读取并严格校验 `GET /meta/capabilities`；失败时返回冻结的
+  `FALLBACK_PUBLIC_CAPABILITIES`（read only，prepare/submit/device/client publication 均关闭）；
 - `projects` / `questions` / `tasks` / `attempts` / `claims` / `artifacts` / `runs` / `evidence` / `verifications` / `challenges` / `frontier` / `events` / `contributions` 资源客户端；
+- typed research 的 prepare/submit 方法只表示契约表面，调用方仍须按 live manifest gating；
 - 写请求默认携带 `Idempotency-Key`，可用 `idempotencyKey` 覆盖或关闭；
 - 服务端错误映射为类型化异常（`EviMeshAuthenticationError`、`EviMeshNotFoundError`、`EviMeshConflictError`、`EviMeshPreconditionError` 等），携带 `code` / `status` / `requestId`；
 - `paginate` 与各资源 `listAll` 提供游标分页迭代；

@@ -34,10 +34,10 @@ export default async function DocsArticlePage({ params }) {
 
   return (
     <PageContainer wide>
-      <nav aria-label="Breadcrumb" className="mb-6 text-xs text-muted-foreground">
+      <nav aria-label="Breadcrumb" className="mb-4 text-[0.8125rem] text-muted-foreground">
         <ol className="flex flex-wrap items-center gap-1.5 list-none">
           <li><Link className="hover:text-foreground hover:underline" href="/docs">Docs</Link></li>
-          <li aria-hidden="true">/</li>
+          <li aria-hidden="true" className="text-border">/</li>
           <li aria-current="page">{page.title}</li>
         </ol>
       </nav>
@@ -49,26 +49,24 @@ export default async function DocsArticlePage({ params }) {
 
         <article className="min-w-0">
           {page.status === 'draft' ? (
-            <p className="mb-4 rounded-md border border-status-warning-border bg-status-warning-bg px-3 py-1.5 text-xs text-status-warning-fg">
-              Draft: this page is still being written and may change.
-            </p>
+            <p className="mb-3 text-xs text-status-warning-fg">Draft</p>
           ) : null}
-          <h1 className="text-3xl font-semibold tracking-tight text-foreground">{page.title}</h1>
-          {page.description ? <p className="mt-3 max-w-[72ch] text-base leading-7 text-muted-foreground">{page.description}</p> : null}
+          <h1 className="border-b border-border pb-3 text-[1.5rem] font-semibold leading-tight tracking-[-0.01em] text-foreground">{page.title}</h1>
+          {page.description ? <p className="mt-3 max-w-[72ch] text-base leading-7">{page.description}</p> : null}
           <div className="mt-6">
             <DocsBlocks blocks={page.blocks} />
           </div>
-          <nav aria-label="Docs pagination" className="mt-12 grid gap-3 border-t border-border pt-6 sm:grid-cols-2">
+          <nav aria-label="Docs pagination" className="mt-10 grid gap-x-6 gap-y-3 border-t border-border pt-3 sm:grid-cols-2">
             {page.prev ? (
-              <Link className="rounded-lg border border-border px-4 py-3 text-sm hover:bg-muted/40" href={`/docs/${page.prev.slug}`}>
+              <Link className="group block text-sm" href={`/docs/${page.prev.slug}`}>
                 <span className="block text-xs text-muted-foreground">Previous</span>
-                <span className="mt-0.5 block font-medium text-foreground">{page.prev.title}</span>
+                <span className="mt-0.5 block font-medium text-foreground group-hover:text-primary group-hover:underline">{page.prev.title}</span>
               </Link>
             ) : <span />}
             {page.next ? (
-              <Link className="rounded-lg border border-border px-4 py-3 text-right text-sm hover:bg-muted/40" href={`/docs/${page.next.slug}`}>
+              <Link className="group block text-right text-sm" href={`/docs/${page.next.slug}`}>
                 <span className="block text-xs text-muted-foreground">Next</span>
-                <span className="mt-0.5 block font-medium text-foreground">{page.next.title}</span>
+                <span className="mt-0.5 block font-medium text-foreground group-hover:text-primary group-hover:underline">{page.next.title}</span>
               </Link>
             ) : <span />}
           </nav>

@@ -1,30 +1,27 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
-import { Suspense } from 'react';
-
-
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { ClaimDag } from '@/components/claim-dag';
-import { actorHref } from '@/components/attribution';
 import { HandoffSheet } from '@/components/handoff-sheet';
-import { Badge, Card, CardContent, StatusBadge } from '@/components/ui/data';
-import { Alert, Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
-import { IdChip } from '@/components/ui/idchip';
+import { Badge, StatusBadge } from '@/components/ui/data';
+import { Button } from '@/components/ui/button';
+import { Alert, ErrorState, Skeleton } from '@/components/ui/feedback';
+import { Breadcrumb } from '@/components/ui/page';
+import {
+  ActorName, Clause, ClauseRail, Identifier, MarginSection, ProseList, TitleBlock, formatDate,
+} from '@/components/ui/doc';
 import { hydrateEvidenceLinks, hydrateReceiptFindings, evidenceRelations } from '@/lib/hydrate';
 import { useVisitRecord } from '@/lib/visit-history';
 import { recordView, useMyInteractions } from '@/lib/interactions';
 import { claimLayoutEndpoints } from '@/lib/claim-graph-layout.mjs';
-import { PageContainer } from '@/components/ui/page';
-import { ObjectBreadcrumb, ObjectHeader } from '@/components/ui/object-header';
-import { Rail, RailRow, RailSection } from '@/components/ui/rail';
-import { Check, Eye, Share2 } from 'lucide-react';
+import { RESEARCH_NODE_DEFINITIONS } from '@/lib/research-neighborhood.mjs';
 import { cn } from '@/lib/utils';
 
 const API = process.env.NEXT_PUBLIC_EVIMESH_API_URL;
 const RELATIONS = ['supports', 'refutes', 'qualifies', 'reproduces'];
-const OUTCOMES = ['supports', 'refutes', 'qualifies', 'inconclusive'];
+const RESPONSE_KINDS = new Set(['evaluation', 'rebuttal', 'answer', 'challenge']);
 
 async function request(path) {
   const response = await fetch(`${API}${path}`);
@@ -34,58 +31,72 @@ async function request(path) {
 }
 
 function JsonBlock({ value }) {
-  return <pre className="mt-3 overflow-x-auto rounded-lg bg-muted p-4 text-xs leading-6">{JSON.stringify(value ?? [], null, 2)}</pre>;
+  return <pre className="mt-2 overflow-x-auto border border-border bg-muted p-3 font-mono text-xs leading-6">{JSON.stringify(value ?? [], null, 2)}</pre>;
 }
 
-/** Newest timestamp of a sparse list, rendered as a short date. */
-function latestStamp(values) {
-  const stamps = values.filter(Boolean).map((value) => Date.parse(value)).filter((stamp) => !Number.isNaN(stamp));
-  if (stamps.length === 0) return 'unavailable';
-  return new Date(Math.max(...stamps)).toISOString().slice(0, 10);
+function readable(value) {
+  return String(value ?? '').replaceAll('_', ' ');
 }
 
-/*
- * Design book 05 §6 / 09 §2.5 deflist pattern: strings render as prose lines,
- * arrays render as a quiet hairline list, objects fall back to a definition
- * list of their scalar entries. Raw JSON stays in technical details.
- */
+function hrefFor(kind, id) {
+  const prefix = RESEARCH_NODE_DEFINITIONS[kind]?.hrefPrefix;
+  return prefix ? `${prefix}/${encodeURIComponent(id)}` : `/events?objectId=${encodeURIComponent(id)}`;
+}
+
+/* A typed response (evaluation, rebuttal, answer) read from its signed
+ * creation Event: the Event carries the typed document and both actors. */
+function responseFromEvent(event) {
+  const payload = event.payload ?? {};
+  const doc = payload.typed_document ?? {};
+  const revision = payload.revision ?? doc.revision ?? 1;
+  return {
+    key: `${payload.entity_id}@${revision}`,
+    kind: payload.entity_type,
+    id: payload.entity_id,
+    revision,
+    stance: doc.stance ?? null,
+    title: doc.title ?? doc.rationale ?? doc.synthesis ?? null,
+    body: doc.title ? (doc.argument ?? doc.rationale ?? doc.synthesis ?? null) : (doc.method ? `Method: ${doc.method}` : null),
+    drafter: payload.drafted_by_actor_id ?? payload.producer_actor_id ?? payload.actor_id ?? null,
+    signer: payload.publisher_actor_id ?? payload.signer_actor_id ?? null,
+    createdAt: event.createdAt ?? null,
+  };
+}
+
+/* Readable structured field: protocol strings as a ruled prose list, objects
+ * as a definition list. Raw JSON stays in Technical details. */
 function ReadableField({ value }) {
-  if (value === null || value === undefined || value === '') {
-    return <p className="mt-2 text-sm text-muted-foreground">Not stated in this revision.</p>;
-  }
-  if (typeof value === 'string') {
-    return <p className="mt-2 max-w-[65ch] text-sm leading-6">{value}</p>;
-  }
-  if (Array.isArray(value)) {
-    if (value.length === 0) return <p className="mt-2 text-sm text-muted-foreground">None recorded.</p>;
-    return (
-      <ul className="mt-2 divide-y divide-border rounded-lg border border-border">
-        {value.map((entry, index) => (
-          <li className="px-4 py-2.5 text-sm" key={index}>
-            {typeof entry === 'string' || typeof entry === 'number' ? entry : <ReadableField value={entry} />}
-          </li>
-        ))}
-      </ul>
-    );
-  }
+  if (value === null || value === undefined || value === '') return <p className="clause__none">Not stated.</p>;
+  if (typeof value === 'string' || Array.isArray(value)) return <ProseList items={value} empty="Not stated." />;
   const entries = Object.entries(value).filter(([, entry]) => typeof entry !== 'object' || entry === null);
-  if (entries.length === 0) return <div className="mt-2"><JsonBlock value={value} /></div>;
+  if (entries.length === 0) return <JsonBlock value={value} />;
   return (
-    <dl className="mt-2 grid gap-2 text-sm sm:grid-cols-[max-content_1fr] sm:gap-x-5">
+    <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[max-content_1fr]">
       {entries.map(([key, entry]) => (
         <div className="contents" key={key}>
           <dt className="text-muted-foreground">{key.replaceAll(/([A-Z])/g, ' $1').toLowerCase()}</dt>
-          <dd>{entry === null ? 'none' : String(entry)}</dd>
+          <dd className="font-serif">{entry === null ? 'none' : String(entry)}</dd>
         </div>
       ))}
     </dl>
   );
 }
 
+function RefMeta({ date, id, revision }) {
+  return (
+    <div className="text-xs text-muted-foreground md:text-right">
+      {date ? <span className="tabular-nums" title={id}>{date}</span> : null}
+      {revision ? <span className="ml-2 font-mono">r{revision}</span> : null}
+    </div>
+  );
+}
+
 /*
- * Claim detail (M13.8 05-core-ui-spec.md §6): serif statement, structured
- * fields, DAG graph with an equivalent keyboard-reachable list view, revision
- * history, and a status-summary rail. Counts open the underlying records.
+ * Claim detail, the yardstick of the controlled-document grammar
+ * (.impeccable/surfaces/app-claims-claimid-page-js.md): a ruled title block
+ * for identity and attribution, numbered citable clauses for content and
+ * responses, a margin revision ledger, and the typed research graph with its
+ * keyboard-reachable Relationship Index. Counts only open records.
  */
 function ClaimDetailView({ params }) {
   const [claimId, setClaimId] = useState(null);
@@ -94,7 +105,10 @@ function ClaimDetailView({ params }) {
   const [pinnedRevisionData, setPinnedRevisionData] = useState(null);
   const [frontierMembership, setFrontierMembership] = useState(null);
   const [data, setData] = useState(null);
+  const [question, setQuestion] = useState(null);
+  const [events, setEvents] = useState([]);
   const [graph, setGraph] = useState(null);
+  const [neighborhood, setNeighborhood] = useState(null);
   /* Keep the API traversal names, but describe all typed edges neutrally. */
   const [direction, setDirection] = useState('both');
   const [handoffOpen, setHandoffOpen] = useState(false);
@@ -120,40 +134,45 @@ function ClaimDetailView({ params }) {
           setPinnedRevisionData(pinned.revision ?? pinned.claimRevision ?? pinned ?? null);
         } catch { /* pinned revision unavailable: fall back to current */ }
       }
-      const [evidenceItems, receiptItems] = await Promise.all([
+      const [evidenceItems, receiptItems, eventItems, neighborhoodBody] = await Promise.all([
         request(`/evidence?claimId=${claimId}&limit=100`).then((body) => body.items ?? []).catch(() => []),
         request(`/claims/${claimId}/verifications`).then((body) => body.items ?? body.receipts ?? []).catch(() => []),
+        /* Signed creation Events carry the drafter, the human signer and the
+         * typed documents of every response that names this claim. */
+        request(`/events?objectType=claim&objectId=${claimId}&order=asc&limit=100`).then((body) => body.items ?? []).catch(() => []),
+        request(`/research-graph/claim/${encodeURIComponent(claimId)}/neighborhood?direction=both&depth=3`).catch(() => null),
       ]);
+      setEvents(eventItems);
+      setNeighborhood(neighborhoodBody?.nodes ? neighborhoodBody : null);
       /* List rows carry no relations: evidence links live on /evidence/:id
        * (claimLinks) and receipt findings on /verifications/:receiptId. */
       setEvidence(await hydrateEvidenceLinks(API, evidenceItems));
       setReceipts(await hydrateReceiptFindings(API, receiptItems));
-      /* Frontier membership: check the question's latest frontier members. */
       if (payload.claim?.questionId) {
         try {
+          const questionBody = await request(`/questions/${payload.claim.questionId}`).catch(() => null);
+          setQuestion(questionBody ? { title: questionBody.currentRevision?.title ?? null, projectId: questionBody.question?.projectId ?? null } : null);
           /* The claim row carries its own projectId; only fall back to the
            * question detail when the row predates that column. */
-          const projectId = payload.claim.projectId
-            ?? await request(`/questions/${payload.claim.questionId}`).then((body) => body.question?.projectId).catch(() => null);
+          const projectId = payload.claim.projectId ?? questionBody?.question?.projectId ?? null;
           if (projectId) {
             const frontier = await request(`/projects/${projectId}/frontier/latest`).then((body) => body.frontier).catch(() => null);
             if (frontier?.snapshotId) {
               const history = await request(`/projects/${projectId}/frontier/history?limit=100`).then((body) => body.items ?? []).catch(() => []);
               const match = history.find((snapshot) => snapshot.snapshotId === frontier.snapshotId);
               const members = (match?.members ?? []).filter((member) => member.claimId === payload.claim.claimId);
-              setFrontierMembership(members.length > 0 ? { sequence: frontier.sequence, revision: members[0].claimRevision } : null);
+              setFrontierMembership(members.length > 0 ? { sequence: frontier.sequence, revision: members[0].claimRevision, projectId } : null);
             }
           }
-        } catch { /* frontier context unavailable */ }
+        } catch { /* question and frontier context unavailable */ }
       }
       setData(payload);
-      /* Append-only revision list (mockup 修订历史): bounded walk of the
-       * revision detail endpoint, oldest first. The full field diff page
-       * stays the deeper comparison surface. */
+      /* Append-only revision ledger: bounded walk of the revision detail
+       * endpoint, newest first. The field diff page stays the deeper view. */
       const total = payload.currentRevision?.revision;
       if (Number.isInteger(total) && total >= 1) {
         const bounds = Math.min(total, 8);
-        Promise.all(Array.from({ length: bounds }, (_, index) => bounds - index).map(async (revisionNumber) => {
+        Promise.all(Array.from({ length: bounds }, (_, index) => total - index).map(async (revisionNumber) => {
           try {
             const detail = await request(`/claims/${claimId}/revisions/${revisionNumber}`);
             const row = detail.revision ?? detail.claimRevision ?? detail ?? {};
@@ -163,8 +182,7 @@ function ClaimDetailView({ params }) {
           }
         })).then((rows) => setRevisionList(rows));
       }
-      /* Inline revision diff preview (mockup r(n) vs r(n-1) statement lines):
-       * hydrate the current and previous revision when both exist. */
+      /* Statement change against the previous revision drives the change bar. */
       const revision = payload.currentRevision?.revision;
       if (Number.isInteger(revision) && revision > 1) {
         try {
@@ -185,6 +203,8 @@ function ClaimDetailView({ params }) {
   }
 
   useEffect(() => { if (claimId) load(); }, [claimId]);
+  /* Legacy Claim graph: the source for claims recorded before typed research
+   * events. The typed neighborhood replaces it when it carries more nodes. */
   useEffect(() => {
     if (!claimId) return undefined;
     let cancelled = false;
@@ -202,7 +222,9 @@ function ClaimDetailView({ params }) {
         return { nodes: [...nodes.values()], edges: [...edges.values()], complete: !upstream.truncated && !downstream.truncated, truncated: upstream.truncated || downstream.truncated };
       })
       : readDirection(direction).then((body) => ({ ...body, complete: !body.truncated }));
-    loadGraph.then((body) => { if (!cancelled) setGraph(body); }).catch((reason) => { if (!cancelled) setError(reason.message); });
+    loadGraph
+      .then((body) => { if (!cancelled) setGraph(body); })
+      .catch(() => { if (!cancelled) setGraph({ nodes: [], edges: [], complete: false, truncated: false }); });
     return () => { cancelled = true; };
   }, [claimId, direction]);
   useEffect(() => {
@@ -218,17 +240,38 @@ function ClaimDetailView({ params }) {
   /* Best-effort view signal for the personal recommender (once per session). */
   useEffect(() => { if (claimId) recordView('claim', claimId); }, [claimId]);
 
-  if (error) return <PageContainer><ErrorState message={error} onRetry={load} /></PageContainer>;
-  if (!data) return <PageContainer><Skeleton className="h-32 w-full" /><Skeleton className="mt-6 h-96 w-full" /></PageContainer>;
+  if (error) return <div className="doc-page pb-20 pt-10"><ErrorState message={error} onRetry={load} /></div>;
+  if (!data) return <ClaimSkeleton />;
 
   const { claim, statusPolicy } = data;
   const pinned = Number.isInteger(pinnedRevision) && pinnedRevision >= 1 && pinnedRevisionData;
-  /* Evidence links target exact revisions, so claim-wide lists are labeled
-   * with a pinned notice instead of silently mixing revisions. */
-
   const currentRevision = pinned ? { ...data.currentRevision, ...pinnedRevisionData, revision: pinnedRevision } : data.currentRevision;
-  const draftingContribution = (Array.isArray(data.originatorContributions) ? data.originatorContributions : [])
+  const latestRevision = data.currentRevision?.revision ?? currentRevision.revision;
+
+  /* Attribution chain. Legacy rows carry originatorContributions; typed
+   * submissions carry the drafter and the human publisher on the signed
+   * creation Event. An Agent is never shown as the signer. */
+  const creation = events.find((event) => event.eventType === 'claim.created' && (event.payload?.entity_id ?? event.payload?.claim_id) === claim.claimId) ?? null;
+  const legacyContribution = (Array.isArray(data.originatorContributions) ? data.originatorContributions : [])
     .find((contribution) => contribution.draftedByActorId === contribution.actorId);
+  const draftingContribution = legacyContribution ?? (creation ? {
+    actorId: creation.payload.drafted_by_actor_id ?? creation.payload.producer_actor_id ?? claim.createdBy,
+    signedBy: creation.payload.publisher_actor_id ?? creation.payload.signer_actor_id ?? null,
+  } : null);
+  const drafter = draftingContribution?.actorId ?? currentRevision.createdBy ?? claim.createdBy ?? null;
+  const signer = draftingContribution?.signedBy ?? null;
+
+  /* Responses that name this claim, newest revision per object. */
+  const responseMap = new Map();
+  for (const event of events) {
+    const kind = event.payload?.entity_type;
+    if (!RESPONSE_KINDS.has(kind) || event.payload?.entity_id === claim.claimId) continue;
+    const row = responseFromEvent(event);
+    const previous = responseMap.get(row.id);
+    if (!previous || previous.revision <= row.revision) responseMap.set(row.id, row);
+  }
+  const responses = [...responseMap.values()].sort((left, right) => String(right.createdAt).localeCompare(String(left.createdAt)));
+
   const graphNodes = Array.isArray(graph?.nodes) ? graph.nodes : [];
   const graphEntries = graphNodes.map((node) => ({
     id: node.nodeId ?? node.objectId ?? node.claimId ?? node.id,
@@ -245,355 +288,283 @@ function ClaimDetailView({ params }) {
     const source = edge.sourceNodeId ?? edge.sourceObjectId ?? edge.sourceClaimId ?? edge.source;
     const target = edge.targetNodeId ?? edge.targetObjectId ?? edge.targetClaimId ?? edge.target;
     return {
-    id: edge.edgeId ?? edge.id ?? `${direction}-${source}-${target}-${edge.relationType ?? index}`,
-    /* Reader direction changes traversal, never protocol source/target. */
-    source,
-    target,
-    ...(direction === 'both' ? { layoutSource: source, layoutTarget: target } : claimLayoutEndpoints({ source, target, sourceDepth: graphDepthById.get(source), targetDepth: graphDepthById.get(target), direction })),
-    relation: edge.relationType ?? edge.relation ?? 'depends_on',
-  }; }) : graphEntries.map(({ id, depth }) => {
+      id: edge.edgeId ?? edge.id ?? `${direction}-${source}-${target}-${edge.relationType ?? index}`,
+      /* Reader direction changes traversal, never protocol source/target. */
+      source,
+      target,
+      ...(direction === 'both' ? { layoutSource: source, layoutTarget: target } : claimLayoutEndpoints({ source, target, sourceDepth: graphDepthById.get(source), targetDepth: graphDepthById.get(target), direction })),
+      relation: edge.relationType ?? edge.relation ?? 'depends_on',
+    };
+  }) : graphEntries.map(({ id, depth }) => {
     const source = direction === 'upstream' ? id : claim.claimId;
     const target = direction === 'upstream' ? claim.claimId : id;
     return { id: `${direction}-${id}`, source, target, ...(direction === 'both' ? { layoutSource: source, layoutTarget: target } : claimLayoutEndpoints({ source, target, sourceDepth: graphDepthById.get(source) ?? depth, targetDepth: graphDepthById.get(target) ?? depth, direction })), relation: 'depends_on' };
   });
-  const dagGraph = {
+  const legacyGraph = {
     complete: graph?.complete === true,
     nodes: [{ id: claim.claimId, type: 'claim', label: currentRevision.statement ?? claim.claimId, revision: currentRevision.revision, state: claim.state, depth: 0 }, ...graphEntries],
     edges: dagEdges,
   };
+  const dagGraph = (neighborhood?.nodes?.length ?? 0) > legacyGraph.nodes.length ? neighborhood : legacyGraph;
+  const graphTruncated = Boolean(graph?.truncated || neighborhood?.truncated);
 
   const evidenceFor = (relation) => evidence.filter((item) => evidenceRelations(item).includes(relation));
-  const receiptsFor = (outcome) => receipts.filter((receipt) => receipt.outcome === outcome);
-  const topFinding = receipts.reduce((top, receipt) => {
-    for (const finding of receipt.findings ?? []) {
-      if (finding.severity === 'critical') return 'critical';
-      if (finding.severity === 'major' && top !== 'critical') top = 'major';
-      else if (finding.severity === 'warning' && !top) top = 'warning';
-    }
-    return top;
-  }, null);
+  const projectId = claim.projectId ?? question?.projectId ?? frontierMembership?.projectId ?? null;
+  const revised = Boolean(revisionDiff) && !pinned;
+
+  const clauses = [
+    { id: 'scope', number: '1', label: 'Scope' },
+    { id: 'assumptions', number: '2', label: 'Assumptions' },
+    { id: 'falsification', number: '3', label: 'Falsification' },
+    { id: 'responses', number: '4', label: 'Responses', count: responses.length },
+    { id: 'evidence', number: '5', label: 'Evidence', count: evidence.length },
+    { id: 'receipts', number: '6', label: 'Receipts', count: receipts.length },
+    { id: 'graph', number: '7', label: 'Graph' },
+    { id: 'revisions', number: '8', label: 'History' },
+    { id: 'technical', number: '9', label: 'Record' },
+  ];
+
+  const shareRevision = async () => {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/claims/${claim.claimId}?rev=${currentRevision.revision}`);
+      setShared(true);
+    } catch { /* clipboard unavailable */ }
+    setTimeout(() => setShared(false), 2000);
+  };
 
   return (
-    <PageContainer wide>
-      <ObjectBreadcrumb
+    <div className="doc-page pb-20 pt-5 sm:pt-6">
+      <Breadcrumb
         trail={[
           { label: 'Explore', href: '/explore' },
-          ...(claim.questionId ? [{ label: claim.questionId, href: `/questions/${claim.questionId}` }] : [{ label: 'Claims' }]),
-          { label: claim.claimId },
+          ...(claim.questionId ? [{ label: question?.title ?? 'Question', href: `/questions/${claim.questionId}` }] : []),
+          { label: `Claim r${currentRevision.revision}` },
         ]}
       />
 
-      {/* Object header (11 §3): badge row, serif statement headline,
-          attribution chain, then the action slots. */}
-      <ObjectHeader
-        attribution={
-          <>
-            {claim.questionId ? <Link className="tabular-nums hover:text-foreground" href={`/questions/${claim.questionId}`}>question {claim.questionId}</Link> : <span>Not linked to a question yet.</span>}
-            {(currentRevision.createdBy ?? claim.createdBy) ? (
-              <>
-                <span aria-hidden="true">·</span>
-                <span>published by{' '}
-                  <Link className="font-medium text-foreground hover:underline" href={actorHref(currentRevision.createdBy ?? claim.createdBy)}>{currentRevision.createdBy ?? claim.createdBy}</Link>
-                </span>
-              </>
-            ) : null}
-            {draftingContribution ? (
-              <>
-                <span aria-hidden="true">·</span>
-                <span className="flex flex-wrap items-center gap-1">
-                  drafted by agent <Link className="font-medium text-foreground hover:underline" href={actorHref(draftingContribution.actorId, 'agent')}>{draftingContribution.actorId}</Link>
-                  <span aria-hidden="true">·</span>
-                  {draftingContribution.signedBy ? <>signed by human <Link className="font-medium text-foreground hover:underline" href={actorHref(draftingContribution.signedBy, 'human')}>{draftingContribution.signedBy}</Link></> : <span>human signature not stated</span>}
-                </span>
-              </>
-            ) : null}
-            {currentRevision.createdAt ? (
-              <>
-                <span aria-hidden="true">·</span>
-                <span className="tabular-nums">r{currentRevision.revision} published {new Date(currentRevision.createdAt).toISOString().slice(0, 10)}</span>
-              </>
-            ) : null}
-          </>
-        }
-        badges={
-          <>
-            <StatusBadge state={claim.state} />
-            {frontierMembership ? (
-              <span className="inline-flex items-center gap-1 rounded-full border border-status-success-border bg-status-success-bg px-2.5 py-0.5 text-xs font-medium text-status-success-fg">
-                Frontier #{frontierMembership.sequence} · member
-              </span>
-            ) : null}
-            <Badge variant="default">revision r{currentRevision.revision}</Badge>
-            <IdChip label="claim" value={claim.claimId} />
-          </>
-        }
-        meta={pinned ? (
-          <p className="rounded-md border border-status-accent-border bg-status-accent-bg px-3 py-1.5 text-xs text-status-accent-fg">
-            Pinned revision r{pinnedRevision}: this permalink always renders this exact immutable revision. <Link className="underline" href={`/claims/${claim.claimId}`}>Jump to current</Link>
+      <TitleBlock
+        cells={[
+          { label: 'Revision', bare: true, value: <span className="tabular-nums">r{currentRevision.revision}{latestRevision > 1 ? ` of ${latestRevision}` : ''}{pinned ? ', pinned' : ''}</span> },
+          { label: 'Drafted by', value: <ActorName actorId={drafter} /> },
+          { label: 'Signed by', value: signer ? <ActorName actorId={signer} showOwner={false} /> : null },
+          { label: 'Recorded', bare: true, value: <span className="tabular-nums text-muted-foreground">{formatDate(currentRevision.createdAt)}</span> },
+          { label: 'Identifier', bare: true, value: <Identifier value={claim.claimId} /> },
+        ]}
+        kind="Claim"
+        notice={pinned ? (
+          <p className="max-w-[68ch] text-sm text-muted-foreground">
+            Pinned to r{pinnedRevision}. <Link className="text-primary underline" href={`/claims/${claim.claimId}`}>Current revision</Link>
           </p>
         ) : null}
         serif
         statement={currentRevision.statement}
+        status={<StatusBadge state={claim.state} />}
+        titleClassName={revised ? 'change-bar' : undefined}
       />
-      <div className="mt-4 flex flex-wrap gap-2">
-        <button
-          aria-pressed={watched}
-          className={cn('inline-flex h-11 items-center gap-2 rounded-md border px-3 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50', watched ? 'border-primary bg-accent text-accent-foreground' : 'border-border bg-card hover:bg-muted')}
-          disabled={!claimId || !interactionsReady || interactions === null}
-          onClick={() => toggleInteraction('claim', claimId, 'watch')}
-          title={interactionsReady && interactions === null ? 'Sign in to watch' : undefined}
-          type="button"
-        >
-          <Eye aria-hidden="true" size={14} />
-          {watched ? 'Watching' : 'Watch'}
-        </button>
-        <button
-          className="inline-flex h-11 items-center gap-2 rounded-md border border-border bg-card px-3 text-sm font-medium hover:bg-muted"
-          onClick={async () => {
-            try {
-              await navigator.clipboard.writeText(`${window.location.origin}/claims/${claim.claimId}?rev=${currentRevision.revision}`);
-              setShared(true);
-              setTimeout(() => setShared(false), 2000);
-            } catch { /* unavailable */ }
-            setTimeout(() => setShared(false), 2000);
-          }}
-          type="button"
-        >
-          {shared ? <Check aria-hidden="true" size={14} /> : <Share2 aria-hidden="true" size={14} />}
-          {shared ? 'Link copied' : `Share r${currentRevision.revision} permalink`}
-        </button>
-        <button className="inline-flex h-11 items-center gap-2 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-accent-foreground/90" onClick={() => setHandoffOpen(true)} type="button">Continue with an agent</button>
-      </div>
 
-      <div className="mt-8 grid gap-8 lg:[grid-template-columns:minmax(0,1fr)_18rem] lg:items-start">
-        {/* flex-col, not grid: an implicit auto track would let one wide section
- * stretch every sibling past the 18rem rail. */}
-        <div className="flex min-w-0 flex-col gap-8">
-          <section aria-labelledby="fields-heading">
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground" id="fields-heading">Statement and structured fields</h2>
-            <Card>
-              <CardContent className="grid gap-5">
-                <p className="max-w-[65ch] font-serif text-base leading-relaxed">{currentRevision.statement}</p>
-                <div className="grid gap-4">
-                  {/* Design book 05 §6: readable field values first; the raw JSON
-                      stays available in technical details one layer down. */}
-                  <div>
-                    <h3 className="text-sm font-medium">Scope</h3>
-                    <ReadableField value={currentRevision.scope} />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-medium">Assumptions</h3>
-                    <ReadableField value={currentRevision.assumptions} />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-medium">Falsification conditions</h3>
-                    <ReadableField value={currentRevision.falsification ?? currentRevision.falsificationConditions} />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </section>
+      <ClauseRail clauses={clauses} />
 
-          <section aria-label="Research neighborhood" className="min-w-0">
-            {graph?.truncated ? <Alert className="mb-3" description="This bounded neighborhood reached a server read ceiling. Topology remains unknown wherever hidden connections may exist." title="Neighborhood truncated" variant="warning" /> : null}
-            <ClaimDag direction={direction} focusId={claim.claimId} graph={dagGraph} onDirectionChange={setDirection} />
-          </section>
+      <div className="doc-grid doc-grid--clauses mt-6">
 
-          <section aria-labelledby="revisions-heading">
-            <h2 className="mb-3 text-lg font-semibold" id="revisions-heading">Revision history</h2>
-            <Card>
-              <CardContent>
-                <p className="font-mono text-sm tabular-nums">Revision {currentRevision.revision} (current)</p>
-                <p className="mt-2 text-sm text-muted-foreground">Immutable and append-only.</p>
-                {revisionList && revisionList.length > 0 ? (
-                  <ol className="mt-3 divide-y divide-border rounded-lg border border-border">
-                    {revisionList.map((row) => (
-                      <li className="flex flex-wrap items-baseline gap-3 px-4 py-2.5 text-sm" key={row.revision}>
-                        <span className="font-mono text-xs tabular-nums text-muted-foreground">r{row.revision}</span>
-                        {row.revision === currentRevision.revision ? <span className="rounded-full border border-status-accent-border bg-status-accent-bg px-2 py-0.5 text-[11px] font-medium text-status-accent-fg">current</span> : null}
-                        {row.createdBy ? <Link className="text-xs text-muted-foreground hover:text-foreground" href={actorHref(row.createdBy)}>by {row.createdBy}</Link> : null}
-                        {row.createdAt ? <span className="ml-auto text-xs tabular-nums text-muted-foreground">{new Date(row.createdAt).toISOString().slice(0, 10)}</span> : null}
-                      </li>
-                    ))}
-                  </ol>
-                ) : null}
-                {currentRevision.revision > 8 ? <p className="mt-2 text-xs text-muted-foreground">Newest 8 of {currentRevision.revision} revisions.</p> : null}
-                <div className="mt-3 flex flex-wrap gap-3">
-                  <Link className="text-sm font-medium text-primary hover:underline" href={`/claims/${claim.claimId}/diff`}>Compare any two revisions field by field →</Link>
-                </div>
-                {revisionDiff ? (
-                  <div className="mt-4">
-                    <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Statement diff r{revisionDiff.previous} to r{currentRevision.revision}</p>
-                    <pre className="overflow-x-auto rounded-md border border-border font-mono text-xs leading-5">
-                      <span className="block bg-status-danger-bg px-3 py-1.5 text-status-danger-fg line-through">- {revisionDiff.from}</span>
-                      <span className="block bg-status-success-bg px-3 py-1.5 text-status-success-fg">+ {revisionDiff.to}</span>
-                    </pre>
-                  </div>
-                ) : null}
-              </CardContent>
-            </Card>
-          </section>
+        <article aria-label="Claim content" className="doc-main">
+          <Clause id="scope" number="1" title="Scope">
+            <ReadableField value={currentRevision.scope} />
+          </Clause>
+          <Clause id="assumptions" number="2" title="Assumptions">
+            <ReadableField value={currentRevision.assumptions} />
+          </Clause>
+          <Clause id="falsification" number="3" title="Falsification conditions">
+            <ReadableField value={currentRevision.falsification ?? currentRevision.falsificationConditions} />
+          </Clause>
 
-          {/* Mockup claim.html 证据 section: rows grouped by relation, each
-              row carrying its provenance (artifact / run) and date. Counts in
-              the rail stay entry points; the rows live here. */}
-          <section aria-labelledby="evidence-heading">
-            <h2 className="mb-1 text-lg font-semibold" id="evidence-heading">Evidence by relation</h2>
-            {pinned ? (
-              <p className="mb-3 rounded-md border border-status-accent-border bg-status-accent-bg px-3 py-1.5 text-xs text-status-accent-fg">
-                Viewing r{pinnedRevision}. Evidence and receipts below are listed claim-wide; each item carries the revision it links to.
-              </p>
-            ) : null}
-            {evidence.length === 0 ? (
-              <Empty title="No evidence linked yet" description="Evidence linked to this claim will appear here grouped by its relation to the claim." />
+          <Clause id="responses" number="4" title="Responses">
+            {responses.length === 0 ? (
+              <p className="clause__none">None yet.</p>
             ) : (
-              <div className="grid gap-2">
-                {RELATIONS.map((relation) => {
-                  const rows = evidenceFor(relation);
-                  return (
-                    <details className="rounded-lg border border-border bg-card" key={relation}>
-                      <summary className="flex cursor-pointer flex-wrap items-center gap-3 px-5 py-3 text-sm font-medium">
-                        <StatusBadge state={relation} />
-                        <span className="tabular-nums text-muted-foreground">{rows.length} item{rows.length === 1 ? '' : 's'}</span>
-                        <span className="ml-auto text-xs text-muted-foreground">show rows</span>
-                      </summary>
-                      {rows.length === 0 ? (
-                        <p className="border-t border-border px-5 py-3 text-sm text-muted-foreground">No {relation} evidence recorded yet.</p>
-                      ) : (
-                        <ul className="divide-y divide-border border-t border-border">
-                          {rows.map((item) => (
-                            <li className="flex flex-wrap items-center gap-3 px-5 py-3 text-sm" key={item.evidenceId}>
-                              <IdChip value={item.evidenceId} />
-                              {item.evidenceType ? <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">{item.evidenceType}</span> : null}
-                              {item.artifactId ? <span className="font-mono text-xs text-muted-foreground">artifact {item.artifactId}</span> : null}
-                              {item.runId ? <span className="font-mono text-xs text-muted-foreground">run {item.runId}</span> : null}
-                              {item.createdAt ? <span className="ml-auto text-xs tabular-nums text-muted-foreground">{new Date(item.createdAt).toISOString().slice(0, 10)}</span> : null}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </details>
-                  );
-                })}
-              </div>
+              <ul>
+                {responses.map((row) => (
+                  <li className="ref-row" key={row.key}>
+                    <div className="flex flex-wrap items-baseline gap-x-2 md:block">
+                      {row.kind === 'evaluation' && row.stance
+                        ? <StatusBadge state={row.stance} />
+                        : <Badge variant={row.kind === 'rebuttal' ? 'status-warning' : 'status-neutral'}>{readable(row.kind)}</Badge>}
+                    </div>
+                    <div className="min-w-0">
+                      <Link className="ref-row__title hover:underline" href={hrefFor(row.kind, row.id)}>{row.title ?? `${readable(row.kind)} ${row.id}`}</Link>
+                      {row.body ? <p className="mt-0.5 max-w-[64ch] text-sm leading-6 text-muted-foreground">{row.body}</p> : null}
+                      <p className="mt-1 flex flex-wrap items-baseline gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
+                        <span>Drafted by</span><ActorName actorId={row.drafter} showOwner={false} />
+                        {row.signer && row.signer !== row.drafter ? <><span aria-hidden="true">·</span><span>signed by</span><ActorName actorId={row.signer} showOwner={false} /></> : null}
+                      </p>
+                    </div>
+                    <RefMeta date={formatDate(row.createdAt)} href={hrefFor(row.kind, row.id)} id={row.id} revision={row.revision} />
+                  </li>
+                ))}
+              </ul>
             )}
-          </section>
+          </Clause>
 
-          {/* Mockup claim.html 验证回执 section: fielded receipts with per-
-              finding severity rows; receipts retain their fielded record. */}
-          <section aria-labelledby="receipts-heading">
-            <h2 className="mb-1 text-lg font-semibold" id="receipts-heading">Verification receipts</h2>
-            {receipts.length === 0 ? (
-              <Empty title="No receipts yet" description="Verification receipts for this claim will appear here as verifiers submit them." />
-            ) : (
-              <div className="grid gap-3">
-                {receipts.slice(0, 10).map((receipt) => (
-                  <Card key={receipt.receiptId}>
-                    <CardContent>
-                      <div className="flex flex-wrap items-center gap-3">
-                        <StatusBadge state={receipt.outcome} />
-                        <IdChip label="receipt" value={receipt.receiptId} />
-                        {receipt.createdAt ? <span className="ml-auto text-xs tabular-nums text-muted-foreground">{new Date(receipt.createdAt).toISOString().slice(0, 10)}</span> : null}
+          <Clause id="evidence" number="5" title="Evidence by relation">
+            {pinned ? <p className="mb-3 text-[13px] text-muted-foreground">Listed claim-wide; each item names its revision.</p> : null}
+            {evidence.length === 0 ? (
+              <p className="clause__none">None yet.</p>
+            ) : RELATIONS.filter((relation) => evidenceFor(relation).length > 0).map((relation) => (
+              <div className="clause__group" key={relation}>
+                <h3><StatusBadge state={relation} /><span className="font-normal tabular-nums text-muted-foreground">{evidenceFor(relation).length}</span></h3>
+                <ul>
+                  {evidenceFor(relation).map((item) => (
+                    <li className="ref-row" key={`${relation}-${item.evidenceId}`}>
+                      <p className="text-sm text-muted-foreground">{readable(item.evidenceType ?? 'evidence')}</p>
+                      <div className="min-w-0">
+                        <Link className="ref-row__title hover:underline" href={`/evidence/${item.evidenceId}`}>{item.description ?? item.title ?? 'Evidence record'}</Link>
+                        <p className="mt-1 flex flex-wrap gap-x-3 font-mono text-xs text-muted-foreground">
+                          {item.artifactId ? <span>artifact {item.artifactId}</span> : null}
+                          {item.runId ? <span>run {item.runId}</span> : null}
+                        </p>
                       </div>
-                      <dl className="mt-3 grid gap-x-6 gap-y-1.5 text-sm sm:grid-cols-[max-content_1fr]">
-                        {receipt.verificationTypes ? <><dt className="text-muted-foreground">Verification types</dt><dd className="font-mono text-xs">{receipt.verificationTypes.join(' · ')}</dd></> : null}
-                        {receipt.contextMode ? <><dt className="text-muted-foreground">Context mode</dt><dd className="font-mono text-xs">{receipt.contextMode}</dd></> : null}
-                        {receipt.implementationRelation ? <><dt className="text-muted-foreground">Implementation</dt><dd className="font-mono text-xs">{receipt.implementationRelation}</dd></> : null}
-                        {receipt.dataRelation ? <><dt className="text-muted-foreground">Data</dt><dd className="font-mono text-xs">{receipt.dataRelation}</dd></> : null}
+                      <RefMeta date={formatDate(item.createdAt)} href={`/evidence/${item.evidenceId}`} id={item.evidenceId} />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </Clause>
+
+          <Clause id="receipts" number="6" title="Verification receipts">
+            {receipts.length === 0 ? (
+              <p className="clause__none">None yet.</p>
+            ) : (
+              <ul>
+                {receipts.slice(0, 10).map((receipt) => (
+                  <li className="ref-row" key={receipt.receiptId}>
+                    <div><StatusBadge state={receipt.outcome} /></div>
+                    <div className="min-w-0">
+                      <dl className="grid gap-x-5 gap-y-1 text-sm sm:grid-cols-[max-content_1fr]">
+                        {receipt.verificationTypes ? <><dt className="text-muted-foreground">Verification</dt><dd>{receipt.verificationTypes.map(readable).join(', ')}</dd></> : null}
+                        {receipt.contextMode ? <><dt className="text-muted-foreground">Context</dt><dd>{readable(receipt.contextMode)}</dd></> : null}
+                        {receipt.implementationRelation ? <><dt className="text-muted-foreground">Implementation</dt><dd>{readable(receipt.implementationRelation)}</dd></> : null}
+                        {receipt.dataRelation ? <><dt className="text-muted-foreground">Data</dt><dd>{readable(receipt.dataRelation)}</dd></> : null}
                         {receipt.modelFamily ? <><dt className="text-muted-foreground">Model family</dt><dd className="font-mono text-xs">{receipt.modelFamily}</dd></> : null}
                         {typeof receipt.sawExpectedOutputs === 'boolean' ? <><dt className="text-muted-foreground">Expected outputs</dt><dd>{receipt.sawExpectedOutputs ? 'verifier saw expected outputs' : 'blind: expected outputs not shown'}</dd></> : null}
                       </dl>
                       {(receipt.findings ?? []).length > 0 ? (
-                        <ul className="mt-3 divide-y divide-border rounded-lg border border-border">
+                        <ul className="mt-3 border-t border-border">
                           {receipt.findings.map((finding, index) => (
-                            <li className="flex flex-wrap items-center gap-3 px-4 py-2.5 text-sm" key={`${receipt.receiptId}-finding-${index}`}>
-                              <span className={cn(
-                                'inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium',
-                                finding.severity === 'critical' ? 'border-transparent bg-emphasis-danger text-emphasis-foreground' : 'border-status-warning-border bg-status-warning-bg text-status-warning-fg',
-                              )}>
-                                {finding.severity}
-                              </span>
+                            <li className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-border py-2 text-sm" key={`${receipt.receiptId}-finding-${index}`}>
+                              <Badge variant={finding.severity === 'critical' ? 'emphasis-danger' : 'status-warning'}>{finding.severity}</Badge>
                               <span className="font-mono text-xs">{finding.code}</span>
                               <span className="min-w-0 flex-1 text-muted-foreground">{finding.summary ?? finding.detail ?? finding.message ?? 'Recorded on the receipt'}</span>
                             </li>
                           ))}
                         </ul>
                       ) : null}
-                    </CardContent>
-                  </Card>
+                    </div>
+                    <RefMeta date={formatDate(receipt.createdAt)} href={`/verifications/${receipt.receiptId}`} id={receipt.receiptId} />
+                  </li>
                 ))}
-                {receipts.length > 10 ? <p className="text-xs text-muted-foreground">Showing the newest 10 of {receipts.length} receipts.</p> : null}
-              </div>
+              </ul>
             )}
-          </section>
+            {receipts.length > 10 ? <p className="mt-3 text-sm text-muted-foreground">Showing the newest 10 of {receipts.length} receipts.</p> : null}
+          </Clause>
+        </article>
 
-          <section aria-labelledby="technical-heading">
-            <details className="rounded-lg border border-border bg-card">
-              <summary className="cursor-pointer px-5 py-4 text-sm font-medium" id="technical-heading">Technical details (ids, hashes, policy)</summary>
-              <div className="border-t border-border px-5 py-4">
-                <dl className="grid gap-2 text-sm sm:grid-cols-[max-content_1fr]">
-                  <dt className="text-muted-foreground">Stable id</dt><dd className="font-mono tabular-nums">{claim.claimId}</dd>
-                  <dt className="text-muted-foreground">Current revision</dt><dd className="font-mono tabular-nums">r{currentRevision.revision}</dd>
-                  <dt className="text-muted-foreground">Next allowed states</dt><dd className="font-mono tabular-nums">{statusPolicy.allowedTransitions.join(', ') || 'No transitions'}</dd>
-                  <dt className="text-muted-foreground">Latest event</dt><dd className="font-mono tabular-nums">{data.lastEvent?.eventId ?? 'unavailable'}</dd>
-                  <dt className="text-muted-foreground">Event hash</dt><dd className="break-all font-mono tabular-nums text-xs">{data.lastEvent?.hash ?? 'via event audit'}</dd>
-                </dl>
-                <p className="mb-2 mt-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Raw structured fields</p>
-                <div className="grid gap-3">
-                  <div><p className="text-xs text-muted-foreground">scope</p><JsonBlock value={currentRevision.scope} /></div>
-                  <div><p className="text-xs text-muted-foreground">assumptions</p><JsonBlock value={currentRevision.assumptions} /></div>
-                  <div><p className="text-xs text-muted-foreground">falsification</p><JsonBlock value={currentRevision.falsification ?? currentRevision.falsificationConditions} /></div>
-                </div>
-              </div>
-            </details>
-          </section>
-        </div>
+        <aside aria-label="Revision ledger and provenance" className="doc-margin">
+          <MarginSection title="Revisions">
+            {revisionList && revisionList.length > 0 ? (
+              <ol className="ledger">
+                {revisionList.map((row) => (
+                  <li aria-current={row.revision === currentRevision.revision ? 'true' : undefined} key={row.revision}>
+                    <Link className="font-mono tabular-nums hover:underline" href={`/claims/${claim.claimId}?rev=${row.revision}`}>r{row.revision}</Link>
+                    <div className="min-w-0">
+                      <p className="flex flex-wrap items-baseline gap-x-2">
+                        <span className="tabular-nums text-muted-foreground">{formatDate(row.createdAt) ?? 'date not stated'}</span>
+                        {row.revision === latestRevision ? <span className="text-xs font-medium text-primary">current</span> : null}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            ) : <Skeleton className="h-6 w-full" />}
+            {latestRevision > 8 ? <p className="mt-1 text-xs text-muted-foreground">Newest 8 of {latestRevision}</p> : null}
+          </MarginSection>
 
-        {/* Status rail (11 §3): grouped counts open exact records. */}
-        <Rail label="Status summary">
-          <RailSection title="Evidence by relation">
-            <div className="grid gap-1.5">
-              {RELATIONS.map((relation) => (
-                <RailRow key={relation} label={<StatusBadge state={relation} />}>
-                  {evidenceFor(relation).length}
-                </RailRow>
-              ))}
+          <MarginSection title="Continue">
+            <Button className="w-full" onClick={() => setHandoffOpen(true)} size="sm" variant="outline">Continue with an agent</Button>
+            <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-2 text-[13px]">
+              <button
+                aria-pressed={watched}
+                className={cn('inline-flex items-center gap-1.5 hover:underline disabled:cursor-not-allowed disabled:opacity-50', watched ? 'text-primary' : 'text-foreground')}
+                disabled={!claimId || !interactionsReady || interactions === null}
+                onClick={() => toggleInteraction('claim', claimId, 'watch')}
+                title={interactionsReady && interactions === null ? 'Sign in to watch' : undefined}
+                type="button"
+              >
+                {watched ? 'Watching' : 'Watch'}
+              </button>
+              <button className="inline-flex items-center gap-1.5 text-foreground hover:underline" onClick={shareRevision} type="button">
+                {shared ? 'Link copied' : 'Copy permalink'}
+              </button>
             </div>
-          </RailSection>
-          <RailSection title="Verification outcomes">
-            <div className="grid gap-1.5">
-              {OUTCOMES.map((outcome) => (
-                <RailRow key={outcome} label={<StatusBadge state={outcome} />}>
-                  {receiptsFor(outcome).length}
-                </RailRow>
-              ))}
-            </div>
-            {topFinding ? (
-              <div className="mt-3 flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">Top open finding</span>
-                <StatusBadge label={topFinding} state={topFinding === 'critical' ? 'critical' : 'attention'} />
+          </MarginSection>
+
+          {!frontierMembership ? (
+            <MarginSection title="Frontier membership">
+              <p className="text-[13px] text-muted-foreground">Not in the latest snapshot</p>
+            </MarginSection>
+          ) : null}
+          {frontierMembership ? (
+            <MarginSection title="Frontier membership">
+              <p className="text-[13px] tabular-nums">{projectId ? <Link className="text-primary hover:underline" href={`/projects/${projectId}`}>Snapshot #{frontierMembership.sequence}</Link> : <>Snapshot #{frontierMembership.sequence}</>} at r{frontierMembership.revision}</p>
+            </MarginSection>
+          ) : null}
+
+          <MarginSection title="Record">
+            {/* Challenges track on the claim record; every response is a signed Event. */}
+            <Link className="text-[13px] text-primary hover:underline" href={`/events?objectType=claim&objectId=${claim.claimId}`}>Event audit</Link>
+          </MarginSection>
+        </aside>
+
+        <section aria-label="Research neighborhood" className="doc-span">
+          <Clause id="graph" number="7" title="Research graph" wide>
+            {graphTruncated ? <Alert className="mb-3" description="This bounded neighborhood reached a server read ceiling. Topology remains unknown wherever hidden connections may exist." title="Neighborhood truncated" variant="warning" /> : null}
+            <ClaimDag direction={direction} focusId={claim.claimId} graph={dagGraph} onDirectionChange={setDirection} />
+          </Clause>
+        </section>
+
+        <div className="doc-after">
+          <Clause id="revisions" number="8" title="Revision history">
+            {revisionDiff ? (
+              <div className="mb-4 grid gap-2 border-b border-border pb-4">
+                <p className="text-sm font-medium">Statement, r{revisionDiff.previous} to r{latestRevision}</p>
+                <p className="font-serif text-base leading-7 text-muted-foreground line-through decoration-1">{revisionDiff.from}</p>
+                <p className="change-bar ml-4 font-serif text-base leading-7">{revisionDiff.to}</p>
               </div>
             ) : null}
-          </RailSection>
-          {frontierMembership ? (
-            <RailSection title="Frontier membership">
-              <p className="text-sm tabular-nums [overflow-wrap:anywhere]">Frontier #{frontierMembership.sequence} · this claim at r{frontierMembership.revision}</p>
-              <Link className="mt-1 inline-block text-xs text-primary hover:underline" href={`/projects/${claim.projectId ?? ''}`}>Open the project frontier →</Link>
-            </RailSection>
-          ) : null}
-          <RailSection title="Latest activity">
-            <p className="text-xs tabular-nums text-muted-foreground">
-              Latest evidence: {evidence.length > 0 ? latestStamp(evidence.map((item) => item.createdAt)) : 'none yet'}
+            <p className="text-sm">
+              <Link className="text-primary hover:underline" href={`/claims/${claim.claimId}/diff`}>Compare revisions</Link>
             </p>
-            <p className="mt-1 text-xs tabular-nums text-muted-foreground">
-              Latest receipt: {receipts.length > 0 ? latestStamp(receipts.map((item) => item.createdAt)) : 'none yet'}
-            </p>
-            <p className="mt-2 text-xs text-muted-foreground">Challenges track on the claim record.</p>
-          </RailSection>
-          <RailSection>
-            <p className="text-xs text-muted-foreground">Counts open the exact linked records.</p>
-          </RailSection>
-        </Rail>
+          </Clause>
+
+          <Clause id="technical" number="9" title="Record details">
+            <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[max-content_minmax(0,1fr)]">
+              <dt className="text-muted-foreground">Stable id</dt><dd className="break-all font-mono text-xs">{claim.claimId}</dd>
+              <dt className="text-muted-foreground">Rendered revision</dt><dd className="font-mono text-xs">r{currentRevision.revision}</dd>
+              <dt className="text-muted-foreground">Next allowed states</dt><dd>{statusPolicy.allowedTransitions.map(readable).join(', ') || 'No transitions'}</dd>
+              <dt className="text-muted-foreground">Creation event</dt><dd className="break-all font-mono text-xs">{creation ? <Link className="hover:text-primary hover:underline" href={`/events?objectType=claim&objectId=${claim.claimId}`}>{creation.eventId}</Link> : 'via event audit'}</dd>
+              <dt className="text-muted-foreground">Event hash</dt><dd className="break-all font-mono text-xs">{creation?.hash ?? data.lastEvent?.hash ?? 'via event audit'}</dd>
+              {creation?.payload?.canonical_content_hash ? <><dt className="text-muted-foreground">Content hash</dt><dd className="break-all font-mono text-xs">{creation.payload.canonical_content_hash}</dd></> : null}
+              {creation?.payload?.signing_key_id ? <><dt className="text-muted-foreground">Signing key</dt><dd className="break-all font-mono text-xs">{creation.payload.signing_key_id}</dd></> : null}
+            </dl>
+            <details className="mt-4">
+              <summary className="cursor-pointer text-[13px] text-muted-foreground hover:text-foreground">Raw fields</summary>
+              <div className="mt-3 grid gap-4">
+                <div><p className="text-xs text-muted-foreground">scope</p><JsonBlock value={currentRevision.scope} /></div>
+                <div><p className="text-xs text-muted-foreground">assumptions</p><JsonBlock value={currentRevision.assumptions} /></div>
+                <div><p className="text-xs text-muted-foreground">falsification</p><JsonBlock value={currentRevision.falsification ?? currentRevision.falsificationConditions} /></div>
+              </div>
+            </details>
+          </Clause>
+        </div>
       </div>
 
       <HandoffSheet
@@ -608,10 +579,20 @@ function ClaimDetailView({ params }) {
         scopes={['evidence:write', 'drafts', 'verification:request']}
         view="argument"
       />
-    </PageContainer>
+    </div>
+  );
+}
+
+function ClaimSkeleton() {
+  return (
+    <div className="doc-page pb-20 pt-8">
+      <Skeleton className="h-4 w-64" />
+      <Skeleton className="mt-5 h-56 w-full" />
+      <div className="doc-grid mt-10"><Skeleton className="h-96 w-full" /><Skeleton className="h-64 w-full" /></div>
+    </div>
   );
 }
 
 export default function ClaimDetailPage(props) {
-  return (<Suspense fallback={<PageContainer><Skeleton className="h-32 w-full" /><Skeleton className="mt-6 h-96 w-full" /></PageContainer>}><ClaimDetailView {...props} /></Suspense>);
+  return (<Suspense fallback={<ClaimSkeleton />}><ClaimDetailView {...props} /></Suspense>);
 }

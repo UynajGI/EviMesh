@@ -8,9 +8,20 @@ import { runCli } from "../src/main.mjs";
 import { submit as submitCommand } from "../src/commands-write.mjs";
 import { canonicalRunDocument } from "../src/documents.mjs";
 import { hashContextBundle } from "../../protocol/src/context-bundle-hash.mjs";
-import { canonicalJson, rawHash } from "../../protocol/src/hash.mjs";
+import { prepareTypedResearchSubmission } from "../../../apps/api-edge/src/typed-research-prepare.mjs";
 
 const validRunFixturePath = fileURLToPath(new URL("../../schemas/fixtures/valid/run.json", import.meta.url));
+const TEST_PASSPHRASE = "correct horse battery staple";
+const TEST_KDF = Object.freeze({ N: 1024, r: 8, p: 1, maxmem: 32 * 1024 * 1024 });
+
+function testInteraction({ secrets = [TEST_PASSPHRASE], authorized = true } = {}) {
+  let secretIndex = 0;
+  return {
+    __testOnly: true,
+    secret: async () => secrets[secretIndex++] ?? TEST_PASSPHRASE,
+    authorize: async () => authorized,
+  };
+}
 
 function setup() {
   const dir = mkdtempSync(join(tmpdir(), "evimesh-cli-"));
@@ -27,6 +38,22 @@ function jsonResponse(status, body) {
   };
 }
 
+function publicCapabilities({ deviceAuthorization = false, prepare = false, submit = false } = {}) {
+  return {
+    schemaVersion: "public-capabilities.v1",
+    releaseChannel: "preview",
+    apiVersion: "0.3.0",
+    graphSchemaVersion: "research-neighborhood.v1",
+    deviceAuthorization: { enabled: deviceAuthorization },
+    research: { read: true, prepare, submit, signing: "human-local-only" },
+    clients: {
+      sdk: { available: false, minimumVersion: null },
+      cli: { available: false, minimumVersion: null },
+      mcp: { available: false, minimumVersion: null },
+    },
+  };
+}
+
 test("config init writes apiUrl and clientId", async (t) => {
   const { dir, env, cleanup } = setup();
   t.after(cleanup);
@@ -37,16 +64,23 @@ test("config init writes apiUrl and clientId", async (t) => {
   assert.equal(config.clientId, "evimesh-cli");
 });
 
-test("identity generate persists an Ed25519 identity with a did", async (t) => {
+test("key create persists only encrypted private material and public metadata", async (t) => {
   const { dir, env, cleanup } = setup();
   t.after(cleanup);
   assert.equal(await runCli(["config", "init"], { env }), 0);
-  assert.equal(await runCli(["identity", "generate", "--json"], { env }), 0);
+  assert.equal(await runCli(["key", "create", "--json"], {
+    env,
+    testInteraction: testInteraction({ secrets: [TEST_PASSPHRASE, TEST_PASSPHRASE] }),
+    testKeyStoreOptions: { kdfParams: TEST_KDF },
+  }), 0);
   const config = JSON.parse(readFileSync(join(dir, "config.json"), "utf8"));
-  assert.ok(config.identity.keyId.startsWith("key_"));
-  assert.equal(config.identity.algorithm, "Ed25519");
-  assert.ok(config.identity.did.startsWith("did:key:"));
-  assert.ok(config.identity.privateKey.length > 0);
+  assert.equal(config.identity, undefined);
+  const vault = JSON.parse(readFileSync(join(dir, "signing-keys.json"), "utf8"));
+  assert.equal(vault.keys[0].algorithm, "Ed25519");
+  assert.ok(vault.keys[0].did.startsWith("did:key:"));
+  assert.equal(vault.keys[0].privateKey, undefined);
+  assert.equal(vault.keys[0].encryptedPrivateKey.cipher, "aes-256-gcm");
+  assert.ok(vault.keys[0].encryptedPrivateKey.ciphertext.length > 0);
 });
 
 test("claim create then validate round-trips a template", async (t) => {
@@ -91,7 +125,6 @@ test("legacy submit --dry-run fails closed instead of loading the human signer",
   const { dir, env, cleanup } = setup();
   t.after(cleanup);
   assert.equal(await runCli(["config", "init"], { env }), 0);
-  assert.equal(await runCli(["identity", "generate"], { env }), 0);
   const out = join(dir, "draft.claim.json");
   await runCli(["claim", "create", "--out", out], { env });
   const draft = JSON.parse(readFileSync(out, "utf8"));
@@ -137,7 +170,6 @@ test("legacy submit rejects an already-canonical Run until an external-envelope 
   const { dir, env, cleanup } = setup();
   t.after(cleanup);
   assert.equal(await runCli(["config", "init", "--api-url", "https://api.test"], { env }), 0);
-  assert.equal(await runCli(["identity", "generate", "--json"], { env }), 0);
   const document = canonicalRunDocument(JSON.parse(readFileSync(validRunFixturePath, "utf8")));
   const path = join(dir, "canonical.run.json");
   writeFileSync(path, JSON.stringify(document));
@@ -187,7 +219,11 @@ test("typed research prepare, human-local sign, and submit remain separate steps
   const { dir, env, cleanup } = setup();
   t.after(cleanup);
   assert.equal(await runCli(["config", "init", "--api-url", "https://api.test"], { env }), 0);
-  assert.equal(await runCli(["identity", "generate", "--json"], { env }), 0);
+  assert.equal(await runCli(["key", "create", "--json"], {
+    env,
+    testInteraction: testInteraction({ secrets: [TEST_PASSPHRASE, TEST_PASSPHRASE] }),
+    testKeyStoreOptions: { kdfParams: TEST_KDF },
+  }), 0);
   const draftPath = join(dir, "answer.json");
   assert.equal(await runCli(["research", "draft", "answer", "--project", "project_018f0f4a-5c00-4000-8000-000000000001", "--created-by", "agent_01", "--out", draftPath], { env }), 0);
   const document = JSON.parse(readFileSync(draftPath, "utf8"));
@@ -198,27 +234,30 @@ test("typed research prepare, human-local sign, and submit remain separate steps
   const requests = [];
   const fetchImpl = async (url, options) => {
     requests.push({ url, options });
+    if (url.endsWith("/meta/capabilities")) return jsonResponse(200, publicCapabilities({ prepare: true, submit: true }));
     const body = JSON.parse(options.body);
     if (url.endsWith("/answers/prepare")) {
-      const { nonce, ...payloadBody } = body;
-      const payload = { entityType: "answer", graphVersion: "research-graph.v1", ...payloadBody };
-      const signingBytes = canonicalJson({ event_type: "answer.created", payload, nonce });
-      return jsonResponse(200, { eventType: "answer.created", payload, nonce, signingBytes, signingBytesHash: `sha256:${rawHash(signingBytes)}` });
+      const { nonce, ...input } = body;
+      return jsonResponse(200, prepareTypedResearchSubmission({ kind: "answer", input, publisherActorId: "agent_publisher_01", nonce }));
     }
     return jsonResponse(201, { node: { nodeId: document.answer_id, nodeKind: "answer" } });
   };
   const preparedPath = join(dir, "answer.prepared.json");
   const signedPath = join(dir, "answer.signed.json");
   assert.equal(await runCli(["research", "prepare", draftPath, "--nonce", "0123456789abcdef", "--out", preparedPath, "--json"], { env, fetchImpl }), 0);
-  assert.equal(requests.length, 1);
-  assert.equal(await runCli(["research", "sign", preparedPath, "--out", signedPath, "--json"], { env }), 0);
-  assert.equal(requests.length, 1, "local signing must not call the network");
+  assert.equal(requests.filter((request) => !request.url.endsWith("/meta/capabilities")).length, 1);
+  assert.equal(await runCli(["research", "sign", preparedPath, "--out", signedPath, "--json"], {
+    env,
+    testInteraction: testInteraction(),
+  }), 0);
+  assert.equal(requests.filter((request) => !request.url.endsWith("/meta/capabilities")).length, 1, "local signing must not call the network");
   const signed = JSON.parse(readFileSync(signedPath, "utf8"));
   assert.equal(signed.signatureEnvelope.signature.algorithm, "Ed25519");
   assert.equal(await runCli(["research", "submit", signedPath, "--json"], { env, fetchImpl }), 0);
-  assert.equal(requests.length, 2);
-  assert.equal(requests[1].url, "https://api.test/answers");
-  assert.equal(JSON.parse(requests[1].options.body).signatureEnvelope.signature.value, signed.signatureEnvelope.signature.value);
+  const researchRequests = requests.filter((request) => !request.url.endsWith("/meta/capabilities"));
+  assert.equal(researchRequests.length, 2);
+  assert.equal(researchRequests[1].url, "https://api.test/answers");
+  assert.equal(JSON.parse(researchRequests[1].options.body).signatureEnvelope.signature.value, signed.signatureEnvelope.signature.value);
 });
 
 test("context pull verifies the bundle content hash", async (t) => {
@@ -255,20 +294,20 @@ test("auth login device flow obtains a limited token from the API", async (t) =>
   t.after(cleanup);
   assert.equal(await runCli(["config", "init", "--api-url", "https://api.test"], { env }), 0);
   const { createApp } = await import("../../../apps/api-edge/src/index.mjs");
-  const tokens = [];
-  const insertApiToken = async (record) => {
-    const persisted = { tokenId: `token-${tokens.length + 1}`, ...record };
-    tokens.push(persisted);
-    return persisted;
-  };
+  const { createMemoryDeviceCodeStore } = await import("../../../apps/api-edge/src/device-auth.mjs");
+  const humanActorId = "actor-human-1";
+  const agentActorId = "actor-agent-1";
+  const deviceCodeStore = createMemoryDeviceCodeStore({
+    managedAgents: new Map([[humanActorId, [{ actorId: agentActorId, actorType: "agent" }]]]),
+  });
   const repository = {
-    findIdentity: async () => ({ actorId: "actor-1" }),
-    insertApiToken,
-    withTransaction: async (callback) => callback({ insertApiToken }),
+    findIdentity: async () => ({ actorId: humanActorId }),
+    getActor: async (actorId) => actorId === humanActorId ? { actorId, actorType: "human" } : null,
   };
-  const app = createApp({ repository, authenticate: async () => ({ sub: "supabase-subject" }) });
+  const app = createApp({ repository, deviceCodeStore, authenticate: async () => ({ sub: "supabase-subject" }) });
   let userCode = null;
   const fetchImpl = async (url, options) => {
+    if (String(url).endsWith("/meta/capabilities")) return jsonResponse(200, publicCapabilities({ deviceAuthorization: true }));
     const response = await app.fetch(new Request(url, options), {});
     if (String(url).endsWith("/auth/device") && options?.method === "POST") {
       userCode = (await response.clone().json()).user_code;
@@ -276,7 +315,7 @@ test("auth login device flow obtains a limited token from the API", async (t) =>
         app.fetch(new Request("https://api.test/auth/device/approve", {
           method: "POST",
           headers: { authorization: "Bearer browser-token", "content-type": "application/json" },
-          body: JSON.stringify({ user_code: userCode }),
+          body: JSON.stringify({ user_code: userCode, agent_actor_id: agentActorId }),
         }), {});
       });
     }
@@ -286,10 +325,28 @@ test("auth login device flow obtains a limited token from the API", async (t) =>
   assert.equal(code, 0);
   const stored = JSON.parse(readFileSync(join(dir, "state.json"), "utf8"))["evimesh.cli.token"];
   assert.match(stored, /evimesh_/);
-  assert.deepEqual(tokens[0].scopes, ["profile:read", "project:read"]);
 });
 
-test("legacy submit never synthesizes or sends a signature envelope", async (t) => {
+test("server-dependent CLI flows stop at a conservative capability fallback", async (t) => {
+  const { env, cleanup } = setup();
+  t.after(cleanup);
+  assert.equal(await runCli(["config", "init", "--api-url", "https://api.test"], { env }), 0);
+  const calls = [];
+  const fetchImpl = async (url) => {
+    calls.push(String(url));
+    throw new Error("offline");
+  };
+  assert.equal(await runCli(["auth", "login", "--json"], { env, fetchImpl }), 1);
+  assert.equal(await runCli(["research", "prepare", "missing.json", "--json"], { env, fetchImpl }), 1);
+  assert.equal(await runCli(["research", "submit", "missing.json", "--json"], { env, fetchImpl }), 1);
+  assert.deepEqual(calls, [
+    "https://api.test/meta/capabilities",
+    "https://api.test/meta/capabilities",
+    "https://api.test/meta/capabilities",
+  ]);
+});
+
+test("local key creation never sends private or public key material over an Agent token", async (t) => {
   const { dir, env, cleanup } = setup();
   t.after(cleanup);
   assert.equal(await runCli(["config", "init", "--api-url", "https://api.test"], { env }), 0);
@@ -299,7 +356,12 @@ test("legacy submit never synthesizes or sends a signature envelope", async (t) 
     requests.push({ url, options });
     return jsonResponse(201, {});
   };
-  assert.equal(await runCli(["identity", "generate", "--json"], { env, fetchImpl }), 0);
+  assert.equal(await runCli(["key", "create", "--json"], {
+    env,
+    fetchImpl,
+    testInteraction: testInteraction({ secrets: [TEST_PASSPHRASE, TEST_PASSPHRASE] }),
+    testKeyStoreOptions: { kdfParams: TEST_KDF },
+  }), 0);
   const out = join(dir, "draft.claim.json");
   await runCli(["claim", "create", "--out", out], { env });
   const draft = JSON.parse(readFileSync(out, "utf8"));
@@ -307,7 +369,7 @@ test("legacy submit never synthesizes or sends a signature envelope", async (t) 
   writeFileSync(out, JSON.stringify(draft, null, 2));
   const code = await runCli(["submit", out, "--json"], { env, fetchImpl });
   assert.equal(code, 1);
-  assert.ok(requests.some((request) => request.url.endsWith("/signing-keys")), "identity generate must register the signing key");
+  assert.equal(requests.length, 0, "local key creation must never use an Agent token or the network");
   const claimRequest = requests.find((request) => request.url.endsWith("/claims"));
   assert.equal(claimRequest, undefined);
 });
@@ -365,7 +427,6 @@ test("legacy verify submit --dry-run fails closed without signing", async (t) =>
   const { dir, env, cleanup } = setup();
   t.after(cleanup);
   assert.equal(await runCli(["config", "init"], { env }), 0);
-  assert.equal(await runCli(["identity", "generate"], { env }), 0);
   const receipt = {
     schema: "srp.verification-receipt.v1",
     claim_revision_id: "claim_1@2",

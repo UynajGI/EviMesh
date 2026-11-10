@@ -1,6 +1,20 @@
 import { PassThrough } from "node:stream";
 import { serveStdio } from "../src/protocol.mjs";
 
+export const PUBLIC_CAPABILITIES_ENABLED = Object.freeze({
+  schemaVersion: "public-capabilities.v1",
+  releaseChannel: "preview",
+  apiVersion: "0.3.0",
+  graphSchemaVersion: "research-neighborhood.v1",
+  deviceAuthorization: Object.freeze({ enabled: true }),
+  research: Object.freeze({ read: true, prepare: true, submit: true, signing: "human-local-only" }),
+  clients: Object.freeze({
+    sdk: Object.freeze({ available: false, minimumVersion: null }),
+    cli: Object.freeze({ available: false, minimumVersion: null }),
+    mcp: Object.freeze({ available: false, minimumVersion: null }),
+  }),
+});
+
 /** Collecting writable that records every JSON-RPC line the server emits. */
 export function createOutputCollector() {
   const lines = [];
@@ -39,6 +53,7 @@ export function createFakeClient(overrides = {}) {
     submit: async (input) => ({ node: { nodeKind: kind }, signatureEnvelope: input.signatureEnvelope }),
   });
   return {
+    capabilities: { get: async () => PUBLIC_CAPABILITIES_ENABLED },
     projects: { list: async () => ({ items: [{ projectId: "project-1" }], nextCursor: null }) },
     questions: { list: async () => ({ items: [{ questionId: "question-1", state: "active" }, { questionId: "question-2", state: "resolved" }], nextCursor: null }) },
     researchGraph: { neighborhood: async (kind, id, options = {}) => ({ schemaVersion: "research-neighborhood.v1", requestedRoot: { kind, id, ...(options.revision ? { revision: options.revision } : {}) }, resolvedRoot: { kind, id, revision: options.revision ?? 1 }, nodes: [], edges: [], truncated: false, nextCursor: null }) },

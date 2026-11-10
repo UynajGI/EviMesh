@@ -1,12 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { actorHref } from '@/components/attribution';
 import { useEffect, useState } from 'react';
-import { ArrowRight } from 'lucide-react';
-import { Card, StatusBadge } from '@/components/ui/data';
+import { StatusBadge } from '@/components/ui/data';
+import { ActorName, Identifier } from '@/components/ui/doc';
 import { Skeleton } from '@/components/ui/feedback';
-import { IdChip } from '@/components/ui/idchip';
 import { hydrateEvidenceLinks, evidenceRelations } from '@/lib/hydrate';
 
 const API = process.env.NEXT_PUBLIC_EVIMESH_API_URL;
@@ -20,20 +18,49 @@ async function fetchJson(path) {
 
 /*
  * Real public example (design book 05 §1): show an actual live question with
- * its claim states instead of inventing a demo. Falls back to the honest
- * descriptive card when the API is empty or unreachable.
+ * its claim states instead of inventing a demo, set as a small title-block
+ * excerpt of the controlled document. Falls back to the honest, labeled demo
+ * excerpt when the API is empty or unreachable.
  */
-function toRelativeTime(value) {
-  return <span title={value ?? undefined}>{relativeTime(value)}</span>;
+export function ExampleExcerpt({ kind, status, note, title, cells, children, footer }) {
+  return (
+    <section aria-label={`Example ${kind.toLowerCase()}`} className="border-t border-foreground pt-4">
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-[13px]">
+        <span className="font-medium">{kind}</span>
+        {status}
+        {note ? <span className="text-muted-foreground">{note}</span> : null}
+      </div>
+      <h2 className="claim-statement mt-2 max-w-[40ch] text-pretty font-serif text-[1.5rem] font-medium leading-[1.25] tracking-[-0.01em] [overflow-wrap:anywhere]">{title}</h2>
+      {cells.length > 0 ? (
+        <dl className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-[13px]">
+          {cells.filter((cell) => cell.value).map((cell) => (
+            <div className="inline-flex items-baseline gap-1.5" key={cell.label}>
+              <dt className="text-muted-foreground">{cell.label}</dt>
+              <dd>{cell.value}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
+      {children ? <div className="mt-4 border-t border-border">{children}</div> : null}
+      {footer ? <div className="mt-3 flex flex-wrap items-baseline justify-between gap-3 text-[13px]">{footer}</div> : null}
+    </section>
+  );
 }
 
-function relativeTime(value) {
-  const timestamp = Date.parse(value ?? '');
-  if (Number.isNaN(timestamp)) return '';
-  const minutes = Math.max(0, Math.floor((Date.now() - timestamp) / 60_000));
-  if (minutes < 60) return `${minutes || 1}m ago`;
-  if (minutes < 1440) return `${Math.floor(minutes / 60)}h ago`;
-  return `${Math.floor(minutes / 1440)}d ago`;
+export function ExampleClaimRow({ state, statement, href, children }) {
+  return (
+    <li className="grid gap-x-4 gap-y-1 border-b border-border py-2.5 sm:grid-cols-[8rem_minmax(0,1fr)]">
+      <div><StatusBadge state={state} /></div>
+      <div className="min-w-0">
+        {href ? (
+          <Link className="font-serif text-[1.0625rem] leading-snug hover:underline" href={href}>{statement}</Link>
+        ) : (
+          <p className="font-serif text-[1.0625rem] leading-snug">{statement}</p>
+        )}
+        {children}
+      </div>
+    </li>
+  );
 }
 
 export function LandingExample({ fallback }) {
@@ -51,8 +78,8 @@ export function LandingExample({ fallback }) {
           if (claims.length > 0) {
             const frontier = await fetchJson(`/projects/${question.projectId}/frontier/latest`)
               .then((body) => body.frontier ?? null).catch(() => null);
-            // Evidence grouped counts per claim (mockup claim rows): hydrate
-            // relations from the detail endpoint, bounded to the shown rows.
+            // Evidence grouped counts per claim: hydrate relations from the
+            // detail endpoint, bounded to the shown rows. Counts are links.
             const enriched = await Promise.all(claims.slice(0, 3).map(async (claim) => {
               const evidence = await fetchJson(`/evidence?claimId=${claim.claimId}&limit=20`).then((body) => body.items ?? []).catch(() => []);
               const hydrated = await hydrateEvidenceLinks(API, evidence);
@@ -60,11 +87,25 @@ export function LandingExample({ fallback }) {
               for (const relation of ['supports', 'refutes', 'qualifies', 'reproduces']) {
                 counts[relation] = hydrated.filter((item) => evidenceRelations(item).includes(relation)).length;
               }
-              return { ...claim, evidenceCounts: counts };
+              const detail = await fetchJson(`/claims/${claim.claimId}`).catch(() => null);
+              return { ...claim, currentRevision: detail?.currentRevision ?? null, evidenceCounts: counts };
             }));
-            const contributor = await fetchJson(`/events?objectType=question&objectId=${question.questionId}&limit=1`)
-              .then((body) => body.items?.[0]?.actorId ?? null).catch(() => null);
-            setExample({ question, claims: enriched, frontier, contributor });
+            const [questionDetail, creation, project] = await Promise.all([
+              fetchJson(`/questions/${question.questionId}`).catch(() => null),
+              fetchJson(`/events?objectType=question&objectId=${question.questionId}&order=asc&limit=5`)
+                .then((body) => (body.items ?? []).find((event) => event.eventType === 'question.created') ?? null).catch(() => null),
+              fetchJson(`/projects/${question.projectId}`).catch(() => null),
+            ]);
+            const contributor = creation?.payload?.drafted_by_actor_id ?? creation?.payload?.producer_actor_id ?? question.createdBy ?? null;
+            const signer = creation?.payload?.publisher_actor_id ?? null;
+            setExample({
+              question: { ...question, currentRevision: questionDetail?.currentRevision ?? null },
+              projectName: project?.currentRevision?.name ?? null,
+              claims: enriched,
+              frontier,
+              contributor,
+              signer,
+            });
             return;
           }
         }
@@ -76,66 +117,50 @@ export function LandingExample({ fallback }) {
   }, []);
 
   if (example === 'loading') {
-    return <Card><div className="p-5"><Skeleton className="h-6 w-2/3" /><Skeleton className="mt-3 h-4 w-full" /><Skeleton className="mt-2 h-4 w-4/5" /></div></Card>;
+    return (
+      <div aria-busy="true" aria-label="Loading a public research example" className="border-t border-foreground pt-4">
+        <Skeleton className="h-4 w-24" /><Skeleton className="mt-4 h-7 w-4/5" /><Skeleton className="mt-2 h-7 w-3/5" /><Skeleton className="mt-6 h-16 w-full" />
+      </div>
+    );
   }
   if (!example) return fallback;
 
-  const { question, claims, frontier, contributor } = example;
+  const { question, claims, frontier, contributor, signer, projectName } = example;
   const revision = question.currentRevision ?? question;
 
   return (
-    <Card>
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <StatusBadge state={question.state} label="question" />
-          {frontier ? <span className="text-xs tabular-nums text-muted-foreground">Frontier #{frontier.sequence}</span> : null}
-          <span className="text-xs tabular-nums text-muted-foreground">project {question.projectId}</span>
-          {revision.createdAt ? <span className="text-xs tabular-nums text-muted-foreground">{toRelativeTime(revision.createdAt)}</span> : null}
-        </div>
-        <IdChip value={question.questionId} />
-      </div>
-      <div className="px-5 py-4">
-        <h3 className="text-lg font-medium leading-snug">{revision.title ?? revision.statement ?? question.questionId}</h3>
-        {revision.statement && revision.title ? <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{revision.statement}</p> : null}
-        <ul className="mt-4 divide-y divide-border">
-          {claims.map((claim) => (
-            <li className="grid gap-1.5 py-2.5" key={claim.claimId}>
-              <div className="flex flex-wrap items-center gap-3">
-                <StatusBadge state={claim.state} />
-                <Link className="min-w-0 flex-1 truncate text-sm text-muted-foreground hover:text-foreground" href={`/claims/${claim.claimId}`}>
-                  Open evidence, verification, and downstream context
-                </Link>
-                <IdChip value={claim.claimId} />
-              </div>
+    <ExampleExcerpt
+      cells={[
+        { label: 'Project', value: projectName ? <Link className="hover:underline" href={`/projects/${question.projectId}`}>{projectName}</Link> : null },
+        { label: 'Drafted by', value: contributor ? <ActorName actorId={contributor} /> : null },
+        { label: 'Signed by', value: signer ? <ActorName actorId={signer} showOwner={false} /> : null },
+      ]}
+      footer={(
+        <>
+          <Identifier value={question.questionId} />
+          <Link className="font-medium text-primary hover:underline" href={`/questions/${question.questionId}`}>Open question</Link>
+        </>
+      )}
+      kind="Question"
+      status={<StatusBadge state={question.state} />}
+      title={revision.title ?? revision.statement ?? question.questionId}
+    >
+      <ul>
+        {claims.map((claim) => {
+          const statement = claim.currentRevision?.statement ?? claim.statement ?? null;
+          return (
+            <ExampleClaimRow href={`/claims/${claim.claimId}`} key={claim.claimId} state={claim.state} statement={statement ?? claim.claimId}>
               {claim.evidenceCounts && Object.values(claim.evidenceCounts).some((count) => count > 0) ? (
-                <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs tabular-nums text-muted-foreground">
-                  {claim.evidenceCounts.supports > 0 ? <Link className="hover:text-foreground" href={`/claims/${claim.claimId}`}>supports {claim.evidenceCounts.supports}</Link> : null}
-                  {claim.evidenceCounts.refutes > 0 ? <Link className="hover:text-foreground" href={`/claims/${claim.claimId}`}>refutes {claim.evidenceCounts.refutes}</Link> : null}
-                  {claim.evidenceCounts.qualifies > 0 ? <Link className="hover:text-foreground" href={`/claims/${claim.claimId}`}>qualifies {claim.evidenceCounts.qualifies}</Link> : null}
-                  {claim.evidenceCounts.reproduces > 0 ? <Link className="hover:text-foreground" href={`/claims/${claim.claimId}`}>reproduces {claim.evidenceCounts.reproduces}</Link> : null}
+                <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs tabular-nums text-muted-foreground">
+                  {['supports', 'refutes', 'qualifies', 'reproduces'].map((relation) => (claim.evidenceCounts[relation] > 0
+                    ? <Link className="hover:text-foreground hover:underline" href={`/claims/${claim.claimId}`} key={relation}>{relation} {claim.evidenceCounts[relation]}</Link>
+                    : null))}
                 </p>
               ) : null}
-            </li>
-          ))}
-        </ul>
-        <p className="mt-4 text-sm text-muted-foreground">
-          Every count opens onto the exact revision, receipt, or event behind it.
-        </p>
-      </div>
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-5 py-3">
-        <span className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
-          Live public research
-          {contributor ? (
-            <span>
-              {' '}· contributed by{' '}
-              <Link className="font-medium text-foreground hover:underline" href={actorHref(contributor)}>{contributor}</Link>
-            </span>
-          ) : null}
-        </span>
-        <Link className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline" href={`/questions/${question.questionId}`}>
-          Enter the workspace <ArrowRight aria-hidden="true" size={14} />
-        </Link>
-      </div>
-    </Card>
+            </ExampleClaimRow>
+          );
+        })}
+      </ul>
+    </ExampleExcerpt>
   );
 }

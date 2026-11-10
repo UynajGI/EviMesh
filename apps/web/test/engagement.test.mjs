@@ -48,7 +48,7 @@ test('home uses the viewer private watch signal as its only object scope', async
   const src = await read('../app/home/page.js');
   assert.match(src, /fetchMyInteractions\(\['watch'\]\)/, 'home reads only watch interactions');
   assert.match(src, /signed-in watch interactions/, 'signed-out scope is explicit');
-  assert.match(src, /Home does not substitute a public feed/, 'the private scope has no network-wide fallback');
+  assert.doesNotMatch(src, /Home does not substitute a public feed/, 'self-explaining copy removed (record pass)');
   assert.doesNotMatch(src, /fetchRecommendations|useMyInteractions|EngagementActions/, 'recommendation and engagement feed plumbing stays off Home');
 });
 
@@ -56,7 +56,7 @@ test('saved page lists only the viewer own saves with a signed-out scope state',
   const src = await read('../app/saved/page.js');
   assert.match(src, /kind=\['favorite'\]|kinds=\['favorite'\]|\['favorite'\]/, 'the page lists the favorite kind only');
   assert.match(src, /DeniedState/, 'signed-out viewers get the scope boundary state, not a fake list');
-  assert.match(src, /never shown as public counts/i, 'privacy sentence present');
+  assert.doesNotMatch(src, /never shown as public counts/i, 'self-explaining privacy copy removed (record pass)');
   assert.doesNotMatch(src, /score/, 'no scores in the saved list');
 });
 

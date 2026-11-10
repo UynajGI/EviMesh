@@ -15,7 +15,8 @@ test("form primitives export Label, Help, Error, and FieldGroup", () => {
 test("form primitives use semantic tokens, not hardcoded colors", () => {
   for (const source of [formSource, inputSource]) {
     assert.doesNotMatch(source, /\b(indigo|slate)\b|#[0-9a-f]{6}/i, "form primitives must not hardcode colors");
-    assert.match(source, /border-border/);
+    // Field boundaries use an ink token strong enough for 3:1 non-text contrast.
+    assert.match(source, /border-(?:border|foreground\/\d+)/);
     assert.match(source, /bg-card/);
     assert.match(source, /ring-focus/);
     assert.match(source, /destructive/);

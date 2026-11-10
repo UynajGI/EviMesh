@@ -21,6 +21,7 @@ test("does not save unrestricted CLI tokens", () => {
   const values = new Map();
   const storage = { setItem: (key, value) => values.set(key, value) };
   assert.throws(() => saveLimitedToken(storage, { access_token: "full", scopes: ["admin"] }), /disallowed scopes/);
-  saveLimitedToken(storage, { access_token: "limited", scopes: ["profile:read"] });
+  assert.throws(() => saveLimitedToken(storage, { access_token: "signer", scopes: ["research:sign"] }), /disallowed scopes/);
+  saveLimitedToken(storage, { access_token: "limited", scopes: ["profile:read", "research:prepare", "research:submit", "artifact:upload"] });
   assert.match(values.get("evimesh.cli.token"), /limited/);
 });

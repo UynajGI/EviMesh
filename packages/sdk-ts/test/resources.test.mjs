@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createClient } from "../src/index.mjs";
+import { FALLBACK_PUBLIC_CAPABILITIES } from "../src/resources/public-capabilities.mjs";
 import { buildMerkleTree } from "../../merkle/src/merkle-tree.mjs";
 import { hashResearchEventLeaf } from "../../merkle/src/research-event-leaf.mjs";
 import { createMerkleInclusionProof } from "../../merkle/src/inclusion-proof.mjs";
@@ -27,6 +28,80 @@ function setup(body = {}) {
   const { calls, fetchImpl } = recordingFetch(() => jsonResponse(200, body));
   return { calls, client: createClient({ baseUrl: "https://api.example.test", fetchImpl }) };
 }
+
+function publicCapabilities(overrides = {}) {
+  return {
+    schemaVersion: "public-capabilities.v1",
+    releaseChannel: "preview",
+    apiVersion: "0.3.0",
+    graphSchemaVersion: "research-neighborhood.v1",
+    deviceAuthorization: { enabled: false },
+    research: { read: true, prepare: false, submit: false, signing: "human-local-only" },
+    clients: {
+      sdk: { available: false, minimumVersion: null },
+      cli: { available: false, minimumVersion: null },
+      mcp: { available: false, minimumVersion: null },
+    },
+    ...overrides,
+  };
+}
+
+test("capability client reads and validates the public manifest", async () => {
+  const manifest = publicCapabilities({
+    deviceAuthorization: { enabled: true },
+    research: { read: true, prepare: true, submit: false, signing: "human-local-only" },
+  });
+  const { calls, client } = setup(manifest);
+  const capabilities = await client.capabilities.get();
+  assert.equal(calls[0].url, "https://api.example.test/meta/capabilities");
+  assert.equal(calls[0].options.method, "GET");
+  assert.equal(capabilities.deviceAuthorization.enabled, true);
+  assert.equal(capabilities.research.prepare, true);
+  assert.equal(Object.isFrozen(capabilities), true);
+});
+
+test("capability client fails closed on invalid documents and fetch failures", async () => {
+  const invalid = createClient({
+    baseUrl: "https://api.example.test",
+    fetchImpl: async () => jsonResponse(200, { ...publicCapabilities(), schemaVersion: "unknown" }),
+  });
+  assert.equal(await invalid.capabilities.get(), FALLBACK_PUBLIC_CAPABILITIES);
+
+  const unavailable = createClient({
+    baseUrl: "https://api.example.test",
+    fetchImpl: async () => { throw new Error("offline"); },
+  });
+  const fallback = await unavailable.capabilities.get();
+  assert.equal(fallback, FALLBACK_PUBLIC_CAPABILITIES);
+  assert.deepEqual(fallback.research, { read: true, prepare: false, submit: false, signing: "human-local-only" });
+});
+
+test("admission clients cover account keys and project governance without research writes", async () => {
+  const { calls, client } = setup({});
+  await client.onboarding.complete({ termsVersion: "terms-1", displayName: "Researcher" });
+  await client.signingKeys.list();
+  await client.signingKeys.register({ keyId: "key-1", publicKey: "public", label: "Laptop" });
+  await client.signingKeys.revoke("key/1", "rotated");
+  await client.projectApplications.submit({ proposedProjectId: "project-1", name: "Project", summary: "Summary", license: "CC-BY-4.0" });
+  await client.projectApplications.withdraw("application/1");
+  await client.projectApplications.decide("application/1", { decision: "rejected", reason: "Needs a clearer license." });
+  await client.projectInvitations.create("project/1", { invitedActorId: "actor-2", role: "contributor", expiresAt: "2026-09-10T00:00:00Z" });
+  await client.projectInvitations.respond("invitation/1", "accepted");
+  await client.projectInvitations.revoke("project/1", "invitation/1", "superseded");
+  await client.projectMemberships.changeRole("project/1", "actor/2", { role: "maintainer", reason: "Coordination duty" });
+  await client.projectMemberships.remove("project/1", "actor/2", "left project");
+
+  assert.equal(calls[0].url, "https://api.example.test/onboarding/complete");
+  assert.equal(calls[1].url, "https://api.example.test/signing-keys");
+  assert.equal(calls[3].url, "https://api.example.test/signing-keys/key%2F1");
+  assert.equal(calls[5].url, "https://api.example.test/project-applications/application%2F1/withdraw");
+  assert.equal(calls[7].url, "https://api.example.test/projects/project%2F1/invitations");
+  assert.equal(calls[8].url, "https://api.example.test/project-invitations/invitation%2F1/respond");
+  assert.equal(calls[9].url, "https://api.example.test/projects/project%2F1/invitations/invitation%2F1/revoke");
+  assert.equal(calls[10].url, "https://api.example.test/projects/project%2F1/members/actor%2F2");
+  assert.equal(calls[11].options.method, "DELETE");
+  assert.equal(Object.hasOwn(client.projectApplications, "approveDirectly"), false);
+});
 
 test("project client covers create, list, get, and revise with If-Match", async () => {
   const { calls, client } = setup({ project: { projectId: "project-1" } });

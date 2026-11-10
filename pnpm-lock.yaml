@@ -42,6 +42,12 @@ importers:
 
   apps/mcp: {}
 
+  apps/status:
+    devDependencies:
+      wrangler:
+        specifier: 4.124.0
+        version: 4.124.0(@types/node@26.1.2)
+
   apps/web:
     dependencies:
       '@opennextjs/cloudflare':

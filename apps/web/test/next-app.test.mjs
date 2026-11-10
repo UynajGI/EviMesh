@@ -33,8 +33,8 @@ test('Kinetic Journal shell exposes the locked publication navigation', async ()
   assert.match(shell, /aria-label="Primary mobile"/);
   assert.match(shell, /kinetic-page-enter/);
   assert.match(shell, /kinetic-nav-link/);
-  assert.match(globals, /kinetic-page-enter 200ms/);
-  assert.match(globals, /translateX\(8px\)/);
+  assert.match(globals, /kinetic-page-enter 160ms/);
+  assert.doesNotMatch(globals, /translateX\(8px\)/, "page entry is a quiet fade, not a slide");
   assert.match(globals, /\.kinetic-nav-link::after[\s\S]*transition: transform 160ms/);
 });
 
@@ -45,7 +45,7 @@ test('local fonts and editorial page primitives are wired without runtime font r
   for (const family of ['Inter Tight', 'Source Serif 4', 'IBM Plex Mono']) assert.match(globals, new RegExp(family));
   assert.match(globals, /url\(["']\/fonts\//);
   assert.match(page, /grid-cols-12/);
-  assert.match(page, /max-w-\[96rem\]/);
+  assert.match(page, /doc-page/, 'pages share the shell column');
   assert.match(provenance, /SIL Open Font License 1\.1/);
   assert.doesNotMatch(globals, /https:\/\/fonts\.(?:googleapis|gstatic)\.com/);
 });
@@ -71,11 +71,18 @@ test('Explore discovers the unified research object set', async () => {
 
 test('typed detail routes share content, provenance and neighborhood rendering', async () => {
   const detail = await read('../components/research-object-detail.js');
-  assert.match(detail, /TYPE CONTENT/);
-  assert.match(detail, /PROVENANCE MARGINALIA/);
-  assert.match(detail, /REVISION/);
-  assert.match(detail, /SIGNATURE/);
-  assert.match(detail, /PROVENANCE/);
+  /* Controlled-document grammar: numbered clauses and a provenance margin
+   * replace the old ALL-CAPS kickers (TYPE CONTENT, PROVENANCE MARGINALIA). */
+  assert.match(detail, /title="Content"/);
+  assert.match(detail, /title="Research graph"/);
+  assert.match(detail, /title="Record details"/);
+  assert.match(detail, /<MarginSection title="Provenance">/);
+  assert.match(detail, /<MarginSection title="Revision">/);
+  assert.match(detail, />Signature</);
+  assert.match(detail, /drafted_by_actor_id/);
+  assert.match(detail, /publisher_actor_id/);
+  assert.match(detail, /\/events\?objectType=\$\{encodeURIComponent\(type\)\}&objectId=\$\{encodeURIComponent\(id\)\}&order=asc&limit=20/);
+  assert.doesNotMatch(detail, /TYPE CONTENT|PROVENANCE MARGINALIA|READ-ONLY WEB/);
   assert.match(detail, /<ClaimDag direction="both" focusId=\{id\} graph=\{neighborhood\}/);
   for (const route of ['answers/[answerId]', 'rebuttals/[rebuttalId]', 'evaluations/[evaluationId]', 'datasets/[datasetId]', 'tools/[toolId]']) await access(new URL(`../app/${route}/page.js`, import.meta.url));
 });
@@ -107,19 +114,23 @@ test('research surfaces contain no browser mutation controls or competitive mete
 
 test('Projects and Task details expose records without direct research mutation', async () => {
   const [projects, task] = await Promise.all([read('../app/projects/page.js'), read('../app/tasks/[taskId]/page.js')]);
-  assert.match(projects, /READ-ONLY WEB/);
-  assert.match(task, /Attempts begin outside the reading surface/);
+  assert.doesNotMatch(projects, /Read-only web: project creation and research transitions happen through CLI or MCP/);
+  assert.doesNotMatch(task, /Attempts begin outside the reading surface/);
   assert.match(task, /HandoffSheet/);
   assert.doesNotMatch(projects + task, /method:\s*['"]POST|Acquire lease|Release my lease|startAttempt/);
 });
 
-test('account, token, key and Agent connection controls remain interactive', async () => {
+test('account, token revocation, key and Agent connection controls remain interactive', async () => {
   const [settings, tokens, keys, agent] = await Promise.all([
     read('../app/settings/page.js'), read('../app/settings/tokens/page.js'), read('../app/settings/keys/page.js'), read('../app/agent/page.js'),
   ]);
   assert.match(settings, /Save profile/);
-  assert.match(tokens, /Create token/);
-  assert.match(keys, /signing-keys/);
+  assert.match(tokens, /Connect an Agent/);
+  assert.match(tokens, /Revoke this token/);
+  assert.doesNotMatch(tokens, /Create token/);
+  assert.match(keys, /signingKeys\.register\(/);
+  assert.match(keys, /signingKeys\.revoke\(/);
+  assert.doesNotMatch(keys, /generateKey|privateKey|crypto\.subtle/);
   assert.match(agent, /MCP_CONFIG/);
 });
 

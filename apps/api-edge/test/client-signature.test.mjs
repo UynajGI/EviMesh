@@ -19,9 +19,12 @@ function makeEnvelope({ keypair, keyId, eventType, payload, nonce = "nonce-01234
   }));
 }
 
-function keyRepository(keypair, keyId) {
+function keyRepository(keypair, keyId, lookups = []) {
   return {
-    findActiveSigningKey: async () => ({ keyId, actorId: "actor-1", algorithm: "Ed25519", publicKey: keypair.public_key }),
+    findActiveSigningKey: async (actorId, requestedKeyId) => {
+      lookups.push([actorId, requestedKeyId]);
+      return { keyId, actorId: "actor-1", algorithm: "Ed25519", publicKey: keypair.public_key };
+    },
     claimSignatureNonce: async () => true,
   };
 }
@@ -30,9 +33,30 @@ test("verifies a well-formed envelope against the actor's active signing key", a
   const keypair = generateEd25519KeyPair();
   const payload = { claimId: "claim-1", statement: "s" };
   const envelope = await makeEnvelope({ keypair, keyId: "key-1", eventType: "claim.created", payload });
-  const result = await verifyClientSignatureEnvelope({ repository: keyRepository(keypair, "key-1"), actorId: "actor-1", envelope, payload, expectedEventType: "claim.created" });
+  const lookups = [];
+  const result = await verifyClientSignatureEnvelope({ repository: keyRepository(keypair, "key-1", lookups), publisherActorId: "actor-1", envelope, payload, expectedEventType: "claim.created" });
   assert.equal(result.verified, true);
   assert.equal(result.keyId, "key-1");
+  assert.equal(result.publisherActorId, "actor-1");
+  assert.deepEqual(lookups, [["actor-1", "key-1"]]);
+});
+
+test("rejects owner/publisher attribution mismatches before key lookup", async () => {
+  const keypair = generateEd25519KeyPair();
+  const payload = { publisherActorId: "human-1", signerActorId: "human-1", claimId: "claim-1" };
+  const envelope = await makeEnvelope({ keypair, keyId: "key-1", eventType: "claim.created", payload });
+  const lookups = [];
+  await assert.rejects(
+    verifyClientSignatureEnvelope({
+      repository: keyRepository(keypair, "key-1", lookups),
+      publisherActorId: "human-2",
+      envelope,
+      payload,
+      expectedEventType: "claim.created",
+    }),
+    (error) => error.code === "CLIENT_SIGNATURE_PUBLISHER_MISMATCH",
+  );
+  assert.deepEqual(lookups, []);
 });
 
 test("rejects envelopes whose payload differs from the request", async () => {

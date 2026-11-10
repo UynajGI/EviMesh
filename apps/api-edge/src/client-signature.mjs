@@ -25,7 +25,7 @@ function canonicalOrThrow(value, field) {
  * Fail-closed: any structural, key, payload, or cryptographic mismatch rejects
  * the submission.
  */
-export async function verifyClientSignatureEnvelopeCryptography({ repository, actorId, envelope, payload, expectedEventType } = {}) {
+export async function verifyClientSignatureEnvelopeCryptography({ repository, publisherActorId, actorId, envelope, payload, expectedEventType } = {}) {
   if (!envelope || typeof envelope !== 'object' || Array.isArray(envelope)) {
     throw new ClientSignatureError('signature envelope is required');
   }
@@ -48,13 +48,22 @@ export async function verifyClientSignatureEnvelopeCryptography({ repository, ac
     || typeof signature.value !== 'string' || signature.value.length === 0) {
     throw new ClientSignatureError('signature envelope signature block is invalid');
   }
-  if (typeof actorId !== 'string' || actorId.trim().length === 0) {
-    throw new ClientSignatureError('authenticated actor is required for signature verification', 'CLIENT_SIGNATURE_ACTOR_MISSING', 401);
+  if (publisherActorId !== undefined && actorId !== undefined && publisherActorId !== actorId) {
+    throw new ClientSignatureError('publisher actor does not match the signature actor', 'CLIENT_SIGNATURE_PUBLISHER_MISMATCH');
   }
+  publisherActorId = publisherActorId ?? actorId;
+  if (typeof publisherActorId !== 'string' || publisherActorId.trim().length === 0) {
+    throw new ClientSignatureError('human publisher is required for signature verification', 'CLIENT_SIGNATURE_ACTOR_MISSING', 401);
+  }
+  publisherActorId = publisherActorId.trim();
   const envelopePayload = canonicalOrThrow(envelope.payload ?? null, 'payload');
   const requestPayload = canonicalOrThrow(payload ?? null, 'request payload');
   if (envelopePayload !== requestPayload) {
     throw new ClientSignatureError('signature envelope payload does not match the request', 'CLIENT_SIGNATURE_PAYLOAD_MISMATCH');
+  }
+  if ((typeof envelope.payload?.publisherActorId === 'string' && envelope.payload.publisherActorId !== publisherActorId)
+    || (typeof envelope.payload?.signerActorId === 'string' && envelope.payload.signerActorId !== publisherActorId)) {
+    throw new ClientSignatureError('signature payload is not attributed to this human publisher', 'CLIENT_SIGNATURE_PUBLISHER_MISMATCH');
   }
   const signingBytes = Buffer.from(canonicalOrThrow({ event_type: envelope.event_type, payload: envelope.payload, nonce: envelope.nonce }, 'signing bytes'), 'utf8');
   if (typeof envelope.signing_bytes_hash !== 'string' || envelope.signing_bytes_hash !== `sha256:${rawHash(signingBytes.toString('utf8'))}`) {
@@ -63,11 +72,12 @@ export async function verifyClientSignatureEnvelopeCryptography({ repository, ac
   if (!repository || typeof repository.findActiveSigningKey !== 'function') {
     throw new ClientSignatureError('signing key lookup is not configured', 'CLIENT_SIGNATURE_UNAVAILABLE', 503);
   }
-  const signingKey = await repository.findActiveSigningKey(actorId.trim());
-  if (!signingKey || signingKey.keyId !== signature.key_id.trim()) {
+  const keyId = signature.key_id.trim();
+  const signingKey = await repository.findActiveSigningKey(publisherActorId, keyId);
+  if (!signingKey || signingKey.keyId !== keyId) {
     throw new ClientSignatureError('no matching active signing key for this actor', 'CLIENT_SIGNATURE_KEY_NOT_FOUND');
   }
-  if ((typeof signingKey.actorId === 'string' && signingKey.actorId.trim() !== actorId.trim())
+  if ((typeof signingKey.actorId === 'string' && signingKey.actorId.trim() !== publisherActorId)
     || signingKey.revokedAt !== null && signingKey.revokedAt !== undefined
     || signingKey.deletedAt !== null && signingKey.deletedAt !== undefined
     || signingKey.active === false
@@ -81,12 +91,12 @@ export async function verifyClientSignatureEnvelopeCryptography({ repository, ac
   if (verified !== true) {
     throw new ClientSignatureError('signature verification failed', 'CLIENT_SIGNATURE_MISMATCH');
   }
-  return Object.freeze({ verified: true, keyId: signingKey.keyId });
+  return Object.freeze({ verified: true, keyId: signingKey.keyId, publisherActorId });
 }
 
 /** Verify the exact signature bytes and atomically consume the human nonce. */
-export async function verifyClientSignatureEnvelope({ repository, signatureNonceStore = null, actorId, envelope, payload, expectedEventType } = {}) {
-  const verified = await verifyClientSignatureEnvelopeCryptography({ repository, actorId, envelope, payload, expectedEventType });
+export async function verifyClientSignatureEnvelope({ repository, signatureNonceStore = null, publisherActorId, actorId, envelope, payload, expectedEventType } = {}) {
+  const verified = await verifyClientSignatureEnvelopeCryptography({ repository, publisherActorId, actorId, envelope, payload, expectedEventType });
   const nonceStore = typeof signatureNonceStore?.claimSignatureNonce === 'function'
     ? signatureNonceStore
     : typeof repository?.claimSignatureNonce === 'function'
@@ -98,7 +108,7 @@ export async function verifyClientSignatureEnvelope({ repository, signatureNonce
   let claimed;
   try {
     claimed = await nonceStore.claimSignatureNonce({
-      actorId: actorId.trim(),
+      actorId: verified.publisherActorId,
       keyId: verified.keyId,
       nonce: envelope.nonce,
     });

@@ -19,11 +19,11 @@ export function DialogContent({ className, children, ...props }) {
     <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay className="fixed inset-0 bg-background/80 backdrop-blur-sm" />
       <DialogPrimitive.Content
-        className={cn('evimesh-dialog-enter fixed left-1/2 top-1/2 w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-card p-6 text-card-foreground focus:outline-none', className)}
+        className={cn('evimesh-dialog-enter fixed left-1/2 top-1/2 w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-[2px] border border-border bg-card p-5 text-card-foreground shadow-[0_8px_24px_-12px_color-mix(in_oklch,var(--evimesh-foreground)_25%,transparent)] focus:outline-none', className)}
         {...props}
       >
         {children}
-        <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm text-muted-foreground transition-colors hover:text-foreground" aria-label="Close dialog">
+        <DialogPrimitive.Close className="absolute right-3 top-3 rounded-[2px] text-muted-foreground transition-colors hover:text-foreground" aria-label="Close dialog">
           <X className="size-4" />
         </DialogPrimitive.Close>
       </DialogPrimitive.Content>
@@ -46,13 +46,13 @@ export function Confirm({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent aria-describedby="confirm-description" role="alertdialog">
-        <h2 className="text-base font-semibold text-foreground">{title}</h2>
+        <h2 className="text-[0.9375rem] font-semibold text-foreground">{title}</h2>
         <p className="mt-2 text-sm text-muted-foreground" id="confirm-description">{description}</p>
-        <div className="mt-6 flex justify-end gap-3">
+        <div className="mt-5 flex justify-end gap-2">
           <DialogClose asChild>
-            <Button disabled={loading} variant="outline">{cancelLabel}</Button>
+            <Button disabled={loading} size="sm" variant="outline">{cancelLabel}</Button>
           </DialogClose>
-          <Button loading={loading} onClick={onConfirm} variant={destructive ? 'destructive' : 'default'}>{confirmLabel}</Button>
+          <Button loading={loading} onClick={onConfirm} size="sm" variant={destructive ? 'destructive' : 'default'}>{confirmLabel}</Button>
         </div>
       </DialogContent>
     </Dialog>

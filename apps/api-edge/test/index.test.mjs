@@ -17,6 +17,64 @@ test("returns a healthy JSON response", async () => {
   });
 });
 
+test('returns the public capability contract without authentication', async () => {
+  const response = await worker.fetch(new Request('https://api.example.test/meta/capabilities'), {
+    EVIMESH_ENV: 'production',
+    EVIMESH_RELEASE_CHANNEL: 'preview',
+    EVIMESH_DEVICE_AUTH_ENABLED: 'true',
+    EVIMESH_RESEARCH_PREPARE_ENABLED: 'true',
+    EVIMESH_RESEARCH_SUBMIT_ENABLED: 'true',
+  });
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    schemaVersion: 'public-capabilities.v1',
+    releaseChannel: 'preview',
+    apiVersion: '0.3.0',
+    graphSchemaVersion: 'research-neighborhood.v1',
+    deviceAuthorization: { enabled: false },
+    research: { read: true, prepare: false, submit: false, signing: 'human-local-only' },
+    clients: {
+      sdk: { available: false, minimumVersion: null },
+      cli: { available: false, minimumVersion: null },
+      mcp: { available: false, minimumVersion: null },
+    },
+  });
+});
+
+test('advertises device authorization only with the persistent service-backed store', async () => {
+  const hostedWorker = createWorker({ fetchImpl: async () => Response.json({ message: 'unexpected upstream request' }, { status: 500 }) });
+  const baseEnv = {
+    SUPABASE_URL: 'https://project.supabase.co',
+    SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_test',
+    EVIMESH_RELEASE_CHANNEL: 'preview',
+    EVIMESH_DEVICE_AUTH_ENABLED: 'true',
+  };
+  const withoutService = await hostedWorker.fetch(new Request('https://api.example.test/meta/capabilities'), baseEnv);
+  assert.equal((await withoutService.json()).deviceAuthorization.enabled, false);
+
+  const disabledWithServiceEnv = {
+    ...baseEnv,
+    EVIMESH_DEVICE_AUTH_ENABLED: 'false',
+    SUPABASE_SECRET_KEY: 'sb_secret_test',
+  };
+  const disabledWithService = await hostedWorker.fetch(new Request('https://api.example.test/meta/capabilities'), disabledWithServiceEnv);
+  assert.equal((await disabledWithService.json()).deviceAuthorization.enabled, false);
+  const disabledStart = await hostedWorker.fetch(new Request('https://api.example.test/auth/device', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ client_id: 'evimesh-cli' }),
+  }), disabledWithServiceEnv);
+  assert.equal(disabledStart.status, 503);
+  assert.equal((await disabledStart.json()).error, 'device_auth_unavailable');
+
+  const withService = await hostedWorker.fetch(new Request('https://api.example.test/meta/capabilities'), {
+    ...baseEnv,
+    SUPABASE_SECRET_KEY: 'sb_secret_test',
+  });
+  assert.equal((await withService.json()).deviceAuthorization.enabled, true);
+});
+
 test("wires hosted discovery reads from Worker environment bindings", async () => {
   const upstreamRequests = [];
   const hostedWorker = createWorker({

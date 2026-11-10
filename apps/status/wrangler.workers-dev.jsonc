@@ -1,0 +1,33 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "evimesh-status",
+  "main": "src/worker.mjs",
+  "compatibility_date": "2026-08-31",
+  "workers_dev": true,
+  "preview_urls": false,
+  "triggers": {
+    "crons": ["*/5 * * * *"]
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "STATUS_STATE",
+        "class_name": "StatusStateDurableObject"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "status-state-v1",
+      "new_sqlite_classes": ["StatusStateDurableObject"]
+    }
+  ],
+  "vars": {
+    "EVIMESH_API_URL": "https://api.evimesh.com",
+    "EVIMESH_WEB_URL": "https://evimesh.com"
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  }
+}

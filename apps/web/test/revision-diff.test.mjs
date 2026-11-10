@@ -17,7 +17,7 @@ test("diff compares two revisions field by field", () => {
 test("diff surfaces authors and timestamps alongside changes", () => {
   assert.match(source, /createdBy/);
   assert.match(source, /createdAt/);
-  assert.match(source, /by \{diff\.from\.createdBy\}/);
+  assert.match(source, /by <ActorName actorId=\{diff\.from\.createdBy\}/);
   assert.match(source, /tabular-nums/);
 });
 

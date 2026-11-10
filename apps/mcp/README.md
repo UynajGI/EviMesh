@@ -1,6 +1,12 @@
 # @evimesh/mcp
 
-## Install / run
+## Public Preview
+
+The public npm package has not been released. Do not advertise an install
+command until `GET /meta/capabilities` reports `clients.mcp.available=true`
+and the corresponding signed package exists.
+
+Future install / run:
 
 ```bash
 npx --yes @evimesh/mcp
@@ -43,20 +49,35 @@ node apps/mcp/bin/evimesh-mcp.mjs
 
 ## Tools（采取行动）
 
-只读：`search_open_tasks`、`get_task_context`、`validate_submission`、`inspect_provenance`、`verify_inclusion_proof`。
+只读：`inspect_research_neighborhood`、`browse_typed_research_nodes`、
+`inspect_typed_research_node`、`search_open_tasks`、`get_task_context`、
+`validate_submission`、`inspect_provenance`、`verify_inclusion_proof`。
 
-写入（必须显式 `confirm: true`，否则返回 `consent_required` 与行动摘要）：
-`start_attempt`、`record_trace`、`create_claim`、`attach_evidence`、`record_run`、
-`publish_submission`、`submit_verification`、`submit_challenge`。
+本地草稿：`draft_typed_research_node`、`create_claim`。本地 schema validation、proof
+验证和全部只读工具不依赖研究写入能力。
 
-- `create_claim` / `record_run` 不发布对象；两者只读取 `/auth/me`，要求 bearer 绑定到 agent/service Actor 且其活动 key ID、公钥与本地身份匹配，并忽略调用方伪造的 actor/signature 字段。Run 草稿把 `signing_key_id` 纳入无签名正文后生成可验证的 Ed25519 执行签名；发布时再次校验 Actor/密钥绑定并对最终正文重签，避免编辑后遗留旧签名。草稿携带 source、不可变容器摘要和环境/硬件，返回前按协议 schema 校验。
-- `publish_submission` / `submit_verification` / `submit_challenge` 在确认后校验 schema、
-  用 `~/.evimesh` 的 Ed25519 身份签名（`srp.client-signature-envelope.v1`）再提交。
+`prepare_typed_research_submission` 只在 live manifest 的 `research.prepare=true` 时出现在
+`tools/list`；它从服务端取得需要交给人类审阅的 canonical bytes/hash，不签名。
+`submit_typed_research_submission` 只在 `research.submit=true` 时出现，且只 relay 调用方
+提供的 `srp.client-signature-envelope.v1`；网络写入仍需显式 `confirm: true`，但确认不能
+生成、替代或绕过人类签名。
+
+能力获取失败或 manifest 无效时，MCP 只保留读取、本地 draft/validate 和本地 proof
+验证。`tools/call` 会重新检查能力，不能通过绕过 `tools/list` 直调隐藏工具。
+`start_attempt`、`record_trace`、`attach_evidence`、`record_run`、`prepare_submission`、
+`publish_submission`、`submit_verification`、`submit_challenge` 是当前永久 fail-closed 的
+legacy 路径：既不广告，也不能直调。它们要等各自类型拥有服务端 canonical prepare 与
+外部签名 submit 后以正式接口替代，而不是因 typed capability 开启而复活。
+
+- MCP 没有 signer、`research:sign` scope、私钥读取/存储能力或通用 shell/命令执行工具。
+  人类签名只能在真实本地终端运行 `sq research sign`；私钥不进入 MCP 进程。
 - 所有工具都声明 `inputSchema` 与 `outputSchema`，并返回 `structuredContent`。
 
 ## 边界
 
 - 仅通过 `@evimesh/sdk-ts` 访问 HTTP API，不读数据库。
+- `tools/list` 和 `tools/call` 都消费 SDK 对 `/meta/capabilities` 的严格、保守解析结果。
+- 不读取 `~/.evimesh/signing-keys.json`，也不接受环境变量私钥。
 - 工具与资源命名/参数不含任何 GitHub/PR/branch/commit 语义（`test/audit.test.mjs` 固化）。
 - M11-26（npm alpha 发布）依赖 registry 凭据，未在本分支执行。
 

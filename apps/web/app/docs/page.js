@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { loadDocsManifest } from '@/lib/docs-content.mjs';
-import { PageContainer } from '@/components/ui/page';
+import { PageContainer, PageHeader, SectionHeader } from '@/components/ui/page';
 
 export const metadata = {
   title: 'Docs · EviMesh',
@@ -10,32 +10,32 @@ export const metadata = {
 /*
  * Docs home (docs-plan.md §4.1): task entries for the audiences, then the
  * full IA grouped by section. No popularity ordering, no view counts, no
- * completion meters - position in the IA is the only navigation signal.
+ * completion meters: position in the IA is the only navigation signal.
  */
 const AUDIENCE_ENTRIES = [
   {
     href: '/docs/getting-started/researcher',
     title: 'I read and follow research',
-    body: 'Browse the index, open a question workspace, and read a claim\u2019s evidence and verification in one pass.',
-    label: 'Researcher path',
+    body: 'Read a question, its claims, evidence and receipts.',
+    label: 'Researcher',
   },
   {
     href: '/docs/getting-started/agent-developer',
     title: 'I build agents that draft',
-    body: 'Connect through MCP or the CLI, draft under explicit scopes, and keep a human signature on every publication.',
-    label: 'Agent developer path',
+    body: 'Connect through MCP or the CLI and draft under scopes.',
+    label: 'Agent developer',
   },
   {
     href: '/docs/getting-started/verifier',
     title: 'I verify claims',
-    body: 'Declare a context mode, record what you observed, and file typed findings on a signed receipt.',
-    label: 'Verifier path',
+    body: 'Record what you observed on a signed receipt.',
+    label: 'Verifier',
   },
   {
     href: '/docs/reference/api',
     title: 'I integrate with the protocol',
-    body: 'The API, MCP, CLI, and SDK references - generated from the same contract the platform ships.',
-    label: 'Integration reference',
+    body: 'API, MCP, CLI and SDK references.',
+    label: 'Integration',
   },
 ];
 
@@ -44,45 +44,35 @@ export default async function DocsHomePage() {
 
   return (
     <PageContainer wide>
-      <header className="max-w-3xl">
-        <p className="text-sm font-medium uppercase tracking-[0.16em] text-secondary-foreground">Docs</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">Documentation</h1>
-        <p className="mt-3 text-base leading-7 text-muted-foreground">
-          EviMesh records research as a graph of signed, immutable objects.
-          Agents draft; humans sign. Counts open the underlying record -
-          and the event chain lets you verify that yourself.
-        </p>
-      </header>
+      <PageHeader title="Documentation" />
 
-      <section aria-labelledby="paths-heading" className="mt-10">
-        <h2 className="text-lg font-semibold" id="paths-heading">Start here</h2>
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
+      <section aria-labelledby="paths-heading" className="mt-6">
+        <SectionHeader id="paths-heading" title="Start here" />
+        <ul>
           {AUDIENCE_ENTRIES.map((entry) => (
-            <Link
-              className="group rounded-lg border border-border bg-card p-5 transition-colors hover:bg-muted/40"
-              href={entry.href}
-              key={entry.href}
-            >
-              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{entry.label}</span>
-              <span className="mt-1 block text-base font-semibold text-foreground group-hover:underline">{entry.title}</span>
-              <span className="mt-2 block text-sm leading-6 text-muted-foreground">{entry.body}</span>
-            </Link>
+            <li className="ref-row" key={entry.href}>
+              <p className="text-sm text-muted-foreground">{entry.label}</p>
+              <p className="min-w-0 text-sm">
+                <Link className="font-medium text-foreground hover:underline" href={entry.href}>{entry.title}</Link>
+                <span className="ml-2 text-muted-foreground">{entry.body}</span>
+              </p>
+            </li>
           ))}
-        </div>
+        </ul>
       </section>
 
-      <section aria-labelledby="sections-heading" className="mt-12">
-        <h2 className="text-lg font-semibold" id="sections-heading">All documentation</h2>
-        <div className="mt-6 grid gap-8 lg:[grid-template-columns:minmax(0,1fr)_18rem] lg:items-start lg:grid">
-          <div className="grid min-w-0 gap-8 md:grid-cols-2 md:gap-8">
+      <section aria-labelledby="sections-heading" className="mt-8">
+        <SectionHeader id="sections-heading" title="All documentation" />
+        <div className="doc-grid mt-4">
+          <div className="doc-main grid min-w-0 gap-6 md:grid-cols-2 md:gap-8">
             {sections.map((section) => (
-              <section aria-labelledby={`home-${section.id}`} className="border-t border-border pt-4" key={section.id}>
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground" id={`home-${section.id}`}>{section.title}</h3>
-                <ul className="mt-3 grid list-none">
+              <section aria-labelledby={`home-${section.id}`} key={section.id}>
+                <h3 className="text-[13px] font-semibold text-muted-foreground" id={`home-${section.id}`}>{section.title}</h3>
+                <ul className="mt-1 grid list-none">
                   {section.pages.map((page) => (
                     <li className="border-b border-border last:border-b-0" key={page.slug}>
-                      <Link className="flex min-h-11 items-center justify-between gap-3 py-2 text-sm hover:text-foreground" href={`/docs/${page.slug}`}>
-                        <span className="min-w-0 truncate font-medium text-foreground">{page.title}</span>
+                      <Link className="flex min-h-9 items-center justify-between gap-3 py-1.5 text-sm hover:underline" href={`/docs/${page.slug}`}>
+                        <span className="min-w-0 truncate text-foreground">{page.title}</span>
                         <span className="shrink-0 text-xs text-muted-foreground">{page.audience === 'agent-developer' ? 'agent' : page.audience}</span>
                       </Link>
                     </li>
@@ -91,13 +81,12 @@ export default async function DocsHomePage() {
               </section>
             ))}
           </div>
-          <aside aria-label="Machine-readable docs" className="border-t border-border pt-4 lg:sticky lg:top-20 lg:self-start">
-            <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Machine-readable</h3>
-            <ul className="mt-3 grid list-none text-sm">
-              <li><a className="hover:text-foreground hover:underline" href="/agent.md">Agent manual (Markdown)</a></li>
-              <li className="mt-2 break-all"><a className="hover:text-foreground hover:underline" href="/openapi.json" rel="noopener noreferrer" target="_blank">OpenAPI contract</a></li>
+          <aside aria-label="Machine-readable docs" className="doc-margin margin-section lg:sticky lg:top-20 lg:self-start">
+            <h2>Machine-readable</h2>
+            <ul className="grid list-none gap-1 text-[13px]">
+              <li><a className="text-primary hover:underline" href="/agent.md">Agent manual (Markdown)</a></li>
+              <li className="break-all"><a className="text-primary hover:underline" href="/openapi.json" rel="noopener noreferrer" target="_blank">OpenAPI contract</a></li>
             </ul>
-            <p className="mt-3 text-xs leading-5 text-muted-foreground">The same facts agents read - no parallel truth.</p>
           </aside>
         </div>
       </section>

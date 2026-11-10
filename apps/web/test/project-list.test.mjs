@@ -29,7 +29,7 @@ test("project list keeps the page template and full recovery states", () => {
 });
 
 test("project list exposes an Agent handoff without browser research writes", () => {
-  assert.match(source, /READ-ONLY WEB/);
+  assert.doesNotMatch(source, /Read-only web: project creation and research transitions happen through CLI or MCP/);
   assert.match(source, /Open Agent connection/);
   assert.doesNotMatch(source, /method:\s*['"]POST|Create a project|Textarea|onSubmit/);
 });

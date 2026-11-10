@@ -1,6 +1,8 @@
 import { actors } from './actors.mjs';
 import { actorProfiles } from './actor-profiles.mjs';
 import { apiTokens } from './api-tokens.mjs';
+import { apiTokenAuditEvents } from './api-token-audit.mjs';
+import { deviceAuthorizationEvents, deviceAuthorizations } from './device-authorizations.mjs';
 import { identities } from './identities.mjs';
 import { engagementInteractions } from './engagement-interactions.mjs';
 import { recommendationCache } from './recommendation-cache.mjs';
@@ -9,6 +11,7 @@ import { organizationMembers } from './organization-members.mjs';
 import { projects } from './projects.mjs';
 import { projectRevisions } from './project-revisions.mjs';
 import { projectMembers } from './project-members.mjs';
+import { admissionAuditEvents, admissionFeatureGates, projectApplications, projectInvitations } from './public-admission.mjs';
 import { questions } from './questions.mjs';
 import { questionRevisions } from './question-revisions.mjs';
 import { researchContracts } from './research-contracts.mjs';
@@ -55,6 +58,7 @@ import { merkleCheckpoints } from './merkle-checkpoints.mjs';
 import { mirrorReceipts } from './mirror-receipts.mjs';
 import { witnessReceipts } from './witness-receipts.mjs';
 import { notifications } from './notifications.mjs';
+import { researchSubmissionReceipts } from './research-submission-receipts.mjs';
 import {
   answerRevisions,
   datasetRevisions,
@@ -74,6 +78,8 @@ import {
 
 export { actorProfiles } from './actor-profiles.mjs';
 export { apiTokens } from './api-tokens.mjs';
+export { apiTokenAuditEvents } from './api-token-audit.mjs';
+export { deviceAuthorizationEvents, deviceAuthorizations, privateSchema } from './device-authorizations.mjs';
 export { actors, actorType, identityStrength } from './actors.mjs';
 export { identities } from './identities.mjs';
 export { engagementInteractions } from './engagement-interactions.mjs';
@@ -84,6 +90,7 @@ export { organizationMembers } from './organization-members.mjs';
 export { projectState, projects } from './projects.mjs';
 export { projectRevisions } from './project-revisions.mjs';
 export { projectMembers } from './project-members.mjs';
+export { admissionAuditEvents, admissionFeatureGates, projectApplications, projectInvitations } from './public-admission.mjs';
 export { questionState, questions } from './questions.mjs';
 export { questionRevisions } from './question-revisions.mjs';
 export { researchContracts } from './research-contracts.mjs';
@@ -129,6 +136,7 @@ export { mirrorReceipts } from './mirror-receipts.mjs';
 export { witnessReceipts } from './witness-receipts.mjs';
 export { notifications } from './notifications.mjs';
 export { signingKeys } from './signing-keys.mjs';
+export { researchSubmissionReceipts } from './research-submission-receipts.mjs';
 export * from './research-graph.mjs';
 
 export const schema = {
@@ -140,11 +148,18 @@ export const schema = {
   signingKeys,
   signatureNonces,
   apiTokens,
+  apiTokenAuditEvents,
+  deviceAuthorizations,
+  deviceAuthorizationEvents,
   organizations,
   organizationMembers,
   projects,
   projectRevisions,
   projectMembers,
+  projectApplications,
+  projectInvitations,
+  admissionAuditEvents,
+  admissionFeatureGates,
   questions,
   questionRevisions,
   researchContracts,
@@ -189,6 +204,7 @@ export const schema = {
   mirrorReceipts,
   witnessReceipts,
   notifications,
+  researchSubmissionReceipts,
   researchNodes,
   researchNodeRevisions,
   researchEdges,

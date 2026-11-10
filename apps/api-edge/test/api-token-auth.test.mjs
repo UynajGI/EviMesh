@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { createApp } from "../src/index.mjs";
 import { authenticateApiToken } from "../src/api-token-auth.mjs";
 import { JwtVerificationError } from "../src/jwt.mjs";
+import { createMemoryDeviceCodeStore } from "../src/device-auth.mjs";
 
 async function issueToken({ actorId = "actor-1", scopes = ["profile:read", "project:read"], expiresAt = null, revokedAt = null } = {}) {
   const { createActorApiToken } = await import("../../../packages/domain/src/api-token.mjs");
@@ -17,6 +18,7 @@ async function issueToken({ actorId = "actor-1", scopes = ["profile:read", "proj
     actorId,
     scopes,
     expiresAt,
+    issuanceContext: "device_authorization",
   });
   return { token, records };
 }
@@ -72,7 +74,7 @@ test("auth/me forwards the caller JWT when resolving a Supabase identity", async
     && args[2]?.accessToken === "supabase-jwt"));
 });
 
-test("signing-key registration works with API tokens", async () => {
+test("API tokens cannot register human signing keys", async () => {
   const { token, records } = await issueToken();
   const keys = [];
   const repository = {
@@ -90,38 +92,32 @@ test("signing-key registration works with API tokens", async () => {
     headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
     body: JSON.stringify({ keyId: "key-1", publicKey: "pubkey-bytes" }),
   }), {});
-  assert.equal(response.status, 201, await response.clone().text());
-  assert.equal(keys[0].actorId, "actor-1");
-  assert.equal(keys[0].keyId, "key-1");
+  assert.equal(response.status, 403, await response.clone().text());
+  assert.equal((await response.json()).code, "API_TOKEN_ROUTE_FORBIDDEN");
+  assert.equal(keys.length, 0);
 });
 
 test("device-login tokens authenticate subsequent API calls", async () => {
-  const records = new Map();
+  const managedAgent = { actorId: "actor-agent", actorType: "agent" };
+  const store = createMemoryDeviceCodeStore({ managedAgents: new Map([["actor-human", [managedAgent]]]) });
   const repository = {
-    findIdentity: async () => ({ actorId: "actor-1" }),
-    getActor: async (actorId) => ({ actorId, actorType: "agent" }),
-    findApiTokenByHash: async (hash) => records.get(hash) ?? null,
-    insertApiToken: async (record) => {
-      const persisted = { tokenId: `token-${records.size + 1}`, actorId: "actor-1", scopes: record.scopes, expiresAt: null, revokedAt: null, ...record };
-      records.set(record.tokenHash, persisted);
-      return persisted;
-    },
-    withTransaction: async (callback) => callback({
-      insertApiToken: async (record) => repository.insertApiToken(record),
-    }),
+    findIdentity: async () => ({ actorId: "actor-human" }),
+    getActor: async (actorId) => actorId === "actor-human" ? { actorId, actorType: "human" } : managedAgent,
+    findApiTokenByHash: async (hash) => store.issuedTokens.find((record) => record.tokenHash === hash) ?? null,
+    updateApiTokenLastUsedAt: async () => true,
   };
-  const app = createApp({ repository, authenticate: async () => ({ sub: "supabase-subject" }) });
+  const app = createApp({ repository, deviceCodeStore: store, authenticate: async () => ({ sub: "supabase-subject" }) });
 
   const start = await app.fetch(new Request("https://api.example.test/auth/device", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ client_id: "evimesh-cli" }) }), {});
   const device = await start.json();
-  await app.fetch(new Request("https://api.example.test/auth/device/approve", { method: "POST", headers: { authorization: "Bearer jwt", "content-type": "application/json" }, body: JSON.stringify({ user_code: device.user_code }) }), {});
+  await app.fetch(new Request("https://api.example.test/auth/device/approve", { method: "POST", headers: { authorization: "Bearer jwt", "content-type": "application/json" }, body: JSON.stringify({ user_code: device.user_code, agent_actor_id: "actor-agent" }) }), {});
   const exchange = await app.fetch(new Request("https://api.example.test/auth/device/token", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ device_code: device.device_code }) }), {});
   const { access_token: apiToken } = await exchange.json();
   assert.ok(apiToken.startsWith("evimesh_"));
 
   const me = await app.fetch(new Request("https://api.example.test/auth/me", { headers: { authorization: `Bearer ${apiToken}` } }), {});
   assert.equal(me.status, 200);
-  assert.deepEqual(await me.json(), { subject: "actor-1", email: null, actorId: "actor-1", actorType: "agent", signingKey: null });
+  assert.deepEqual(await me.json(), { subject: "actor-agent", email: null, actorId: "actor-agent", actorType: "agent", signingKey: null });
 });
 
 test("auth/me exposes only the authenticated actor's active public signing key", async () => {

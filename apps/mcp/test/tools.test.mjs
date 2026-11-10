@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { callTool, writeToolNames, MAX_EVIDENCE_BYTES } from "../src/tools.mjs";
-import { createFakeClient } from "./helpers.mjs";
+import { createFakeClient, PUBLIC_CAPABILITIES_ENABLED } from "./helpers.mjs";
 
 function answerDocument() {
   return {
@@ -78,12 +78,12 @@ function externalEnvelope(prepared) {
   };
 }
 
-test("write tools refuse without consent and summarize the planned action", async () => {
-  const result = await callTool({ client: createFakeClient(), name: "start_attempt", args: { taskId: "task-1", mode: "blind" } });
+test("advertised local draft tool refuses without consent and summarizes the planned action", async () => {
+  const result = await callTool({ client: createFakeClient(), name: "create_claim", args: { statement: "s", scope: ["s"], falsification: ["f"] } });
   assert.equal(result.isError, true);
   assert.equal(result.structuredContent.error, "consent_required");
-  assert.equal(result.structuredContent.tool, "start_attempt");
-  assert.equal(result.structuredContent.summary.taskId, "task-1");
+  assert.equal(result.structuredContent.tool, "create_claim");
+  assert.equal(result.structuredContent.summary.action, "create a local Claim draft");
 });
 
 test("formal mutation tools without a signed server flow fail closed after consent", async () => {
@@ -114,21 +114,12 @@ test("formal mutation tools without a signed server flow fail closed after conse
   assert.deepEqual(networkCalls, []);
 });
 
-test("all externally submitted MCP research mutations reject confirm without an envelope", async () => {
-  const calls = [
-    ["publish_submission", { document: claimDocument(), confirm: true }],
-    ["submit_verification", { document: verificationDocument(), runId: "run-1", confirm: true }],
-    ["submit_challenge", { document: challengeDocument(), confirm: true }],
-    ["submit_typed_research_submission", { kind: "answer", document: answerDocument(), confirm: true }],
-  ];
-  for (const [name, args] of calls) {
-    const result = await callTool({ client: createFakeClient(), name, args });
-    assert.equal(result.isError, true, name);
-    assert.equal(result.structuredContent.error, "RESEARCH_PUBLISHER_SIGNATURE_REQUIRED", name);
-  }
-  assert.deepEqual(new Set(writeToolNames()), new Set([
-    "submit_typed_research_submission", "start_attempt", "record_trace", "create_claim",
-    "attach_evidence", "record_run", "publish_submission", "submit_verification", "submit_challenge",
+test("advertised MCP submit rejects confirm without an external envelope", async () => {
+  const result = await callTool({ client: createFakeClient(), name: "submit_typed_research_submission", args: { kind: "answer", document: answerDocument(), confirm: true } });
+  assert.equal(result.isError, true);
+  assert.equal(result.structuredContent.error, "RESEARCH_PUBLISHER_SIGNATURE_REQUIRED");
+  assert.deepEqual(new Set(writeToolNames(PUBLIC_CAPABILITIES_ENABLED)), new Set([
+    "submit_typed_research_submission", "create_claim",
   ]));
 });
 
@@ -187,48 +178,60 @@ test("typed MCP submit relays only an externally supplied envelope", async () =>
   assert.equal(submits[0].signatureEnvelope.signature.key_id, "human-key");
 });
 
-test("legacy prepare returns exact canonical bytes and publish only relays the matching envelope", async () => {
+test("typed MCP Claim prepare/submit use the Agent-token signed path and the owner-bound publisher", async () => {
+  const prepares = [];
+  const submits = [];
+  const client = createFakeClient({ claims: {
+    prepareSigned: async (input) => { prepares.push(input); return { eventType: "claim.created", payload: input, nonce: input.nonce, signingBytesHash: `sha256:${"c".repeat(64)}` }; },
+    submitSigned: async (input) => { submits.push(input); return { receiptId: "receipt-1" }; },
+  } });
+  const document = {
+    schema: "srp.claim.v1",
+    claim_id: "claim_018f0f4a-5c00-4000-8000-000000000009",
+    project_id: "project_018f0f4a-5c00-4000-8000-000000000001",
+    revision: 1,
+    state: "hypothesis",
+    statement: "Matched protocols close the few-shot gap to within one point.",
+    scope: ["four benchmarks"],
+    assumptions: [],
+    falsification: ["Matched reruns miss by more than two points on three of four benchmarks."],
+    created_at: "2026-11-09T00:00:00.000Z",
+    created_by: "agent_01",
+  };
+  const prepared = await callTool({ client, name: "prepare_typed_research_submission", args: { kind: "claim", document, nonce: "0123456789abcdef" }, env: {} });
+  assert.equal(prepared.isError, false, JSON.stringify(prepared.structuredContent));
+  assert.equal(prepares[0].claimId, document.claim_id);
+  assert.equal(Object.hasOwn(prepares[0], "publisherActorId"), false);
+  const signatureEnvelope = { schema: "srp.client-signature-envelope.v1", event_type: "claim.created", payload: {}, nonce: "0123456789abcdef", signing_bytes_hash: `sha256:${"c".repeat(64)}`, signature: { algorithm: "Ed25519", key_id: "human-key", value: "external-signature" } };
+  const submitted = await callTool({ client, name: "submit_typed_research_submission", args: { kind: "claim", document, signatureEnvelope, confirm: true } });
+  assert.equal(submitted.isError, false, JSON.stringify(submitted.structuredContent));
+  assert.equal(submits[0].signatureEnvelope.signature.key_id, "human-key");
+});
+
+test("legacy prepare and publish remain unavailable even when typed submit is enabled", async () => {
   const requests = [];
   const client = createFakeClient({ http: { request: async (method, path, { body } = {}) => { requests.push({ method, path, body }); return { ok: true }; } } });
   const preparedResult = await callTool({ client, name: "prepare_submission", args: { document: claimDocument(), nonce: "0123456789abcdef" } });
-  assert.equal(preparedResult.isError, false);
-  const prepared = preparedResult.structuredContent.prepared;
-  assert.equal(prepared.route, "/claims");
-  assert.equal(prepared.eventType, "claim.created");
-  const signatureEnvelope = externalEnvelope(prepared);
-  const gated = await callTool({ client, name: "publish_submission", args: { document: claimDocument(), signatureEnvelope } });
-  assert.equal(gated.structuredContent.error, "consent_required");
-  const published = await callTool({ client, name: "publish_submission", args: { document: claimDocument(), signatureEnvelope, confirm: true } });
-  assert.equal(published.isError, false, JSON.stringify(published.structuredContent));
-  assert.equal(requests.length, 1);
-  assert.equal(requests[0].path, "/claims");
-  assert.equal(requests[0].body.signatureEnvelope, signatureEnvelope);
-  const tampered = await callTool({ client, name: "publish_submission", args: { document: { ...claimDocument(), statement: "tampered" }, signatureEnvelope, confirm: true } });
-  assert.equal(tampered.structuredContent.error, "CLIENT_SIGNATURE_PAYLOAD_MISMATCH");
-  assert.equal(requests.length, 1);
+  assert.equal(preparedResult.structuredContent.error, "MCP_SIGNED_MUTATION_UNAVAILABLE");
+  const published = await callTool({ client, name: "publish_submission", args: { document: claimDocument(), signatureEnvelope: {}, confirm: true } });
+  assert.equal(published.structuredContent.error, "MCP_SIGNED_MUTATION_UNAVAILABLE");
+  assert.deepEqual(requests, []);
 });
 
-test("verification prepare and submit preserve the exact externally signed identifiers", async () => {
+test("legacy verification submit remains unavailable", async () => {
   const submissions = [];
   const client = createFakeClient({ verifications: { submit: async (input) => { submissions.push(input); return { receipt: { receiptId: input.receiptId } }; } } });
-  const preparedResult = await callTool({ client, name: "prepare_submission", args: { document: verificationDocument(), runId: "run-1", nonce: "0123456789abcdef" } });
-  const prepared = preparedResult.structuredContent.prepared;
-  const signatureEnvelope = externalEnvelope(prepared);
-  const result = await callTool({ client, name: "submit_verification", args: { document: verificationDocument(), runId: "run-1", signatureEnvelope, confirm: true } });
-  assert.equal(result.isError, false, JSON.stringify(result.structuredContent));
-  assert.equal(result.structuredContent.receiptId, prepared.payload.receiptId);
-  assert.equal(submissions[0].contributionStatementId, prepared.payload.contributionStatementId);
-  assert.equal(submissions[0].signatureEnvelope, signatureEnvelope);
+  const result = await callTool({ client, name: "submit_verification", args: { document: verificationDocument(), runId: "run-1", signatureEnvelope: {}, confirm: true } });
+  assert.equal(result.structuredContent.error, "MCP_SIGNED_MUTATION_UNAVAILABLE");
+  assert.deepEqual(submissions, []);
 });
 
-test("challenge submit relays a matching external envelope", async () => {
+test("legacy challenge submit remains unavailable", async () => {
   const submissions = [];
   const client = createFakeClient({ challenges: { create: async (input) => { submissions.push(input); return { challenge: { challengeId: input.challengeId } }; } } });
-  const preparedResult = await callTool({ client, name: "prepare_submission", args: { document: challengeDocument(), nonce: "0123456789abcdef" } });
-  const signatureEnvelope = externalEnvelope(preparedResult.structuredContent.prepared);
-  const result = await callTool({ client, name: "submit_challenge", args: { document: challengeDocument(), signatureEnvelope, confirm: true } });
-  assert.equal(result.isError, false);
-  assert.equal(submissions[0].signatureEnvelope, signatureEnvelope);
+  const result = await callTool({ client, name: "submit_challenge", args: { document: challengeDocument(), signatureEnvelope: {}, confirm: true } });
+  assert.equal(result.structuredContent.error, "MCP_SIGNED_MUTATION_UNAVAILABLE");
+  assert.deepEqual(submissions, []);
 });
 
 test("MCP signer implementation contains no local identity or signing primitive", () => {
@@ -236,14 +239,14 @@ test("MCP signer implementation contains no local identity or signing primitive"
   for (const forbidden of ["privateKey", "loadIdentity", "signSubmission", "signEd25519"]) assert.equal(source.includes(forbidden), false, forbidden);
 });
 
-test("attach_evidence rejects invalid base64 and oversized content before its fail-closed boundary", async () => {
+test("permanently unavailable mutation tools cannot be called directly", async () => {
   const invalid = await callTool({ client: createFakeClient(), name: "attach_evidence", args: { contentBase64: "not base64!", mediaType: "text/plain" } });
   assert.equal(invalid.isError, true);
-  assert.match(invalid.structuredContent.message, /valid base64/);
+  assert.equal(invalid.structuredContent.error, "MCP_SIGNED_MUTATION_UNAVAILABLE");
   const big = Buffer.alloc(MAX_EVIDENCE_BYTES + 1).toString("base64");
   const oversized = await callTool({ client: createFakeClient(), name: "attach_evidence", args: { contentBase64: big, mediaType: "application/octet-stream" } });
   assert.equal(oversized.isError, true);
-  assert.match(oversized.structuredContent.message, /exceeds/);
+  assert.equal(oversized.structuredContent.error, "MCP_SIGNED_MUTATION_UNAVAILABLE");
 });
 
 test("validate_submission returns structured findings", async () => {

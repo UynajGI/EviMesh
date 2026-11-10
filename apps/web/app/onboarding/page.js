@@ -1,47 +1,80 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { POLICY_EFFECTIVE_DATE } from '@/app/privacy/policy-content';
+import { AdmissionFault, AdmissionSessionBoundary } from '@/components/admission-session';
 import { Button } from '@/components/ui/button';
-import { Radio } from '@/components/ui/selection';
-import { PageContainer, PageHeader } from '@/components/ui/page';
+import { FieldGroup, Input, Textarea } from '@/components/ui/form';
+import { PageContainer, PageHeader, SectionHeader } from '@/components/ui/page';
+import { createAdmissionClient } from '@/lib/admission-client.mjs';
 
-const ROLES = [
-  { id: 'researcher', label: 'Researcher', description: 'Find tasks and questions to investigate', target: '/tasks' },
-  { id: 'verifier', label: 'Verifier', description: 'Review claims and verification evidence', target: '/verification' },
-  { id: 'maintainer', label: 'Maintainer', description: 'Open projects and steward research spaces', target: '/projects' },
-  { id: 'agent-operator', label: 'Agent operator', description: 'Run reproducible research agents', target: '/tasks' },
-];
-
-const INTERESTS = {
-  researcher: ['cpu-only', 'under-60-min'],
-  verifier: ['under_verification', 'provisionally_accepted'],
-  maintainer: ['draft', 'active'],
-  'agent-operator': ['cpu-only', 'under-60-min'],
-};
-
-export default function OnboardingPage() {
+function OnboardingForm({ session }) {
   const router = useRouter();
-  const [step, setStep] = useState(1);
-  const [role, setRole] = useState(null);
-  const [interest, setInterest] = useState('');
+  const metadata = session?.user?.user_metadata ?? {};
+  const [profile, setProfile] = useState({
+    displayName: metadata.full_name ?? metadata.name ?? metadata.user_name ?? '',
+    bio: '',
+    avatarUrl: metadata.avatar_url ?? '',
+  });
+  const [accepted, setAccepted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
 
-  function finish() {
+  const update = (field) => (event) => setProfile((current) => ({ ...current, [field]: event.target.value }));
+
+  async function submit(event) {
+    event.preventDefault();
+    setError(null);
+    setSubmitting(true);
     try {
-      window.localStorage.setItem('onboarding:role', role);
-      window.localStorage.setItem('onboarding:interest', interest);
-    } catch { /* storage may be unavailable */ }
-    const roleEntry = ROLES.find((entry) => entry.id === role);
-    const target = roleEntry?.target ?? '/tasks';
-    const interestParam = interest ? `?status=${interest}` : '';
-    router.push(`${target}${interestParam}`);
+      await createAdmissionClient(session).onboarding.complete({
+        termsVersion: POLICY_EFFECTIVE_DATE,
+        displayName: profile.displayName.trim(),
+        bio: profile.bio.trim() || null,
+        avatarUrl: profile.avatarUrl.trim() || null,
+      });
+      router.push('/settings');
+    } catch (reason) {
+      setError(reason);
+    } finally {
+      setSubmitting(false);
+    }
   }
 
-  return <PageContainer><PageHeader eyebrow={`Getting started · Step ${step} of 3`} title={step === 1 ? 'Choose your role' : step === 2 ? 'Pick your focus' : 'You are ready'} description={step === 1 ? 'Select how you want to contribute to the network.' : step === 2 ? 'Choose the kind of work you want to see first.' : 'Your workspace is set. We will take you to your first task.'} />
-    {step === 1 ? <div className="mt-8 grid gap-4 md:grid-cols-2">{ROLES.map((entry) => <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-card p-5 transition hover:border-primary" key={entry.id}><Radio name="onboarding-role" checked={role === entry.id} onChange={() => setRole(entry.id)} /><span><span className="block text-sm font-medium">{entry.label}</span><span className="mt-1 block text-sm text-muted-foreground">{entry.description}</span></span></label>)}</div> : step === 2 ? <div className="mt-8 grid gap-4 md:grid-cols-2">{(INTERESTS[role] ?? []).map((value) => <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-card p-5 transition hover:border-primary" key={value}><Radio name="onboarding-interest" checked={interest === value} onChange={() => setInterest(value)} /><span><span className="block text-sm font-medium">{value.replaceAll('_', ' ')}</span><span className="mt-1 block text-sm text-muted-foreground">{value === 'cpu-only' ? 'Tasks that run on any laptop' : value === 'under-60-min' ? 'Tasks sized to finish in under an hour' : value === 'under_verification' ? 'Claims currently under verification' : value === 'provisionally_accepted' ? 'Claims provisionally accepted' : value === 'draft' ? 'Projects being drafted' : 'Active projects'}</span></span></label>)}</div> : <div className="mt-8 max-w-md rounded-lg border border-border bg-card p-6"><p className="text-sm text-muted-foreground">Role: <span className="font-medium text-foreground">{role}</span>{interest ? ` · Focus: ${interest.replaceAll('_', ' ')}` : ''}</p><p className="mt-3 text-sm text-muted-foreground">You can change this anytime from your account settings.</p></div>}
-    <div className="mt-8 flex items-center justify-between gap-4">
-      <Button type="button" variant="outline" onClick={() => setStep(Math.max(1, step - 1))} disabled={step === 1}>Back</Button>
-      {step < 3 ? <Button type="button" onClick={() => setStep(step + 1)} disabled={step === 1 ? !role : !interest}>Continue</Button> : <Button type="button" onClick={finish}>Take me to my workspace</Button>}
+  return (
+    <div className="doc-grid mt-6">
+    <form aria-labelledby="onboarding-profile-heading" className="doc-main grid max-w-2xl gap-4" onSubmit={submit}>
+      <SectionHeader id="onboarding-profile-heading" title="Public profile" />
+      <FieldGroup htmlFor="onboarding-display-name" label="Display name">
+        <Input autoComplete="name" id="onboarding-display-name" maxLength={200} onChange={update('displayName')} required value={profile.displayName} />
+      </FieldGroup>
+      <FieldGroup htmlFor="onboarding-bio" label="Research profile (optional)">
+        <Textarea className="min-h-28" id="onboarding-bio" maxLength={5000} onChange={update('bio')} value={profile.bio} />
+      </FieldGroup>
+      <FieldGroup htmlFor="onboarding-avatar" label="Avatar URL (optional)" help="Public HTTPS image URL.">
+        <Input id="onboarding-avatar" inputMode="url" maxLength={2000} onChange={update('avatarUrl')} type="url" value={profile.avatarUrl} />
+      </FieldGroup>
+      <SectionHeader className="mt-4" title="Terms" />
+      <label className="flex cursor-pointer items-start gap-3 text-sm leading-6">
+        <input checked={accepted} className="mt-1 size-4 accent-primary" onChange={(event) => setAccepted(event.target.checked)} required type="checkbox" />
+        <span>I accept the <Link className="text-primary hover:underline" href="/terms">Terms</Link> effective {POLICY_EFFECTIVE_DATE} and acknowledge the <Link className="text-primary hover:underline" href="/privacy">Privacy Notice</Link>.</span>
+      </label>
+      <div><Button disabled={!accepted || !profile.displayName.trim()} loading={submitting} type="submit">Complete account setup</Button></div>
+      <AdmissionFault error={error} />
+    </form>
     </div>
-  </PageContainer>;
+  );
+}
+
+export default function OnboardingPage() {
+  return (
+    <PageContainer>
+      <PageHeader title="Finish your account" />
+      <AdmissionSessionBoundary returnTo="/onboarding">
+        {(session) => <OnboardingForm session={session} />}
+      </AdmissionSessionBoundary>
+    </PageContainer>
+  );
 }

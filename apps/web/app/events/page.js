@@ -2,10 +2,8 @@
 
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { FileCheck2, FlaskConical, GitPullRequestArrow, History } from 'lucide-react';
-import { StatusBadge } from '@/components/ui/data';
 import { Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
-import { IdChip } from '@/components/ui/idchip';
+import { Identifier, formatDateTime } from '@/components/ui/doc';
 import { PageContainer, PageHeader } from '@/components/ui/page';
 import { ProvenanceList } from '@/components/ui/provenance-list';
 import { apiFetch } from '@/lib/api-client';
@@ -62,21 +60,19 @@ function EventsAuditView() {
   }, [events, loading]);
 
   if (error) {
-    return <PageContainer><PageHeader eyebrow="Trust layer" title="Event audit" description="Inspect signed ResearchEvents and their immutable parent hash chain." /><ErrorState className="mt-8" message={error} requestId={requestId} onRetry={load} /></PageContainer>;
+    return <PageContainer><PageHeader title="Event audit" /><ErrorState className="mt-8" message={error} requestId={requestId} onRetry={load} /></PageContainer>;
   }
 
-  return <PageContainer wide><PageHeader eyebrow="Trust layer" title="Event audit" description="Inspect signed ResearchEvents and their immutable parent hash chain. Natural language first; hashes and signatures stay one layer down per event." />
-    {loading ? <Skeleton className="mt-10 h-96 w-full" /> : events.length === 0 ? <Empty className="mt-10" title="No ResearchEvents available" description="Signed events will appear here as research work moves through the protocol." /> : <section className="mt-10"><div className="rounded-lg border border-border bg-card px-5 py-2"><ol className="list-none">{events.map((event) => {
+  return <PageContainer wide><PageHeader title="Event audit" />
+    {loading ? <Skeleton className="mt-8 h-96 w-full" /> : events.length === 0 ? <Empty className="mt-8" title="No events yet" /> : <section className="mt-6"><ol className="list-none">{events.map((event) => {
       const type = event.eventType ?? 'event';
-      const EventIcon = type.startsWith('frontier') ? FileCheck2 : type.startsWith('claim') ? GitPullRequestArrow : type.startsWith('evidence') ? FlaskConical : History;
       return (
-        <li className="grid scroll-mt-24 grid-cols-[2rem_minmax(0,1fr)] gap-3 border-b border-border py-4 last:border-b-0" id={`event-${event.eventId}`} key={event.eventId} tabIndex={-1}>
-          <span aria-hidden="true" className="mt-0.5 grid size-8 place-items-center rounded-full bg-muted text-muted-foreground"><EventIcon size={15} /></span>
+        <li className="scroll-mt-24 border-b border-border py-3 focus:outline-none focus-visible:bg-muted" id={`event-${event.eventId}`} key={event.eventId} tabIndex={-1}>
           <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <StatusBadge label={type} state="update" />
-              <IdChip value={event.eventId} />
-              <span className="ml-auto text-xs tabular-nums text-muted-foreground">{event.createdAt ?? 'Unknown'}</span>
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <span className="font-mono text-sm text-foreground">{type}</span>
+              <Identifier value={event.eventId} />
+              <span className="ml-auto text-xs tabular-nums text-muted-foreground">{formatDateTime(event.createdAt) ?? event.createdAt ?? 'Unknown'}</span>
             </div>
             <ProvenanceList
               fields={[
@@ -89,7 +85,7 @@ function EventsAuditView() {
           </div>
         </li>
       );
-    })}</ol></div></section>}
+    })}</ol></section>}
   </PageContainer>;
 }
 

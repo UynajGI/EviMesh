@@ -1,4 +1,5 @@
 import { JwtVerificationError } from "./jwt.mjs";
+import { normalizeRegisteredApiTokenScopes, ApiTokenAuthorizationError } from './api-token-scope.mjs';
 
 export const API_TOKEN_PREFIX = "evimesh_";
 
@@ -30,6 +31,13 @@ export async function authenticateApiToken({ repository, token, now = new Date()
   if (typeof record.actorId !== "string" || record.actorId.trim().length === 0) {
     throw new JwtVerificationError("API token actor is invalid");
   }
+  let scopes;
+  try {
+    scopes = normalizeRegisteredApiTokenScopes(record.scopes ?? []);
+  } catch (error) {
+    if (error instanceof ApiTokenAuthorizationError) throw new JwtVerificationError('API token scopes are invalid');
+    throw error;
+  }
   if (typeof repository.updateApiTokenLastUsedAt === "function") {
     try {
       await repository.updateApiTokenLastUsedAt(record.tokenId, now);
@@ -42,6 +50,6 @@ export async function authenticateApiToken({ repository, token, now = new Date()
     sub: record.actorId.trim(),
     actorId: record.actorId.trim(),
     tokenId: record.tokenId ?? null,
-    scopes: Array.isArray(record.scopes) ? [...record.scopes] : [],
+    scopes,
   };
 }

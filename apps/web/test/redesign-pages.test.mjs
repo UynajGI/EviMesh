@@ -10,14 +10,16 @@ test('representative Kinetic Journal pages use editorial rules instead of dashbo
   ]);
   for (const source of [explore, work, tools, contributions]) {
     assert.match(source, /PageContainer wide/);
-    assert.match(source, /grid-cols-12|grid min-w-0/);
+    // Controlled-document grammar: listings are ruled reference rows.
+    assert.match(source, /className="ref-row"/);
+    assert.doesNotMatch(source, /font-mono text-\[(?:9|10|11)px\][^"]*uppercase|padStart\(2, '0'\)/);
     assert.doesNotMatch(source, /gradient|shadow-(?:md|lg|xl|2xl)|KPI|dashboard/i);
   }
   assert.match(home, /Open distributed scientific network/);
-  assert.match(explore, /Follow the research, object by object/);
-  assert.match(work, /The working record/);
-  assert.match(tools, /Methods you can inspect/);
-  assert.match(contributions, /Contribution Atlas/);
+  assert.match(explore, /title="Explore"/);
+  assert.match(work, /title="Work"/);
+  assert.match(tools, /title="Tools"/);
+  assert.match(contributions, /title="Contributions"/);
 });
 
 test('Tools is Tool-only and exposes the protocol tool-kind facets', async () => {
@@ -45,10 +47,12 @@ test('web reads research while Agent, CLI and MCP own authoring', async () => {
 
 test('shared detail presents typed content, provenance and the same neighborhood model', async () => {
   const detail = await read('../components/research-object-detail.js');
-  assert.match(detail, /lg:col-span-8/);
-  assert.match(detail, /lg:col-span-4/);
-  assert.match(detail, /PROVENANCE MARGINALIA/);
+  /* Controlled-document grammar: main column plus a provenance margin
+   * (.doc-grid / .doc-margin) replaces the 8/4 column split and kickers. */
+  assert.match(detail, /className="doc-grid doc-grid--clauses/);
+  assert.match(detail, /className="doc-margin"/);
+  assert.match(detail, /<MarginSection title="Provenance">/);
   assert.match(detail, /node\.ref\?\.id/);
   assert.match(detail, /\.\.\.graphPayload/);
-  assert.match(detail, /Revision signature and provenance summary/);
+  assert.match(detail, /<ActorName actorId=\{drafter\}/);
 });

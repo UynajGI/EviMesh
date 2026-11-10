@@ -1,5 +1,7 @@
 import Link from 'next/link';
-import { PageContainer, PageHeader } from '@/components/ui/page';
+import { StatusBadge } from '@/components/ui/data';
+import { PageContainer, PageHeader, SectionHeader } from '@/components/ui/page';
+import { shortId } from '@/lib/short-id.mjs';
 
 async function readAnswers() {
   const base = process.env.NEXT_PUBLIC_EVIMESH_API_URL;
@@ -14,7 +16,49 @@ async function readAnswers() {
   }
 }
 
+
+function dateLabel(value) {
+  if (!value || Number.isNaN(Date.parse(value))) return null;
+  return new Date(value).toISOString().slice(0, 10);
+}
+
 export default async function AnswersPage() {
   const answers = await readAnswers();
-  return <PageContainer wide><PageHeader eyebrow="Answer index" title="Published answers." description="Read answers in publication order, then open their heterogeneous research neighborhoods." /><div className="mt-8 border-t border-foreground">{answers.length === 0 ? <p className="border-b border-foreground py-14 font-serif text-2xl">No Answer nodes are published in this scope.</p> : answers.map((answer) => { const id = answer.answerId ?? answer.nodeId ?? answer.id; const revision = answer.currentRevision ?? answer.revisionData ?? {}; const title = revision.statement ?? revision.title ?? answer.statement ?? answer.title ?? id; return <article className="grid min-w-0 grid-cols-12 gap-4 border-b border-border py-6" key={id}><div className="col-span-12 min-w-0 sm:col-span-2"><span className="font-mono text-[9px] font-bold uppercase text-primary">Answer</span><code className="mt-2 block text-[10px] text-muted-foreground [overflow-wrap:anywhere]">{id}</code></div><div className="col-span-12 min-w-0 sm:col-span-8"><h2 className="font-serif text-2xl font-medium tracking-[-0.03em] [overflow-wrap:anywhere]">{title}</h2><p className="mt-2 font-mono text-[10px] uppercase text-muted-foreground">{answer.state ?? answer.status ?? 'state not stated'} / {revision.revision != null ? `r${revision.revision}` : 'revision n/a'}</p></div><Link className="col-span-12 inline-flex min-h-11 items-center justify-between self-center border border-foreground px-3 font-mono text-[10px] font-bold uppercase text-primary hover:bg-foreground hover:text-background sm:col-span-2" href={`/answers/${encodeURIComponent(id)}`}>Open <span>→</span></Link></article>; })}</div></PageContainer>;
+  return (
+    <PageContainer wide>
+      <PageHeader title="Answers" />
+      <section aria-labelledby="answers-heading" className="mt-6">
+        <SectionHeader action={<span className="tabular-nums text-muted-foreground">{answers.length}</span>} className="sr-only" id="answers-heading" title="Answers" />
+        {answers.length === 0 ? (
+          <p className="border-b border-border py-5 text-sm font-medium">No answers yet</p>
+        ) : (
+          <ul>
+            {answers.map((answer) => {
+              const id = answer.answerId ?? answer.nodeId ?? answer.id;
+              const revision = answer.currentRevision ?? answer.revisionData ?? {};
+              const words = revision.statement ?? revision.title ?? answer.statement ?? answer.title ?? null;
+              const state = answer.state ?? answer.status ?? null;
+              return (
+                <li className="ref-row" key={id}>
+                  <div>{state ? <StatusBadge state={state} /> : null}</div>
+                  <div className="min-w-0">
+                    {words ? (
+                      <Link className="ref-row__title [overflow-wrap:anywhere] hover:underline" href={`/answers/${encodeURIComponent(id)}`}>{words}</Link>
+                    ) : (
+                      <Link className="block font-mono text-sm text-muted-foreground hover:text-foreground hover:underline" href={`/answers/${encodeURIComponent(id)}`} title={id}>{shortId(id)}</Link>
+                    )}
+                    <p className="mt-1 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+                      {words ? <span className="font-mono" title={id}>{shortId(id)}</span> : null}
+                      {revision.revision != null ? <span className="tabular-nums">r{revision.revision}</span> : null}
+                    </p>
+                  </div>
+                  <time className="text-xs tabular-nums text-muted-foreground md:text-right" dateTime={answer.createdAt ?? revision.createdAt ?? undefined}>{dateLabel(answer.createdAt ?? revision.createdAt)}</time>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+    </PageContainer>
+  );
 }

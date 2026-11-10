@@ -5,6 +5,27 @@
     "version": "0.3.0",
     "description": "Public Cloudflare Worker API entrypoint for EviMesh."
   },
+  "x-evimesh-api-token-policy": {
+    "registry": [
+      "profile:read",
+      "project:read",
+      "research:prepare",
+      "research:submit",
+      "artifact:upload"
+    ],
+    "rules": {
+      "authAndPersonalRead": "profile:read",
+      "researchRead": "project:read",
+      "typedResearchPrepare": "research:prepare",
+      "typedResearchSubmit": "research:submit",
+      "artifactUploadPlan": "artifact:upload"
+    },
+    "denyByDefault": true,
+    "researchSignScopeExists": false,
+    "tokenManagement": "human-supabase-session-only",
+    "manualTokenIssuance": "unavailable",
+    "legacyResearchMutation": "unavailable-in-public-product-mode"
+  },
   "servers": [
     {
       "url": "https://api.evimesh.com"
@@ -22,6 +43,53 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/dependencies": {
+      "get": {
+        "operationId": "getDependencyHealth",
+        "summary": "Read public dependency health",
+        "description": "Checks Authentication, Database, and Object Storage without returning credentials, provider payloads, or user data.",
+        "responses": {
+          "200": {
+            "description": "All public dependencies are operational.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DependencyHealthResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "At least one public dependency is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DependencyHealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/meta/capabilities": {
+      "get": {
+        "operationId": "getPublicCapabilities",
+        "summary": "Read the capabilities currently available to public clients",
+        "responses": {
+          "200": {
+            "description": "Current release, graph, contribution, and client capabilities.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicCapabilities"
                 }
               }
             }
@@ -109,6 +177,7 @@
       "get": {
         "operationId": "getAuthenticatedActor",
         "summary": "Read the authenticated subject and Actor binding",
+        "x-evimesh-api-token-scope": "profile:read",
         "security": [
           {
             "bearerAuth": []
@@ -127,6 +196,16 @@
           },
           "401": {
             "description": "Authentication is missing or invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The API token lacks profile:read scope.",
             "content": {
               "application/json": {
                 "schema": {
@@ -172,6 +251,196 @@
                 }
               }
             }
+          },
+          "503": {
+            "description": "Persistent device authorization is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceAuthErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/device/grants/{userCode}": {
+      "get": {
+        "operationId": "previewDeviceAuthorization",
+        "summary": "Preview a pending device grant before human approval",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "userCode",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Z2-9]{4}-[A-Z2-9]{4}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pending grant metadata without either code digest or device code.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceGrantPreview"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is missing or invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A human Actor is required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceAuthErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The user code was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceAuthErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The grant is no longer pending.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceAuthErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/actors/managed": {
+      "get": {
+        "operationId": "listManagedAgentActors",
+        "summary": "List active Agent Actors managed by the authenticated human",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "actor_type",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "const": "agent",
+              "default": "agent"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Managed Agent Actors.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagedAgentsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is missing or invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A human Actor is required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceAuthErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createManagedAgent",
+        "summary": "Create an Agent Actor owned by the authenticated human",
+        "description": "The Agent never receives a human auth subject and can only act through device-approved, scoped API tokens. At most 20 active Agents per human.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateManagedAgentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Agent created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagedAgentCreated"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid name.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A human session is required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -179,7 +448,7 @@
     "/auth/device/approve": {
       "post": {
         "operationId": "approveDeviceAuthorization",
-        "summary": "Bind one user code to the authenticated Actor after browser confirmation",
+        "summary": "Approve one user code for a selected Agent managed by the authenticated human",
         "security": [
           {
             "bearerAuth": []
@@ -228,6 +497,79 @@
           },
           "409": {
             "description": "User code was already used.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceAuthErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/device/deny": {
+      "post": {
+        "operationId": "denyDeviceAuthorization",
+        "summary": "Deny one pending device authorization grant",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeviceDenialRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Device authorization denied.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceDenialResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is missing or invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A human Actor is required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceAuthErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The user code was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceAuthErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The grant is no longer pending.",
             "content": {
               "application/json": {
                 "schema": {
@@ -361,7 +703,93 @@
         }
       }
     },
+    "/onboarding/complete": {
+      "post": {
+        "operationId": "completeOnboarding",
+        "summary": "Accept current terms and complete the authenticated human Actor profile",
+        "description": "The server derives Actor and Auth subject from the Supabase session and verifies email confirmation against Supabase Auth. Body actor identifiers and timestamps are never trusted.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompleteOnboardingRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Onboarding state and public profile persisted atomically.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The Actor is not human or the email is not verified.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Fresh Auth verification or the admission repository is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/signing-keys": {
+      "get": {
+        "operationId": "listSigningKeys",
+        "summary": "List the authenticated human Actor's public signing keys",
+        "description": "Returns public verification material and owned revocation history only. Private keys never enter EviMesh.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Owned public signing keys.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SigningKeyListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is missing or invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
       "post": {
         "operationId": "registerSigningKey",
         "summary": "Register the authenticated Actor's active Ed25519 public key",
@@ -404,10 +832,66 @@
         }
       }
     },
+    "/signing-keys/{keyId}": {
+      "delete": {
+        "operationId": "revokeSigningKey",
+        "summary": "Revoke one active signing key owned by the authenticated human Actor",
+        "description": "Revocation retains public verification material for historical signatures.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "keyId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevokeSigningKeyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Signing key revoked.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "An active owned signing key was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api-tokens": {
       "get": {
         "operationId": "listApiTokens",
-        "summary": "List the authenticated Actor's API tokens",
+        "summary": "List the authenticated human Actor's API tokens",
+        "description": "Requires a Supabase human session. API tokens cannot enumerate tokens.",
         "security": [
           {
             "bearerAuth": []
@@ -433,12 +917,24 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "A human Supabase session is required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         }
       },
       "post": {
         "operationId": "createApiToken",
-        "summary": "Create a scoped API token; the plaintext value is returned once",
+        "summary": "Manual API token issuance is unavailable",
+        "description": "Agent API tokens are issued only by the Device Authorization exchange.",
+        "deprecated": true,
         "security": [
           {
             "bearerAuth": []
@@ -455,18 +951,8 @@
           }
         },
         "responses": {
-          "201": {
-            "description": "API token created.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ObjectResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Authentication is missing or invalid.",
+          "503": {
+            "description": "Manual issuance is unavailable; use Device Authorization.",
             "content": {
               "application/json": {
                 "schema": {
@@ -481,7 +967,8 @@
     "/api-tokens/{tokenId}": {
       "delete": {
         "operationId": "revokeApiToken",
-        "summary": "Revoke one of the authenticated Actor's API tokens",
+        "summary": "Revoke one of the authenticated human Actor's API tokens",
+        "description": "Requires a Supabase human session. API tokens cannot revoke tokens.",
         "security": [
           {
             "bearerAuth": []
@@ -511,6 +998,519 @@
           },
           "401": {
             "description": "Authentication is missing or invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A human Supabase session is required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/project-applications": {
+      "post": {
+        "operationId": "submitProjectApplication",
+        "summary": "Submit a new public-project application",
+        "description": "The authenticated human Actor is always the applicant. Project creation remains steward-reviewed during Public Beta and v1.0.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitProjectApplicationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Application submitted for steward review.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "A completed active human Actor is required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "listProjectApplications",
+        "summary": "List your applications (scope=mine) or the steward review queue (scope=pending)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "mine",
+                "pending"
+              ],
+              "default": "mine"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Applications.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ProjectApplicationSummary"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The pending queue requires a community steward.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/project-applications/{applicationId}/withdraw": {
+      "post": {
+        "operationId": "withdrawProjectApplication",
+        "summary": "Withdraw the authenticated applicant's pending project application",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "applicationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Application withdrawn with an immutable audit event.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Owned pending application not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/project-applications/{applicationId}/decision": {
+      "post": {
+        "operationId": "decideProjectApplication",
+        "summary": "Record a community steward decision on a pending project application",
+        "description": "Rejection is audited immediately. Approval returns 503 until the atomic signed Graph/Event project-creation gate is enabled.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "applicationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecideProjectApplicationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Decision recorded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Community steward authorization is required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Atomic signed Graph/Event project creation is not ready.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectId}/invitations": {
+      "post": {
+        "operationId": "createProjectInvitation",
+        "summary": "Invite an Actor to an active project",
+        "description": "The inviter identity and current project role are resolved server-side; owner or maintainer membership is required.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProjectInvitationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Invitation created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Owner or maintainer membership is required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/project-invitations/{invitationId}/respond": {
+      "post": {
+        "operationId": "respondToProjectInvitation",
+        "summary": "Accept or decline an invitation addressed to the authenticated Actor",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "invitationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RespondProjectInvitationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Invitation response recorded atomically with membership activation when accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Owned invitation not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectId}/invitations/{invitationId}/revoke": {
+      "post": {
+        "operationId": "revokeProjectInvitation",
+        "summary": "Revoke a live project invitation",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "invitationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReasonRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Invitation revoked with an immutable audit event.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Owner or maintainer membership is required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectId}/members/{actorId}": {
+      "patch": {
+        "operationId": "changeProjectMembershipRole",
+        "summary": "Change an active project member's role",
+        "description": "The changing Actor and current owner role are derived server-side. The final owner cannot be removed by concurrent role changes.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "actorId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeProjectMembershipRoleRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Membership role changed with an immutable audit event.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Active owner membership is required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "removeProjectMembership",
+        "summary": "Remove an active project member",
+        "description": "Owner and maintainer boundaries plus the final-owner invariant are checked atomically in PostgreSQL.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "actorId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReasonRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Membership removed with an immutable audit event.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObjectResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Project role is insufficient or the operation would remove the final owner.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2071,6 +3071,12 @@
       "post": {
         "operationId": "planArtifactUpload",
         "summary": "Plan a signed single-object upload for one Artifact revision",
+        "x-evimesh-api-token-scope": "artifact:upload",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -2094,6 +3100,26 @@
           },
           "400": {
             "description": "Invalid upload plan input.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is missing or invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The API token lacks artifact:upload scope.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3663,6 +4689,7 @@
       "post": {
         "operationId": "submitAnswer",
         "summary": "Submit an externally human-signed Answer",
+        "x-evimesh-api-token-scope": "research:submit",
         "security": [
           {
             "bearerAuth": []
@@ -3706,6 +4733,7 @@
       "post": {
         "operationId": "prepareAnswer",
         "summary": "Prepare canonical Answer signing bytes without publishing",
+        "x-evimesh-api-token-scope": "research:prepare",
         "security": [
           {
             "bearerAuth": []
@@ -3814,6 +4842,7 @@
       "post": {
         "operationId": "submitRebuttal",
         "summary": "Submit an externally human-signed Rebuttal",
+        "x-evimesh-api-token-scope": "research:submit",
         "security": [
           {
             "bearerAuth": []
@@ -3847,6 +4876,7 @@
       "post": {
         "operationId": "prepareRebuttal",
         "summary": "Prepare canonical Rebuttal signing bytes without publishing",
+        "x-evimesh-api-token-scope": "research:prepare",
         "security": [
           {
             "bearerAuth": []
@@ -3953,6 +4983,7 @@
       "post": {
         "operationId": "submitEvaluation",
         "summary": "Submit an externally human-signed Evaluation",
+        "x-evimesh-api-token-scope": "research:submit",
         "security": [
           {
             "bearerAuth": []
@@ -3986,6 +5017,7 @@
       "post": {
         "operationId": "prepareEvaluation",
         "summary": "Prepare canonical Evaluation signing bytes without publishing",
+        "x-evimesh-api-token-scope": "research:prepare",
         "security": [
           {
             "bearerAuth": []
@@ -4084,6 +5116,7 @@
       "post": {
         "operationId": "submitDataset",
         "summary": "Submit an externally human-signed Dataset",
+        "x-evimesh-api-token-scope": "research:submit",
         "security": [
           {
             "bearerAuth": []
@@ -4117,6 +5150,7 @@
       "post": {
         "operationId": "prepareDataset",
         "summary": "Prepare canonical Dataset signing bytes without publishing",
+        "x-evimesh-api-token-scope": "research:prepare",
         "security": [
           {
             "bearerAuth": []
@@ -4223,6 +5257,7 @@
       "post": {
         "operationId": "submitTool",
         "summary": "Submit an externally human-signed Tool",
+        "x-evimesh-api-token-scope": "research:submit",
         "security": [
           {
             "bearerAuth": []
@@ -4256,6 +5291,7 @@
       "post": {
         "operationId": "prepareTool",
         "summary": "Prepare canonical Tool signing bytes without publishing",
+        "x-evimesh-api-token-scope": "research:prepare",
         "security": [
           {
             "bearerAuth": []
@@ -4313,6 +5349,500 @@
           }
         }
       }
+    },
+    "/research/questions/prepare": {
+      "post": {
+        "operationId": "prepareSignedQuestion",
+        "summary": "Agent token: prepare canonical Question signing bytes for the owning Human",
+        "description": "The Agent drafts; the server binds the Agent as producer and its human owner as publisher/signer. Nothing is published.",
+        "x-evimesh-api-token-scope": "research:prepare",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrepareQuestionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Canonical signing payload.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreparedResearchSubmission"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid content.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Agent token, Agent actor, or human owner required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/research/questions": {
+      "post": {
+        "operationId": "submitSignedQuestion",
+        "summary": "Agent token: relay a Question signed locally by the owning Human",
+        "description": "Atomic: legacy projection, kernel graph node/edges, platform-signed event, and receipt are written in one transaction. Identical retries return the same receipt.",
+        "x-evimesh-api-token-scope": "research:submit",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitQuestionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Question published.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TypedResearchCreateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid content or missing/invalid human signature.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The signer is not the relaying Agent owner, or the Agent is not a project contributor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/research/claims/prepare": {
+      "post": {
+        "operationId": "prepareSignedClaim",
+        "summary": "Agent token: prepare canonical Claim signing bytes for the owning Human",
+        "description": "The Agent drafts; the server binds the Agent as producer and its human owner as publisher/signer. Nothing is published.",
+        "x-evimesh-api-token-scope": "research:prepare",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrepareClaimRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Canonical signing payload.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreparedResearchSubmission"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid content.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Agent token, Agent actor, or human owner required.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/research/claims": {
+      "post": {
+        "operationId": "submitSignedClaim",
+        "summary": "Agent token: relay a Claim signed locally by the owning Human",
+        "description": "Atomic: legacy projection, kernel graph node/edges, platform-signed event, and receipt are written in one transaction. Identical retries return the same receipt.",
+        "x-evimesh-api-token-scope": "research:submit",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitClaimRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Claim published.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TypedResearchCreateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid content or missing/invalid human signature.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The signer is not the relaying Agent owner, or the Agent is not a project contributor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/actors/managed/{agentActorId}": {
+      "delete": {
+        "operationId": "retireManagedAgent",
+        "summary": "Retire an owned Agent: revoke its tokens and project memberships",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "agentActorId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Agent retired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not the Agent owner.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Agent not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectId}/agents": {
+      "post": {
+        "operationId": "enrollProjectAgent",
+        "summary": "Enroll an Agent you own as a project contributor",
+        "description": "The caller must be a contributor or higher on the project and own the Agent. Agents are never invited and never self-enroll.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "agentActorId"
+                ],
+                "properties": {
+                  "agentActorId": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Agent enrolled.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not a contributor or not the Agent owner.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectId}/agents/{agentActorId}": {
+      "delete": {
+        "operationId": "removeProjectAgent",
+        "summary": "Remove an Agent from a project",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "agentActorId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Agent removed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not permitted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectId}/members": {
+      "get": {
+        "operationId": "listProjectMembers",
+        "summary": "Public roster of active project members, including enrolled Agents and their owning human",
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Active members.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ProjectMember"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/project-invitations": {
+      "get": {
+        "operationId": "listProjectInvitations",
+        "summary": "Invitations addressed to me, or (with projectId) a project's invitations for its owners and maintainers",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Invitations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ProjectInvitation"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Only owners and maintainers list a project's invitations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -4320,7 +5850,8 @@
       "bearerAuth": {
         "type": "http",
         "scheme": "bearer",
-        "bearerFormat": "JWT"
+        "bearerFormat": "Supabase JWT or evimesh_ API token",
+        "description": "Supabase JWTs represent human sessions. Opaque evimesh_ credentials are Agent tokens, use the fixed x-evimesh-api-token-policy registry, and are denied on unregistered routes."
       }
     },
     "parameters": {
@@ -4677,7 +6208,13 @@
             "type": "integer",
             "minimum": 1
           },
-          "supersedesRevision": { "type": ["integer", "null"], "minimum": 1 },
+          "supersedesRevision": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
           "title": {
             "type": "string"
           },
@@ -4720,7 +6257,13 @@
             "type": "integer",
             "minimum": 1
           },
-          "supersedesRevision": { "type": ["integer", "null"], "minimum": 1 },
+          "supersedesRevision": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
           "title": {
             "type": "string"
           },
@@ -4763,7 +6306,13 @@
             "type": "integer",
             "minimum": 1
           },
-          "supersedesRevision": { "type": ["integer", "null"], "minimum": 1 },
+          "supersedesRevision": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
           "subjectRef": {
             "$ref": "#/components/schemas/NodeRevisionRef"
           },
@@ -4809,7 +6358,13 @@
             "type": "integer",
             "minimum": 1
           },
-          "supersedesRevision": { "type": ["integer", "null"], "minimum": 1 },
+          "supersedesRevision": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
           "name": {
             "type": "string"
           },
@@ -4860,7 +6415,13 @@
             "type": "integer",
             "minimum": 1
           },
-          "supersedesRevision": { "type": ["integer", "null"], "minimum": 1 },
+          "supersedesRevision": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
           "name": {
             "type": "string"
           },
@@ -5276,8 +6837,19 @@
           "projectId": {
             "type": "string"
           },
-          "revision": { "type": "integer", "minimum": 1, "default": 1 },
-          "supersedesRevision": { "type": ["integer", "null"], "minimum": 1, "default": null },
+          "revision": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 1
+          },
+          "supersedesRevision": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "default": null
+          },
           "state": {
             "$ref": "#/components/schemas/ResearchDocumentState"
           },
@@ -5327,8 +6899,19 @@
           "projectId": {
             "type": "string"
           },
-          "revision": { "type": "integer", "minimum": 1, "default": 1 },
-          "supersedesRevision": { "type": ["integer", "null"], "minimum": 1, "default": null },
+          "revision": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 1
+          },
+          "supersedesRevision": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "default": null
+          },
           "state": {
             "$ref": "#/components/schemas/ResearchDocumentState"
           },
@@ -5378,8 +6961,19 @@
           "projectId": {
             "type": "string"
           },
-          "revision": { "type": "integer", "minimum": 1, "default": 1 },
-          "supersedesRevision": { "type": ["integer", "null"], "minimum": 1, "default": null },
+          "revision": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 1
+          },
+          "supersedesRevision": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "default": null
+          },
           "state": {
             "$ref": "#/components/schemas/ResearchDocumentState"
           },
@@ -5429,8 +7023,19 @@
           "projectId": {
             "type": "string"
           },
-          "revision": { "type": "integer", "minimum": 1, "default": 1 },
-          "supersedesRevision": { "type": ["integer", "null"], "minimum": 1, "default": null },
+          "revision": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 1
+          },
+          "supersedesRevision": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "default": null
+          },
           "state": {
             "$ref": "#/components/schemas/ResearchDocumentState"
           },
@@ -5481,8 +7086,19 @@
           "projectId": {
             "type": "string"
           },
-          "revision": { "type": "integer", "minimum": 1, "default": 1 },
-          "supersedesRevision": { "type": ["integer", "null"], "minimum": 1, "default": null },
+          "revision": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 1
+          },
+          "supersedesRevision": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "default": null
+          },
           "state": {
             "$ref": "#/components/schemas/ResearchDocumentState"
           },
@@ -5534,8 +7150,19 @@
           "projectId": {
             "type": "string"
           },
-          "revision": { "type": "integer", "minimum": 1, "default": 1 },
-          "supersedesRevision": { "type": ["integer", "null"], "minimum": 1, "default": null },
+          "revision": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 1
+          },
+          "supersedesRevision": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "default": null
+          },
           "state": {
             "$ref": "#/components/schemas/ResearchDocumentState"
           },
@@ -5589,8 +7216,19 @@
           "projectId": {
             "type": "string"
           },
-          "revision": { "type": "integer", "minimum": 1, "default": 1 },
-          "supersedesRevision": { "type": ["integer", "null"], "minimum": 1, "default": null },
+          "revision": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 1
+          },
+          "supersedesRevision": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "default": null
+          },
           "state": {
             "$ref": "#/components/schemas/ResearchDocumentState"
           },
@@ -5646,8 +7284,19 @@
           "projectId": {
             "type": "string"
           },
-          "revision": { "type": "integer", "minimum": 1, "default": 1 },
-          "supersedesRevision": { "type": ["integer", "null"], "minimum": 1, "default": null },
+          "revision": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 1
+          },
+          "supersedesRevision": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "default": null
+          },
           "state": {
             "$ref": "#/components/schemas/ResearchDocumentState"
           },
@@ -5704,8 +7353,19 @@
           "projectId": {
             "type": "string"
           },
-          "revision": { "type": "integer", "minimum": 1, "default": 1 },
-          "supersedesRevision": { "type": ["integer", "null"], "minimum": 1, "default": null },
+          "revision": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 1
+          },
+          "supersedesRevision": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "default": null
+          },
           "state": {
             "$ref": "#/components/schemas/ResearchDocumentState"
           },
@@ -5777,8 +7437,19 @@
           "projectId": {
             "type": "string"
           },
-          "revision": { "type": "integer", "minimum": 1, "default": 1 },
-          "supersedesRevision": { "type": ["integer", "null"], "minimum": 1, "default": null },
+          "revision": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 1
+          },
+          "supersedesRevision": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "default": null
+          },
           "state": {
             "$ref": "#/components/schemas/ResearchDocumentState"
           },
@@ -5845,6 +7516,181 @@
           },
           "environment": {
             "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "DependencyComponentHealth": {
+        "type": "object",
+        "required": [
+          "status",
+          "checkedAt",
+          "latencyMs"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "operational",
+              "unavailable"
+            ]
+          },
+          "checkedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "latencyMs": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "DependencyHealthResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "checkedAt",
+          "components"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "operational",
+              "degraded"
+            ]
+          },
+          "checkedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "components": {
+            "type": "object",
+            "required": [
+              "authentication",
+              "database",
+              "objectStorage"
+            ],
+            "properties": {
+              "authentication": {
+                "$ref": "#/components/schemas/DependencyComponentHealth"
+              },
+              "database": {
+                "$ref": "#/components/schemas/DependencyComponentHealth"
+              },
+              "objectStorage": {
+                "$ref": "#/components/schemas/DependencyComponentHealth"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "PublicCapabilities": {
+        "type": "object",
+        "required": [
+          "schemaVersion",
+          "releaseChannel",
+          "apiVersion",
+          "graphSchemaVersion",
+          "deviceAuthorization",
+          "research",
+          "clients"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "const": "public-capabilities.v1"
+          },
+          "releaseChannel": {
+            "type": "string",
+            "enum": [
+              "preview",
+              "beta",
+              "ga"
+            ]
+          },
+          "apiVersion": {
+            "type": "string"
+          },
+          "graphSchemaVersion": {
+            "const": "research-neighborhood.v1"
+          },
+          "deviceAuthorization": {
+            "type": "object",
+            "required": [
+              "enabled"
+            ],
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          },
+          "research": {
+            "type": "object",
+            "required": [
+              "read",
+              "prepare",
+              "submit",
+              "signing"
+            ],
+            "properties": {
+              "read": {
+                "const": true
+              },
+              "prepare": {
+                "type": "boolean"
+              },
+              "submit": {
+                "type": "boolean"
+              },
+              "signing": {
+                "const": "human-local-only"
+              }
+            },
+            "additionalProperties": false
+          },
+          "clients": {
+            "type": "object",
+            "required": [
+              "sdk",
+              "cli",
+              "mcp"
+            ],
+            "properties": {
+              "sdk": {
+                "$ref": "#/components/schemas/PublicClientCapability"
+              },
+              "cli": {
+                "$ref": "#/components/schemas/PublicClientCapability"
+              },
+              "mcp": {
+                "$ref": "#/components/schemas/PublicClientCapability"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "PublicClientCapability": {
+        "type": "object",
+        "required": [
+          "available",
+          "minimumVersion"
+        ],
+        "properties": {
+          "available": {
+            "type": "boolean"
+          },
+          "minimumVersion": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "additionalProperties": false
@@ -5916,6 +7762,16 @@
         },
         "additionalProperties": false
       },
+      "DeviceScope": {
+        "type": "string",
+        "enum": [
+          "profile:read",
+          "project:read",
+          "research:prepare",
+          "research:submit",
+          "artifact:upload"
+        ]
+      },
       "DeviceAuthorizationRequest": {
         "type": "object",
         "required": [
@@ -5925,8 +7781,21 @@
           "client_id": {
             "type": "string",
             "minLength": 1
+          },
+          "scope": {
+            "type": "string",
+            "description": "Space-delimited subset of the registered non-signing scopes. research:sign does not exist."
+          },
+          "scopes": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/components/schemas/DeviceScope"
+            }
           }
-        }
+        },
+        "additionalProperties": false
       },
       "DeviceAuthorizationResponse": {
         "type": "object",
@@ -5934,6 +7803,7 @@
           "device_code",
           "user_code",
           "verification_uri",
+          "verification_uri_complete",
           "interval",
           "expires_in"
         ],
@@ -5950,6 +7820,10 @@
             "type": "string",
             "minLength": 1
           },
+          "verification_uri_complete": {
+            "type": "string",
+            "minLength": 1
+          },
           "interval": {
             "type": "integer",
             "minimum": 1
@@ -5958,9 +7832,81 @@
             "type": "integer",
             "minimum": 1
           }
-        }
+        },
+        "additionalProperties": false
+      },
+      "DeviceGrantPreview": {
+        "type": "object",
+        "required": [
+          "status",
+          "client_id",
+          "requested_scopes",
+          "expires_at"
+        ],
+        "properties": {
+          "status": {
+            "const": "pending"
+          },
+          "client_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "requested_scopes": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/components/schemas/DeviceScope"
+            }
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
       },
       "DeviceApprovalRequest": {
+        "type": "object",
+        "required": [
+          "user_code",
+          "agent_actor_id"
+        ],
+        "properties": {
+          "user_code": {
+            "type": "string",
+            "minLength": 1
+          },
+          "agent_actor_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "DeviceApprovalResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "agent_actor_id",
+          "expires_at"
+        ],
+        "properties": {
+          "status": {
+            "const": "approved"
+          },
+          "agent_actor_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "DeviceDenialRequest": {
         "type": "object",
         "required": [
           "user_code"
@@ -5970,24 +7916,80 @@
             "type": "string",
             "minLength": 1
           }
-        }
+        },
+        "additionalProperties": false
       },
-      "DeviceApprovalResponse": {
+      "DeviceDenialResponse": {
         "type": "object",
         "required": [
           "status"
         ],
         "properties": {
           "status": {
-            "const": "approved"
+            "const": "denied"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ManagedAgent": {
+        "type": "object",
+        "required": [
+          "actorId",
+          "actorType",
+          "modelName",
+          "runtime",
+          "scope",
+          "publicKeyFingerprint"
+        ],
+        "properties": {
+          "actorId": {
+            "type": "string",
+            "minLength": 1
           },
-          "device_code": {
+          "actorType": {
+            "const": "agent"
+          },
+          "modelName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "runtime": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "scope": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "publicKeyFingerprint": {
             "type": [
               "string",
               "null"
             ]
           }
-        }
+        },
+        "additionalProperties": false
+      },
+      "ManagedAgentsResponse": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ManagedAgent"
+            }
+          }
+        },
+        "additionalProperties": false
       },
       "DeviceTokenRequest": {
         "type": "object",
@@ -5999,32 +8001,57 @@
             "type": "string",
             "minLength": 1
           }
-        }
+        },
+        "additionalProperties": false
       },
       "DeviceTokenResponse": {
         "type": "object",
         "required": [
           "access_token",
-          "scopes"
+          "token_type",
+          "expires_in",
+          "scope",
+          "scopes",
+          "token_id",
+          "agent_actor_id",
+          "approved_by_actor_id"
         ],
         "properties": {
           "access_token": {
             "type": "string",
             "minLength": 1
           },
+          "token_type": {
+            "const": "Bearer"
+          },
+          "expires_in": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "scope": {
+            "type": "string",
+            "minLength": 1
+          },
           "scopes": {
             "type": "array",
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/DeviceScope"
             }
           },
           "token_id": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": "string",
+            "minLength": 1
+          },
+          "agent_actor_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "approved_by_actor_id": {
+            "type": "string",
+            "minLength": 1
           }
-        }
+        },
+        "additionalProperties": false
       },
       "DeviceAuthErrorResponse": {
         "type": "object",
@@ -6460,12 +8487,270 @@
           },
           "publicKey": {
             "type": "string",
-            "minLength": 1
+            "pattern": "^[A-Za-z0-9_-]{59}$",
+            "description": "Canonical unpadded base64url Ed25519 SubjectPublicKeyInfo DER. Private key material is never accepted."
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
           }
-        }
+        },
+        "additionalProperties": false
+      },
+      "SigningKeyPublicRecord": {
+        "type": "object",
+        "required": [
+          "keyId",
+          "actorId",
+          "algorithm",
+          "publicKey",
+          "fingerprint",
+          "label",
+          "createdAt"
+        ],
+        "properties": {
+          "keyId": {
+            "type": "string"
+          },
+          "actorId": {
+            "type": "string"
+          },
+          "algorithm": {
+            "type": "string",
+            "const": "Ed25519"
+          },
+          "publicKey": {
+            "type": "string"
+          },
+          "fingerprint": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "revokedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "revocationReason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "SigningKeyListResponse": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SigningKeyPublicRecord"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "RevokeSigningKeyRequest": {
+        "type": "object",
+        "required": [
+          "reason"
+        ],
+        "properties": {
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        },
+        "additionalProperties": false
+      },
+      "CompleteOnboardingRequest": {
+        "type": "object",
+        "required": [
+          "termsVersion",
+          "displayName"
+        ],
+        "properties": {
+          "termsVersion": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "bio": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 5000
+          },
+          "avatarUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 2000
+          }
+        },
+        "additionalProperties": false
+      },
+      "SubmitProjectApplicationRequest": {
+        "type": "object",
+        "required": [
+          "proposedProjectId",
+          "name",
+          "summary",
+          "license"
+        ],
+        "properties": {
+          "proposedProjectId": {
+            "type": "string",
+            "pattern": "^project_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "license": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "additionalProperties": false
+      },
+      "DecideProjectApplicationRequest": {
+        "type": "object",
+        "required": [
+          "decision",
+          "reason"
+        ],
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "approved",
+              "rejected"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreateProjectInvitationRequest": {
+        "type": "object",
+        "required": [
+          "invitedActorId",
+          "role",
+          "expiresAt"
+        ],
+        "properties": {
+          "invitedActorId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "maintainer",
+              "contributor",
+              "viewer"
+            ]
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Must be in the future and no more than 30 days from the database clock."
+          }
+        },
+        "additionalProperties": false
+      },
+      "RespondProjectInvitationRequest": {
+        "type": "object",
+        "required": [
+          "response"
+        ],
+        "properties": {
+          "response": {
+            "type": "string",
+            "enum": [
+              "accepted",
+              "declined"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "ReasonRequest": {
+        "type": "object",
+        "required": [
+          "reason"
+        ],
+        "properties": {
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        },
+        "additionalProperties": false
+      },
+      "ChangeProjectMembershipRoleRequest": {
+        "type": "object",
+        "required": [
+          "role",
+          "reason"
+        ],
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "owner",
+              "maintainer",
+              "contributor",
+              "viewer"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        },
+        "additionalProperties": false
       },
       "CreateApiTokenRequest": {
         "type": "object",
+        "deprecated": true,
+        "description": "Legacy request shape retained for compatibility documentation. Manual issuance returns API_TOKEN_ISSUANCE_UNAVAILABLE.",
         "properties": {
           "scopes": {
             "type": "array",
@@ -7459,6 +9744,668 @@
             ]
           },
           "createdAt": {
+            "type": "string"
+          }
+        }
+      },
+      "ResearchContractInput": {
+        "type": "object",
+        "required": [
+          "problem",
+          "scope",
+          "falsification"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "problem": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20000
+          },
+          "background": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1
+          },
+          "exclusions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "progress_criteria": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "acceptable_evidence": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "falsification": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1
+          },
+          "definitions": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "license": {
+            "type": "string"
+          }
+        }
+      },
+      "PrepareQuestionRequest": {
+        "type": "object",
+        "required": [
+          "questionId",
+          "projectId",
+          "state",
+          "title",
+          "statement",
+          "researchContract",
+          "nonce"
+        ],
+        "properties": {
+          "questionId": {
+            "type": "string",
+            "description": "question_<uuid>"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 1
+          },
+          "supersedesRevision": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "default": null
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "proposed",
+              "active"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "statement": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20000
+          },
+          "topics": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "maxItems": 8,
+            "uniqueItems": true
+          },
+          "researchContract": {
+            "$ref": "#/components/schemas/ResearchContractInput"
+          },
+          "extendsRefs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NodeRevisionRef"
+            }
+          },
+          "publisherActorId": {
+            "type": "string",
+            "description": "Optional; in public mode it must equal the Agent owner."
+          },
+          "nonce": {
+            "type": "string",
+            "minLength": 16,
+            "maxLength": 128
+          }
+        }
+      },
+      "SubmitQuestionRequest": {
+        "type": "object",
+        "required": [
+          "questionId",
+          "projectId",
+          "state",
+          "title",
+          "statement",
+          "researchContract",
+          "signatureEnvelope"
+        ],
+        "properties": {
+          "questionId": {
+            "type": "string",
+            "description": "question_<uuid>"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 1
+          },
+          "supersedesRevision": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "default": null
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "proposed",
+              "active"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "statement": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20000
+          },
+          "topics": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "maxItems": 8,
+            "uniqueItems": true
+          },
+          "researchContract": {
+            "$ref": "#/components/schemas/ResearchContractInput"
+          },
+          "extendsRefs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NodeRevisionRef"
+            }
+          },
+          "publisherActorId": {
+            "type": "string",
+            "description": "Optional; in public mode it must equal the Agent owner."
+          },
+          "nonce": {
+            "type": "string",
+            "minLength": 16,
+            "maxLength": 128
+          },
+          "signatureEnvelope": {
+            "type": "object"
+          }
+        }
+      },
+      "PrepareClaimRequest": {
+        "type": "object",
+        "required": [
+          "claimId",
+          "projectId",
+          "statement",
+          "scope",
+          "falsification",
+          "nonce"
+        ],
+        "properties": {
+          "claimId": {
+            "type": "string",
+            "description": "claim_<uuid>"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 1
+          },
+          "supersedesRevision": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "default": null
+          },
+          "questionId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "statement": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20000
+          },
+          "scope": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1
+          },
+          "assumptions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "falsification": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1
+          },
+          "answerRef": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NodeRevisionRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "relations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "type",
+                "source"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "derived_from",
+                    "extends",
+                    "implements",
+                    "uses_dataset",
+                    "uses_tool"
+                  ]
+                },
+                "source": {
+                  "$ref": "#/components/schemas/NodeRevisionRef"
+                }
+              }
+            }
+          },
+          "publisherActorId": {
+            "type": "string",
+            "description": "Optional; in public mode it must equal the Agent owner."
+          },
+          "nonce": {
+            "type": "string",
+            "minLength": 16,
+            "maxLength": 128
+          }
+        }
+      },
+      "SubmitClaimRequest": {
+        "type": "object",
+        "required": [
+          "claimId",
+          "projectId",
+          "statement",
+          "scope",
+          "falsification",
+          "signatureEnvelope"
+        ],
+        "properties": {
+          "claimId": {
+            "type": "string",
+            "description": "claim_<uuid>"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 1
+          },
+          "supersedesRevision": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "default": null
+          },
+          "questionId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "statement": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20000
+          },
+          "scope": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1
+          },
+          "assumptions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "falsification": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1
+          },
+          "answerRef": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NodeRevisionRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "relations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "type",
+                "source"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "derived_from",
+                    "extends",
+                    "implements",
+                    "uses_dataset",
+                    "uses_tool"
+                  ]
+                },
+                "source": {
+                  "$ref": "#/components/schemas/NodeRevisionRef"
+                }
+              }
+            }
+          },
+          "publisherActorId": {
+            "type": "string",
+            "description": "Optional; in public mode it must equal the Agent owner."
+          },
+          "nonce": {
+            "type": "string",
+            "minLength": 16,
+            "maxLength": 128
+          },
+          "signatureEnvelope": {
+            "type": "object"
+          }
+        }
+      },
+      "CreateManagedAgentRequest": {
+        "type": "object",
+        "required": [
+          "displayName"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "modelName": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 120
+          },
+          "runtime": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 120
+          }
+        }
+      },
+      "ManagedAgentCreated": {
+        "type": "object",
+        "required": [
+          "actorId",
+          "actorType",
+          "ownerActorId"
+        ],
+        "properties": {
+          "schema": {
+            "type": "string"
+          },
+          "actorId": {
+            "type": "string"
+          },
+          "actorType": {
+            "const": "agent"
+          },
+          "ownerActorId": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "modelName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "runtime": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "ProjectApplicationSummary": {
+        "type": "object",
+        "properties": {
+          "applicationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "applicantActorId": {
+            "type": "string"
+          },
+          "proposedProjectId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "license": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "approved",
+              "rejected",
+              "withdrawn"
+            ]
+          },
+          "submittedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "decidedAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "decisionReason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "approvedProjectId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "ProjectMember": {
+        "type": "object",
+        "properties": {
+          "actorId": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "owner",
+              "maintainer",
+              "contributor",
+              "viewer"
+            ]
+          },
+          "actorType": {
+            "type": "string"
+          },
+          "ownerActorId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "displayName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "joinedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ProjectInvitation": {
+        "type": "object",
+        "properties": {
+          "invitationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "projectName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "invitedActorId": {
+            "type": "string"
+          },
+          "invitedDisplayName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "invitedByActorId": {
+            "type": "string"
+          },
+          "invitedByDisplayName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "role": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "accepted",
+              "declined",
+              "expired",
+              "revoked"
+            ]
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "expiresAt": {
             "type": "string"
           }
         }

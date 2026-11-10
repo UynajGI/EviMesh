@@ -60,6 +60,7 @@ export function loadDocsManifest() {
     { id: 'concepts', title: 'Core concepts', slugs: pages.filter((p) => p.slug.startsWith('concepts/')).map((p) => p.slug) },
     { id: 'guides', title: 'Guides', slugs: pages.filter((p) => p.slug.startsWith('guides/')).map((p) => p.slug) },
     { id: 'reference', title: 'Reference', slugs: pages.filter((p) => p.slug.startsWith('reference/')).map((p) => p.slug) },
+    { id: 'policies', title: 'Policies', slugs: pages.filter((p) => p.slug.startsWith('policies/')).map((p) => p.slug) },
     { id: 'operations', title: 'Operations', slugs: pages.filter((p) => p.slug.startsWith('operations/')).map((p) => p.slug) },
   ].map((section) => ({
     ...section,

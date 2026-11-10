@@ -1,16 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/data';
+import { Button, buttonLinkVariants } from '@/components/ui/button';
+import { StatusBadge } from '@/components/ui/data';
+import { ActorName, MarginSection } from '@/components/ui/doc';
 import { Confirm } from '@/components/ui/dialog';
-import { Alert, DeniedState, Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
-import { Label } from '@/components/ui/form';
-import { PageContainer, PageHeader } from '@/components/ui/page';
-import { Checkbox } from '@/components/ui/selection';
+import { DeniedState, Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
+import { Breadcrumb, PageContainer, PageHeader, SectionHeader } from '@/components/ui/page';
 import { createBrowserSupabaseClient } from '@/lib/supabase-browser';
-
-const TOKEN_SCOPES = ['profile:read', 'project:read', 'claim:read', 'task:read'];
 
 async function call(path, options = {}) {
   const { data } = await createBrowserSupabaseClient().auth.getSession();
@@ -22,13 +19,9 @@ async function call(path, options = {}) {
 
 export default function TokensPage() {
   const [tokens, setTokens] = useState([]);
-  const [secret, setSecret] = useState(null);
-  const [scopes, setScopes] = useState(['profile:read']);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [needsAuth, setNeedsAuth] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [revokeTarget, setRevokeTarget] = useState(null);
   const [revoking, setRevoking] = useState(false);
 
@@ -46,29 +39,10 @@ export default function TokensPage() {
 
   useEffect(() => { load(); }, []);
 
-  async function create() {
-    setCreating(true);
-    setCopied(false);
-    try {
-      const result = await call('/api-tokens', { method: 'POST', body: JSON.stringify({ scopes }) });
-      setSecret(result.token);
-      load();
-    } catch (reason) {
-      setError(reason.message);
-    } finally {
-      setCreating(false);
-    }
-  }
-
-  async function copySecret() {
-    await navigator.clipboard.writeText(secret);
-    setCopied(true);
-  }
-
   async function revoke() {
     setRevoking(true);
     try {
-      await call(`/api-tokens/${revokeTarget.tokenId}`, { method: 'DELETE' });
+      await call(`/api-tokens/${revokeTarget.tokenId}`, { method: 'DELETE', body: JSON.stringify({ reason: 'revoked by owner in account settings' }) });
       setRevokeTarget(null);
       load();
     } catch (reason) {
@@ -78,57 +52,62 @@ export default function TokensPage() {
     }
   }
 
-  const toggleScope = (scope) => (event) => setScopes((current) => event.target.checked ? [...current, scope] : current.filter((value) => value !== scope));
-
-  return <PageContainer><PageHeader eyebrow="Account security" title="API tokens" description="Create scoped tokens for the SDK and CLI. A new token is shown exactly once." />
-    {error ? <ErrorState className="mt-8" message={error} onRetry={load} /> : null}
-    {needsAuth ? (
-      <DeniedState
-        className="mt-8"
-        description="Sign in to manage tokens."
-        scope="authenticated session"
-        title="Re-authentication needed"
-        action={<a className="rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground" href="/login">Sign in</a>}
-        actionLabel="Sign in"
-      />
-    ) : null}
-    {loading ? <Skeleton className="mt-8 h-48 w-full" /> : !needsAuth ? <>
-      <section className="mt-8 rounded-lg border border-border bg-card p-5" aria-labelledby="create-token-heading">
-        <h2 id="create-token-heading" className="text-lg font-semibold">Create a token</h2>
-        <fieldset className="mt-4 grid gap-3 sm:grid-cols-2"><legend className="text-sm font-medium">Scopes</legend>{TOKEN_SCOPES.map((scope) => <label className="flex items-center gap-2 text-sm" key={scope}><Checkbox checked={scopes.includes(scope)} onChange={toggleScope(scope)} />{scope}</label>)}</fieldset>
-        <Button className="mt-5" onClick={create} loading={creating}>Create token</Button>
-        {secret ? <div className="mt-5"><Alert variant="info" title="Copy this token now" description="It cannot be shown again." /><div className="mt-3 flex flex-wrap items-center gap-3"><code className="break-all rounded-md bg-muted px-3 py-2 font-mono text-xs tabular-nums">{secret}</code><Button variant="outline" size="sm" onClick={copySecret}>{copied ? 'Copied' : 'Copy token'}</Button></div></div> : null}
-      </section>
-      <section className="mt-8" aria-labelledby="tokens-heading">
-        <h2 id="tokens-heading" className="text-lg font-semibold">Active tokens</h2>
-        {tokens.length === 0 ? (
-          <Empty
-            className="mt-4"
-            action={<a className="rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground" href="/agent">Connect an agent first</a>}
-            description="Tokens you create for the SDK and CLI will appear here."
-            title="No tokens yet"
-          />
-        ) : <ul className="mt-4 space-y-3">{tokens.map((token) => {
-          const revoked = Boolean(token.revokedAt);
-          const expired = !revoked && token.expiresAt && Date.parse(token.expiresAt) < Date.now();
-          const status = revoked ? 'revoked' : expired ? 'expired' : 'active';
-          return <li className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card p-4" key={token.tokenId}>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="font-mono text-sm tabular-nums">{token.tokenPrefix}</p>
-                <Badge variant={revoked || expired ? 'default' : 'success'}>{status}</Badge>
-              </div>
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                {(token.scopes ?? []).map((scope) => <Badge key={scope} variant="info">{scope}</Badge>)}
-                {token.expiresAt ? <span className="text-xs tabular-nums text-muted-foreground">expires {String(token.expiresAt).slice(0, 10)}</span> : <span className="text-xs text-muted-foreground">never expires</span>}
-                <span className="text-xs tabular-nums text-muted-foreground">last used {token.lastUsedAt ? String(token.lastUsedAt).slice(0, 10) : 'never'}</span>
-              </div>
-            </div>
-            {!revoked ? <Button size="sm" variant="outline" className="text-destructive" onClick={() => setRevokeTarget(token)}>Revoke</Button> : null}
-          </li>;
-        })}</ul>}
-      </section>
-    </> : null}
-    <Confirm open={Boolean(revokeTarget)} onOpenChange={(open) => { if (!open) setRevokeTarget(null); }} title="Revoke this token?" description={`The token ${revokeTarget?.tokenPrefix ?? ''} will stop working immediately and cannot be restored.`} confirmLabel="Revoke token" destructive onConfirm={revoke} loading={revoking} />
-  </PageContainer>;
+  return (
+    <PageContainer>
+      <Breadcrumb trail={[{ label: 'Account', href: '/settings' }, { label: 'API tokens' }]} />
+      <PageHeader title="API tokens" />
+      <div className="doc-grid mt-6">
+        <div className="doc-main">
+          {error ? <ErrorState className="mb-6" message={error} onRetry={load} /> : null}
+          {needsAuth ? (
+            <DeniedState
+              description="Sign in to manage tokens."
+              scope="authenticated session"
+              title="Re-authentication needed"
+              action={<a className={buttonLinkVariants({ size: 'sm' })} href="/login">Sign in</a>}
+              actionLabel="Sign in"
+            />
+          ) : null}
+          {loading ? <Skeleton className="h-48 w-full" /> : !needsAuth ? (
+            <section aria-labelledby="tokens-heading">
+              <SectionHeader action={<span className="tabular-nums text-muted-foreground">{tokens.length}</span>} id="tokens-heading" title="Tokens" />
+              {tokens.length === 0 ? (
+                <Empty
+                  className="border-0 py-3"
+                  action={<a className={buttonLinkVariants({ size: 'sm', variant: 'outline' })} href="/agent">Connect an agent first</a>}
+                  title="No tokens yet"
+                />
+              ) : <ul>{tokens.map((token) => {
+                const revoked = Boolean(token.revokedAt);
+                const expired = !revoked && token.expiresAt && Date.parse(token.expiresAt) < Date.now();
+                const status = revoked ? 'revoked' : expired ? 'expired' : 'active';
+                return <li className="grid gap-x-6 gap-y-2 border-b border-border py-3 md:grid-cols-[6rem_minmax(0,1fr)_auto] md:items-start" key={token.tokenId}>
+                  <div><StatusBadge label={status} state={revoked || expired ? 'archived' : 'completed'} /></div>
+                  <div className="min-w-0">
+                    <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                      <span className="font-mono text-sm tabular-nums">{token.tokenPrefix}</span>
+                      {token.agentActorId ? <span className="text-sm text-muted-foreground">for <ActorName actorId={token.agentActorId} showOwner={false} /></span> : null}
+                    </p>
+                    <p className="mt-1 font-mono text-xs text-muted-foreground">{(token.scopes ?? []).join(' · ')}</p>
+                    <p className="mt-1 flex flex-wrap gap-x-3 text-xs tabular-nums text-muted-foreground">
+                      {token.expiresAt ? <span>expires {String(token.expiresAt).slice(0, 10)}</span> : <span>never expires</span>}
+                      <span>last used {token.lastUsedAt ? String(token.lastUsedAt).slice(0, 10) : 'never'}</span>
+                    </p>
+                  </div>
+                  <div>{!revoked ? <Button size="sm" variant="outline" className="text-destructive" onClick={() => setRevokeTarget(token)}>Revoke</Button> : null}</div>
+                </li>;
+              })}</ul>}
+            </section>
+          ) : null}
+        </div>
+        <aside aria-label="How tokens are issued" className="doc-margin">
+          <MarginSection title="Issuing">
+            <p className="text-[13px] leading-5">Tokens are issued by an approved Agent connection.</p>
+            <a className="mt-1.5 inline-block text-[13px] text-primary hover:underline" href="/agent">Connect an Agent</a>
+          </MarginSection>
+        </aside>
+      </div>
+      <Confirm open={Boolean(revokeTarget)} onOpenChange={(open) => { if (!open) setRevokeTarget(null); }} title="Revoke this token?" description={`The token ${revokeTarget?.tokenPrefix ?? ''} will stop working immediately and cannot be restored.`} confirmLabel="Revoke token" destructive onConfirm={revoke} loading={revoking} />
+    </PageContainer>
+  );
 }

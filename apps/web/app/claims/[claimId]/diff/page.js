@@ -1,16 +1,20 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { Badge } from '@/components/ui/data';
 import { ErrorState, Skeleton } from '@/components/ui/feedback';
 import { Input, Label } from '@/components/ui/form';
-import { PageContainer, PageHeader } from '@/components/ui/page';
+import { Breadcrumb, PageContainer, PageHeader } from '@/components/ui/page';
+import { ActorName, formatDate } from '@/components/ui/doc';
 import { apiFetch } from '@/lib/api-client';
 
 async function loadRevision(claimId, revision) {
   const body = await apiFetch(`/claims/${claimId}/revisions/${revision}`);
   return body.claimRevision;
+}
+
+function FieldValue({ value, className }) {
+  const text = typeof value === 'string' ? value : JSON.stringify(value ?? null, null, 2);
+  return <pre className={`whitespace-pre-wrap break-words font-mono text-xs leading-6 ${className ?? ''}`}>{text}</pre>;
 }
 
 export default function ClaimRevisionDiffPage({ params }) {
@@ -37,16 +41,40 @@ export default function ClaimRevisionDiffPage({ params }) {
     return () => { active = false; };
   }, [claimId, fromRevision, toRevision, retryKey]);
 
-  if (error) return <PageContainer><PageHeader eyebrow="Claims" title="Claim revision diff" description="Compare immutable claim revisions field by field." /><ErrorState className="mt-8" message={error} onRetry={() => setRetryKey((value) => value + 1)} /></PageContainer>;
+  const trail = [
+    { label: 'Explore', href: '/explore' },
+    { label: 'Claim', href: claimId ? `/claims/${claimId}` : '/claims' },
+    { label: 'Compare revisions' },
+  ];
 
-  return <PageContainer><Link className="text-sm font-medium text-primary hover:underline" href={claimId ? `/claims/${claimId}` : '/claims'}>← Back to Claim</Link><PageHeader eyebrow="Claims" title="Claim revision diff" description="Compare immutable claim revisions field by field." />
-    <div className="mt-8 flex flex-wrap items-end gap-4">
-      <div className="grid gap-2"><Label htmlFor="from-revision">From revision</Label><Input id="from-revision" aria-label="From revision" className="w-32" min="1" type="number" value={fromRevision} onChange={(event) => setFromRevision(event.target.value)} /></div>
-      <div className="grid gap-2"><Label htmlFor="to-revision">To revision</Label><Input id="to-revision" aria-label="To revision" className="w-32" min="1" type="number" value={toRevision} onChange={(event) => setToRevision(event.target.value)} /></div>
-    </div>
-    {loading ? <Skeleton className="mt-8 h-96 w-full" /> : diff && <section aria-label="Revision field differences" className="mt-8 rounded-lg border border-border bg-card p-5">
-      <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-muted-foreground">Changed fields: {diff.fields.length}</p><div className="flex flex-wrap gap-2">{diff.from.createdBy ? <Badge variant="info">by {diff.from.createdBy}</Badge> : null}{diff.from.createdAt ? <span className="text-xs tabular-nums text-muted-foreground">from {diff.from.createdAt}</span> : null}{diff.to.createdBy ? <Badge variant="info">to {diff.to.createdBy}</Badge> : null}</div></div>
-      {diff.fields.length === 0 ? <p className="mt-4 text-sm">No differences.</p> : <div className="mt-4 space-y-4">{diff.fields.map((field) => <div className="grid gap-3 border-t border-border pt-4 md:grid-cols-2" key={field}><div><p className="font-mono text-sm">{field}</p><pre className="mt-2 whitespace-pre-wrap rounded-lg bg-muted p-3 text-xs leading-6">{JSON.stringify(diff.from[field], null, 2)}</pre></div><pre className="whitespace-pre-wrap rounded-lg bg-muted p-3 text-xs leading-6">{JSON.stringify(diff.to[field], null, 2)}</pre></div>)}</div>}
-    </section>}
-  </PageContainer>;
+  return (
+    <PageContainer>
+      <Breadcrumb trail={trail} />
+      <PageHeader title="Compare revisions" />
+      <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+        <div className="flex items-center gap-2"><Label className="font-normal text-muted-foreground" htmlFor="from-revision">From revision</Label><Input aria-label="From revision" className="h-8 w-20" id="from-revision" min="1" onChange={(event) => setFromRevision(event.target.value)} type="number" value={fromRevision} /></div>
+        <div className="flex items-center gap-2"><Label className="font-normal text-muted-foreground" htmlFor="to-revision">To revision</Label><Input aria-label="To revision" className="h-8 w-20" id="to-revision" min="1" onChange={(event) => setToRevision(event.target.value)} type="number" value={toRevision} /></div>
+      </div>
+      {error ? <ErrorState className="mt-6" message={error} onRetry={() => setRetryKey((value) => value + 1)} /> : loading ? <Skeleton className="mt-6 h-96 w-full" /> : diff && (
+        <section aria-label="Revision field differences" className="mt-6">
+          <div className="grid gap-x-6 border-b border-border pb-1.5 text-[13px] text-muted-foreground md:grid-cols-[10rem_minmax(0,1fr)_minmax(0,1fr)]">
+            <p>Changed fields <span className="tabular-nums text-foreground">{diff.fields.length}</span></p>
+            <p className="flex flex-wrap items-baseline gap-x-1.5"><span className="font-mono text-foreground">r{fromRevision}</span>{diff.from.createdBy ? <>by <ActorName actorId={diff.from.createdBy} showOwner={false} /></> : null}{diff.from.createdAt ? <span className="tabular-nums">{formatDate(diff.from.createdAt)}</span> : null}</p>
+            <p className="flex flex-wrap items-baseline gap-x-1.5"><span className="font-mono text-foreground">r{toRevision}</span>{diff.to.createdBy ? <>by <ActorName actorId={diff.to.createdBy} showOwner={false} /></> : null}{diff.to.createdAt ? <span className="tabular-nums">{formatDate(diff.to.createdAt)}</span> : null}</p>
+          </div>
+          {diff.fields.length === 0 ? <p className="clause__none mt-3">No differences.</p> : (
+            <dl>
+              {diff.fields.map((field) => (
+                <div className="grid gap-x-6 gap-y-1 border-b border-border py-3 md:grid-cols-[10rem_minmax(0,1fr)_minmax(0,1fr)]" key={field}>
+                  <dt className="text-sm text-muted-foreground">{field}</dt>
+                  <dd className="min-w-0"><FieldValue className="text-muted-foreground line-through decoration-1" value={diff.from[field]} /></dd>
+                  <dd className="min-w-0 change-bar ml-3 md:ml-0"><FieldValue value={diff.to[field]} /></dd>
+                </div>
+              ))}
+            </dl>
+          )}
+        </section>
+      )}
+    </PageContainer>
+  );
 }

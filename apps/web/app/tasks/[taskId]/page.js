@@ -4,9 +4,10 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { HandoffSheet } from '@/components/handoff-sheet';
-import { Badge } from '@/components/ui/data';
+import { StatusBadge } from '@/components/ui/data';
+import { ActorName, Identifier, MarginSection, formatDate, shortId } from '@/components/ui/doc';
 import { Empty, ErrorState, Skeleton } from '@/components/ui/feedback';
-import { PageContainer, PageHeader } from '@/components/ui/page';
+import { Breadcrumb, PageContainer, PageHeader, SectionHeader } from '@/components/ui/page';
 
 const API = process.env.NEXT_PUBLIC_EVIMESH_API_URL;
 
@@ -18,17 +19,15 @@ async function request(path) {
 }
 
 function JsonBlock({ value }) {
-  return <pre className="mt-3 overflow-x-auto rounded-lg bg-muted p-4 text-xs leading-6">{JSON.stringify(value ?? [], null, 2)}</pre>;
+  return <pre className="mt-3 overflow-x-auto border border-border bg-muted p-3 font-mono text-xs leading-6">{JSON.stringify(value ?? [], null, 2)}</pre>;
 }
 
-function stateVariant(state) {
-  switch (state) {
-    case 'completed': return 'success';
-    case 'blocked': return 'warning';
-    case 'cancelled': return 'destructive';
-    case 'active': return 'info';
-    default: return 'default';
-  }
+function readable(value) {
+  return String(value ?? '').replaceAll('_', ' ');
+}
+
+function SectionHead({ id, title, count }) {
+  return <SectionHeader action={count !== undefined ? <span className="tabular-nums text-muted-foreground">{count}</span> : null} id={id} title={title} />;
 }
 
 export default function TaskDetailPage({ params }) {
@@ -48,19 +47,80 @@ export default function TaskDetailPage({ params }) {
   if (error) return <PageContainer><ErrorState message={error} onRetry={reload} /></PageContainer>;
   if (!data) return <PageContainer><Skeleton className="h-32 w-full" /><Skeleton className="mt-6 h-96 w-full" /></PageContainer>;
   const { task, currentRevision, dependencies = [], leases = [] } = data;
-  const stats = [
-    { label: 'Revision', value: String(currentRevision.revision) },
-    { label: 'Context Mode', value: currentRevision.contextMode },
-    { label: 'Question', value: currentRevision.questionId ?? 'Not linked' },
-  ];
-  return <PageContainer><Link className="text-sm font-medium text-primary hover:underline" href="/tasks">← Back to Task board</Link><PageHeader eyebrow="Task" title={currentRevision.title} description={currentRevision.description} showDescription action={<div className="flex flex-wrap items-center gap-3"><Badge variant={stateVariant(task.state)}>{task.state.replaceAll('_', ' ')}</Badge><Button type="button" onClick={() => setHandoffOpen(true)}>Run this task with an agent</Button></div>} /><p className="mt-2 font-mono text-sm tabular-nums text-muted-foreground">{task.taskId}</p>
-    <section className="mt-10 grid min-w-0 grid-cols-12 border-y border-foreground py-5" aria-labelledby="attempt-heading"><div className="col-span-12 min-w-0 sm:col-span-8"><p className="font-mono text-[10px] font-bold uppercase text-primary">AGENT HANDOFF</p><h2 id="attempt-heading" className="mt-2 font-serif text-3xl font-medium tracking-[-0.03em]">Attempts begin outside the reading surface.</h2><p className="mt-2 max-w-[60ch] text-sm leading-6 text-muted-foreground">Use the Agent connection or <code>sq attempt start {task.taskId}</code>. The resulting Attempt and ContextBundle remain visible here.</p></div><div className="col-span-12 mt-5 sm:col-span-4 sm:mt-0 sm:text-right"><Button type="button" onClick={() => setHandoffOpen(true)}>Open Agent handoff</Button></div></section>
-    <div className="mt-8 grid gap-4 sm:grid-cols-3">{stats.map((stat) => <div className="rounded-lg border border-border bg-card p-4" key={stat.label}><p className="text-xs uppercase tracking-wide text-muted-foreground">{stat.label}</p><p className="mt-2 font-medium tabular-nums">{stat.value}</p></div>)}</div>
-    <section className="mt-10" aria-labelledby="inputs-heading"><h2 id="inputs-heading" className="text-lg font-semibold">Inputs</h2><JsonBlock value={currentRevision.inputs} /></section>
-    <section className="mt-6" aria-labelledby="outputs-heading"><h2 id="outputs-heading" className="text-lg font-semibold">Outputs</h2><JsonBlock value={currentRevision.outputs} /></section>
-    <section className="mt-6" aria-labelledby="acceptance-heading"><h2 id="acceptance-heading" className="text-lg font-semibold">Acceptance</h2><JsonBlock value={currentRevision.acceptance} /></section>
-    <section className="mt-6" aria-labelledby="dependencies-heading"><h2 id="dependencies-heading" className="text-lg font-semibold">Dependencies</h2>{dependencies.length ? <ul className="mt-3 space-y-2">{dependencies.map((dependency, index) => <li className="rounded-lg border border-border bg-card p-3 font-mono text-xs tabular-nums" key={`${dependency.sourceTaskId ?? dependency.targetTaskId ?? 'dependency'}-${index}`}>{JSON.stringify(dependency)}</li>)}</ul> : <Empty className="mt-3" title="No dependencies" description="This task does not depend on other tasks." />}</section>
-    <section className="mt-6" aria-labelledby="leases-heading"><h2 id="leases-heading" className="text-lg font-semibold">Leases</h2>{leases.length ? <ul className="mt-3 space-y-2">{leases.map((lease, index) => <li className="rounded-lg border border-border bg-card p-3 text-sm tabular-nums" key={`${lease.holderActorId ?? 'lease'}-${index}`}>{JSON.stringify(lease)}</li>)}</ul> : <Empty className="mt-3" title="No active leases" description="Lease activity from Agent and CLI work will appear here." />}</section>
+  const createdBy = currentRevision.createdBy ?? task.createdBy ?? null;
+  return (
+    <PageContainer>
+      <Breadcrumb trail={[{ label: 'Tasks', href: '/tasks' }, { label: `Task r${currentRevision.revision}` }]} />
+      <PageHeader
+        action={<Button onClick={() => setHandoffOpen(true)} size="sm" type="button" variant="outline">Open Agent handoff</Button>}
+        title={currentRevision.title}
+      />
+      <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground"><StatusBadge state={task.state} /><span>Task r{currentRevision.revision}</span></p>
+      {currentRevision.description ? <p className="mt-3 max-w-[70ch] font-serif text-base leading-7">{currentRevision.description}</p> : null}
+
+      <div className="doc-grid mt-8">
+        <div className="doc-main grid gap-8">
+
+          <section aria-labelledby="inputs-heading"><SectionHead id="inputs-heading" title="Inputs" /><JsonBlock value={currentRevision.inputs} /></section>
+          <section aria-labelledby="outputs-heading"><SectionHead id="outputs-heading" title="Outputs" /><JsonBlock value={currentRevision.outputs} /></section>
+          <section aria-labelledby="acceptance-heading"><SectionHead id="acceptance-heading" title="Acceptance" /><JsonBlock value={currentRevision.acceptance} /></section>
+
+          <section aria-labelledby="dependencies-heading">
+            <SectionHead count={dependencies.length} id="dependencies-heading" title="Dependencies" />
+            {dependencies.length ? (
+              <ul>
+                {dependencies.map((dependency, index) => {
+                  const other = dependency.sourceTaskId === task.taskId ? dependency.targetTaskId : (dependency.sourceTaskId ?? dependency.targetTaskId);
+                  return (
+                    <li className="ref-row" key={`${dependency.sourceTaskId ?? dependency.targetTaskId ?? 'dependency'}-${index}`}>
+                      <p className="text-sm text-muted-foreground">{readable(dependency.relationType ?? dependency.dependencyType ?? 'depends on')}</p>
+                      <div className="min-w-0">
+                        {other ? <Link className="font-mono text-sm hover:text-primary hover:underline" href={`/tasks/${encodeURIComponent(other)}`} title={other}>{shortId(other)}</Link> : null}
+                        <pre className="mt-1 overflow-x-auto font-mono text-xs text-muted-foreground">{JSON.stringify(dependency)}</pre>
+                      </div>
+                      <p className="text-xs tabular-nums text-muted-foreground md:text-right">{formatDate(dependency.createdAt)}</p>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : <Empty className="border-t-0" title="No dependencies" />}
+          </section>
+
+          <section aria-labelledby="leases-heading">
+            <SectionHead count={leases.length} id="leases-heading" title="Leases" />
+            {leases.length ? (
+              <ul>
+                {leases.map((lease, index) => (
+                  <li className="ref-row" key={`${lease.holderActorId ?? 'lease'}-${index}`}>
+                    <div>{lease.state ?? lease.status ? <StatusBadge state={lease.state ?? lease.status} /> : <p className="text-sm text-muted-foreground">Lease</p>}</div>
+                    <div className="min-w-0">
+                      <p className="flex flex-wrap items-baseline gap-x-1.5 text-sm"><span className="text-muted-foreground">Held by</span><ActorName actorId={lease.holderActorId} /></p>
+                      <pre className="mt-1 overflow-x-auto font-mono text-xs text-muted-foreground">{JSON.stringify(lease)}</pre>
+                    </div>
+                    <p className="text-xs tabular-nums text-muted-foreground md:text-right">{formatDate(lease.expiresAt ?? lease.createdAt)}</p>
+                  </li>
+                ))}
+              </ul>
+            ) : <Empty className="border-t-0" title="No active leases" />}
+          </section>
+        </div>
+
+        <aside aria-label="Task record" className="doc-margin">
+          <MarginSection title="Record">
+            <dl className="grid gap-3 text-sm">
+              <div><dt className="text-xs text-muted-foreground">Identifier</dt><dd className="mt-0.5"><Identifier value={task.taskId} /></dd></div>
+              <div><dt className="text-xs text-muted-foreground">Revision</dt><dd className="mt-0.5 tabular-nums">r{currentRevision.revision}</dd></div>
+              <div><dt className="text-xs text-muted-foreground">Context mode</dt><dd className="mt-0.5">{readable(currentRevision.contextMode) || 'not stated'}</dd></div>
+              <div><dt className="text-xs text-muted-foreground">Question</dt><dd className="mt-0.5">{currentRevision.questionId ? <Link className="font-mono text-xs hover:text-primary hover:underline" href={`/questions/${currentRevision.questionId}`} title={currentRevision.questionId}>{shortId(currentRevision.questionId)}</Link> : <span className="text-muted-foreground">Not linked</span>}</dd></div>
+              {createdBy ? <div><dt className="text-xs text-muted-foreground">Drafted by</dt><dd className="mt-0.5"><ActorName actorId={createdBy} /></dd></div> : null}
+              {currentRevision.createdAt ?? task.createdAt ? <div><dt className="text-xs text-muted-foreground">Recorded</dt><dd className="mt-0.5 tabular-nums">{formatDate(currentRevision.createdAt ?? task.createdAt)}</dd></div> : null}
+            </dl>
+          </MarginSection>
+          <MarginSection title="Audit">
+            <Link className="text-sm text-primary hover:underline" href={`/events?objectType=task&objectId=${task.taskId}`}>Event audit</Link>
+          </MarginSection>
+        </aside>
+      </div>
 
       <HandoffSheet
         cliCommand={`sq task inspect ${task.taskId}   # read inputs, outputs, acceptance
@@ -75,5 +135,6 @@ tool:     start_attempt (confirm: true)`}
         scopes={['read', 'attempts', 'drafts']}
         view="task"
       />
-    </PageContainer>;
+    </PageContainer>
+  );
 }
